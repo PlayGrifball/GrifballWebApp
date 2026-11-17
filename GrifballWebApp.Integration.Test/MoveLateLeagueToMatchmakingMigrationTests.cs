@@ -86,6 +86,7 @@ public class MoveLateLeagueToMatchmakingMigrationTests
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<RecordedGame>().Ignore(g => g.Origin);
+            BeforeRecordedGameResultDetailsContext.IgnoreResultDetails(modelBuilder);
             var team = modelBuilder.Entity<Team>();
             team.Ignore(t => t.ArchivedRank);
             team.Ignore(t => t.ArchivedFinish);

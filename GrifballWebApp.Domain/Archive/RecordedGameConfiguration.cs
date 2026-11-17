@@ -33,6 +33,8 @@ public class RecordedGameConfiguration : IEntityTypeConfiguration<RecordedGame>
         entity.Property(e => e.SourceKey).HasMaxLength(RecordedGame.SourceKeyMaxLength).IsRequired();
         entity.Property(e => e.Map).HasMaxLength(RecordedGame.MapMaxLength);
         entity.Property(e => e.Gametype).HasMaxLength(RecordedGame.GametypeMaxLength);
+        entity.Property(e => e.Vod).HasMaxLength(RecordedGame.VodMaxLength);
+        entity.Property(e => e.Host).HasMaxLength(RecordedGame.HostMaxLength);
         // Every game before manual match entry was imported
         entity.Property(e => e.Origin).HasDefaultValue(RecordedGameOrigin.HistoricalImport);
 

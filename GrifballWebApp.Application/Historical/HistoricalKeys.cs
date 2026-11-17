@@ -166,11 +166,12 @@ public static partial class HistoricalKeys
             name = name[4..];
         return Slug(name) switch
         {
-            "halo-3" => "halo3",
-            "halo-reach" => "reach",
+            // Result lists name a game short: H3, H4, H5, Reach
+            "halo-3" or "halo3" or "h3" => "halo3",
+            "halo-reach" or "reach" or "hr" => "reach",
             "halo-reach-dash" => "reach-dash",
-            "halo-4" => "halo4",
-            "halo-5" => "halo5",
+            "halo-4" or "halo4" or "h4" => "halo4",
+            "halo-5" or "halo5" or "h5" => "halo5",
             "infinite" or "halo-infinite" => "infinite",
             _ => null,
         };

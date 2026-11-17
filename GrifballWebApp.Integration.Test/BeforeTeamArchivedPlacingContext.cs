@@ -22,5 +22,7 @@ internal sealed class BeforeTeamArchivedPlacingContext(DbContextOptions<Grifball
         var team = modelBuilder.Entity<Team>();
         team.Ignore(t => t.ArchivedRank);
         team.Ignore(t => t.ArchivedFinish);
+        // Before AddRecordedGameResultDetails too
+        BeforeRecordedGameResultDetailsContext.IgnoreResultDetails(modelBuilder);
     }
 }

@@ -77,6 +77,30 @@ public class SeasonMatch : AuditableEntity
     };
 
     /// <summary>
+    /// A series of the historical archive that was forfeited, not played: as <see cref="Imported"/> (its forfeit games
+    /// count as the wins its source gives them), but its result is the forfeit's, as <see cref="Forfeit"/> leaves it: the
+    /// other side wins, or neither when both forfeited. Only between two known teams: without both it is
+    /// <see cref="Imported"/>'s, by its wins.
+    /// </summary>
+    public static SeasonMatch ImportedForfeit(int seasonID, int? homeTeamID, int? awayTeamID, int homeWins, int awayWins, int bestOf, DateTime? scheduledTime, MatchBracketInfo? bracketMatch, Forfeiter forfeiter)
+    {
+        var match = Imported(seasonID, homeTeamID, awayTeamID, homeWins, awayWins, bestOf, scheduledTime, bracketMatch);
+        if (homeTeamID is null || awayTeamID is null)
+            return match;
+        (match.HomeTeamResult, match.AwayTeamResult) = ForfeitResults(forfeiter);
+        return match;
+    }
+
+    /// <summary>Each side's result when <paramref name="forfeiter"/> forfeits: the other side wins, or both forfeit.</summary>
+    private static (SeasonMatchResult Home, SeasonMatchResult Away) ForfeitResults(Forfeiter forfeiter) => forfeiter switch
+    {
+        Forfeiter.Home => (SeasonMatchResult.Forfeit, SeasonMatchResult.Won),
+        Forfeiter.Away => (SeasonMatchResult.Won, SeasonMatchResult.Forfeit),
+        Forfeiter.Both => (SeasonMatchResult.Forfeit, SeasonMatchResult.Forfeit),
+        _ => throw new ArgumentOutOfRangeException(nameof(forfeiter), forfeiter, null),
+    };
+
+    /// <summary>
     /// A series of an archive bracket sheet, in its slot: its teams (null for a side the import could not tell), its
     /// winner when the sheet names one (else the side with more wins), and the wins the sheet gives, if any. A sheet that
     /// names neither (a series it never filled in) leaves it undecided. Its games, when the archive has them, come after
@@ -319,13 +343,7 @@ public class SeasonMatch : AuditableEntity
         if (IsGrandFinal)
             return ForfeitResult.GrandFinal;
 
-        (HomeTeamResult, AwayTeamResult) = forfeiter switch
-        {
-            Forfeiter.Home => (SeasonMatchResult.Forfeit, SeasonMatchResult.Won),
-            Forfeiter.Away => (SeasonMatchResult.Won, SeasonMatchResult.Forfeit),
-            Forfeiter.Both => (SeasonMatchResult.Forfeit, SeasonMatchResult.Forfeit),
-            _ => throw new ArgumentOutOfRangeException(nameof(forfeiter), forfeiter, null),
-        };
+        (HomeTeamResult, AwayTeamResult) = ForfeitResults(forfeiter);
         CloseRescheduleOnceDecided();
         return ForfeitResult.Forfeited;
     }

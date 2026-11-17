@@ -103,6 +103,25 @@ public class ArchiveNewWorkbookTests
         AssertTeams(await Teams("2020-sl20-console-reach/Rosters"), ReachConsole);
     }
 
+    /// <summary>Each scored game of the Schedule calendar ("9:30pm: Impulse (5) vs. High Voltage (1)") is a match between two
+    /// of the season's teams: 27 in Halo 5's, 12 in Reach's.</summary>
+    [TestCase("2020-sl20-console-h5", 27)]
+    [TestCase("2020-sl20-console-reach", 12)]
+    public async Task Sl20Console_ImportsItsScheduleResults_BetweenItsTeams(string source, int games)
+    {
+        Needs(source);
+
+        await using var context = Archive.NewContext();
+        var matches = await context.SeasonMatches.AsNoTracking().Where(m => m.Season.HistoricalSourceID == source + "/Rosters")
+            .Select(m => new { m.HomeTeamID, m.AwayTeamID }).ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(matches, Has.Count.EqualTo(games));
+            Assert.That(matches.Where(m => m.HomeTeamID == null || m.AwayTeamID == null), Is.Empty, "Each side one of the season's teams");
+        }
+    }
+
     [Test]
     public async Task Sl20Titles_TheConsoleTitleIsReachConsoles_ThePcTitleReachPcs_AndNoTitlesOnlySeasonIsLeft()
     {

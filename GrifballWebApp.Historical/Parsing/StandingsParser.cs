@@ -141,14 +141,26 @@ public static partial class StandingsParser
         var rows = LabelledRows(sheet, namesRow, labelColumn);
         var teams = new Teams(tab);
         var names = sheet.Rows[namesRow];
+        // A team's standing: its record or its rank (not a final place, which only the playoff teams have)
+        var standings = rows.Keys.Where(f => f is Field.Wins or Field.Losses or Field.Record or Field.Rank).ToList();
+        string Value(int column, Field field) => rows.TryGetValue(field, out var r) ? sheet.Cell(r, column).Trim() : "";
+        bool HasStanding(int column) => standings.Any(f => IsNumber(f, Value(column, f)));
+        var columns = new List<int>();
         for (var c = labelColumn + 1; c < names.Length; c++)
         {
             var name = names[c].Trim();
-            if (FieldOf(name) == Field.Team)
+            if (name.Length == 0)
+                continue;
+            // Another table's header ends the teams: one of the table's labels (a list of records beside it), or a team
+            // header over no standing (a team named "Team Name" has one: H3 Action 2022)
+            if (FieldOf(name) is { } field && (field != Field.Team || !HasStanding(c)))
                 break;
-            if (name.Length > 0)
-                teams.Add(name, field => rows.TryGetValue(field, out var r) ? sheet.Cell(r, c).Trim() : "");
+            columns.Add(c);
         }
+        // The columns after the last team with a standing are a table beside the teams (H3 Action 2022's chart)
+        var last = columns.FindLastIndex(HasStanding);
+        foreach (var column in last < 0 ? columns : columns.Take(last + 1))
+            teams.Add(names[column].Trim(), field => Value(column, field));
         return teams.List;
     }
 

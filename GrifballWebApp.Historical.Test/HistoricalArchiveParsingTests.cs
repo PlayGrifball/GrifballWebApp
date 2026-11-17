@@ -24,7 +24,6 @@ public class HistoricalArchiveParsingTests
     private static readonly string[] expected5 = ["ll/HR_MatchH#1", "ll/HR_MatchH#3", "ll/HR_MatchH#5", "ll/HR_MatchH#7"];
     private static readonly string[] expected6 = ["w/Twice@20220711180215", "w/Twice@20220711183000", "w/Twice@20220711180215-2"];
     private static readonly string[] expected7 = ["w: no games sheet 'Missing', or it is empty"];
-    private static readonly string[] expected8 = ["wl19/Game Results: 1 games with only one side left out"];
     private static readonly string[] expected9 = ["Bears", "Bears", "Bears", "Beer", "Beer"];
     private static readonly string[] expected10 = ["stats/Stats"];
     private static readonly string[] StatsAndPlayoffStats = ["stats/Stats", "stats/Playoff Stats"];
@@ -32,6 +31,9 @@ public class HistoricalArchiveParsingTests
     private static readonly string[] BravoThenAlpha = ["Bravo", "Alpha"];
     private static readonly (string, string?)[] CaptainOnlyIfAPlayer = [("Alpha", "Ace"), ("Bravo", null)];
     private static readonly string[] TeamOneAndTen = ["Team 1", "Team 10"];
+    private static readonly (string, string?)[] PlaceholderTeamsPlayers = [("RDG NHL", "RDG NHL"), ("DlGITAL PAIN", "RDG NHL"), ("Myst the Cold", "RDG NHL"), ("AJ DaJuiceMayne", "THE BOYS SZN 3")];
+    private static readonly (string, int?, int?, string?)[] PlaceholderTeamsStandings = [("THE BOYS SZN 3", 4, 16, "AJ DaJuiceMayne"), ("RDG NHL", 12, 8, "RDG NHL")];
+    private static readonly (string, int?, int?)[] TeamGameOnly = [("Team Game", 9, 1)];
     private static readonly string[] DjBlueGames = ["Nightfall:Won:5 :POGGIES::Lost:3", "BOGO Margs:Won:5 Fat Mav:Lost:1"];
     private static readonly string[] DjBluePlayers = ["x Zeg x:4", "ASpence501:2", "Judasey:", "Regresser:"];
     private static readonly (string, string?, string, int?, int?)[] ReachConsoleTeams =
@@ -663,12 +665,15 @@ public class HistoricalArchiveParsingTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(warnings, Is.EqualTo(expected8));
+            Assert.That(warnings, Is.Empty);
             Assert.That(games.Select(g => (g.SourceKey, g.PlayedAt, g.IsPlayoffs)), Is.EqualTo(new[]
             {
                 ("wl19/Game Results#4", (DateTime?)new DateTime(2019, 1, 28, 0, 0, 0, DateTimeKind.Utc), false),
                 ("wl19/Game Results#12", null, true),
+                ("wl19/Game Results#17", null, false),
             }));
+            Assert.That(games[2].Teams.Select(t => (t.Name, t.Outcome)), Is.EqualTo(new[] { ((string?)"Forfeit", Outcomes.Won), ("Nobody", Outcomes.Lost) }),
+                "A block without stats is its title's game");
             var first = games[0];
             Assert.That(first.Players.Select(p => (p.Gamertag, p.Side, p.Kills, p.Goals, p.CarrierKills)), Is.EqualTo(new[]
             {
@@ -957,6 +962,31 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void ABracketTeamTheTemplatesPlaceholderNames_TakesItsAlias()
+    {
+        // H3 Action 2022: the schedule's PLAYOFFS seeds RDG NHL's never-named team as "Team Name", a template's placeholder elsewhere
+        List<HistoricalSourceContent> sources =
+        [
+            Source("stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "2022 H3 Action League", Game = "halo3" },
+                    Tabs = [new() { Name = "Stats" }],
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 4, 10), Row("R", "RDG NHL", 4, 1)]))),
+            Source("schedule", new HistoricalSourceConfig
+                {
+                    Brackets = [new() { Sheet = "PLAYOFFS", Season = "stats", Slots = [new() { Round = 1, Home = "C3", Away = "C5", Score = "C4", Winner = "E4", HomeSeed = "B3", AwaySeed = "B5" }],
+                        Aliases = new() { ["Team Name"] = "RDG NHL" } }],
+                },
+                Workbook(("PLAYOFFS", [Row(), Row(), Row(null, "3rd", "Alpha"), Row(null, null, "vs (2-0)", null, "Alpha"), Row(null, "6th", "Team Name")]))),
+        ];
+
+        var series = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons.Single().Bracket!.Series.Single();
+
+        Assert.That((series.Home, series.Away), Is.EqualTo(("Alpha", "RDG NHL")));
+    }
+
+    [Test]
     public void ABracketInItsSeasonsOwnWorkbook_GoesOnItsTab_AndRoundTabsOfNoSeasonAreWarned()
     {
         List<HistoricalSourceContent> sources =
@@ -1022,6 +1052,63 @@ public class HistoricalArchiveParsingTests
         var teams = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams;
 
         Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(TeamOneAndTen));
+    }
+
+    [Test]
+    public void APlaceholderTeamName_TheConfigNames_IsThatTeam_InTheRostersAndTheStandings()
+    {
+        // H3 Action 2022: RDG NHL's team was never named, its rows say "Team Name" in TeamInfo and on the Teams tab ("TEAM NAME" on
+        // the draft's Big Board: the config's name is any case and spacing of it)
+        List<HistoricalSourceContent> sources =
+        [
+            Source("h3", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "2022 H3 Action League", Game = "halo3" },
+                    Tabs = [new() { Name = "Stats" }],
+                    RosterSheets = ["TeamInfo"],
+                    Standings = [new() { Sheet = "Teams", Layout = StandingsLayout.Columns }],
+                    TeamNames = new() { ["Team Name"] = "RDG NHL" },
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("RDG NHL", 1, 4, 10), Row("DlGITAL PAIN", 1, 4, 9), Row("Myst the Cold", 1, 4, 2), Row("AJ DaJuiceMayne", 0, 4, 5)]),
+                    ("TeamInfo", [Row("Team Name", "Player Name"), Row("THE BOYS SZN 3", "AJ DaJuiceMayne"), Row("Team Name", "RDG NHL"), Row("Team Name", "DlGITAL PAIN"), Row("TEAM  NAME", "Myst the Cold")]),
+                    ("Teams", [Row("Team Name", "The Boys Szn 3", "Team Name"), Row("Record", "4-16", "12-8 (0-2)"), Row("Captain", "AJ DaJuiceMayne", "RDG NHL")]))),
+        ];
+
+        var season = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.Players.Select(p => (p.Gamertag, p.TeamName)), Is.EquivalentTo(PlaceholderTeamsPlayers));
+            Assert.That(season.Teams.Select(t => (t.TeamName, t.Wins, t.Losses, t.Captain)), Is.EqualTo(PlaceholderTeamsStandings));
+        }
+    }
+
+    [Test]
+    public void AStandingsPlaceholderTeam_TheConfigDoesNotName_IsNoTeam_NotOneALetterAway()
+    {
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("A", "Team Game", 4, 1)],
+            ("Teams", new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns }, [Row("Team Name", "Team Game", "Team Name"), Row("Record", "9-1", "1-9")]));
+
+        var teams = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams;
+
+        Assert.That(teams.Select(t => (t.TeamName, t.Wins, t.Losses)), Is.EqualTo(TeamGameOnly), "\"Team Name\" is a placeholder: never Team Game's second record");
+    }
+
+    [Test]
+    public void AStandingsSheetWithNoTable_IsNotRead_WithAWarning()
+    {
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 4, 1)],
+            ("Teams", new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns }, [Row("Notes only")]));
+
+        var build = HistoricalArchiveBuilder.Build([source]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Input.Seasons.Seasons.Single().Teams, Is.Empty);
+            Assert.That(build.Warnings, Does.Contain("s: standings 'Teams' not read (no such sheet, or no table)"));
+        }
     }
 
     [Test]

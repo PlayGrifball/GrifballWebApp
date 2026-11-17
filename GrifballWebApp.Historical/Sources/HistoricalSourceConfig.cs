@@ -44,12 +44,28 @@ public class HistoricalSourceConfig
     /// Rank and Pos columns under each season's heading, each season's going on the ladder whose <see cref="LadderTab.Finishes"/>
     /// is that heading.</summary>
     public string? FinishesSheet { get; init; }
+    /// <summary>Tabs of a season's results, a game or a series per entry (GameResultsParser): the season's games when no
+    /// per-game stats tab has them, and the forfeits and unlinked games of a Waypoint season's game history.</summary>
+    public List<ResultsTab> Results { get; init; } = [];
     /// <summary>A season's playoff bracket: who met whom in which round, their seeds and who won (BracketParser).</summary>
     public List<BracketTab> Brackets { get; init; } = [];
     /// <summary>Tabs of a season's draft: each team's captain, its place in the draft order and its picks by round.</summary>
     public List<DraftTab> Drafts { get; init; } = [];
     /// <summary>Tabs of a season's awards (MVPs, named season awards, records): AwardsParser.</summary>
     public List<AwardsTab> Awards { get; init; } = [];
+    /// <summary>Teams this workbook's rosters and standings name another way, by the name they give: a placeholder never
+    /// filled in (H3 Action 2022's "Team Name", RDG NHL's team) that would otherwise read as no team.</summary>
+    public Dictionary<string, string> TeamNames { get; init; } = [];
+
+    /// <summary>The archive's name of a team this workbook calls <paramref name="name"/>: its <see cref="TeamNames"/> entry in
+    /// any case and spacing ("TEAM  NAME"), else the name itself.</summary>
+    public string TeamName(string name)
+    {
+        var key = SingleSpaced(name);
+        return TeamNames.FirstOrDefault(n => string.Equals(SingleSpaced(n.Key), key, StringComparison.OrdinalIgnoreCase)).Value ?? name;
+    }
+
+    private static string SingleSpaced(string name) => string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -75,6 +91,7 @@ public class HistoricalSourceConfig
             .. Standings.Select(t => t.Sheet),
             .. Ladders.Select(t => t.Sheet),
             FinishesSheet,
+            .. Results.Select(t => t.Sheet),
             .. Brackets.Select(t => t.Sheet),
             .. Brackets.SelectMany(t => t.Rounds.Select(r => r.Sheet)),
             .. Drafts.Select(t => t.Sheet),
@@ -340,6 +357,48 @@ public class GamesTab
     public GamesLayout Layout { get; init; } = GamesLayout.Carnage;
     /// <summary>Late League games are scrims: in no series.</summary>
     public bool Scrims { get; init; }
+}
+
+public enum ResultsLayout
+{
+    /// <summary>A row per game under a header row naming Winner and Loser (and any of Score, Host, Game, Map, VOD):
+    /// "Winner | 5-2 | Loser | Host | VOD". A row that is a week or the playoffs (Week 3, Playoffs) marks the games below;
+    /// a series is the games of the same two teams in a row. A header row again mid-sheet may move the columns.</summary>
+    Table = 1,
+    /// <summary>A cell per series or game, anywhere on the tab: "A over B 2-0 (5-1, 5-4)", "A tied B (5-3, 5-3)",
+    /// "A 2-1 B" with the game scores (A's first, or FF) in the cells after it, or "A over B 5-3", one game.</summary>
+    Series = 2,
+    /// <summary>A Halo Infinite game history (Home, Away, Score, the Waypoint link): its rows without a match link, which the
+    /// Waypoint games leave out. A row that says FF (in any cell) is a forfeit; one with a score is a game played without
+    /// a link; the rest (not played yet) are left out.</summary>
+    GameHistory = 3,
+    /// <summary>A calendar: cells of games each after its time ("9:30pm: Impulse (5) vs. High Voltage (1)", "*8pm: A (0) @ B (5)"),
+    /// a game a score each; a game without scores (not played, or not reported) is left out.</summary>
+    Calendar = 4,
+}
+
+/// <summary>
+/// A tab of a season's results (GameResultsParser): its games go in as recorded games without players, each side named by
+/// the team the list gives (the season's team of that name, a known abbreviation, captain or player of it), in series.
+/// </summary>
+public class ResultsTab
+{
+    public required string Sheet { get; init; }
+    public ResultsLayout Layout { get; init; } = ResultsLayout.Table;
+    /// <summary>The source ID of the season's stats workbook; null: this workbook's own.</summary>
+    public string? Season { get; init; }
+    /// <summary>The stats tab (its <see cref="StatsTab.Name"/>) of the season, when the workbook has several seasons.</summary>
+    public string? Tab { get; init; }
+    /// <summary>A season of its own that no stats tab has (its results are all the archive has of it), e.g. the real league
+    /// of a fantasy workbook: an entry of that name (with this workbook's league and division) is made for it.</summary>
+    public string? CustomSeason { get; init; }
+    /// <summary>The games' GameVersion slug, unless a row names its game; the season's otherwise.</summary>
+    public string? Game { get; init; }
+    /// <summary>Every game is a playoff game (a playoffs-only list).</summary>
+    public bool IsPlayoffs { get; init; }
+    /// <summary>Names the list gives a team that the season spells another way and no rule finds (an abbreviation that is not
+    /// its words' first letters): the list's name to the season's.</summary>
+    public Dictionary<string, string> Teams { get; init; } = [];
 }
 
 /// <summary>
