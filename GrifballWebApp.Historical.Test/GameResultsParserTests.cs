@@ -202,12 +202,15 @@ public class GameResultsParserTests
     public void Series_ScoresWithoutGames_AreAGameOrTheSeriesGames_AndACellNamingNoTeamIsNone()
     {
         var games = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series },
-            Sheet(["TBD over Mon 5-3", "TBD 2-0 Mon", "Alpha over Bravo 3-5", "Alpha over Bravo 5-5", "Alpha over Bravo 1-2"]));
+            Sheet(["TBD over Mon 5-3", "TBD 2-0 Mon", "Alpha over Bravo 3-5", "Alpha over Bravo 5-5", "Alpha over Bravo 1-2"],
+                ["Charlie 1-1 Delta", "FF", "5-0"], ["Echo over Foxtrot 1-1 (5-1, 5-4, FF)"]));
 
         Assert.That(games.Select(g => (g.Teams[0].Outcome, g.Teams[0].Score, g.Teams[1].Score)), Is.EqualTo(new[]
         {
             (Outcomes.Lost, (int?)3, (int?)5), (Outcomes.Tie, 5, 5), (Outcomes.Won, null, null), (Outcomes.Lost, null, null), (Outcomes.Lost, null, null),
-        }));
+            (Outcomes.Lost, null, null), (Outcomes.Won, 5, 0),
+            (Outcomes.Won, 5, 1), (Outcomes.Lost, 4, 5), (Outcomes.Lost, null, null),
+        }), "A forfeit is the series score's win left, B's when A has its wins; scores that don't add up are winner first, a forfeit too");
     }
 
     [Test]
@@ -277,6 +280,7 @@ public class GameResultsParserTests
             ["", "Home Team", "Away Team", "Score"],
             ["Week 1", "Alpha", "Bravo", "5-5"],
             ["", "Alpha", "Bravo", "", "FF Alpha Win"],
+            ["", "Alpha", "Bravo", "", "https://www.halowaypoint.com/halo-infinite/players/x"],
             ["", "Alpha", "Charlie", "", "FF Zed Win"]);
 
         var games = Parse(new ResultsTab { Sheet = "Game History", Layout = ResultsLayout.GameHistory }, sheet, warnings);
@@ -321,6 +325,7 @@ public class GameResultsParserTests
     [TestCase("ZMD", "Zaps MD", true)]
     [TestCase("TB", "The Boys", true)]
     [TestCase("DBAGS", "Don't Be A Gonk Scet", true)]
+    [TestCase("DBAGS", "Don\u2019t Be A Gonk Scet", true)]
     [TestCase("AJYD", "AJunkyardDog", false)]
     [TestCase("Team", "Team Rocket", false)]
     [TestCase("Asc", "Ascended", false)]

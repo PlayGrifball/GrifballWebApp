@@ -140,4 +140,22 @@ public class HistoricalImportResultListTests
             Assert.That(await _context.RecordedGames.CountAsync(g => g.IsForfeit), Is.EqualTo(5));
         }
     }
+
+    [Test]
+    public async Task AGameWithASideOrNoneTheListGives_IsInASeriesWithoutTheTeamsItCannotTell()
+    {
+        var oneSide = Result("o/1", "o/1", "Alpha", "Bravo");
+        oneSide.Teams.RemoveAt(1);
+        var noSide = Result("o/2", "o/2", "Alpha", "Bravo");
+        noSide.Teams.Clear();
+
+        var report = await _service.Import(Fall2020(oneSide, noSide));
+
+        var series = await Series();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(series.Select(s => (s.Home, s.Away, s.Games)), Is.EqualTo(new[] { ((string?)"Alpha", (string?)null, 1), (null, null, 1) }));
+        }
+    }
 }

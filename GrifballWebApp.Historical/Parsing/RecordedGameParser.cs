@@ -279,15 +279,7 @@ public static partial class RecordedGameParser
                 Score = won || tied ? high : low,
             };
         }).ToList();
-        if (teams.Count == 1 && OtherSide(title, teams[0], tied, high, low) is { } other)
-            teams.Add(other);
-        // A block without stats (NO STATS): its title is all there is of the game
-        else if (teams.Count == 0 && TitleTeams(title) is { } named)
-            teams =
-            [
-                new RecordedTeamInput { Side = 1, Name = named.Winner, Outcome = tied ? Outcomes.Tie : Outcomes.Won, Score = high },
-                new RecordedTeamInput { Side = 2, Name = named.Loser, Outcome = tied ? Outcomes.Tie : Outcomes.Lost, Score = tied ? high : low },
-            ];
+        CompleteFromTitle(title, teams, tied, high, low);
         return new RecordedGameInput
         {
             SeasonSourceId = tab.Season,
@@ -302,6 +294,18 @@ public static partial class RecordedGameParser
         };
     }
 
+    /// <summary>The sides a block lacks, from its title: a partial copy's other side (<see cref="OtherSide"/>), or both sides of
+    /// a block without stats (NO STATS), whose title is all there is of the game.</summary>
+    private static void CompleteFromTitle(string title, List<RecordedTeamInput> teams, bool tied, int? high, int? low)
+    {
+        if (teams.Count == 1 && OtherSide(title, teams[0], tied, high, low) is { } other)
+            teams.Add(other);
+        if (teams.Count > 0 || TitleTeams(title) is not { } named)
+            return;
+        teams.Add(new RecordedTeamInput { Side = 1, Name = named.Winner, Outcome = tied ? Outcomes.Tie : Outcomes.Won, Score = high });
+        teams.Add(new RecordedTeamInput { Side = 2, Name = named.Loser, Outcome = tied ? Outcomes.Tie : Outcomes.Lost, Score = tied ? high : low });
+    }
+
     /// <summary>
     /// The side a block has no players of (a partial copy), from its title: the team the title names that the block's
     /// side is not (by its name, else by its result: the winner is named first). Null when the title says too little.
@@ -310,7 +314,7 @@ public static partial class RecordedGameParser
     {
         if (TitleTeams(title) is not { } named)
             return null;
-        var key = Key(side.Name);
+        var key = Key(side.Name ?? "");
         string? other = key == Key(named.Winner) ? named.Loser : key == Key(named.Loser) ? named.Winner : null;
         if (other is null && !tied)
             other = side.Outcome == Outcomes.Won ? named.Loser : named.Winner;
@@ -350,9 +354,13 @@ public static partial class RecordedGameParser
             .Select(m => ((string Winner, string Loser)?)(m.Groups["a"].Value.Trim(), m.Groups["b"].Value.Trim())).FirstOrDefault();
 
     /// <summary>The first link in a title (the game's video).</summary>
-    private static string? TitleLink(string title) => LinkPattern().Match(title) is { Success: true } link ? link.Value : null;
+    private static string? TitleLink(string title)
+    {
+        var link = LinkPattern().Match(title);
+        return link.Success ? link.Value : null;
+    }
 
-    private static string Key(string? name) => new([.. (name ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit)]);
+    private static string Key(string name) => new([.. name.ToLowerInvariant().Where(char.IsLetterOrDigit)]);
 
     private static string Cell(string[] row, int column) => column >= 0 && column < row.Length ? row[column] : "";
 

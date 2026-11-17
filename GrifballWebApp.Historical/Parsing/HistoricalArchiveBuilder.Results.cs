@@ -33,7 +33,7 @@ public sealed partial class HistoricalArchiveBuilder
                 if (game.GameVersion.Length == 0)
                     game.GameVersion = regular.GameVersion;
                 foreach (var side in game.Teams)
-                    side.Name = names.Resolve(side.Name);
+                    side.Name = names.Resolve(side.Name!);
             }
             // The list is all a season names its teams by: they are its teams
             if (names.IsEmpty)
@@ -74,18 +74,18 @@ public sealed partial class HistoricalArchiveBuilder
     /// <summary>The per-game tabs' games name a side (a block's team, a title's) as their season does: as a result list's.</summary>
     private void NameGameSides()
     {
-        var bySeason = _seasons.Where(s => s.SourceWorkbook is not null && s.SourceSheet is not null)
+        var bySeason = _seasons
             .GroupBy(s => HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var names = new Dictionary<string, SeasonTeamNames>(StringComparer.OrdinalIgnoreCase);
-        foreach (var game in _games.Where(g => g.Series is null && g.Teams.Any(t => t.Name is not null)))
+        foreach (var game in _games.Where(g => g.Series is null))
         {
             if (!bySeason.TryGetValue(game.SeasonSourceId, out var entry))
                 continue;
             if (!names.TryGetValue(game.SeasonSourceId, out var seasonNames))
                 names[game.SeasonSourceId] = seasonNames = SeasonTeamNames.Of(SeasonOf(entry), []);
-            foreach (var side in game.Teams)
-                side.Name = seasonNames.Resolve(side.Name);
+            foreach (var side in game.Teams.Where(t => t.Name is not null))
+                side.Name = seasonNames.Resolve(side.Name!);
         }
     }
 
@@ -109,7 +109,7 @@ public sealed partial class HistoricalArchiveBuilder
         public static SeasonTeamNames Of(List<ArchiveSeason> season, Dictionary<string, string> aliases)
         {
             var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
-                .OfType<string>().Select(n => n.Trim()).Where(n => n.Length > 0 && !HistoricalKeys.IsExcludedTeamName(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                .OfType<string>().Select(n => n.Trim()).Where(n => !HistoricalKeys.IsExcludedTeamName(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             var players = season.SelectMany(s => s.Teams).Where(t => !string.IsNullOrWhiteSpace(t.Captain)).Select(t => (t.Captain!.Trim(), t.TeamName))
                 .Concat(season.SelectMany(s => s.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName) && !string.IsNullOrWhiteSpace(p.TeamName))
                     .Select(p => (p.Gamertag.Trim(), p.TeamName!.Trim())))
@@ -123,10 +123,8 @@ public sealed partial class HistoricalArchiveBuilder
         /// "MAB" for Mediocre At Best, "ApoPo" for Apocalypse Ponies), else the team of the player or captain it names
         /// ("Smurf" for Sauted Smurf's team). A name none of these find stays as it is.
         /// </summary>
-        public string? Resolve(string? name)
+        public string Resolve(string name)
         {
-            if (string.IsNullOrWhiteSpace(name))
-                return name;
             var listed = _aliases.GetValueOrDefault(name.Trim()) ?? name.Trim();
             if (Closest(listed, _known) is { } same)
                 return same;

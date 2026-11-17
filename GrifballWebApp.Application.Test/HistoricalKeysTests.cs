@@ -38,6 +38,8 @@ public class HistoricalKeysTests
     [TestCase("Reach", "reach")]
     [TestCase("HR", "reach")]
     [TestCase("Halo3", "halo3")]
+    [TestCase("Halo4", "halo4")]
+    [TestCase("Halo5", "halo5")]
     [TestCase("MCC Split", null)]
     [TestCase(null, null)]
     [TestCase(" ", null)]

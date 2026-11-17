@@ -161,7 +161,7 @@ public static partial class GameResultsParser
         if (winner is null || loser is null)
         {
             // A week or playoffs row names no loser (a team may be named "Final Boss")
-            var first = row.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c))?.Trim() ?? "";
+            var first = row.Select(c => c.Trim()).FirstOrDefault(c => c.Length > 0, "");
             if (!parse.Phase(first) && (winner ?? loser) is not null)
             {
                 parse.OneSided++;
@@ -187,7 +187,7 @@ public static partial class GameResultsParser
         for (var r = 0; r < parse.Sheet.Rows.Count; r++)
         {
             var row = parse.Sheet.Rows[r];
-            var first = row.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c))?.Trim() ?? "";
+            var first = row.Select(c => c.Trim()).FirstOrDefault(c => c.Length > 0, "");
             parse.Phase(first);
             for (var c = 0; c < row.Length; c++)
             {
@@ -321,7 +321,7 @@ public static partial class GameResultsParser
         for (var r = columns.HeaderRow + 1; r < parse.Sheet.Rows.Count; r++)
         {
             var row = parse.Sheet.Rows[r];
-            var first = row.Length > 0 ? row[0].Trim() : "";
+            var first = Cell(row, 0).Trim();
             if (first.Length > 0)
                 parse.Playoffs = parse.Tab.IsPlayoffs || HistoryPlayoffsPattern().IsMatch(first);
             // A Waypoint game is the Waypoint import's: a played game between the forfeits and unlinked games
@@ -386,9 +386,9 @@ public static partial class GameResultsParser
     }
 
     /// <summary>"5-2" (or "5 - 2"): the two numbers, the first side's first; null for anything else.</summary>
-    private static (int A, int B)? Score(string? cell)
+    private static (int A, int B)? Score(string cell)
     {
-        var match = ScorePattern().Match(cell?.Trim() ?? "");
+        var match = ScorePattern().Match(cell.Trim());
         return match.Success ? (int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture)) : null;
     }
 
@@ -399,7 +399,7 @@ public static partial class GameResultsParser
         return match.Success ? (int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture)) : null;
     }
 
-    private static bool IsForfeitMark(string? cell) => ForfeitPattern().IsMatch(cell?.Trim() ?? "");
+    private static bool IsForfeitMark(string cell) => ForfeitPattern().IsMatch(cell.Trim());
 
     /// <summary>A cell that is only a week or playoffs marker ("Week 7 (make-up)", "W5", "Fortnight 2", "Playoffs", "Semi Finals"),
     /// not a team with such a word in its name ("Final Boss").</summary>

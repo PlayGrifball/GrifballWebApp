@@ -148,11 +148,17 @@ public class HistoricalArchiveResultsTests
                     Results = [new() { Sheet = "Game Results", Tab = "Stats" }],
                     Games = [new() { Sheet = "Blocks", Season = "missing/Stats", Game = "halo3", Layout = GamesLayout.Blocks }],
                 },
-                Workbook(("Stats", [StatsHeader, Row("Smith One", "Red", 4, 1), Row("Smith Two", "Blue", 4, 1), Row("Ab", "Red", 4, 1), Row("Captain Kirk", null, 4, 1)]),
+                Workbook(("Stats", [StatsHeader, Row("Smith One", "Red", 4, 1), Row("Smith Two", "Blue", 4, 1), Row("Ab", "Red", 4, 1), Row("Captain Kirk", null, 4, 1), Row("Duck", "Mighty Ducks", 4, 1), Row("Benchwarmer", "Subs", 4, 1)]),
                     ("Standings", [Row("Team", "Wins", "Losses"), Row("Gold (Captain Kirk)", 1, 0)]),
-                    ("Game Results", [Row("Winner", null, "Loser"), Row("Smith", "5-0", "Ab"), Row("Kirk", "5-1", "Blue")]),
+                    ("Game Results", [Row("Winner", null, "Loser"), Row("Smith", "5-0", "Ab"), Row("Kirk", "5-1", "Blue"), Row("MD", "5-2", "Qrs")]),
                     ("Blocks", [Row("Template"), Row("Week 1 - 1/1/25 - Red over Blue - Forfeit")]))),
             Source("solo", new HistoricalSourceConfig { Results = [new() { Sheet = "Cup", Layout = ResultsLayout.Series, CustomSeason = "Solo Cup" }] },
+                Workbook(("Cup", [Row("Alpha over Bravo 5-3")]))),
+            Source("pro", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Pro", Game = "reach", League = "GWL", Division = "Pro" },
+                    Results = [new() { Sheet = "Cup", Layout = ResultsLayout.Series, CustomSeason = "Pro Cup" }],
+                },
                 Workbook(("Cup", [Row("Alpha over Bravo 5-3")]))),
         ];
 
@@ -163,9 +169,11 @@ public class HistoricalArchiveResultsTests
         {
             Assert.That(build.Input.RecordedGames!.Select(g => (g.SeasonSourceId, g.Teams[0].Name, g.Teams[1].Name)), Is.EqualTo(new[]
             {
-                ("missing/Stats", (string?)"Red", (string?)"Blue"), ("s/Stats", "Smith", "Ab"), ("s/Stats", "Gold", "Blue"), ("solo/Cup", "Alpha", "Bravo"),
+                ("missing/Stats", (string?)"Red", (string?)"Blue"), ("s/Stats", "Smith", "Ab"), ("s/Stats", "Gold", "Blue"), ("s/Stats", "Mighty Ducks", "Qrs"), ("solo/Cup", "Alpha", "Bravo"), ("pro/Cup", "Alpha", "Bravo"),
             }), "A captain the standings name is their team's; a game of no season keeps its names");
             Assert.That((solo.GameVersion, solo.League, solo.Division), Is.EqualTo(("", "AGLA", "Open")), "No defaults: the import's");
+            var pro = build.Input.Seasons.Seasons.Single(s => s.SeasonName == "Pro Cup");
+            Assert.That((pro.GameVersion, pro.League, pro.Division), Is.EqualTo(("reach", "GWL", "Pro")), "The workbook's");
         }
     }
 
@@ -176,14 +184,15 @@ public class HistoricalArchiveResultsTests
         var workbook = SheetWorkbook.Read(Workbook(("Game Results", [Row("Template"),
             Row("Week 1 - 1/1/19 - Tuna over Damage (5-2)"), header, Row("Someone", "imShad", 1, 1, 10, 5, 10),
             Row("Week 1 - 1/2/19 - Tuna over Damage (5-2)"), header, Row("Someone", "imShad", 1, 0, 10, 2, 10),
-            Row("Week 1 - 1/3/19 - Tuna tied Damage (5-5)"), header, Row("Tuna", "imShad", 1, 0, 10, 5, 10)])))!;
+            Row("Week 1 - 1/3/19 - Tuna tied Damage (5-5)"), header, Row("Tuna", "imShad", 1, 0, 10, 5, 10),
+            Row("Week 1 - 1/4/19 - Tuna over Damage (5-2)"), header, Row(null, "imShad", 1, 1, 10, 5, 10)])))!;
 
         var games = RecordedGameParser.Parse("wl19", new GamesTab { Sheet = "Game Results", Season = "wl19/Stats", Game = "halo3", Layout = GamesLayout.Blocks }, workbook, []);
 
         Assert.That(games.Select(g => (g.Teams[1].Name, g.Teams[1].Outcome, g.Teams[1].Score)), Is.EqualTo(new[]
         {
-            ((string?)"Damage", Outcomes.Lost, (int?)2), ("Tuna", Outcomes.Won, 5), ("Damage", Outcomes.Tie, 5),
-        }), "The winner is named first");
+            ((string?)"Damage", Outcomes.Lost, (int?)2), ("Tuna", Outcomes.Won, 5), ("Damage", Outcomes.Tie, 5), ("Damage", Outcomes.Lost, 2),
+        }), "The winner is named first; a side without a name is by its result too");
     }
 
     [Test]
@@ -191,7 +200,9 @@ public class HistoricalArchiveResultsTests
     {
         object?[] header = Row("Team", "Player", "Games Played", "Wins", "Minutes", "Goals", "Kills");
         var workbook = SheetWorkbook.Read(Workbook(("Game Results", [Row("Template"),
-            Row("Week 1 - 1/28/19 - Tuna tied Damage (5-5)"), header, Row("Someone Else", "imShad", 1, 0, 10, 5, 10)])))!;
+            Row("Week 1 - 1/28/19 - Tuna tied Damage (5-5)"), header, Row("Someone Else", "imShad", 1, 0, 10, 5, 10),
+            Row("Week 1 - 1/29/19 - Tuna - over Damage (5-2)"), header, Row("Tuna", "imShad", 1, 1, 10, 5, 10),
+            Row("Week 1 - 1/30/19 - Tuna - over Damage NO STATS"), header])))!;
         var warnings = new List<string>();
 
         var games = RecordedGameParser.Parse("wl19", new GamesTab { Sheet = "Game Results", Season = "wl19/Stats", Game = "halo3", Layout = GamesLayout.Blocks }, workbook, warnings);
@@ -200,6 +211,7 @@ public class HistoricalArchiveResultsTests
         {
             Assert.That(games, Is.Empty);
             Assert.That(warnings, Has.Count.EqualTo(1));
+            Assert.That(warnings[0], Does.StartWith("wl19/Game Results: 3 games"), "Nor a title whose teams it can't tell apart");
         }
     }
 }
