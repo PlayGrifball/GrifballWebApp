@@ -46,7 +46,7 @@ public class DraftHelperServiceTests
     /// The season drafting plays Mondays and Tuesdays at 20:00: Reds (captain Cap, East, Mondays) is the only team, and short of
     /// players on both. Ace (West) can play Mondays; Mid and Bench (East) both; Rookie (East) Mondays.
     /// </summary>
-    private async Task Seed(int[]? capSlots = null)
+    private async Task Seed(bool capPlaysBoth = false)
     {
         var old = await _context.AddSeason("Old");
         _season = await _context.AddSeason("Now", captainsLocked: true);
@@ -57,7 +57,7 @@ public class DraftHelperServiceTests
         (_monday, _tuesday) = (mondays.AvailabilityOptionID, tuesdays.AvailabilityOptionID);
         _context.AddRange(SeasonAvailability.Seed(_season.SeasonID, _monday), SeasonAvailability.Seed(_season.SeasonID, _tuesday));
 
-        _cap = await Player("cap", "Cap", East, capSlots ?? [_monday]);
+        _cap = await Player("cap", "Cap", East, capPlaysBoth ? [_monday, _tuesday] : [_monday]);
         _ace = await Player("ace", "Ace", West, [_monday]);
         _mid = await Player("mid", "Mid", East, [_monday, _tuesday]);
         _bench = await Player("bench", "Bench", East, [_monday, _tuesday]);
@@ -126,7 +126,7 @@ public class DraftHelperServiceTests
     [Test]
     public async Task Suggest_ForATeamShortOfNoTimeslot_FitsByItsOwn_WithTitles_AndFewGamesAnUnknown()
     {
-        await Seed(capSlots: [_monday, _tuesday]);
+        await Seed(capPlaysBoth: true);
         // One player a slot is enough: Cap alone plays both, so the team is short of neither
         var rules = SeasonSchedulingRules.Defaults(_season.SeasonID);
         rules.Change(1, 1, 2, null);
