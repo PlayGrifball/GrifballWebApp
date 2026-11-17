@@ -29,8 +29,8 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   has (by name, or its captain's team); its captain and picks are the season's players, a few letters off at most (a
   nickname is left out). The team's captain, its place in the draft order and each pick's round (and number, when the
   board gives one or its `Order` is `Linear`) are kept on its roster (`TeamPlayer.DraftCaptainOrder`, `DraftRound`,
-  `DraftPick`), as the app's own draft keeps them. A bid draft's board (`Order` `None`) gives captains only: its bids wait
-  for the bid draft (#19).
+  `DraftPick`), as the app's own draft keeps them. A board whose columns are no draft order (`Order` `None`: a bid draft's teams)
+  gives captains and rounds but no order; bid prices wait for the bid draft (#19).
 - **Jobs**: everything runs in the worker role through the historical import job queue (one job at a time):
   refresh, preview (a dry run: each season's transaction rolled back) and import.
 - **Schedule** (`HistoricalRefreshJob`, a Quartz job, daily by default): a scheduled refresh queues a guarded import of

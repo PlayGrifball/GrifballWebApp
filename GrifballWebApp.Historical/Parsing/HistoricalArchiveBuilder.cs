@@ -298,7 +298,9 @@ public sealed class HistoricalArchiveBuilder
     /// </summary>
     private void AddDrafts()
     {
-        foreach (var (sourceId, tab, teams) in _drafts)
+        // The tabs with a draft order first, then by source: a team's draft is the first tab's that gives it (the import's),
+        // whatever order the sources were read in
+        foreach (var (sourceId, tab, teams) in _drafts.OrderBy(d => d.Tab.Order == DraftOrder.None).ThenBy(d => d.SourceId, StringComparer.OrdinalIgnoreCase))
         {
             var workbook = tab.Season ?? sourceId;
             var (regular, season) = SeasonOf(workbook, tab.Tab);
@@ -327,6 +329,14 @@ public sealed class HistoricalArchiveBuilder
         }
     }
 
+    /// <summary>Two names' digits don't tell them apart: the same, or only one has any ("NecessaryEvil" and NecessaryEvil10,
+    /// never "Reaper3" and Reaper2).</summary>
+    private static bool SameNumber(string a, string b)
+    {
+        var (x, y) = (Digits(a), Digits(b));
+        return x == y || x.Length == 0 || y.Length == 0;
+    }
+
     /// <summary>The shortest name <see cref="SeasonPlayer"/> takes a few letters off.</summary>
     private const int MinCloseKeyLength = 5;
 
@@ -337,7 +347,8 @@ public sealed class HistoricalArchiveBuilder
     /// <summary>
     /// The season's player a standings or draft cell names, as the stats write them: the same gamertag, else the one player
     /// whose gamertag is the same but for spacing, symbols, framing or a "#1234" suffix (<see cref="HistoricalKeys.StripFraming"/>:
-    /// "Mr_Epic_Beast", "OREOTHECAT#5618"), else the one a few letters off (one from 5 letters, two from 8, three from 15:
+    /// "Mr_Epic_Beast", "OREOTHECAT#5618"), else the one a few letters off (one from 5 letters, two from 8, three from 15, its
+    /// number no other:
     /// "NecessaryEvil" for NecessaryEvil10, "Solace VII"). Null for a name no player has (a nickname), or more than one is
     /// that close to.
     /// </summary>
@@ -358,7 +369,7 @@ public sealed class HistoricalArchiveBuilder
         if (key.Length < MinCloseKeyLength)
             return null;
         var allowed = key.Length >= 15 ? 3 : key.Length >= 8 ? 2 : 1;
-        var close = players.Where(p => DuplicateSuggestionService.Distance(key, HistoricalKeys.StripFraming(p), allowed) is not null).ToList();
+        var close = players.Where(p => DuplicateSuggestionService.Distance(key, HistoricalKeys.StripFraming(p), allowed) is not null && SameNumber(key, HistoricalKeys.StripFraming(p))).ToList();
         return close.Count == 1 ? close[0] : null;
     }
 

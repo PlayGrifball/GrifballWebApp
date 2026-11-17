@@ -7,6 +7,7 @@ namespace GrifballWebApp.Historical.Test;
 
 /// <summary>The archive's builder putting the draft tabs (DraftParser) on their seasons, against small workbooks built here.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class HistoricalArchiveDraftsTests
 {
@@ -116,14 +117,32 @@ public class HistoricalArchiveDraftsTests
     [TestCase("Cosmos5", null)]
     [TestCase("TheLongestGamertagAlive", "The Longest Gamertag Alive2")]
     [TestCase("!!!", null)]
+    [TestCase("Reaper3", null)]
+    [TestCase("Reaper", "Reaper2")]
     [TestCase("", null)]
     [TestCase(null, null)]
     public void SeasonPlayer_IsThePlayerTheCellNames_OnlyWhenOneIsThatClose(string? cell, string? player)
     {
         // "Bea": a short name a letter off is as likely another's; "Cosmos": as close to two players
-        List<string> players = ["Ace", "Bee", "Mr_Epic_Beast", "OREOTHECAT#5618", "NecessaryEvil10", "Solace VIII", "Cosmos50", "Cosmos51", "The Longest Gamertag Alive2"];
+        List<string> players = ["Ace", "Bee", "Mr_Epic_Beast", "OREOTHECAT#5618", "NecessaryEvil10", "Solace VIII", "Cosmos50", "Cosmos51", "The Longest Gamertag Alive2", "Reaper2"];
 
         Assert.That(HistoricalArchiveBuilder.SeasonPlayer(cell, players), Is.EqualTo(player));
+    }
+
+    [Test]
+    public void TwoDraftTabsOfASeason_GoOnItInTheSameOrder_WhicheverSourceIsReadFirst()
+    {
+        // SML25 Pro: the draft sheet (its picks numbered) and the team chart (Order None) of another workbook: the board
+        // with a draft order comes first, so the import takes its picks whatever order the snapshots are read in
+        object?[][] board = [Row("Team Name:", "Alpha"), Row("Captain:", "Ace"), Row("", 1), Row("1st Round:", "Dee")];
+        var sources = Season((new DraftTab { Sheet = "Draft Sheet", Season = "stats" }, board));
+        sources.Add(Source("chart", new HistoricalSourceConfig { Drafts = [new() { Sheet = "Team Chart", Season = "stats", Order = DraftOrder.None }] },
+            Workbook(("Team Chart", [Row("Team Name:", "Alpha"), Row("Captain:", "Ace"), Row("1st Round:", "Dee")]))));
+        List<HistoricalSourceContent> reversed = [sources[0], sources[2], sources[1]];
+
+        var picks = new[] { sources, reversed }.Select(s => Regular(HistoricalArchiveBuilder.Build(s)).Teams.Select(t => (t.DraftOrder, t.Picks.Single().Pick)).ToList()).ToList();
+
+        Assert.That(picks, Is.All.EqualTo(new (int?, int?)[] { (1, 1), (null, null) }));
     }
 
     [Test]

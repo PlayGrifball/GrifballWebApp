@@ -97,6 +97,34 @@ public class DraftParserTests
     }
 
     [Test]
+    public void Board_ARowOfTheSameNumbers_IsNoPicksNumbers()
+    {
+        // An unlabelled row of anything else (a grade, a count) is no round's numbers: picks are numbered once each
+        var sheet = Sheet(
+            ["Team Name:", "Alpha", "Bravo"],
+            ["Captain", "Ace", "Bee"],
+            ["", "3", "3"],
+            ["1st Round:", "Dee", "Eee"]);
+
+        Assert.That(Picks(Board(sheet)).Select(p => p.Pick), Is.All.Null);
+    }
+
+    [Test]
+    public void Table_ABlankTeamCell_IsTheTeamAboveIt()
+    {
+        // A team's name in a merged cell: its first row only
+        var sheet = Sheet(
+            ["Team Name", "Player Name", "Draft Pick"],
+            ["", "Stray", "R1P1"],
+            ["Alpha", "Ace", "C1"],
+            ["", "Dee", "R1P1"]);
+
+        var teams = DraftParser.Parse(sheet, new DraftTab { Sheet = "TeamInfo", Layout = DraftLayout.Table })!;
+
+        Assert.That(Picks(teams), Is.EqualTo(new (string, string, int, int?)[] { ("Alpha", "Dee", 1, null) }), "A row above any team is none's");
+    }
+
+    [Test]
     public void Board_Linear_NumbersEachPickByItsRoundAndColumn()
     {
         var sheet = Sheet(

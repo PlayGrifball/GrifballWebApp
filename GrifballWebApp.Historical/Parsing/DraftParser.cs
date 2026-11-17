@@ -17,7 +17,7 @@ namespace GrifballWebApp.Historical.Parsing;
 /// hold more than one board side by side, each starting at its label, when the label's column has a Captain row.</item>
 /// <item>A table (<see cref="DraftLayout.Table"/>): a row per player under a header with Team Name and Player Name, the
 /// team's place in the draft order in "Draft Order" or "Seed #" ("Draft Spot 3"), or each player's in "Draft Pick"
-/// ("C3": the team's captain, 3rd in the order; "R2P3": a pick of round 2).</item>
+/// ("C3": the team's captain, 3rd in the order; "R2P3": a pick of round 2); a blank team cell is the team above it.</item>
 /// </list>
 /// A cell's notes in brackets ("Gingy(R1P10)", "Rayzyr (c)") are not the player's name.
 /// </summary>
@@ -97,9 +97,9 @@ public static partial class DraftParser
                 numbers = null;
                 continue;
             }
-            // A row of the picks' numbers: no label, a number in every team's column
+            // A row of the picks' numbers: no label, a number in every team's column, each another
             var cells = columns.Select(c => (Column: c, Number: Number(sheet.Cell(r, c).Trim()))).ToList();
-            numbers = sheet.Cell(r, label).Trim().Length == 0 && cells.All(c => c.Number is not null)
+            numbers = sheet.Cell(r, label).Trim().Length == 0 && cells.All(c => c.Number is not null) && cells.DistinctBy(c => c.Number).Count() == cells.Count
                 ? cells.ToDictionary(c => c.Column, c => c.Number!.Value)
                 : null;
         }
@@ -138,9 +138,12 @@ public static partial class DraftParser
     private static List<ArchiveTeam> TableRows(SheetTable sheet, int header, int teamColumn, int playerColumn, int orderColumn, int pickColumn)
     {
         var teams = new List<TableTeam>();
+        var last = "";
         for (var r = header + 1; r < sheet.Rows.Count; r++)
         {
-            var name = Name(sheet.Cell(r, teamColumn));
+            // A blank team cell is the team above it (its name in a merged cell)
+            var name = Name(sheet.Cell(r, teamColumn)) is { Length: > 0 } given ? given : last;
+            last = name;
             if (HistoricalKeys.IsExcludedTeamName(name))
                 continue;
             var team = teams.Find(t => string.Equals(t.TeamName, name, StringComparison.OrdinalIgnoreCase));
@@ -190,8 +193,8 @@ public static partial class DraftParser
     private static string Player(string cell)
     {
         var text = ArchiveCells.Gamertag(cell).Gamertag;
-        while (TrailingBracket().Match(text) is { Success: true } m && m.Index > 0)
-            text = text[..m.Index].TrimEnd();
+        for (var bare = StandingsParser.WithoutNote(text); bare != text; bare = StandingsParser.WithoutNote(text))
+            text = bare;
         return text;
     }
 
@@ -212,9 +215,6 @@ public static partial class DraftParser
 
     [GeneratedRegex(@"^\s*(?:draft\s*spot\s*)?(\d+)\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex DraftSpot();
-
-    [GeneratedRegex(@"\s*\([^()]*\)\s*$")]
-    private static partial Regex TrailingBracket();
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex SpacesRegex();
