@@ -369,6 +369,7 @@ public class DiscordTransportTests
         new object[] { "signup", Array.Empty<(string, string)>() },
         new object[] { "availability show", Array.Empty<(string, string)>() },
         new object[] { "reschedule request", new[] { ("match", "Missing"), ("reason", "Busy") } },
+        new object[] { "reschedule suggest", new[] { ("match", "Missing") } },
         new object[] { "reschedule pending", Array.Empty<(string, string)>() },
         new object[] { "reschedule decide", new[] { ("request", "1"), ("approve", "true") } },
         new object[] { "admin dashboard", Array.Empty<(string, string)>() },

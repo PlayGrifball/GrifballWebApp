@@ -1,60 +1,53 @@
-﻿using GrifballWebApp.Domain.Shared;
 using GeneticSharp;
+using GrifballWebApp.Application.Scheduling;
 
 namespace GrifballWebApp.Application.Scheduler;
 
-public class SeasonScheduleEvaluator : IFitness
+/// <summary>
+/// The season scheduler's fitness: each placed match's time checked against the season's rules (<see cref="ScheduleChecker"/>),
+/// with the other placed matches and the ones whose time is already fixed (<paramref name="fixedMatches"/>: decided, or a
+/// bracket's). A refused conflict (a team playing then) weighs <see cref="RefusedWeight"/>, a warning 1. Fitness is 0 to 1, 1 a
+/// schedule with none, falling as they add up.
+/// </summary>
+/// <param name="checker">The season's rules, timeslots and teams' availability.</param>
+/// <param name="bestOf">Each match's series, by its ID, for its length (a missing one: a single game).</param>
+/// <param name="fixedMatches">The season's matches with a time the scheduler doesn't place.</param>
+public class SeasonScheduleEvaluator(ScheduleChecker checker, IReadOnlyDictionary<int, int> bestOf, IReadOnlyList<ScheduledMatch>? fixedMatches = null) : IFitness
 {
-    private readonly AvailabilityOption[] _options;
-    public SeasonScheduleEvaluator(AvailabilityOption[] options)
-    {
-        _options = options;
-    }
+    /// <summary>How much a refused conflict (a team playing two matches at once) weighs against a warning's 1.</summary>
+    public const double RefusedWeight = 3;
+
+    private readonly IReadOnlyList<ScheduledMatch> _fixed = fixedMatches ?? [];
 
     public double Evaluate(IChromosome chromosome)
     {
-        double penalties = 0;
-
-        if (chromosome is not SeasonScheduleChromosome ssc)
+        if (chromosome is not SeasonScheduleChromosome)
             throw new Exception("SeasonScheduleEvaluator can only evaluate SeasonScheduleChromosome");
 
         var genes = chromosome.GetGenes().Select(x => (SeasonMatchGene)x.Value).ToList();
 
-        // A chromosome should contain exactly one gene per match. ScheduleService's operators keep
-        // gene i = match i, so this can't happen today; it stays as a safety net in case an
-        // order-based operator comes back (OrderedCrossover duplicated one match's gene while
-        // dropping another's, #175). That must never score better than a complete schedule, no matter
-        // how many overlap/availability penalties the complete schedule racks up (e.g. dropping an
-        // unschedulable match is not an improvement), so treat it as the worst possible fitness
-        // rather than folding it into the same penalty count below.
+        // One gene a match (ScheduleService's operators keep gene i = match i); a chromosome missing one (OrderedCrossover
+        // duplicated a match's gene, #175) must never score better than a complete schedule, however many conflicts that has
         if (genes.Select(x => x.SeasonMatchID).Distinct().Count() != genes.Count)
             return 0;
 
-        //var GetoverLaps = new Func<SeasonMatchGene, List<SeasonMatchGene>>(current => genes
-        //    .Except(new[] { current })
-        //    //.Where(other => current.SameTeamPlaying(other))
-        //    .Where(other => current.HasOverlap(other))
-        //    .ToList());
+        var placed = genes.Select(Scheduled).ToList();
+        var others = _fixed.Concat(placed).ToList();
+        var penalties = placed.Sum(match => Penalty(checker.Check(match, others)));
 
-        // TODO: need to make sure it fits teams availablity
-
-        foreach (var gene in genes)
-        {
-            var count = gene.GetOverlap(genes).Count();
-
-            penalties += count;
-
-            if (!gene.HomeTeamAvailable(_options))
-                penalties += 1;
-
-            if (!gene.AwayTeamAvailable(_options))
-                penalties += 1;
-        }
-
-        // Fitness must stay on a 0-1 scale where 1.0 is a perfect, conflict-free schedule
-        // (GeneticSharp's FitnessThresholdTermination defaults to an expected fitness of
-        // 1.00) and must decrease monotonically as penalties increase, so that EliteSelection
-        // and comparisons against the best chromosome's fitness behave correctly.
+        // 0 to 1, 1 a schedule with no conflict (FitnessThresholdTermination's 1.00), falling as penalties grow
         return 1.0 / (1.0 + penalties);
     }
+
+    /// <summary>A match's conflicts weighed: <see cref="RefusedWeight"/> a refused one, 1 a warning.</summary>
+    private static double Penalty(IEnumerable<ScheduleConflict> conflicts) => conflicts.Sum(c => c.Refuses ? RefusedWeight : 1.0);
+
+    /// <summary>What is wrong with <paramref name="gene"/>'s time, among <paramref name="genes"/> (the run's) and the fixed matches.</summary>
+    public IReadOnlyList<ScheduleConflict> ConflictsOf(SeasonMatchGene gene, IReadOnlyList<SeasonMatchGene> genes)
+        => checker.Check(Scheduled(gene), [.. _fixed, .. genes.Select(Scheduled)]);
+
+    /// <summary>A gene (its time in league time, as the timeslots are) as the checker takes a match: in UTC, its series long.</summary>
+    private ScheduledMatch Scheduled(SeasonMatchGene gene)
+        => new(gene.SeasonMatchID, gene.HomeTeamID, gene.AwayTeamID, ScheduleService.ToUtc(gene.ScheduledTime),
+            ScheduleChecker.LengthOf(bestOf.GetValueOrDefault(gene.SeasonMatchID, 1)));
 }

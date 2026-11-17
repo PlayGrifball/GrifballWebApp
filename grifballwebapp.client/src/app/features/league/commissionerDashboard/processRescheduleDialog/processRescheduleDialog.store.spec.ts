@@ -41,4 +41,23 @@ describe('ProcessRescheduleDialogStore', () => {
     http.expectOne('/api/reschedules/55/decision').flush(null, { status: 500, statusText: 'Server Error' });
     expect(store.error()).toBe('The request could not be processed. Try again.');
   });
+
+  it('checks the requested time and loads the best others; no check without a time', () => {
+    const clash = { kind: 'TeamPlaysThen' as const, message: 'Reds play another match then.', refuses: true };
+    store.loadSchedule(9, '2026-03-02T00:00:00Z');
+    const check = http.expectOne(r => r.url === '/api/season-matches/9/time-check');
+    expect(check.request.params.get('at')).toBe('2026-03-02T00:00:00Z');
+    check.flush([clash]);
+    http.expectOne(r => r.url === '/api/season-matches/9/time-suggestions').flush([]);
+    expect(store.conflicts()).toEqual([clash]);
+    expect(store.refused()).toBeTrue();
+    expect(store.alternatives()).toEqual([]);
+
+    store.loadSchedule(9, null);
+    http.expectNone(r => r.url === '/api/season-matches/9/time-check');
+    http.expectOne(r => r.url === '/api/season-matches/9/time-suggestions').flush(null, { status: 500, statusText: 'Error' });
+    expect(store.conflicts()).toBeNull();
+    expect(store.refused()).toBeFalse();
+    expect(store.alternatives()).toEqual([]);
+  });
 });

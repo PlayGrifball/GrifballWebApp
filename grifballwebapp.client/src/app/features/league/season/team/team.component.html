@@ -52,6 +52,9 @@
                     }
                 </div>
             }
+            @if (signedIn() && team() && !team()!.season.isHistorical && !team()!.season.hasEnded) {
+                <app-team-availability [teamID]="teamID()" />
+            }
         </aside>
 
         <section class="hud-section team-matches" aria-labelledby="team-matches">

@@ -883,6 +883,78 @@ public class HistoricalArchiveParsingTests
         }
     }
 
+    [Test]
+    public void ABracketInAnotherSource_GoesOnItsSeasonsRegularSeason_ItsTeamsUnderTheSeasonsNames()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Winter League 2025", Game = "infinite" },
+                    Tabs = [new() { Name = "Stats" }, new() { Name = "Playoff Stats", IsPlayoffs = true }],
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Like Clockwork", 4, 10), Row("B", "Chemical Imbalance", 4, 1)]),
+                    ("Playoff Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Like Clockwork", 2, 3)]))),
+            Source("schedule", new HistoricalSourceConfig
+                {
+                    Brackets =
+                    [
+                        new() { Sheet = "Playoffs", Season = "stats", Slots = [new() { Round = 1, Home = "C3", Away = "C5", Score = "C4", Winner = "E4", HomeSeed = "B3", AwaySeed = "B5" }] },
+                        new() { Sheet = "Missing", Season = "stats" },
+                        new() { Sheet = "Playoffs", Season = "nothing" },
+                    ],
+                },
+                // Rows 1 and 2 are empty: the cells are the sheet's own
+                Workbook(("Playoffs", [Row(), Row(), Row(null, "S1", "Like Clockwork (Sab)"), Row(null, null, "vs (2-1)", null, "Chemical Inbalance"), Row(null, "S2", "Chemical Inbalance (Chem)")]))),
+        ];
+
+        var build = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "schedule" });
+
+        var series = build.Input.Seasons.Seasons.Single(s => !s.IsPlayoffs).Bracket!.Series.Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((series.Home, series.Away, series.HomeSeed, series.AwaySeed, series.HomeWins, series.AwayWins, series.Winner),
+                Is.EqualTo(("Like Clockwork", "Chemical Imbalance", (int?)1, (int?)2, (int?)1, (int?)2, (SeasonMatchSide?)SeasonMatchSide.Away)));
+            Assert.That(build.Input.Seasons.Seasons.Single(s => s.IsPlayoffs).Bracket, Is.Null);
+            Assert.That(build.Seasons, Is.EquivalentTo(StatsAndPlayoffStats), "The bracket's season is the changed source's");
+            Assert.That(build.Warnings, Does.Contain("schedule: no bracket sheet 'Missing'"));
+            Assert.That(build.Warnings, Does.Contain("schedule: bracket 'Playoffs' not read (no season from nothing)"));
+        }
+    }
+
+    [Test]
+    public void ABracketInItsSeasonsOwnWorkbook_GoesOnItsTab_AndRoundTabsOfNoSeasonAreWarned()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("own", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Respawn Series", Game = "halo4" },
+                    Tabs = [new() { Name = "Stats" }, new() { Name = "Other", CustomSeason = "Other Series" }],
+                    Brackets =
+                    [
+                        new() { Rounds = [new() { Sheet = "Round 1", Round = 1 }], Tab = "Stats", Aliases = new() { ["B Team"] = "Bravo" } },
+                        new() { Rounds = [new() { Sheet = "Round 1", Round = 1 }], Season = "nothing" },
+                    ],
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 1, 1), Row("B", "Bravo", 1, 1)]),
+                    ("Other", [Row("Player", "Team", "Games", "Kills"), Row("C", "Charlie", 1, 1)]),
+                    ("Round 1", [Row("Seed", "Team Name", "Player", "Wins"), Row(1, "Alpha", "A", 1), Row(2, "B Team", "B", 0)]))),
+        ];
+
+        var everything = HistoricalArchiveBuilder.Build(sources);
+        var otherChanged = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "elsewhere" });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(everything.Input.Seasons.Seasons.Single(s => s.SourceSheet == "Stats").Bracket!.Series.Select(x => (x.Home, x.Away, x.Winner)),
+                Is.EqualTo(new (string, string, SeasonMatchSide?)[] { ("Alpha", "Bravo", SeasonMatchSide.Home) }));
+            Assert.That(everything.Input.Seasons.Seasons.Single(s => s.SourceSheet == "Other").Bracket, Is.Null);
+            Assert.That(everything.Warnings, Does.Contain("own: bracket 'Round 1' not read (no season from nothing)"));
+            Assert.That(otherChanged.Seasons, Is.Empty, "Nothing of an unchanged source");
+        }
+    }
+
     private static HistoricalSourceContent StandingsSeason(object?[][] stats, params (string Sheet, StandingsTab Tab, object?[][] Rows)[] standings)
         => Source("s", new HistoricalSourceConfig
             {

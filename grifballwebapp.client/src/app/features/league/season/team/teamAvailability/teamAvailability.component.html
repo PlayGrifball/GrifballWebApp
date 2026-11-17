@@ -1,0 +1,32 @@
+<section class="ta" aria-labelledby="ta-title">
+  <h2 id="ta-title" class="hud-h2">Availability</h2>
+  @if (slots(); as team) {
+  <p class="hud-muted ta-source">
+    {{ team.setByCaptain ? 'Set by the captain.' : "From the roster's signups." }}
+    The times (league time, ET) its matches are scheduled at.
+  </p>
+  <ul class="ta-slots">
+    @for (slot of team.slots; track slot.availabilityOptionID) {
+    <li class="ta-slot" [class.ta-slot--off]="!ticked().has(slot.availabilityOptionID)">
+      @if (canEdit()) {
+      <mat-checkbox [checked]="ticked().has(slot.availabilityOptionID)" (change)="toggle(slot, $event.checked)">{{ label(slot) }}</mat-checkbox>
+      } @else {
+      <span>{{ label(slot) }}{{ slot.available ? '' : ' (not the team’s)' }}</span>
+      }
+      <span class="hud-muted">{{ slot.playersAvailable }} of {{ team.rosterSize }} players</span>
+    </li>
+    }
+  </ul>
+  @if (canEdit()) {
+  <div class="hud-actions ta-actions">
+    <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || ticked().size === 0">Save</button>
+    @if (team.setByCaptain) {
+    <button mat-stroked-button type="button" (click)="reset()" [disabled]="saving()">Reset to the roster's</button>
+    }
+  </div>
+  }
+  @if (error(); as message) {
+  <p class="hud-empty hud-empty--error" role="alert">{{ message }}</p>
+  }
+  }
+</section>

@@ -73,7 +73,8 @@ test sends every registered command and fails one whose first answer isn't a def
 | `/me claim\|claims` | Profile: claim a past gamertag, your claims |
 | `/me logins` | A link to the profile page: linking a sign-in runs in a browser |
 | `/signup` | The signup form, minus the times you can play (kept, set on the form). What isn't given keeps its value. Player or Sysadmin |
-| `/reschedule request` | The reschedule request form. The service decides who may (a player on either team, or a commissioner) |
+| `/reschedule request` | The reschedule request form. The service decides who may (a player on either team, or a commissioner). `new_time` offers the match's best times (`/reschedule suggest`'s) |
+| `/reschedule suggest` | The best times for a match from its season's timeslots, each with how many of each team's players can play and its warnings. The agents' `suggest_match_times` |
 | `/match pull` | A season match page's Pull buttons: queues the pull of its players' recent games from Halo (back to the season's start, when asked). The agents' `pull_season_match_games`. Player, Commissioner or Sysadmin |
 | `/player pull` | An Xbox account page's Pull button: queues the pull of the account's recent games (yours when no gamertag is given). The agents' `pull_xbox_account_games`. Player, Commissioner or Sysadmin |
 
