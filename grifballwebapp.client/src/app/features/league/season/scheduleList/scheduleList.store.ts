@@ -53,6 +53,9 @@ export class ScheduleListStore {
   private readonly _recommendation = signal<ScheduleRecommendationPageDto | null>(null);
   readonly recommendation = this._recommendation.asReadonly();
   readonly recommending = computed(() => ['Queued', 'Running'].includes(this.recommendation()?.run.state ?? 'Idle'));
+  /** What is wrong with the time last set (the season's rules: warnings, the time is set anyway); empty when nothing is. */
+  private readonly _timeWarnings = signal<string[]>([]);
+  readonly timeWarnings = this._timeWarnings.asReadonly();
   private readonly _recommendationError = signal<string | null>(null);
   readonly recommendationError = this._recommendationError.asReadonly();
   /** The matches applying would set: those without a result. */
@@ -97,11 +100,15 @@ export class ScheduleListStore {
       });
   }
 
-  /** Sets a match's time (none: no time), then loads the schedule again, whatever the answer. */
+  /** Sets a match's time (none: no time), keeping what is wrong with it, then loads the schedule again, whatever the answer. */
   setTime(seasonMatchID: number, time: DateTime | null): void {
+    this._timeWarnings.set([]);
     this.matchPlanner.updateMatchTime({ seasonMatchID, body: { seasonMatchID, time: toApiDate(time) } })
       .subscribe({
-        next: () => this.reload(),
+        next: conflicts => {
+          this._timeWarnings.set((conflicts ?? []).map(c => c.message));
+          this.reload();
+        },
         error: () => this.reload(),
       });
   }

@@ -62,6 +62,8 @@ export class ScheduleListComponent {
   readonly recommendation = this.store.recommendation;
   readonly recommending = this.store.recommending;
   readonly recommendationError = this.store.recommendationError;
+  /** What is wrong with the time last set: the season's rules, as warnings. */
+  readonly timeWarnings = this.store.timeWarnings;
   /** Apply was pressed: the times are set once it's confirmed. */
   readonly confirmingApply = signal(false);
   /** The matches applying would set: those without a result. */

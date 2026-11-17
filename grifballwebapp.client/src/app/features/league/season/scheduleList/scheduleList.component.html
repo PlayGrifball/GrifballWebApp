@@ -70,6 +70,16 @@
     @if (recommendationError(); as error) {
     <p class="hud-muted" role="alert">{{error}}</p>
     }
+    @if (timeWarnings().length > 0) {
+    <div class="hud-muted" role="status">
+      The time is set, but:
+      <ul>
+        @for (warning of timeWarnings(); track $index) {
+        <li>{{warning}}</li>
+        }
+      </ul>
+    </div>
+    }
   </div>
 </section>
 }
