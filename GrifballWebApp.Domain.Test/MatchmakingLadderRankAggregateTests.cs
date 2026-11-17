@@ -117,4 +117,14 @@ public class MatchmakingLadderRankAggregateTests
 
         Assert.That((row.MatchmakingSeasonID, row.UserID, row.MatchmakingSeason, row.User), Is.EqualTo((5, 12, season, user)));
     }
+
+    [Test]
+    public void Seed_OfEntitiesNotSavedYet_TakesTheKeysGiven_AndHasNoKeyOfItsOwn()
+    {
+        var season = MatchmakingSeason.Seed("Late League Season 2 (Halo 3)");
+
+        var row = MatchmakingLadderRank.Seed(Top, matchmakingSeasonID: 3, userID: 4, matchmakingSeason: season);
+
+        Assert.That((row.MatchmakingLadderRankID, row.MatchmakingSeasonID, row.UserID, row.MatchmakingSeason), Is.EqualTo((0, 3, 4, season)));
+    }
 }

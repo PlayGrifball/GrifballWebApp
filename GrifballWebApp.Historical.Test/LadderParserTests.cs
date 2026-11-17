@@ -21,6 +21,7 @@ public class LadderParserTests
     private static readonly string[] FinishHeadings = ["Pre Season 1: Halo 5", "Season 1: Halo 5"];
     private static readonly string[] LadderSeasonKeys = ["ll/S7 Stats", "ll/S2 Ladder"];
     private static readonly string[] LadderSheetNames = ["S8 Halo 3", "past seasons"];
+    private static readonly string[] OnlyB = ["B"];
 
     [Test]
     public void Parse_TheBotsLadder_ReadsEachPlayerInOrder_WithoutSkillAndTheBotsSignups()
@@ -116,6 +117,25 @@ public class LadderParserTests
         }
     }
 
+    [Test]
+    public void ParseFinishes_AHeadingWithoutARankColumn_AndARowWithoutAPlace_KeepWhatTheyGive()
+    {
+        // The heading row is cut at its last filled cell: the last heading's columns run to the labels' end
+        var sheet = Sheet(["Gamertag:", "Season 3: Halo 5"], ["", "League", "Pos"], ["Galvann", "Silver", ""]);
+
+        var finishes = LadderParser.ParseFinishes(sheet)!;
+
+        Assert.That(finishes["Season 3: Halo 5"], Is.EqualTo(new[] { new LadderStanding { Gamertag = "Galvann", League = "Silver" } }));
+    }
+
+    [Test]
+    public void Parse_ANumberPastAWholeNumbersRange_IsNone()
+    {
+        var ladder = LadderParser.Parse(Sheet(["Gamertag", "League", "MMR"], ["A", "Gold", "99999999999"]), Tab)!;
+
+        Assert.That(ladder.Single().Mmr, Is.Null);
+    }
+
     [TestCase("", false)]
     [TestCase("LateLeague#9807", false)]
     [TestCase("lateleague#1", false)]
@@ -191,6 +211,37 @@ public class LadderParserTests
             Assert.That(season.Ladder.Select(r => (r.Gamertag, r.Position)), Is.EqualTo(new[] { ("Regresser", (int?)1) }));
             Assert.That(season.League, Is.EqualTo("late-league"), "No season defaults: Late League all the same");
             Assert.That(build.Warnings, Does.Contain("ll: past finishes 'Past Seasons' not read (no such sheet, or no Pos column)"));
+        }
+    }
+
+    [Test]
+    public void Build_ALadderOfAnotherWorkbooksOrAPlayoffsSeason_GetsASeasonOfItsOwn_AndAFinishWithoutAPlaceKeepsTheTabs()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Tabs = [new() { Name = "S7 Playoffs", CustomSeason = "Late League Season 7 (Halo 3)", Game = "halo3", IsPlayoffs = true }],
+            Ladders = [new() { Sheet = "S7 Ladder", Season = "Late League Season 7 (Halo 3)", Game = "halo3", Finishes = "S7" }],
+            FinishesSheet = "Finishes",
+        };
+        var other = Source("other", new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Other", Game = "halo3" },
+            Tabs = [new() { Name = "Stats", CustomSeason = "Late League Season 7 (Halo 3)", Game = "halo3" }],
+            Ladders = [new() { Sheet = "Ladder", Season = "Late League Season 7 (Halo 3)", Game = "halo3" }],
+        }, Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("B", null, 1, 1)]), ("Ladder", [Row("Gamertag", "League"), Row("B", "Gold")])));
+        var source = Source("ll", config, Workbook(
+            ("S7 Playoffs", [Row("Player", "Team", "Games", "Kills"), Row("A", null, 1, 1)]),
+            ("S7 Ladder", [Row("Gamertag", "League", "MMR"), Row("A", null, 850)]),
+            ("Finishes", [Row("Gamertag:", "S7"), Row(null, "League", "Pos"), Row("A", "Masters", null)])));
+
+        var build = HistoricalArchiveBuilder.Build([other, source]);
+
+        var own = build.Input.Seasons.Seasons.Single(s => s.SourceSheet == "S7 Ladder");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(own.Ladder, Is.EqualTo(new[] { new LadderStanding { Gamertag = "A", Position = 1, League = "Masters", Mmr = 850 } }));
+            Assert.That(build.Input.Seasons.Seasons.Single(s => s.SourceWorkbook == "other").Ladder.Select(r => r.Gamertag), Is.EqualTo(OnlyB),
+                "No finishes tab: the ladder alone");
         }
     }
 

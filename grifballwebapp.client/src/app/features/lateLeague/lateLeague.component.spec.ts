@@ -150,13 +150,14 @@ describe('LateLeagueComponent', () => {
     fixture.componentRef.setInput('matchmakingSeasonID', '2');
     fixture.detectChanges();
     http.expectOne('/api/late-league/seasons/2').flush({
-      season: season(2, { gameCount: 0, playerCount: 0, ladderCount: 4 }),
+      season: season(2, { gameCount: 0, playerCount: 0, ladderCount: 5 }),
       players: [],
       ladder: [
         rank(5, 'Ladder Top', { position: 1, division: '2', league: 'Diamond', rank: 3, leaguePoints: 5, streak: 3, mmr: 550, wins: 12, losses: 4 }),
         rank(6, 'Second Place', { position: 2, division: '200', league: 'Masters 3', rank: 3, leaguePoints: 56, streak: -2, mmr: 850 }),
         rank(7, 'Placed Player', { position: 3, league: 'Placements (1/3)', streak: 0, losses: 1 }),
         rank(8, 'Only Finished', { rank: 4 }),
+        rank(9, 'Nothing Given'),
       ],
     });
     await fixture.whenStable();
@@ -168,6 +169,7 @@ describe('LateLeagueComponent', () => {
       ['2', 'Second Place', 'Masters 3', '56', '-2', '850', '-', '200'],
       ['3', 'Placed Player', 'Placements (1/3)', '-', '0', '-', '0-1', '-'],
       ['-', 'Only Finished', '4', '-', '-', '-', '-', '-'],
+      ['-', 'Nothing Given', '-', '-', '-', '-', '-', '-'],
     ]);
     expect(section('late-league-ladder').querySelector('tbody a')!.getAttribute('href')).toBe('/profile/5');
   });
