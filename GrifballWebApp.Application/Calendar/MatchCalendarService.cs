@@ -25,15 +25,12 @@ public class MatchCalendarService
 
     private readonly IApplicationDbContext _context;
     private readonly SeasonVisibility _visibility;
-    private readonly TimeProvider _time;
 
-    /// <summary>The feeds of the matches <paramref name="context"/> holds, of the seasons <paramref name="visibility"/> shows
-    /// the public; <paramref name="time"/> stamps a match never saved through the audit (the system clock when not given).</summary>
-    public MatchCalendarService(IApplicationDbContext context, SeasonVisibility visibility, TimeProvider? time = null)
+    /// <summary>The feeds of the matches <paramref name="context"/> holds, of the seasons <paramref name="visibility"/> shows the public.</summary>
+    public MatchCalendarService(IApplicationDbContext context, SeasonVisibility visibility)
     {
         _context = context;
         _visibility = visibility;
-        _time = time ?? TimeProvider.System;
     }
 
     /// <summary>A season match's event UID, the same for as long as the match is: <c>seasonmatch-42@grifballwebapp</c>.</summary>
@@ -108,13 +105,15 @@ public class MatchCalendarService
                 SeasonName = m.Season.SeasonName,
                 BestOf = m.BestOf,
                 ModifiedAt = m.ModifiedAt,
+                HomeModifiedAt = m.HomeTeam == null ? null : m.HomeTeam.ModifiedAt,
+                AwayModifiedAt = m.AwayTeam == null ? null : m.AwayTeam.ModifiedAt,
+                SeasonModifiedAt = m.Season.ModifiedAt,
             })
             .ToListAsync(ct);
-        var now = _time.GetUtcNow().UtcDateTime;
-        return rows.ConvertAll(m => ToEvent(m, siteUrl, now));
+        return rows.ConvertAll(m => ToEvent(m, siteUrl));
     }
 
-    private static CalendarEvent ToEvent(MatchRow match, string siteUrl, DateTime now)
+    private static CalendarEvent ToEvent(MatchRow match, string siteUrl)
     {
         var url = UrlService.SeasonMatchOn(siteUrl, match.SeasonMatchID);
         return new CalendarEvent(
@@ -125,8 +124,7 @@ public class MatchCalendarService
             // The page in the notes too: Google Calendar shows no URL property
             Description: $"{match.SeasonName}, best of {match.BestOf}\n{url}",
             Url: url,
-            // The audit stamps every save, a new time included; a row it never stamped (imported by hand) is as of now
-            LastModified: match.ModifiedAt == default ? now : match.ModifiedAt);
+            LastModified: match.LastChanged);
     }
 
     /// <summary>What an event needs of a season match.</summary>
@@ -138,6 +136,16 @@ public class MatchCalendarService
         public required string? AwayTeamName { get; init; }
         public required string SeasonName { get; init; }
         public required int BestOf { get; init; }
+        public required DateTime? HomeModifiedAt { get; init; }
+        public required DateTime? AwayModifiedAt { get; init; }
+        public required DateTime SeasonModifiedAt { get; init; }
         public required DateTime ModifiedAt { get; init; }
+
+        /// <summary>
+        /// When what its event shows last changed: the match (the audit stamps every save, a new time included), or a team's or
+        /// the season's name in its title. One never stamped (imported by hand) is the epoch, so it reads the same each poll.
+        /// </summary>
+        public DateTime LastChanged => new[] { ModifiedAt, HomeModifiedAt ?? default, AwayModifiedAt ?? default, SeasonModifiedAt }.Max() is var latest && latest != default
+            ? latest : DateTime.UnixEpoch;
     }
 }

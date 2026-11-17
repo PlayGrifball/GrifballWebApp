@@ -27,7 +27,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
     public void SetUp()
     {
         _time = new FakeTimeProvider(Now);
-        _service = new MatchCalendarService(Context, new SeasonVisibility(Context, _time), _time);
+        _service = new MatchCalendarService(Context, new SeasonVisibility(Context, _time));
     }
 
     /// <summary>A season that started a month ago: public.</summary>
