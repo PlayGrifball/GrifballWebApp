@@ -300,7 +300,10 @@ public static partial class SeasonStatsParser
             return null;
         }
         var (rawGamertag, teamName) = NameCells(sheet, r, tab, columns);
-        if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag) || IsRepeatingHeader(rawGamertag, teamName))
+        // In a tab whose Team column names teams, a Team cell that is a number names none: a row outside the table, a game
+        // side of a host who played no game (FL21's) or a bracket's seed beside a team under the stats (SML20's)
+        if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag) || IsRepeatingHeader(rawGamertag, teamName)
+            || (!sides && ArchiveCells.Number(teamName) is not null))
         {
             currentTeam = null;
             return null;
