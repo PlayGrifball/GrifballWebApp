@@ -34,6 +34,26 @@
                  placeholder="HH:MM">
         </mat-form-field>
       </div>
+
+      @if (suggestions(); as times) {
+      @if (times.length > 0) {
+      <h3 class="hud-label">Suggested times</h3>
+      <p class="hud-muted">The best of the season's timeslots for both teams, best first. Pick one to fill in the date and time.</p>
+      <ul class="rr-suggestions">
+        @for (time of times; track time.startsAt) {
+        <li>
+          <button mat-stroked-button type="button" class="rr-suggestion" (click)="pick(time)">
+            <span class="rr-suggestion-time">{{ formatTime(time.startsAt) }}</span>
+            <span class="hud-muted">{{ time.homePlayersAvailable }} and {{ time.awayPlayersAvailable }} players can play</span>
+            @for (conflict of time.conflicts; track $index) {
+            <span class="rr-warning">{{ conflict.message }}</span>
+            }
+          </button>
+        </li>
+        }
+      </ul>
+      }
+      }
     </section>
 
     <!-- Reason Section -->

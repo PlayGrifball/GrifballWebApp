@@ -4405,8 +4405,18 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScheduleConflict"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request",
@@ -5420,6 +5430,452 @@
           },
           "409": {
             "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/season-matches/{seasonMatchID}/time-suggestions": {
+      "get": {
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "The season's timeslots for a match, best first (no warnings, then the most players able to play, then the soonest), from\nnow (or from) to the season's end (or before to); a time a team already plays, or\noutside the season, isn't among them.",
+        "operationId": "GetTimeSuggestions",
+        "parameters": [
+          {
+            "name": "seasonMatchID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 5
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TimeSuggestion"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/season-matches/{seasonMatchID}/time-check": {
+      "get": {
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "What is wrong with a match at at (UTC): empty when nothing is.",
+        "operationId": "CheckMatchTime",
+        "parameters": [
+          {
+            "name": "seasonMatchID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScheduleConflict"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/teams/{teamID}/availability": {
+      "get": {
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "A team's timeslots, each of its season's: whether it's the team's, and how many of its roster can play it; and whether\n            the caller may change them (its captain, or staff).",
+        "operationId": "GetTeamAvailability",
+        "parameters": [
+          {
+            "name": "teamID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamSlots"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "The team's captain (or staff) set its own timeslots, from its season's, in place of its roster's.",
+        "operationId": "SetTeamAvailability",
+        "parameters": [
+          {
+            "name": "teamID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TeamAvailabilityDto"
+                  }
+                ],
+                "description": "A team's own timeslots, from its season's, in place of its roster's."
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/teams/{teamID}/availability/reset": {
+      "post": {
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "The team's captain (or staff) reset its timeslots to its roster's.",
+        "operationId": "ResetTeamAvailability",
+        "parameters": [
+          {
+            "name": "teamID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/seasons/{seasonID}/scheduling-rules": {
+      "get": {
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "A season's scheduling rules: the league's defaults until staff change them.",
+        "operationId": "GetSchedulingRules",
+        "parameters": [
+          {
+            "name": "seasonID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeasonSchedulingRulesDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Staff change a season's scheduling rules.",
+        "operationId": "ChangeSchedulingRules",
+        "parameters": [
+          {
+            "name": "seasonID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SeasonSchedulingRulesDto"
+                  }
+                ],
+                "description": "A season's scheduling rules (GrifballWebApp.Domain.League.SeasonSchedulingRules), as staff see and change them."
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -14901,6 +15357,47 @@
         },
         "additionalProperties": false
       },
+      "ScheduleConflict": {
+        "required": [
+          "kind",
+          "message",
+          "refuses"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScheduleConflictKind"
+              }
+            ],
+            "description": "What is wrong with a match's time (M:GrifballWebApp.Application.Scheduling.ScheduleChecker.Check(GrifballWebApp.Application.Scheduling.ScheduledMatch,System.Collections.Generic.IEnumerable{GrifballWebApp.Application.Scheduling.ScheduledMatch}))."
+          },
+          "message": {
+            "type": "string"
+          },
+          "refuses": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "One thing wrong with a match's time, in words; GrifballWebApp.Application.Scheduling.ScheduleConflict.Refuses: a time that can't stand, the rest are warnings."
+      },
+      "ScheduleConflictKind": {
+        "enum": [
+          "OutsideSeason",
+          "NotASeasonTimeslot",
+          "TeamPlaysThen",
+          "HomeTeamUnavailable",
+          "AwayTeamUnavailable",
+          "TooManyTonight",
+          "TooManyThisWeek",
+          "TooManyAtOnce"
+        ],
+        "type": "string",
+        "description": "What is wrong with a match's time (M:GrifballWebApp.Application.Scheduling.ScheduleChecker.Check(GrifballWebApp.Application.Scheduling.ScheduledMatch,System.Collections.Generic.IEnumerable{GrifballWebApp.Application.Scheduling.ScheduledMatch}))."
+      },
       "ScheduleRecommendationDto": {
         "required": [
           "appliedAt",
@@ -15977,6 +16474,37 @@
         "additionalProperties": false,
         "description": "A season named in a list (the seasons a user played), with what its link needs."
       },
+      "SeasonSchedulingRulesDto": {
+        "required": [
+          "maxConcurrentMatches",
+          "maxMatchesPerTeamPerNight",
+          "maxMatchesPerTeamPerWeek",
+          "minPlayersAvailable"
+        ],
+        "type": "object",
+        "properties": {
+          "minPlayersAvailable": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxMatchesPerTeamPerNight": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxMatchesPerTeamPerWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxConcurrentMatches": {
+            "type": "integer",
+            "description": "Null: no cap.",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season's scheduling rules (GrifballWebApp.Domain.League.SeasonSchedulingRules), as staff see and change them."
+      },
       "SeasonSummaryDto": {
         "required": [
           "awards",
@@ -16791,6 +17319,23 @@
         },
         "additionalProperties": false
       },
+      "TeamAvailabilityDto": {
+        "required": [
+          "availabilityOptionIDs"
+        ],
+        "type": "object",
+        "properties": {
+          "availabilityOptionIDs": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A team's own timeslots, from its season's, in place of its roster's."
+      },
       "TeamDto": {
         "required": [
           "losses",
@@ -17101,6 +17646,77 @@
         },
         "additionalProperties": false
       },
+      "TeamSlot": {
+        "required": [
+          "availabilityOptionID",
+          "available",
+          "dayOfWeek",
+          "playersAvailable",
+          "time"
+        ],
+        "type": "object",
+        "properties": {
+          "availabilityOptionID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dayOfWeek": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DayOfWeek"
+              }
+            ]
+          },
+          "time": {
+            "type": "string",
+            "format": "time"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "playersAvailable": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "One of a season's timeslots for a team: whether it's the team's, and how many of its roster can play it."
+      },
+      "TeamSlots": {
+        "required": [
+          "canChange",
+          "rosterSize",
+          "setByCaptain",
+          "slots",
+          "teamID"
+        ],
+        "type": "object",
+        "properties": {
+          "teamID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "setByCaptain": {
+            "type": "boolean"
+          },
+          "rosterSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamSlot"
+            }
+          },
+          "canChange": {
+            "type": "boolean",
+            "description": "The caller may change them: the team's captain, or staff (M:GrifballWebApp.Application.Scheduling.TeamAvailabilityService.MayChangeAsync(System.Int32,System.Int32,System.Boolean,System.Threading.CancellationToken))."
+          }
+        },
+        "additionalProperties": false,
+        "description": "A team's timeslots, each of its season's: its captain's own (GrifballWebApp.Application.Scheduling.TeamSlots.SetByCaptain), else its roster's (a slot is\nthe team's when enough of its players can play it: the season's rule)."
+      },
       "TeamStandingDto": {
         "required": [
           "finish",
@@ -17199,6 +17815,37 @@
         },
         "additionalProperties": false,
         "description": "Which parts of the Telemetry page have a backend (TelemetryQuery:*), and the service.name they are scoped to."
+      },
+      "TimeSuggestion": {
+        "required": [
+          "awayPlayersAvailable",
+          "conflicts",
+          "homePlayersAvailable",
+          "startsAt"
+        ],
+        "type": "object",
+        "properties": {
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleConflict"
+            }
+          },
+          "homePlayersAvailable": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awayPlayersAvailable": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "One of a season's timeslots suggested for a match (M:GrifballWebApp.Application.Scheduling.SchedulingService.SuggestAsync(System.Int32,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Threading.CancellationToken)): when (UTC), what is wrong\nwith it (warnings only: a refused one isn't suggested), and how many of each team's players can play it."
       },
       "TitleDto": {
         "required": [
@@ -18210,6 +18857,9 @@
     },
     {
       "name": "Scheduler"
+    },
+    {
+      "name": "Scheduling"
     },
     {
       "name": "Search"

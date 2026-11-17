@@ -91,8 +91,35 @@ public class Team : AuditableEntity
     private readonly HashSet<SeasonMatch> _homeMatches = [];
     public IReadOnlyCollection<SeasonMatch> AwayMatches => _awayMatches;
     private readonly HashSet<SeasonMatch> _awayMatches = [];
+    /// <summary>
+    /// The timeslots its captain set as the team's (<see cref="SetAvailability"/>); none: the team's are worked out from its
+    /// roster's signup timeslots.
+    /// </summary>
     public IReadOnlyCollection<TeamAvailability> TeamAvailability => _teamAvailability;
     private readonly HashSet<TeamAvailability> _teamAvailability = [];
+
+    /// <summary>Whether its captain set its timeslots (<see cref="SetAvailability"/>), in place of its roster's.</summary>
+    public bool HasOwnAvailability => _teamAvailability.Count > 0;
+
+    /// <summary>
+    /// Its captain set its timeslots: these (each once), of its season's (<paramref name="seasonSlots"/>), in place of any before
+    /// and of its roster's. Refuses none (<see cref="ClearAvailability"/> goes back to the roster's), or one not the season's.
+    /// </summary>
+    public void SetAvailability(IEnumerable<int> availabilityOptionIDs, IReadOnlyCollection<int> seasonSlots)
+    {
+        var chosen = availabilityOptionIDs.Distinct().ToList();
+        if (chosen.Count == 0)
+            throw new ArgumentException("A team's own timeslots are at least one: clear them to go back to its roster's", nameof(availabilityOptionIDs));
+        if (chosen.Exists(o => !seasonSlots.Contains(o)))
+            throw new ArgumentException("A team's own timeslots are its season's", nameof(availabilityOptionIDs));
+        // The ones kept stay as they are (their rows), the rest go, the new ones come
+        _teamAvailability.RemoveWhere(a => !chosen.Contains(a.AvailabilityOptionID));
+        foreach (var option in chosen.Where(o => _teamAvailability.All(a => a.AvailabilityOptionID != o)))
+            _teamAvailability.Add(global::GrifballWebApp.Domain.League.TeamAvailability.Of(this, option));
+    }
+
+    /// <summary>Its own timeslots gone: the team's are its roster's again.</summary>
+    public void ClearAvailability() => _teamAvailability.Clear();
     public IReadOnlyCollection<PlayerSeasonStat> PlayerSeasonStats => _playerSeasonStats;
     private readonly HashSet<PlayerSeasonStat> _playerSeasonStats = [];
     public IReadOnlyCollection<PlayerChampionship> PlayerChampionships => _playerChampionships;

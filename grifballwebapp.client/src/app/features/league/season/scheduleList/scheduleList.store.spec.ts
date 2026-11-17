@@ -60,6 +60,22 @@ describe('ScheduleListStore', () => {
     expect(http.expectOne('/api/season-matches/9/time').request.body.time).toBeNull();
   });
 
+  it("keeps what is wrong with a time set, until the next is set", () => {
+    show();
+    store.setTime(9, DateTime.fromISO('2026-01-08T20:00:00Z'));
+    http.expectOne('/api/season-matches/9/time').flush([{ kind: 'HomeTeamUnavailable', message: "Reds can't play then.", refuses: false }]);
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
+    expect(store.timeWarnings()).toEqual(["Reds can't play then."]);
+
+    store.setTime(9, null);
+    expect(store.timeWarnings()).toEqual([]);
+    http.expectOne('/api/season-matches/9/time').flush(null);
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
+    expect(store.timeWarnings()).withContext('No answer: nothing to say').toEqual([]);
+  });
+
   it('applies the latest recommendation, then reads the schedule and the recommendation again', () => {
     show();
     const page: ScheduleRecommendationPageDto = {

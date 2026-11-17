@@ -1,6 +1,8 @@
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
@@ -20,20 +22,24 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
     private const int OtherSeasonID = 2;
     private const int OtherTeamID = 5;
     private static readonly int[] SeasonTeams = [1, 2, 3, 4];
+    private static readonly int[] NineOnly = [21];
     private static readonly (int Home, int Away)[] RoundRobin = [(1, 2), (3, 4), (1, 3), (2, 4), (1, 4), (2, 3)];
+
+    /// <summary>1 June 2026: before the season (6 July to 3 August), the whole of it to schedule.</summary>
+    private static readonly Microsoft.Extensions.Time.Testing.FakeTimeProvider BeforeTheSeason = new(new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero));
 
     private ScheduleService _service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _service = new ScheduleService(Context, Substitute.For<ILogger<ScheduleService>>());
+        _service = new ScheduleService(Context, Substitute.For<ILogger<ScheduleService>>(), BeforeTheSeason);
     }
 
     /// <summary>A season of teams 1-4 playing a round robin (and a bracket match and one still missing a team, which
     /// aren't scheduled), timeslots every day at 20:00 and 21:00 for its teams, and another season's team on one of them.
     /// Returns the regular matches' ids.</summary>
-    private async Task<List<int>> SeedSeason()
+    private async Task<List<int>> SeedSeason(Func<AvailabilityOption, bool>? seasonSlot = null)
     {
         var season = Season.Seed(seasonName: "S1", seasonID: SeasonID);
         season.Schedule(new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc),
@@ -47,6 +53,8 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
         Context.Availability.AddRange(options);
         await Context.SaveChangesAsync();
         Context.Add(TeamAvailability.Seed(OtherTeamID, options[0].AvailabilityOptionID));
+        // The season's own timeslots (all of them unless the test says otherwise)
+        Context.AddRange(options.Where(seasonSlot ?? (_ => true)).Select(o => SeasonAvailability.Seed(SeasonID, o.AvailabilityOptionID)));
 
         var regular = RoundRobin.Select(p => SeasonMatch.Seed(SeasonID, p.Home, p.Away)).ToList();
         Context.SeasonMatches.AddRange(regular);
@@ -70,11 +78,89 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
     {
         await SeedSeason();
         var logger = new FakeLogger<ScheduleService>();
-        var service = new ScheduleService(Context, logger);
+        var service = new ScheduleService(Context, logger, BeforeTheSeason);
 
         var run = await service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 3, TimeBudget = TimeSpan.FromMinutes(1) });
 
         Assert.That(logger.Collector.GetSnapshot().Select(r => (r.Level, r.Message)), Has.Member((LogLevel.Information, $"GA Termination Reached after {run.Generations} generations")));
+    }
+
+    [Test]
+    public async Task Recommend_LeavesADecidedMatch_AndOneWithAReschedule_WhereTheyAre()
+    {
+        var regular = await SeedSeason();
+        var decided = await Context.SeasonMatches.FindAsync(regular[0]);
+        decided!.WonBy(SeasonMatchSide.Home);
+        Context.Users.Add(User.Seed(userName: "asker", id: 77));
+        await Context.SaveChangesAsync();
+        Context.Add(MatchReschedule.Request(regular[1], null, new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc), "Away", 77, new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc)));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var run = await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 2, TimeBudget = null });
+
+        Assert.That(run.Genes.Select(g => g.SeasonMatchID), Is.EquivalentTo(regular.Skip(2)), "A result is in; a reschedule is waiting for its decision");
+    }
+
+    [Test]
+    public async Task Recommend_FewerThanTwoLeftToPlay_SaysToSetItByHand()
+    {
+        var regular = await SeedSeason();
+        foreach (var id in regular.Skip(1))
+            (await Context.SeasonMatches.FindAsync(id))!.WonBy(SeasonMatchSide.Away);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 2, TimeBudget = null }));
+
+        Assert.That(ex!.Message, Is.EqualTo(ScheduleService.TooFewToPlace));
+    }
+
+    [Test]
+    public async Task Recommend_ASeasonOver_OrWithNoTimeslotLeft_SaysSo()
+    {
+        await SeedSeason();
+        ScheduleService At(DateTime now) => new(Context, Substitute.For<ILogger<ScheduleService>>(), new Microsoft.Extensions.Time.Testing.FakeTimeProvider(now));
+        var options = new ScheduleRunOptions { MaxGenerations = 2, TimeBudget = null };
+
+        // The season ends 3 August 00:00 UTC (2 August 20:00 Eastern, its last slot's time): after it, and half an hour before it
+        var over = await Assert.ThrowsAsync<InvalidOperationException>(() => At(new DateTime(2026, 8, 10, 0, 0, 0, DateTimeKind.Utc)).Recommend(SeasonID, options));
+        var noTime = await Assert.ThrowsAsync<InvalidOperationException>(() => At(new DateTime(2026, 8, 2, 23, 30, 0, DateTimeKind.Utc)).Recommend(SeasonID, options));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(over!.Message, Is.EqualTo(ScheduleService.SeasonOver));
+            Assert.That(noTime!.Message, Is.EqualTo(ScheduleService.NoTimeLeft));
+        }
+    }
+
+    [Test]
+    public void ToUtc_ATimeTheClocksSkip_IsTheHourAfter()
+    {
+        // 14 March 2027, 2:00 Eastern: the clocks go to 3:00. A 2:30 slot that night is 3:30 EDT
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ScheduleService.ToUtc(new DateTime(2027, 3, 14, 2, 30, 0)), Is.EqualTo(new DateTime(2027, 3, 14, 7, 30, 0, DateTimeKind.Utc)));
+            Assert.That(ScheduleService.ToUtc(new DateTime(2027, 3, 13, 2, 30, 0)), Is.EqualTo(new DateTime(2027, 3, 13, 7, 30, 0, DateTimeKind.Utc)), "EST the night before");
+        }
+    }
+
+    [Test]
+    public async Task Recommend_ASeasonUnderWay_PlacesNothingInThePast_NorRunningPastItsEnd()
+    {
+        var regular = await SeedSeason();
+        // Three weeks into a season of 6 July to 3 August
+        var now = new DateTime(2026, 7, 27, 12, 0, 0, DateTimeKind.Utc);
+        var service = new ScheduleService(Context, Substitute.For<ILogger<ScheduleService>>(), new Microsoft.Extensions.Time.Testing.FakeTimeProvider(now));
+
+        var run = await service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 5, TimeBudget = null });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(run.Genes.Select(g => ScheduleService.ToUtc(g.ScheduledTime)), Has.All.GreaterThanOrEqualTo(now));
+            Assert.That(run.Genes.Select(g => ScheduleService.ToUtc(g.ScheduledTime) + GrifballWebApp.Application.Scheduling.ScheduleChecker.LengthOf(1)),
+                Has.All.LessThanOrEqualTo(new DateTime(2026, 8, 3, 0, 0, 0, DateTimeKind.Utc)));
+        }
     }
 
     [Test]
@@ -95,9 +181,8 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
             Assert.That(run.Fitness, Is.InRange(0.0, 1.0));
             Assert.That(generations, Is.EqualTo(Enumerable.Range(1, run.Generations)));
             Assert.That(fitnesses, Has.All.InRange(0.0, 1.0));
-            Assert.That(run.Availability, Has.Length.EqualTo(14));
-            // Only this season's teams' availability is read with the timeslots
-            Assert.That(run.Availability.SelectMany(o => o.TeamAvailability).Select(a => a.TeamID).Distinct(), Is.EquivalentTo(SeasonTeams));
+            // What is wrong with each gene's time is what the season's rules say: the run carries the checker the recommendation's flags come from
+            Assert.That(run.Genes.Select(g => run.Conflicts(g, run.Genes)), Has.All.Not.Null);
         }
     }
 
@@ -134,5 +219,26 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
         var genes = await _service.GetTimeRecommendations(SeasonID);
 
         Assert.That(genes.Select(g => g.SeasonMatchID), Is.EquivalentTo(regular));
+    }
+
+    [Test]
+    public async Task Recommend_PicksOnlyTheSeasonsOwnTimeslots_NotEveryOptionEverMade()
+    {
+        // The season plays at 21:00 only; 20:00 is another season's option
+        await SeedSeason(o => o.Time == new TimeOnly(21, 0));
+
+        var run = await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 5, TimeBudget = null });
+
+        Assert.That(run.Genes.Select(g => g.ScheduledTime.Hour).Distinct(), Is.EqualTo(NineOnly));
+    }
+
+    [Test]
+    public async Task Recommend_ASeasonWithNoTimeslots_SaysSo()
+    {
+        await SeedSeason(_ => false);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 5, TimeBudget = null }));
+
+        Assert.That(ex!.Message, Is.EqualTo(ScheduleService.NoTimeslots));
     }
 }

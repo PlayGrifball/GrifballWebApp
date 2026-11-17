@@ -74,24 +74,28 @@ public sealed class SeasonScheduleChromosome : ChromosomeBase
     /// </summary>
     private DateTime PickTimeInWindow()
     {
-        var possibleTimes = new List<DateTime>();
-        for (var day = _start.Date; day <= _end.Date; day = day.AddDays(1))
-        {
-            foreach (var option in _options.Where(x => x.DayOfWeek == day.DayOfWeek))
-            {
-                var candidate = new DateTime(day.Year, day.Month, day.Day, option.Time.Hour, option.Time.Minute, option.Time.Second);
-                if (candidate >= _start && candidate <= _end)
-                {
-                    possibleTimes.Add(candidate);
-                }
-            }
-        }
-
+        var possibleTimes = TimesInWindow(_start, _end, _options);
         if (possibleTimes.Count == 0)
         {
             throw new Exception("No availability options fall within the season window");
         }
 
         return possibleTimes[Random.Next(possibleTimes.Count)];
+    }
+
+    /// <summary>Each (day, option time) from <paramref name="start"/> to <paramref name="end"/> (league time): the times a match may be given.</summary>
+    public static List<DateTime> TimesInWindow(DateTime start, DateTime end, IEnumerable<AvailabilityOption> options)
+    {
+        var times = new List<DateTime>();
+        for (var day = start.Date; day <= end.Date; day = day.AddDays(1))
+        {
+            foreach (var option in options.Where(x => x.DayOfWeek == day.DayOfWeek))
+            {
+                var candidate = new DateTime(day.Year, day.Month, day.Day, option.Time.Hour, option.Time.Minute, option.Time.Second);
+                if (candidate >= start && candidate <= end)
+                    times.Add(candidate);
+            }
+        }
+        return times;
     }
 }

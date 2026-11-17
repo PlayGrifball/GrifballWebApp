@@ -33,7 +33,9 @@ public class HistoricalSourceConfig
     /// <summary>Rosters (as <see cref="RosterSheets"/>) in this workbook of a season whose stats are in another source's, e.g. a
     /// draft sheet beside the schedule: they fill the team of that season's players whose stats name none.</summary>
     public List<RosterTab> Rosters { get; init; } = [];
-    /// <summary>Tabs of a season's team standings: each team's record, its rank (seed) and its final place.</summary>
+    /// <summary>Tabs of a season's team standings: each team's record, its rank (seed), its final place, its captain and
+    /// roster. A workbook with a <see cref="Season"/> but no stats tabs or tables (a league that kept no player stats) is a
+    /// season of these teams alone: its entry has no player lines, keyed by its first standings tab of its own.</summary>
     public List<StandingsTab> Standings { get; init; } = [];
     /// <summary>Tabs of a Late League season's ladder (its ranked standings): each player's division, league, rank, LP,
     /// streak and MMR (LadderParser), which go on the season's ladder.</summary>
@@ -138,6 +140,12 @@ public class StatsTab
     /// <summary>Optional marker (first non-empty cell prefix, case-insensitive) starting a side-by-side per-game box score
     /// section (e.g. Finals "GAME 1" / "Game 2" blocks), parsed alongside <see cref="PerGame"/>.</summary>
     public string? SideBySideGamesStart { get; init; }
+    /// <summary>Columns (0-based) not read though their header names a stat: a stat's second column of other games, e.g. a
+    /// medal section's Minutes of only the games whose medals were recorded (a later column of a stat wins otherwise).</summary>
+    public List<int>? IgnoreColumns { get; init; }
+    /// <summary>A game a player's row doesn't count as won is lost: their losses are their games less their wins (a tab
+    /// with no Losses column, whose games are never tied). Otherwise a tab without one gives no losses.</summary>
+    public bool LossesAreGamesNotWon { get; init; }
 }
 
 /// <summary>
@@ -206,7 +214,7 @@ public class RosterTab
 
 /// <summary>
 /// A tab of a season's team standings (StandingsParser): a table of teams with any of a record, a rank or seed, a final
-/// place and a captain, its columns found by their headers. Its teams go on the season's regular-season entry, which the
+/// place, a captain and its players (Player 1, Player 2, ...), its columns found by their headers. Its teams go on the season's regular-season entry, which the
 /// import takes their record and placing from.
 /// </summary>
 public class StandingsTab

@@ -125,7 +125,7 @@ public class ScheduleRecommendationMatch
     /// <summary>The season match (no foreign key: a match deleted since is skipped when the times are applied).</summary>
     public int SeasonMatchID { get; private set; }
     public DateTime ScheduledTime { get; private set; }
-    /// <summary>Overlaps another of either team's matches.</summary>
+    /// <summary>Breaks one of the season's rules other than a team's availability: a team plays then, outside the season, a cap.</summary>
     public bool Overlaps { get; private set; }
     public bool HomeTeamAvailable { get; private set; }
     public bool AwayTeamAvailable { get; private set; }

@@ -54,14 +54,14 @@ public class MatchPlannerController : ControllerBase
     /// <summary>Sets a match's time (null: unscheduled again).</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("season-matches/{seasonMatchID:int}/time", Name = "UpdateMatchTime")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<List<GrifballWebApp.Application.Scheduling.ScheduleConflict>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> UpdateMatchTime([FromRoute] int seasonMatchID, [FromBody] UpdateMatchTimeDto dto, CancellationToken ct)
     {
         dto.SeasonMatchID = seasonMatchID;
-        await _matchPlannerService.UpdateMatchTime(dto, ct);
-        return NoContent();
+        // Set, and what is wrong with the time (the season's rules): warnings for the page to show
+        return Ok((await _matchPlannerService.UpdateMatchTime(dto, ct))?.ToList() ?? []);
     }
 }
