@@ -34,7 +34,7 @@ public sealed class TeamAvailabilityService(IApplicationDbContext context)
 
     /// <summary>Each team of <paramref name="seasonID"/>'s timeslots, by its ID.</summary>
     public async Task<IReadOnlyDictionary<int, TeamSlots>> ForSeasonAsync(int seasonID, CancellationToken ct = default)
-        => await ForSeasonAsync(seasonID, await new SeasonSchedulingRulesService(context).ForAsync(seasonID, ct), await SeasonSlotsAsync(seasonID, ct), ct);
+        => await ForSeasonAsync(seasonID, await new SeasonSchedulingRulesService(context).ForAsync(seasonID, ct), await SeasonSlotsAsync(seasonID, ct), null, ct);
 
     /// <summary><paramref name="seasonID"/>'s weekly timeslots, by day and time.</summary>
     internal Task<List<SeasonSlot>> SeasonSlotsAsync(int seasonID, CancellationToken ct)
@@ -44,12 +44,13 @@ public sealed class TeamAvailabilityService(IApplicationDbContext context)
             .Select(o => new SeasonSlot(o.AvailabilityOptionID, o.DayOfWeek, o.Time))
             .ToListAsync(ct);
 
-    /// <summary>The same, with the season's <paramref name="rules"/> and <paramref name="slots"/> loaded already (SchedulingService.LoadAsync's).</summary>
+    /// <summary>The same, with the season's <paramref name="rules"/> and <paramref name="slots"/> loaded already (SchedulingService.LoadAsync's);
+    /// of <paramref name="onlyTeamID"/> alone when given.</summary>
     internal async Task<IReadOnlyDictionary<int, TeamSlots>> ForSeasonAsync(int seasonID, Domain.League.SeasonSchedulingRules rules,
-        IReadOnlyList<SeasonSlot> slots, CancellationToken ct)
+        IReadOnlyList<SeasonSlot> slots, int? onlyTeamID, CancellationToken ct)
     {
         var teams = await context.Teams.AsNoTracking()
-            .Where(t => t.SeasonID == seasonID)
+            .Where(t => t.SeasonID == seasonID && (onlyTeamID == null || t.TeamID == onlyTeamID))
             .Select(t => new
             {
                 t.TeamID,
@@ -82,7 +83,11 @@ public sealed class TeamAvailabilityService(IApplicationDbContext context)
     public async Task<TeamSlots?> ForTeamAsync(int teamID, CancellationToken ct = default)
     {
         var seasonID = await context.Teams.AsNoTracking().Where(t => t.TeamID == teamID).Select(t => (int?)t.SeasonID).SingleOrDefaultAsync(ct);
-        return seasonID is { } season ? (await ForSeasonAsync(season, ct))[teamID] : null;
+        if (seasonID is not { } season)
+            return null;
+        // This team's roster and signups alone, not every team's of the season
+        var rules = await new SeasonSchedulingRulesService(context).ForAsync(season, ct);
+        return (await ForSeasonAsync(season, rules, await SeasonSlotsAsync(season, ct), teamID, ct))[teamID];
     }
 
     /// <summary>Whether <paramref name="userID"/> may change <paramref name="teamID"/>'s timeslots: its captain, or <paramref name="staff"/>.</summary>
@@ -108,7 +113,7 @@ public sealed class TeamAvailabilityService(IApplicationDbContext context)
             .ToListAsync(ct);
         if (availabilityOptionIDs.Any(o => !seasons.Contains(o)))
             return NotTheSeasonsSlot;
-        team.SetAvailability(availabilityOptionIDs);
+        team.SetAvailability(availabilityOptionIDs, seasons);
         await context.SaveChangesAsync(ct);
         return null;
     }

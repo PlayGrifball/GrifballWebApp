@@ -102,14 +102,16 @@ public class Team : AuditableEntity
     public bool HasOwnAvailability => _teamAvailability.Count > 0;
 
     /// <summary>
-    /// Its captain set its timeslots: these (each once), in place of any before and of its roster's. Refuses none:
-    /// <see cref="ClearAvailability"/> goes back to the roster's.
+    /// Its captain set its timeslots: these (each once), of its season's (<paramref name="seasonSlots"/>), in place of any before
+    /// and of its roster's. Refuses none (<see cref="ClearAvailability"/> goes back to the roster's), or one not the season's.
     /// </summary>
-    public void SetAvailability(IEnumerable<int> availabilityOptionIDs)
+    public void SetAvailability(IEnumerable<int> availabilityOptionIDs, IReadOnlyCollection<int> seasonSlots)
     {
         var chosen = availabilityOptionIDs.Distinct().ToList();
         if (chosen.Count == 0)
             throw new ArgumentException("A team's own timeslots are at least one: clear them to go back to its roster's", nameof(availabilityOptionIDs));
+        if (chosen.Exists(o => !seasonSlots.Contains(o)))
+            throw new ArgumentException("A team's own timeslots are its season's", nameof(availabilityOptionIDs));
         // The ones kept stay as they are (their rows), the rest go, the new ones come
         _teamAvailability.RemoveWhere(a => !chosen.Contains(a.AvailabilityOptionID));
         foreach (var option in chosen.Where(o => _teamAvailability.All(a => a.AvailabilityOptionID != o)))
