@@ -29,7 +29,7 @@ function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): Sea
 }
 
 @Component({ selector: 'app-schedule-list', template: '' })
-class StubScheduleList { readonly seasonID = input<number>(); }
+class StubScheduleList { readonly seasonID = input<number>(); readonly feedPublic = input(false); }
 @Component({ selector: 'app-playoff-bracket', template: '' })
 class StubPlayoffBracket {
   readonly seasonID = input<number>();

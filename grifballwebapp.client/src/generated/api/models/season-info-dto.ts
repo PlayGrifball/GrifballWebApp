@@ -30,6 +30,7 @@ export interface SeasonInfoDto {
    */
   hasEnded: boolean;
   historicalSourceUrl: string | null;
+  isPublic: boolean;
 
   /**
    * Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet.

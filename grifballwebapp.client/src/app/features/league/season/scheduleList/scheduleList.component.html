@@ -1,4 +1,6 @@
+@if (feedPublic() && seasonID() > 0) {
 <app-calendar-subscribe [path]="calendarPath()" description="This season's schedule" />
+}
 
 @if (accountService.isEventOrganizer()) {
 <div class="hud-actions sched-tools">

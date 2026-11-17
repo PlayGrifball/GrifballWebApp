@@ -54,6 +54,8 @@ export class ScheduleListComponent {
 
   /** The season page's season (0: none yet). A new one loads its schedule in place of the one shown. */
   readonly seasonID = input.required<number>();
+  /** The public may see the season, so its calendar feed exists (one not announced yet is a 404, though staff see its page). */
+  readonly feedPublic = input(false);
   /** The season's schedule as a calendar feed, on the API. */
   readonly calendarPath = computed(() => `seasons/${this.seasonID()}/calendar.ics`);
   readonly unscheduledMatches = this.store.unscheduledMatches;

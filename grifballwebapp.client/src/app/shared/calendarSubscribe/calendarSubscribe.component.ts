@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DOCUMENT, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DOCUMENT, computed, inject, input, linkedSignal } from '@angular/core';
 import { Clipboard } from '@angular/cdk/clipboard';
 
 /** A calendar feed's address on this site: the API's own path (`teams/5/calendar.ics`) under `/api`. */
@@ -33,8 +33,8 @@ export class CalendarSubscribeComponent {
 
   readonly url = computed(() => calendarFeedUrl(this.document.location.origin, this.path()));
   readonly webcal = computed(() => webcalUrl(this.url()));
-  /** The address is on the clipboard. */
-  readonly copied = signal(false);
+  /** The address is on the clipboard: forgotten for another (the page kept for another team or player). */
+  readonly copied = linkedSignal({ source: this.url, computation: () => false });
 
   copy(): void {
     this.copied.set(this.clipboard.copy(this.url()));
