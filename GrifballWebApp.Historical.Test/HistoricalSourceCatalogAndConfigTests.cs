@@ -67,6 +67,7 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             ChampionsSheet = "Champions",
             PlayersSheet = "Players",
             RosterSheets = ["Rosters"],
+            Drafts = [new DraftTab { Sheet = "Draft Sheet", Season = "src", Layout = DraftLayout.Table, Order = DraftOrder.None }],
         };
 
         var json = config.ToJson();
@@ -81,6 +82,8 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Assert.That(roundTripped.ChampionsSheet, Is.EqualTo("Champions"));
             Assert.That(roundTripped.PlayersSheet, Is.EqualTo("Players"));
             Assert.That(roundTripped.RosterSheets, Is.EqualTo(RosterSheetNames));
+            Assert.That(roundTripped.Drafts.Select(d => (d.Sheet, d.Season, d.Layout, d.Order)), Is.EqualTo(new[] { ("Draft Sheet", (string?)"src", DraftLayout.Table, DraftOrder.None) }));
+            Assert.That(json, Does.Contain("\"order\":\"None\""), "Enums by name");
         }
     }
 
@@ -97,6 +100,7 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Games = [new GamesTab { Sheet = "Games", Season = "src/1", Game = "infinite" }],
             RosterSheets = ["Rosters"],
             Rosters = [new RosterTab { Sheet = "DraftSheet", Season = "src/1" }],
+            Drafts = [new DraftTab { Sheet = " Draft Board " }],
             ChampionsSheet = "Champions",
             PlayersSheet = "Players",
         };
@@ -105,7 +109,8 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names, Has.Count.EqualTo(11));
+            Assert.That(names, Has.Count.EqualTo(12));
+            Assert.That(names, Does.Contain("Draft Board"));
             Assert.That(names, Does.Contain("Match History"));
             Assert.That(names, Does.Contain("Stats"));
             Assert.That(names, Does.Contain("Dates"));

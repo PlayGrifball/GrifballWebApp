@@ -48,7 +48,16 @@ public class TeamPlayer : AuditableEntity
     public int? DraftCaptainOrder { get; private set; }
     /// <summary>The draft round the player was picked in (<see cref="Team.Draft"/>); null: not drafted (a captain, an import).</summary>
     public int? DraftRound { get; private set; }
+    /// <summary>The pick's number in the whole draft, as an archived draft's board gives it (<see cref="Team.RecordArchivedDraft"/>);
+    /// null: none given.</summary>
     public int? DraftPick { get; private set; }
+
+    /// <summary>An archived draft's pick of the player (<see cref="Team.RecordArchivedDraft"/>); nulls: not picked.</summary>
+    internal void Picked(int? round, int? pick)
+    {
+        DraftRound = round;
+        DraftPick = pick;
+    }
 
     internal void InRound(int round) => DraftRound = round;
 

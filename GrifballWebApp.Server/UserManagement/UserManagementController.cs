@@ -37,7 +37,7 @@ public class UserManagementController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<ActionResult<UserResponseDto>> GetUser([FromRoute] int userID, CancellationToken ct)
     {
-        return await _userManagementService.GetUser(userID, ct) is { } user ? user : this.NotFoundProblem("There is no such user");
+        return await _userManagementService.GetUser(userID, ct) is { } user ? user : this.NotFoundProblem(ApiProblems.NoSuchUser);
     }
 
     /// <summary>Creates a user (204: the service answers no ID to point a Location at).</summary>
