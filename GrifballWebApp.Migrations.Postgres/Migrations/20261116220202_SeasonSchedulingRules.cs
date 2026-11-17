@@ -60,6 +60,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "SeasonID", "PeriodEnd" });
 
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"SeasonSchedulingRules\"');");
+
+            // Recommendations saved before this hold the league's Eastern wall-clock times, which applying would now take for
+            // UTC: the ones not applied yet go (run the scheduler again). Their times first, as SQLite migrates with foreign keys off.
+            migrationBuilder.Sql("""
+                DELETE FROM "Event"."ScheduleRecommendationMatches" WHERE "ScheduleRecommendationID" IN (SELECT "ScheduleRecommendationID" FROM "Event"."ScheduleRecommendations" WHERE "AppliedAt" IS NULL);
+                DELETE FROM "Event"."ScheduleRecommendations" WHERE "AppliedAt" IS NULL;
+                """);
         }
 
         /// <inheritdoc />

@@ -42,6 +42,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            // Recommendations saved before this hold the league's Eastern wall-clock times, which applying would now take for
+            // UTC: the ones not applied yet go (run the scheduler again). Their times first, as SQLite migrates with foreign keys off.
+            migrationBuilder.Sql("""
+                DELETE FROM [Event].[ScheduleRecommendationMatches] WHERE [ScheduleRecommendationID] IN (SELECT [ScheduleRecommendationID] FROM [Event].[ScheduleRecommendations] WHERE [AppliedAt] IS NULL);
+                DELETE FROM [Event].[ScheduleRecommendations] WHERE [AppliedAt] IS NULL;
+                """);
         }
 
         /// <inheritdoc />

@@ -68,6 +68,13 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     INSERT INTO "SeasonSchedulingRulesHistory" ("MaxConcurrentMatches", "MaxMatchesPerTeamPerNight", "MaxMatchesPerTeamPerWeek", "MinPlayersAvailable", "PeriodStart", "SeasonID", "PeriodEnd") VALUES (OLD."MaxConcurrentMatches", OLD."MaxMatchesPerTeamPerNight", OLD."MaxMatchesPerTeamPerWeek", OLD."MinPlayersAvailable", OLD."PeriodStart", OLD."SeasonID", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
                 END;
                 """);
+
+            // Recommendations saved before this hold the league's Eastern wall-clock times, which applying would now take for
+            // UTC: the ones not applied yet go (run the scheduler again). Their times first, as SQLite migrates with foreign keys off.
+            migrationBuilder.Sql("""
+                DELETE FROM "ScheduleRecommendationMatches" WHERE "ScheduleRecommendationID" IN (SELECT "ScheduleRecommendationID" FROM "ScheduleRecommendations" WHERE "AppliedAt" IS NULL);
+                DELETE FROM "ScheduleRecommendations" WHERE "AppliedAt" IS NULL;
+                """);
         }
 
         /// <inheritdoc />
