@@ -6,6 +6,12 @@
  * What importing a season removes of what it had: stat rows, teams, titles (championship rows).
  */
 export interface HistoricalSeasonRemoval {
+
+  /**
+   * The season's awards (SeasonAward rows): not kept on a review, which has the other counts.
+   */
+  awardsBefore: number;
+  awardsRemoved: number;
   removesAnything: boolean;
   seasonKey: string;
   seasonName: string | null;

@@ -23,19 +23,23 @@ public class HistoricalImportPipelineUnitTests
     public void TheGuardrail_MeasuresEachKindOfRow()
     {
         var guardrail = new HistoricalGuardrailOptions { MaxRemovedFraction = 0.5m, StopOnAnyChampionshipRemoved = false };
-        HistoricalSeasonRemoval Removal(int statsRemoved = 0, int teamsRemoved = 0, int titlesRemoved = 0, int before = 10)
-            => new() { SeasonKey = "s", StatsBefore = before, StatsRemoved = statsRemoved, TeamsBefore = before, TeamsRemoved = teamsRemoved, TitlesBefore = before, TitlesRemoved = titlesRemoved };
+        HistoricalSeasonRemoval Removal(int statsRemoved = 0, int teamsRemoved = 0, int titlesRemoved = 0, int awardsRemoved = 0, int before = 10)
+            => new() { SeasonKey = "s", StatsBefore = before, StatsRemoved = statsRemoved, TeamsBefore = before, TeamsRemoved = teamsRemoved, TitlesBefore = before, TitlesRemoved = titlesRemoved,
+                AwardsBefore = before, AwardsRemoved = awardsRemoved };
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(guardrail.Exceeded(Removal(statsRemoved: 5)), Is.False, "Not more than half");
             Assert.That(guardrail.Exceeded(Removal(statsRemoved: 6)), Is.True);
             Assert.That(guardrail.Exceeded(Removal(teamsRemoved: 6)), Is.True);
+            Assert.That(guardrail.Exceeded(Removal(awardsRemoved: 5)), Is.False, "Awards by share too");
+            Assert.That(guardrail.Exceeded(Removal(awardsRemoved: 6)), Is.True, "An awards tab no longer read takes them all");
+            Assert.That(Removal(awardsRemoved: 1).RemovesAnything, Is.True);
             Assert.That(guardrail.Exceeded(Removal(titlesRemoved: 1)), Is.False, "Titles by share when any isn't asked for");
             Assert.That(guardrail.Exceeded(Removal(titlesRemoved: 6)), Is.True);
             Assert.That(guardrail.Exceeded(Removal(before: 0)), Is.False, "A new season removes nothing");
             Assert.That(new HistoricalGuardrailOptions().Exceeded(Removal(titlesRemoved: 1)), Is.True, "Any title, by default");
-            Assert.That(Removal(statsRemoved: 1).Summary, Is.EqualTo("1 of 10 stat rows, 0 of 10 teams, 0 of 10 titles"));
+            Assert.That(Removal(statsRemoved: 1).Summary, Is.EqualTo("1 of 10 stat rows, 0 of 10 teams, 0 of 10 titles, 0 of 10 awards"));
         }
     }
 }

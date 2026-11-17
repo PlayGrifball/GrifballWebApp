@@ -16,6 +16,29 @@ public class SeasonSummaryDto : SeasonInfoDto
     public int BracketMatchCount { get; set; }
     public int PlayerStatCount { get; set; }
     public List<SeasonChampionDto> Champions { get; set; } = [];
+    /// <summary>The season's awards (its MVP, named awards, records), in its source's order.</summary>
+    public List<SeasonAwardDto> Awards { get; set; } = [];
+}
+
+/// <summary>An award of the season and who won it: one winner, or several (a Best Duo, a top 5 in its order).</summary>
+public class SeasonAwardDto
+{
+    public required string Name { get; set; }
+    public List<SeasonAwardWinnerDto> Winners { get; set; } = [];
+}
+
+/// <summary>A winner of a season's award: a player, a team (no player), or a player of a team.</summary>
+public class SeasonAwardWinnerDto
+{
+    /// <summary>The player; null for a team's award.</summary>
+    public int? UserID { get; set; }
+    /// <summary>The team that won it, or the player's team when the source names it.</summary>
+    public int? TeamID { get; set; }
+    /// <summary>The winner as the source names them: the gamertag used, or the team's name.</summary>
+    public required string Name { get; set; }
+    public string? TeamName { get; set; }
+    /// <summary>What the award is worth: a record's value, a ranked list's place.</summary>
+    public string? Value { get; set; }
 }
 
 /// <summary>A tier's champions: the team and the players who hold the title.</summary>
