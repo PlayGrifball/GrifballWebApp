@@ -91,6 +91,11 @@ public class ScheduleCheckerUnitTests
     }
 
     [Test]
+    public void ATimeNotOneOfTheSeasonsSlots_IsThat_NotAlsoBothTeamsUnavailable()
+        // A team's availability is of the season's slots: off them it says nothing about either team
+        => Assert.That(Kinds(Checker().Check(Match(10, Home, Away, Monday8pm.AddMinutes(75)), [])), Is.EqualTo(Only(ScheduleConflictKind.NotASeasonTimeslot)));
+
+    [Test]
     public void ATeamsSecondMatchInANight_OrThirdInAWeek_IsOverTheSeasonsCap()
     {
         var checker = Checker();

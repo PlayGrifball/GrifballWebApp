@@ -114,6 +114,35 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
     }
 
     [Test]
+    public async Task Recommend_ASeasonOver_OrWithNoTimeslotLeft_SaysSo()
+    {
+        await SeedSeason();
+        ScheduleService At(DateTime now) => new(Context, Substitute.For<ILogger<ScheduleService>>(), new Microsoft.Extensions.Time.Testing.FakeTimeProvider(now));
+        var options = new ScheduleRunOptions { MaxGenerations = 2, TimeBudget = null };
+
+        // The season ends 3 August 00:00 UTC (2 August 20:00 Eastern, its last slot's time): after it, and half an hour before it
+        var over = await Assert.ThrowsAsync<InvalidOperationException>(() => At(new DateTime(2026, 8, 10, 0, 0, 0, DateTimeKind.Utc)).Recommend(SeasonID, options));
+        var noTime = await Assert.ThrowsAsync<InvalidOperationException>(() => At(new DateTime(2026, 8, 2, 23, 30, 0, DateTimeKind.Utc)).Recommend(SeasonID, options));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(over!.Message, Is.EqualTo(ScheduleService.SeasonOver));
+            Assert.That(noTime!.Message, Is.EqualTo(ScheduleService.NoTimeLeft));
+        }
+    }
+
+    [Test]
+    public void ToUtc_ATimeTheClocksSkip_IsTheHourAfter()
+    {
+        // 14 March 2027, 2:00 Eastern: the clocks go to 3:00. A 2:30 slot that night is 3:30 EDT
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ScheduleService.ToUtc(new DateTime(2027, 3, 14, 2, 30, 0)), Is.EqualTo(new DateTime(2027, 3, 14, 7, 30, 0, DateTimeKind.Utc)));
+            Assert.That(ScheduleService.ToUtc(new DateTime(2027, 3, 13, 2, 30, 0)), Is.EqualTo(new DateTime(2027, 3, 13, 7, 30, 0, DateTimeKind.Utc)), "EST the night before");
+        }
+    }
+
+    [Test]
     public async Task Recommend_ASeasonUnderWay_PlacesNothingInThePast_NorRunningPastItsEnd()
     {
         var regular = await SeedSeason();

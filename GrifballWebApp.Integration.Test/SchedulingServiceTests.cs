@@ -90,6 +90,19 @@ public class SchedulingServiceUnitTests
     }
 
     [Test]
+    public async Task SuggestAsync_FromAndTo_WithAnOffset_AreTheirUtcTimes()
+    {
+        await Seed();
+        // As JSON reads a time with an offset other than Z: a local one
+        var from = DateTime.SpecifyKind(Monday.AddDays(6), DateTimeKind.Utc).ToLocalTime();
+        var to = DateTime.SpecifyKind(Monday.AddDays(8), DateTimeKind.Utc).ToLocalTime();
+
+        var window = await Service().SuggestAsync(_match.SeasonMatchID, from: from, to: to);
+
+        Assert.That(window!.Select(s => s.StartsAt), Is.EqualTo(Times(Monday.AddDays(7))));
+    }
+
+    [Test]
     public async Task LoadAsync_NoSuchSeason_IsNone()
         => Assert.That(await Service().LoadAsync(999_999), Is.Null);
 }

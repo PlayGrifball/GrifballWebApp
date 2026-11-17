@@ -338,6 +338,23 @@ public class TeamAggregateTests
         }
     }
 
+    /// <summary>The season's timeslots in these tests.</summary>
+    private static readonly int[] SeasonSlots = [10, 11, 12];
+    private static readonly int[] OnlyTen = [10];
+
+    [Test]
+    public void SetAvailability_ATimeslotNotTheSeasons_IsRefused_NothingChanged()
+    {
+        var team = DraftedTeam();
+        team.SetAvailability([10], SeasonSlots);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(() => team.SetAvailability([11, 99], SeasonSlots), Throws.ArgumentException);
+            Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EqualTo(OnlyTen));
+        }
+    }
+
     [Test]
     public void SetAvailability_IsTheCaptainsChoice_InPlaceOfTheRosters_UntilCleared()
     {
@@ -346,10 +363,10 @@ public class TeamAggregateTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(team.HasOwnAvailability, Is.False, "Worked out from the roster until the captain sets it");
-            team.SetAvailability([10, 11, 11]);
+            team.SetAvailability([10, 11, 11], SeasonSlots);
             Assert.That(team.HasOwnAvailability, Is.True);
             Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(TenAndEleven), "Once each");
-            team.SetAvailability([12]);
+            team.SetAvailability([12], SeasonSlots);
             Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(OnlyTwelve), "Replaced, not added to");
             team.ClearAvailability();
             Assert.That(team.HasOwnAvailability, Is.False, "Back to the roster's");
@@ -358,16 +375,16 @@ public class TeamAggregateTests
 
     [Test]
     public void SetAvailability_NoSlots_IsRefused_ClearIsTheWayBackToTheRosters()
-        => Assert.That(() => DraftedTeam().SetAvailability([]), Throws.ArgumentException);
+        => Assert.That(() => DraftedTeam().SetAvailability([], SeasonSlots), Throws.ArgumentException);
 
     [Test]
     public void SetAvailability_KeepsTheSlotsStillChosen_AsTheyWere()
     {
         var team = DraftedTeam();
-        team.SetAvailability([10, 11]);
+        team.SetAvailability([10, 11], SeasonSlots);
         var kept = team.TeamAvailability.Single(a => a.AvailabilityOptionID == 11);
 
-        team.SetAvailability([11, 12]);
+        team.SetAvailability([11, 12], SeasonSlots);
 
         using (Assert.EnterMultipleScope())
         {
