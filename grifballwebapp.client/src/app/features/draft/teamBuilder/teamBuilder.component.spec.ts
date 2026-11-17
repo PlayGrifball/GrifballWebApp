@@ -17,6 +17,16 @@ import { GrabbedThing, GrabbedThingTypes } from './personStatus';
 import { DndDropEvent } from 'ngx-drag-drop';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Component, input } from '@angular/core';
+import { By } from '@angular/platform-browser';
+import { DraftHelperComponent } from '../draftHelper/draftHelper.component';
+
+/** The draft helper (tested on its own): here only that the page gives it the season and its pool. */
+@Component({ selector: 'app-draft-helper', template: '' })
+class StubDraftHelper {
+  readonly seasonID = input<number>();
+  readonly poolKey = input<string>();
+}
 
 /** The hub connection's id as a test sets it (the real one is read-only). */
 type WritableConnectionID = { connectionId: string | null | undefined };
@@ -83,7 +93,7 @@ describe('TeamBuilderComponent', () => {
         { provide: AccountService, useValue: mockAccountService },
         { provide: SignalRService, useValue: mockSignalR }
       ]
-    }).compileComponents();
+    }).overrideComponent(TeamBuilderComponent, { remove: { imports: [DraftHelperComponent] }, add: { imports: [StubDraftHelper] } }).compileComponents();
 
     fixture = TestBed.createComponent(TeamBuilderComponent);
     component = fixture.componentInstance;
@@ -93,6 +103,14 @@ describe('TeamBuilderComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it("gives the draft helper the season and the pool's players, to reload as picks are made", () => {
+    mockDraft.getPlayerPool.and.returnValue(of([{ name: 'A', personID: 3, pick: null, round: null, region: null }, { name: 'B', personID: 4, pick: null, round: null, region: null }]));
+    fixture.detectChanges();
+    const helper = fixture.debugElement.query(By.directive(StubDraftHelper)).componentInstance as StubDraftHelper;
+    expect(helper.seasonID()).toBe(5);
+    expect(helper.poolKey()).toBe('3,4');
   });
 
   it('follows the hub only once the page initialises, in the pass that sets its season', () => {
@@ -1360,7 +1378,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
         { provide: AccountService, useValue: mockAccountService },
         { provide: SignalRService, useValue: mockSignalR }
       ]
-    }).compileComponents();
+    }).overrideComponent(TeamBuilderComponent, { remove: { imports: [DraftHelperComponent] }, add: { imports: [StubDraftHelper] } }).compileComponents();
 
     httpTesting = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TeamBuilderComponent);
@@ -1452,7 +1470,7 @@ describe('TeamBuilderComponent hub handler registration (real SignalRService)', 
         { provide: TeamsService, useValue: api },
         { provide: AccountService, useValue: account },
       ]
-    }).compileComponents();
+    }).overrideComponent(TeamBuilderComponent, { remove: { imports: [DraftHelperComponent] }, add: { imports: [StubDraftHelper] } }).compileComponents();
   });
 
   it('keeps one handler per hub method across visits, and a destroyed page no longer reacts', () => {
