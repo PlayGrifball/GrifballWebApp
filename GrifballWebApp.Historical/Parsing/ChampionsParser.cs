@@ -6,7 +6,8 @@ using GrifballWebApp.Historical.Sources;
 namespace GrifballWebApp.Historical.Parsing;
 
 /// <summary>The AGLA champions record: from its third row, each row is a title (season, game, tier, team, then up to eight
-/// players, the captain first). A tier of "-" is Open.</summary>
+/// players, the captain first). A tier of "-" is Open. A team the record spells otherwise than its season's sheets is the name
+/// its config's <see cref="HistoricalSourceConfig.TeamNames"/> gives (the record's "Yung Hummu" is the sheets' Yung Humma).</summary>
 public static class ChampionsParser
 {
     public static ChampionsArchive Parse(string sourceId, string? sourceUrl, SheetTable sheet, HistoricalSourceConfig? config = null)
@@ -16,6 +17,8 @@ public static class ChampionsParser
         {
             var season = sheet.Cell(r, 0).Trim().TrimEnd(':');
             var team = sheet.Cell(r, 3).Trim();
+            if (config is not null && team.Length > 0)
+                team = config.TeamName(team);
             if (season.Length == 0 || team.Length == 0)
                 continue;
             var tier = sheet.Cell(r, 2).Trim();

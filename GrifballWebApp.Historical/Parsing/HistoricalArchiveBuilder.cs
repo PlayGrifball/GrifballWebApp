@@ -96,7 +96,7 @@ public sealed partial class HistoricalArchiveBuilder
             entry.SourceYear ??= source.Year;
         _seasons.AddRange(entries);
         if (config.ChampionsSheet is not null)
-            AddChampions(id, source.Url, config.ChampionsSheet, workbook, changed);
+            AddChampions(id, source.Url, config, workbook, changed);
         AddWaypoint(id, config, workbook);
         AddSeasonTabs(id, config, workbook);
         AddResultLists(id, source.Year, config, workbook);
@@ -154,11 +154,12 @@ public sealed partial class HistoricalArchiveBuilder
         return workbook;
     }
 
-    private void AddChampions(string id, string url, string sheetName, SheetWorkbook workbook, bool changed)
+    private void AddChampions(string id, string url, HistoricalSourceConfig config, SheetWorkbook workbook, bool changed)
     {
+        var sheetName = config.ChampionsSheet!;
         if (workbook.Sheet(sheetName) is { } sheet)
         {
-            _champions = ChampionsParser.Parse(id, url, sheet);
+            _champions = ChampionsParser.Parse(id, url, sheet, config);
             _everySeason |= changed;
         }
         else
