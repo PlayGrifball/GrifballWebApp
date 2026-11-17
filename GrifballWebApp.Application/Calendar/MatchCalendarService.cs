@@ -51,7 +51,8 @@ public class MatchCalendarService
         if (team is null)
             return null;
 
-        var events = await EventsAsync(_context.SeasonMatches.Where(m => m.HomeTeamID == teamID || m.AwayTeamID == teamID), siteUrl, ct);
+        // Its season is public (checked above): its matches are too
+        var events = await EventsAsync(_context.SeasonMatches.Where(m => m.HomeTeamID == teamID || m.AwayTeamID == teamID), siteUrl, publicOnly: false, ct);
         return IcsWriter.Write(new CalendarFeed($"{team.TeamName} ({team.SeasonName})", events));
     }
 
@@ -69,7 +70,7 @@ public class MatchCalendarService
         // The player's teams first: the matches are then a plain IN on either side, not a roster lookup a row
         var teamIDs = await _context.Teams.Rosters().Where(p => p.UserID == userID).Select(p => (int?)p.TeamID).Distinct().ToListAsync(ct);
         var matches = _context.SeasonMatches.Where(m => teamIDs.Contains(m.HomeTeamID) || teamIDs.Contains(m.AwayTeamID));
-        var events = await EventsAsync(matches, siteUrl, ct);
+        var events = await EventsAsync(matches, siteUrl, publicOnly: true, ct);
         var name = player.Name is { } shown ? $"{shown}'s matches" : "Grifball matches";
         return IcsWriter.Write(new CalendarFeed(name, events));
     }
@@ -83,17 +84,21 @@ public class MatchCalendarService
         if (season is null)
             return null;
 
-        var events = await EventsAsync(_context.SeasonMatches.Where(m => m.SeasonID == seasonID), siteUrl, ct);
+        var events = await EventsAsync(_context.SeasonMatches.Where(m => m.SeasonID == seasonID), siteUrl, publicOnly: false, ct);
         return IcsWriter.Write(new CalendarFeed($"{season.SeasonName} schedule", events));
     }
 
-    /// <summary>The events of the scheduled matches among <paramref name="matches"/> that a feed may show (of a public
-    /// season, no BYE), soonest first.</summary>
-    private async Task<List<CalendarEvent>> EventsAsync(IQueryable<SeasonMatch> matches, string siteUrl, CancellationToken ct)
+    /// <summary>The events of the scheduled matches among <paramref name="matches"/> that a feed may show (no BYE; of a public
+    /// season, which <paramref name="publicOnly"/> checks: a team's or a season's feed checked its season already), soonest first.</summary>
+    private async Task<List<CalendarEvent>> EventsAsync(IQueryable<SeasonMatch> matches, string siteUrl, bool publicOnly, CancellationToken ct)
     {
-        var seasons = PublicSeasons();
+        if (publicOnly)
+        {
+            var seasons = PublicSeasons();
+            matches = matches.Where(m => seasons.Any(s => s.SeasonID == m.SeasonID));
+        }
         var rows = await matches.AsNoTracking()
-            .Where(m => m.ScheduledTime != null && seasons.Any(s => s.SeasonID == m.SeasonID))
+            .Where(m => m.ScheduledTime != null)
             .Where(m => m.HomeTeamResult != SeasonMatchResult.Bye && m.AwayTeamResult != SeasonMatchResult.Bye)
             .OrderBy(m => m.ScheduledTime)
             .ThenBy(m => m.SeasonMatchID)
