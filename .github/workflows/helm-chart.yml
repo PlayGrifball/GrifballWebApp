@@ -364,30 +364,9 @@ jobs:
           set -euo pipefail
           echo "$TOKEN" | helm registry login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
           base=$(sed -n 's/^version: *//p' "$CHART/Chart.yaml")
-          version="${base%.*}.${{ github.run_number }}"
-          # A re-run of this run would reuse its number: never overwrite a published version. Its digest still goes to
-          # the release job, which makes the release if the first attempt didn't.
-          if helm show chart "$CHART_REPO/grifballwebapp" --version "$version" >/dev/null 2>&1; then
-            echo "grifballwebapp $version is already published; not overwriting it."
-            digest=$(helm pull "$CHART_REPO/grifballwebapp" --version "$version" -d pulled 2>&1 | sed -n 's/^Digest: *//p')
-            test -n "$digest"
-            { echo "version=$version"; echo "digest=$digest"; } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          helm package "$CHART" --version "$version" -d dist
-          helm push "dist/grifballwebapp-$version.tgz" "$CHART_REPO" 2>&1 | tee push.txt
-          digest=$(sed -n 's/^Digest: *//p' push.txt)
-          test -n "$digest"
-          ref="${CHART_REPO#oci://}/grifballwebapp@$digest"
-          cosign sign --yes "$ref"
-          cosign verify "$ref" --certificate-identity-regexp "$IDENTITY" \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
-          { echo "version=$version"; echo "digest=$digest"; } >> "$GITHUB_OUTPUT"
-          {
-            echo "Published and signed $CHART_REPO/grifballwebapp:$version ($digest)."
-            echo
-            echo "Verify: cosign verify ${ref%@*}:$version --certificate-identity-regexp '$IDENTITY' --certificate-oidc-issuer https://token.actions.githubusercontent.com"
-          } >> "$GITHUB_STEP_SUMMARY"
+          # A re-run of this run reuses its number: chart-publish.sh never overwrites a published version, signs it if
+          # the first attempt didn't, and outputs its digest so the release job makes the release if it wasn't made.
+          .github/scripts/chart-publish.sh "${base%.*}.${{ github.run_number }}"
 
   # The published version's GitHub release (.github/scripts/chart-release.sh): tagged grifballwebapp-<version> at the
   # commit, its notes the chart's changes since the previous chart release, so Renovate shows them on a chart update.
