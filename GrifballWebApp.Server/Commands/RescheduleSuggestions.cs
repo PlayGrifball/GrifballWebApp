@@ -64,9 +64,11 @@ public class RescheduleTimeAutocomplete(RescheduleSuggestions suggestions) : IAu
 {
     public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
         AutocompleteInteractionContext context)
-        => await suggestions.TimeChoices(Find(context.Interaction.Data.Options, "match")?.Value, option.Value);
+        => await suggestions.TimeChoices(MatchPicked(context.Interaction.Data.Options), option.Value);
 
-    /// <summary>The option named <paramref name="name"/>, among a subcommand's too.</summary>
+    /// <summary>The match option's value among the command's options (a subcommand's too); null before one is picked.</summary>
+    public static string? MatchPicked(IEnumerable<ApplicationCommandInteractionDataOption> options) => Find(options, "match")?.Value;
+
     private static ApplicationCommandInteractionDataOption? Find(IEnumerable<ApplicationCommandInteractionDataOption> options, string name)
         => options.Select(o => o.Name == name ? o : Find(o.Options ?? [], name)).FirstOrDefault(o => o is not null);
 }

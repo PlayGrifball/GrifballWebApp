@@ -70,9 +70,10 @@ describe('ScheduleListStore', () => {
 
     store.setTime(9, null);
     expect(store.timeWarnings()).toEqual([]);
-    http.expectOne('/api/season-matches/9/time').flush([]);
+    http.expectOne('/api/season-matches/9/time').flush(null);
     http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
     http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
+    expect(store.timeWarnings()).withContext('No answer: nothing to say').toEqual([]);
   });
 
   it('applies the latest recommendation, then reads the schedule and the recommendation again', () => {

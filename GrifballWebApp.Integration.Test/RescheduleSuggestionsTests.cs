@@ -3,6 +3,7 @@ using GrifballWebApp.Application.Scheduling;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Domain.League;
 using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Time.Testing;
 
@@ -72,6 +73,22 @@ public class RescheduleSuggestionsTests
             Assert.That(all[0].Name, Does.Contain("Mon 1 Jun").And.Contain("8:00 PM ET").And.Contain("4 and 4 players"));
             Assert.That(all[2].Name, Does.Contain("⚠"));
             Assert.That(typed.Select(c => c.StringValue), Is.EqualTo(TheSecondTuesday));
+        }
+    }
+
+    [Test]
+    public async Task AMatchMissingATeam_HasNoTimeToSuggest()
+    {
+        var tbd = SeasonMatch.Seed(_s.SeasonID, _s.Reds.TeamID, null);
+        _context.SeasonMatches.Add(tbd);
+        await _context.SaveChangesAsync();
+
+        await _suggestions.Suggest(_discord.Context, tbd.SeasonMatchID.ToString());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.Content(), Does.StartWith("I have no time to suggest for that match"));
+            Assert.That(await _suggestions.TimeChoices(tbd.SeasonMatchID.ToString(), null), Is.Empty);
         }
     }
 

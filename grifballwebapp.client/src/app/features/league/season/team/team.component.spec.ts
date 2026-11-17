@@ -105,6 +105,9 @@ describe('TeamComponent', () => {
     expect(editor()).toBeUndefined();
 
     account.isLoggedIn.set(true);
+    fixture.detectChanges();
+    expect(editor()!.canEdit()).withContext('Signed in, but not known yet').toBeFalse();
+
     account.personID.set(11);
     fixture.detectChanges();
     expect(editor()!.teamID()).toBe(7);

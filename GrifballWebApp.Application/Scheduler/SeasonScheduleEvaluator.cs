@@ -33,11 +33,14 @@ public class SeasonScheduleEvaluator(ScheduleChecker checker, IReadOnlyDictionar
 
         var placed = genes.Select(Scheduled).ToList();
         var others = _fixed.Concat(placed).ToList();
-        var penalties = placed.Sum(match => checker.Check(match, others).Sum(c => c.Refuses ? RefusedWeight : 1));
+        var penalties = placed.Sum(match => Penalty(checker.Check(match, others)));
 
         // 0 to 1, 1 a schedule with no conflict (FitnessThresholdTermination's 1.00), falling as penalties grow
         return 1.0 / (1.0 + penalties);
     }
+
+    /// <summary>A match's conflicts weighed: <see cref="RefusedWeight"/> a refused one, 1 a warning.</summary>
+    private static int Penalty(IEnumerable<ScheduleConflict> conflicts) => conflicts.Sum(c => c.Refuses ? RefusedWeight : 1);
 
     /// <summary>What is wrong with <paramref name="gene"/>'s time, among <paramref name="genes"/> (the run's) and the fixed matches.</summary>
     public IReadOnlyList<ScheduleConflict> ConflictsOf(SeasonMatchGene gene, IReadOnlyList<SeasonMatchGene> genes)

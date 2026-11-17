@@ -15,7 +15,7 @@ describe('TeamAvailabilityComponent', () => {
     ],
   };
 
-  async function create(canEdit: boolean) {
+  async function create(canEdit: boolean, team: TeamSlots = slots) {
     await TestBed.configureTestingModule({
       imports: [TeamAvailabilityComponent],
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
@@ -25,7 +25,9 @@ describe('TeamAvailabilityComponent', () => {
     fixture.componentRef.setInput('teamID', 7);
     fixture.componentRef.setInput('canEdit', canEdit);
     fixture.detectChanges();
-    http.expectOne('/api/teams/7/availability').flush(slots);
+    // Nothing ticked until the team's timeslots arrive
+    expect(fixture.componentInstance.ticked()).toHaveSize(0);
+    http.expectOne('/api/teams/7/availability').flush(team);
     fixture.detectChanges();
   }
 
@@ -54,5 +56,16 @@ describe('TeamAvailabilityComponent', () => {
     button('Save')!.click();
 
     expect(http.expectOne({ method: 'POST', url: '/api/teams/7/availability' }).request.body).toEqual({ availabilityOptionIDs: [1, 2] });
+  });
+
+  it("lets the captain untick one, and reset the team's own to the roster's", async () => {
+    await create(true, { ...slots, setByCaptain: true });
+    boxes()[0].click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.ticked()).toHaveSize(0);
+    expect(button('Save')!.disabled).toBeTrue();
+
+    button("Reset to the roster's")!.click();
+    expect(http.expectOne({ method: 'POST', url: '/api/teams/7/availability/reset' }).request.body).toBeNull();
   });
 });

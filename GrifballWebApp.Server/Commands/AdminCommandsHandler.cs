@@ -182,7 +182,7 @@ public class AdminCommandsHandler
     }
 
     /// <summary>What is wrong with a time just set (the season's rules), as a reply's last lines; nothing when nothing is.</summary>
-    internal static string Warnings(IReadOnlyList<GrifballWebApp.Application.Scheduling.ScheduleConflict> conflicts)
+    public static string Warnings(IReadOnlyList<GrifballWebApp.Application.Scheduling.ScheduleConflict> conflicts)
         => conflicts.Count == 0 ? "" : "\nBut: " + string.Join(" ", conflicts.Select(c => c.Message));
 
     public async Task GenerateMatches(IDiscordInteractionContext context, string? season, int homeMatchesPerTeam, int bestOf)

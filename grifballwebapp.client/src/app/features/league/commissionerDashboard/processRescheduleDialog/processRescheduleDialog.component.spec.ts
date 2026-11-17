@@ -181,6 +181,8 @@ describe('ProcessRescheduleDialogComponent', () => {
     const other = el().querySelector('.prd-alternatives')!.textContent!;
     expect(other).toContain(new Date('2026-03-02T00:00:00Z').toLocaleString());
     expect(other).toContain('5 and 4 players');
+    expect(component.warnings(1)).toBe(' (1 warning)');
+    expect(component.warnings(2)).toBe(' (2 warnings)');
   });
 });
 

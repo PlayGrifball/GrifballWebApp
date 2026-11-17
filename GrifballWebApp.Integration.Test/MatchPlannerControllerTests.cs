@@ -77,4 +77,12 @@ public class MatchPlannerControllerTests
         var after = await _controller.GetScheduledMatches(season.SeasonID, CancellationToken.None);
         Assert.That(after.Select(x => x.SeasonMatchID), Is.EqualTo(new[] { unscheduled.SeasonMatchID, scheduled.SeasonMatchID }));
     }
+
+    [Test]
+    public async Task UpdateMatchTime_NoSuchMatch_SetsNothing_AndHasNothingWrong()
+    {
+        var updated = await _controller.UpdateMatchTime(999_999, new UpdateMatchTimeDto { Time = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc) }, CancellationToken.None);
+
+        Assert.That(((OkObjectResult)updated).Value, Is.Empty);
+    }
 }

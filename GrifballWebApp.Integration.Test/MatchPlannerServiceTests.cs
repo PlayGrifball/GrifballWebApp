@@ -238,4 +238,27 @@ public class MatchPlannerServiceTests
                 "Staff set it all the same: a warning");
         }
     }
+
+    [Test]
+    public async Task UpdateMatchTime_AMatchMissingATeam_IsSet_WithNothingToCheck()
+    {
+        var season = Season.Seed(seasonName: "TBD Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        _context.Teams.Add(team1);
+        await _context.SaveChangesAsync();
+        var match = SeasonMatch.Seed(season.SeasonID, team1.TeamID, null);
+        _context.SeasonMatches.Add(match);
+        await _context.SaveChangesAsync();
+        var at = DateTime.UtcNow.Date.AddDays(5).AddHours(20);
+
+        var conflicts = await _service.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = match.SeasonMatchID, Time = at }, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(conflicts, Is.Empty, "A bracket's match waiting for a team: no teams to check");
+            Assert.That((await _context.SeasonMatches.AsNoTracking().SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID)).ScheduledTime, Is.EqualTo(at));
+        }
+    }
 }
