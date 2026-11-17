@@ -71,7 +71,7 @@ public class DraftHelperServiceTests
         await _context.SaveChangesAsync();
     }
 
-    private async Task<User> Player(string userName, string name, int region, int[] timeslots)
+    private async Task<User> Player(string userName, string? name, int region, int[] timeslots)
     {
         var user = await _context.AddUser(userName, name);
         user.ChooseRegion(region, RegionSource.User);
@@ -99,6 +99,17 @@ public class DraftHelperServiceTests
             Assert.That((ace.Career!.Games, ace.Career.WinPercent, ace.Career.Seasons), Is.EqualTo((20, 80.0m, 1)));
             Assert.That(pool.Single(p => p.UserID == _rookie.Id).Career, Is.Null, "Never played");
         }
+    }
+
+    [Test]
+    public async Task Pool_NamesAPlayerWithNoName_AnUnknownSpartan()
+    {
+        await Seed();
+        await Player("nameless", null, East, [_monday]);
+
+        var pool = await Service().PoolAsync(_season.SeasonID);
+
+        Assert.That(pool.Select(p => p.Name), Has.Member("Unknown Spartan"));
     }
 
     [Test]
