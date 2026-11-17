@@ -97,8 +97,12 @@ describe('ScheduleListComponent behaviour', () => {
     expect(component.scheduledMatches()).toEqual([]);
   });
 
-  it("offers a calendar feed of the season's schedule", () => {
+  it("offers a calendar feed of the season's schedule, once the public may see it", () => {
     load([], []);
+    expect(fixture.debugElement.query(By.directive(CalendarSubscribeComponent))).withContext('Not announced yet: its feed is a 404').toBeNull();
+
+    fixture.componentRef.setInput('feedPublic', true);
+    fixture.detectChanges();
     const feed = fixture.debugElement.query(By.directive(CalendarSubscribeComponent)).componentInstance as CalendarSubscribeComponent;
     expect(feed.path()).toBe('seasons/4/calendar.ics');
   });

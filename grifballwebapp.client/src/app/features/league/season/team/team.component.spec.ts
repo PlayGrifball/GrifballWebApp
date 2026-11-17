@@ -111,6 +111,11 @@ describe('TeamComponent', () => {
     expect(feed.path()).toBe('teams/7/calendar.ics');
   });
 
+  it("offers no calendar feed for a team of a season not announced yet (staff see it), whose feed is a 404", () => {
+    load({ ...team, season: seasonInfo(1, { hasEnded: false, isPublic: false }) }, []);
+    expect(fixture.debugElement.query(By.directive(CalendarSubscribeComponent))).toBeNull();
+  });
+
   it('shows the team name, record, remaining matches and roster', () => {
     load(team, []);
     const text = el().textContent!;

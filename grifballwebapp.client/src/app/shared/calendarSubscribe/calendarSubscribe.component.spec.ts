@@ -84,4 +84,14 @@ describe('CalendarSubscribeComponent', () => {
 
     expect(el().querySelector<HTMLInputElement>('input')!.value).toBe(`${origin()}/api/users/9/calendar.ics`);
   });
+
+  it('forgets "Copied" for a new address, which was never copied', () => {
+    el().querySelector<HTMLButtonElement>('button.cal-sub__copy')!.click();
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('path', 'users/9/calendar.ics');
+    fixture.detectChanges();
+
+    expect(el().querySelector<HTMLButtonElement>('button.cal-sub__copy')!.textContent!.trim()).toBe('Copy');
+  });
 });
