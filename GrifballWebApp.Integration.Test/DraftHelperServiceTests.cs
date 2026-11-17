@@ -5,6 +5,8 @@ using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Teams;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -133,6 +135,28 @@ public class DraftHelperServiceTests
             Assert.That((await Service().SuggestAsync(_season.SeasonID, teamID: _reds.TeamID))!.TeamID, Is.EqualTo(_reds.TeamID));
             Assert.That(await Service().SuggestAsync(empty.SeasonID), Is.Null, "No team on deck");
             Assert.That(await Service().SuggestAsync(_season.SeasonID, teamID: 999_999), Is.Null, "No such team in the season");
+        }
+    }
+
+    [Test]
+    public async Task TheDiscordOnDeckMessage_ListsTheSuggestedPicks_WithAMenuOfThem_BeforeThePool()
+    {
+        await Seed();
+        var teams = new GrifballWebApp.Application.Teams.TeamService(_context, NSubstitute.Substitute.For<GrifballWebApp.Application.Notifications.IPublisher>(),
+            NSubstitute.Substitute.For<GrifballWebApp.Application.Teams.IDraftChannel>(), NSubstitute.Substitute.For<GrifballWebApp.Application.Database.IDatabaseLocks>());
+
+        await new GrifballWebApp.Infrastructure.Outbox.ContextOutbox(_context).EnqueueOnDeckAsync(_context, teams, _season.SeasonID, Service(), CancellationToken.None);
+        await _context.SaveChangesAsync();
+
+        var row = await _context.Outbox.AsNoTracking().SingleAsync(m => m.Kind == GrifballWebApp.Infrastructure.Teams.DraftOutbox.OnDeck);
+        var messages = System.Text.Json.JsonSerializer.Deserialize<GrifballWebApp.Infrastructure.Teams.DraftOnDeckPayload>(row.Payload, GrifballWebApp.Infrastructure.Outbox.OutboxJson.Options)!.Messages;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(messages[0].Content, Does.StartWith("Cap is on deck. Suggested picks:\n1. Mid: "));
+            Assert.That(messages[0].Menus.Single().Placeholder, Is.EqualTo(GrifballWebApp.Infrastructure.Teams.DraftOutbox.SuggestedPlaceholder));
+            Assert.That(messages[0].Menus.Single().Options.Select(o => o.Value), Is.EqualTo(new[] { _mid.Id, _ace.Id, _rookie.Id, _bench.Id }.Select(i => i.ToString())));
+            Assert.That(messages[1].Content, Is.Null, "The pool after, as before");
+            Assert.That(messages[1].Menus.Single().Options, Has.Count.EqualTo(4));
         }
     }
 }
