@@ -9,18 +9,16 @@
 # get the release's tag as a docker tag (grifballwebappserver:prod-2026-11-08), to find them by; a docker tag can be
 # moved, so the release's digests are what count.
 # Made as a draft, then published once complete: an immutable release can't take assets after.
-# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, FROM (the tag promoted from), RUN_URL, ACTOR.
+# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, FROM (the tag promoted from), RUN_URL, ACTOR; DEPLOY_COMMIT and
+# DEPLOY_TAG, the deploy env-deploy.sh made (the chart at the commit, with these images), when it ran first.
 set -euo pipefail
 
 environment=${1:?usage: $0 <environment> <backend@digest> <frontend@digest>}
 backend=${2:?} frontend=${3:?}
 repo=${GITHUB_REPOSITORY:?}
 
-# The commit an image was built from: its revision label (one platform's: they're one build)
-revision() {
-  docker buildx imagetools inspect "$1" --format '{{json .Image}}' \
-    | jq -r 'if has("config") then . else to_entries[0].value end | .config.Labels["org.opencontainers.image.revision"] // empty'
-}
+# The commit an image was built from: its revision label
+revision() { "$(dirname "$0")/image-revision.sh" "$1"; }
 commit=$(revision "$backend")
 frontend_commit=$(revision "$frontend")
 [[ -n "$commit" ]] || { echo "::error::$backend has no org.opencontainers.image.revision label" >&2; exit 1; }
@@ -60,6 +58,10 @@ notes=$(mktemp)
   echo
   echo "Also tagged \`:$tag\`, e.g. \`docker pull $(image "$backend"):$tag\`. A docker tag can be moved; the digests above are what this release recorded."
   [[ "$frontend_commit" = "$commit" ]] || echo "(The frontend image was built from \`$frontend_commit\`.)"
+  if [[ -n "${DEPLOY_COMMIT:-}" ]]; then
+    echo
+    echo "Deployed as [\`${DEPLOY_COMMIT:0:7}\`](https://github.com/$repo/commit/$DEPLOY_COMMIT), tagged \`$DEPLOY_TAG\` and \`env/$environment/current\`: the chart at \`${commit:0:7}\` with these images (charts/grifballwebapp/promoted-images.yaml)."
+  fi
   echo
   echo "### Verify"
   echo '```sh'
@@ -82,7 +84,9 @@ notes=$(mktemp)
 manifest=$(mktemp -d)/release.json
 jq -n --arg environment "$environment" --arg tag "$tag" --arg commit "$commit" --arg frontend_commit "$frontend_commit" \
   --arg backend "$backend" --arg frontend "$frontend" --arg from "$FROM" --arg run "$RUN_URL" --arg actor "$ACTOR" \
+  --arg deploy_commit "${DEPLOY_COMMIT:-}" --arg deploy_tag "${DEPLOY_TAG:-}" \
   '{environment: $environment, tag: $tag, docker_tag: $tag, commit: $commit, promoted_from: $from, run: $run, actor: $actor,
+    deploy: (if $deploy_commit == "" then null else {commit: $deploy_commit, tag: $deploy_tag} end),
     images: {backend: {image: ($backend | split("@")[0]), digest: ($backend | split("@")[1]), commit: $commit},
              frontend: {image: ($frontend | split("@")[0]), digest: ($frontend | split("@")[1]), commit: $frontend_commit}}}' \
   > "$manifest"

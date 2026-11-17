@@ -615,7 +615,7 @@ jobs:
 
   # Moves :test to this run's images, all or nothing: it runs only after every build
   # above succeeded, so a failed build leaves it on the previous complete set. The homelab's
-  # ArgoCD Image Updater follows :test (and :staging, :prod) by digest. Retagging is metadata only
+  # ArgoCD Image Updater follows :test by digest (staging and prod deploy through promote.yml). Retagging is metadata only
   # (no rebuild, no re-upload), and backend goes first: it carries the migrations bundle, and the backend/frontend pair only
   # has to stay API-compatible for the seconds between the two.
   # :test only moves forward: master's runs go side by side and finish in any order, and a run (or a rerun) of an older
