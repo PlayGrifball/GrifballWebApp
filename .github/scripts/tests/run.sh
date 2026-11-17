@@ -22,6 +22,8 @@
 #     tag (staging and prod only) and env/<env>/current; test never moves back; a deploy of the same images is reused.
 #   env-run-images.sh: the images a promotion's earlier attempt deployed. env-release.sh: the promotion's release, from
 #     env-deploy.sh's commits, naming the dated tag; a re-run doesn't release twice (gh, docker stubbed).
+#   workflows.sh (the workflows' wiring: needs, outputs, step order, permissions): the repository's workflows pass, and
+#     copies broken one way each (yq) fail in the check meant to catch it.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -855,6 +857,57 @@ if ENV_RELEASES=$(this_run true) release_env \
   && [[ "$(grep -E '^(DELETE releases/[0-9]+|POST releases )' "$work/calls" | cut -d' ' -f1-2)" = "$(printf 'DELETE releases/3\nPOST releases')" ]]
 then ok "env-release: a re-run deletes this run's unfinished draft, then releases"
 else bad "env-release: draft re-run:"; cat "$work/out" "$work/calls"; fi
+
+# workflows.sh: the repository's workflows pass; each broken copy fails, in the check that should catch it
+if bash "$here/workflows.sh" > "$work/out" 2>&1; then ok "workflows: the repository's workflows pass"
+else bad "workflows:"; grep -v '^ok: ' "$work/out"; fi
+broken() { # broken <what> <workflow file> <yq edit> <the start of the FAIL line it must give>
+  local what=$1 file=$2 edit=$3 expect=$4 workflows
+  workflows=$(dirname "$scripts")/workflows
+  rm -rf "$work/wf"; cp -r "$workflows" "$work/wf"
+  yq -i "$edit" "$work/wf/$file"
+  if cmp -s "$workflows/$file" "$work/wf/$file"; then bad "workflows: $what: the edit changed nothing"
+  elif bash "$here/workflows.sh" "$work/wf" > "$work/out" 2>&1; then bad "workflows: $what passed"
+  elif grep -qF "FAIL: $expect" "$work/out"; then ok "workflows: $what fails"
+  else bad "workflows: $what failed, but not in \"$expect\":"; grep -A3 '^FAIL' "$work/out"; fi
+}
+broken "deploy-test without release in needs" docker-publish.yml '.jobs["deploy-test"].needs = "build-backend"' \
+  "docker-publish.yml: every needs"
+# shellcheck disable=SC2016 # a workflow expression in a yq edit
+broken "deploy-test not waiting for release to move :test" docker-publish.yml \
+  '.jobs["deploy-test"].if = "${{ !failure() && !cancelled() }}"' "docker-publish: deploy-test needs release"
+# shellcheck disable=SC2016 # a workflow expression in a yq edit
+broken "release (and so deploy-test) off master" docker-publish.yml '.jobs.release.if = "${{ !failure() && !cancelled() }}"' \
+  "docker-publish: deploy-test needs release"
+broken "release able to write the repository" docker-publish.yml '.jobs.release.permissions.contents = "write"' \
+  "docker-publish: only deploy-test"
+broken "a job with the token's default permissions" docker-publish.yml 'del(.jobs.changes.permissions)' \
+  "docker-publish: only deploy-test"
+broken "a release output renamed" docker-publish.yml '.jobs.release.outputs |= with_entries(.key |= sub("^backend$"; "image"))' \
+  "docker-publish: deploy-test reads release outputs"
+broken "release's step never writing moved" docker-publish.yml \
+  '(.jobs.release.steps[] | select(.id == "retag") | .run) |= sub("moved="; "move=")' "docker-publish: deploy-test reads release outputs"
+broken "Release before Deploy (a step reading a later one)" promote.yml '.jobs.promote.steps |= (.[0:4] + [.[5], .[4]])' "promote.yml: every needs"
+broken "Release before Deploy" promote.yml '.jobs.promote.steps |= (.[0:4] + [.[5], .[4]])' "promote: promote chooses"
+broken "a re-run retagging :from's images, not its deploy's" promote.yml \
+  '(.jobs.promote.steps[] | select(.id == "promote") | .run) |= sub("env-run-images.sh"; "true")' "promote: promote chooses"
+# shellcheck disable=SC2016 # a workflow expression in a yq edit
+broken "Deploy not given the promoted images" promote.yml \
+  '(.jobs.promote.steps[] | select(.id == "deploy") | .env.BACKEND) = "${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ inputs.to }}"' \
+  "promote: promote chooses"
+broken "the deploy step's id changed" promote.yml '(.jobs.promote.steps[] | select(.id == "deploy") | .id) = "deployed"' \
+  "promote.yml: every needs"
+broken "Release missing a deploy output" promote.yml \
+  'del(.jobs.promote.steps[] | select(.name == "Release*") | .env.DEPLOY_TAG)' "promote: Release gets every deploy output"
+broken "the promotion with more permissions" promote-to-prod.yml '.jobs.promote.permissions["id-token"] = "write"' \
+  "promote-to-prod.yml: the promotion has"
+broken "the chart release without its if" helm-chart.yml 'del(.jobs.release.if)' "helm-chart: release needs publish"
+broken "publish able to write the repository" helm-chart.yml '.jobs.publish.permissions.contents = "write"' \
+  "helm-chart: only release"
+# shellcheck disable=SC2016 # a workflow expression in a yq edit
+broken "the chart release reading an output publish doesn't declare" helm-chart.yml \
+  '(.jobs.release.steps[] | select(.name == "Release*") | .env.DIGEST) = "${{ needs.publish.outputs.sha }}"' \
+  "helm-chart.yml: every needs"
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."
