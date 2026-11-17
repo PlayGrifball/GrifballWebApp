@@ -271,10 +271,13 @@ public class AwardsTab
     /// <summary>Winners the sheet names by a nickname, to their gamertag ("Luxe": "yLuxe"); an empty gamertag is no
     /// player (a joke entry), left out.</summary>
     public Dictionary<string, string> Names { get; init; } = [];
+    /// <summary>A <see cref="AwardsLayout.Labels"/> winner's cell may name several players: "Mavbrid And MysticalNovice, Jussshhhyyy
+    /// And Scullen cx" is four (split at "and" and commas). Off: a cell is one winner, as a gamertag may have either.</summary>
+    public bool SplitWinners { get; init; }
     /// <summary>A <see cref="AwardsLayout.Columns"/> list is ranked: each winner's place in it is the award's value ("#2").</summary>
     public bool Ranked { get; init; }
-    /// <summary>The text of the cell the <see cref="AwardsLayout.Columns"/> table's header row starts at; null: the
-    /// sheet's first row.</summary>
+    /// <summary>The text of the cell the <see cref="AwardsLayout.Columns"/> table's header row starts at (cells left of it
+    /// are another table's); null: the sheet's first row.</summary>
     public string? Anchor { get; init; }
 }
 
@@ -283,10 +286,10 @@ public enum AwardsLayout
     /// <summary>A header row of award names, each award's winners down its column below it to the first gap.</summary>
     Columns,
     /// <summary>Award labels anywhere in the sheet (<see cref="AwardsTab.Awards"/>), each winner the first text below its
-    /// label, within the label's column and the next two ("Mavbrid And MysticalNovice" are two winners).</summary>
+    /// label (in the next four rows with text), within the label's column and the next two, in the sheet's order.</summary>
     Labels,
     /// <summary>A block per season, its title in the first column ("SL24 Season 2 Champions - ..."), and "MVP: name"
-    /// cells in its row and the row below (<see cref="AwardsTab.Awards"/>: "MVP", "FMVP").</summary>
+    /// cells in its row and the row below (<see cref="AwardsTab.Awards"/>: "MVP", "FMVP"). A season key is matched as whole words.</summary>
     Seasons,
     /// <summary>A records table, a record per row under the header: category, description, record_value, holder and
     /// team_or_captain columns. A record of a category that starts with "Team" is a team's: its holder is the team.</summary>

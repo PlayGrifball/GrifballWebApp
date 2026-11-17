@@ -181,7 +181,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
             .Select(a => new { a.Name, a.WinnerName, a.UserID, Team = a.Team != null ? a.Team.TeamName : null, a.Value })
             .ToListAsync();
 
-        // Benchy has moved to Chicks (Hens are gone with their award), and the MVP and rookie are no longer listed
+        // Benchy has moved to Chicks (Hens are gone), and the MVP and rookie are no longer listed
         var rerun = await _service.Import(Input(Season("Chicks",
             new ArchiveAward { Name = "Most Kills (one game)", Winner = "Benchy", Team = "Chicks", Value = "50" },
             new ArchiveAward { Name = "Team Most Goals", Winner = "Rooster", IsTeam = true, Value = "9" })));
@@ -199,12 +199,62 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
             Assert.That((first.AwardsInserted, first.AwardsUpdated, first.AwardsRemoved), Is.EqualTo((4, 0, 0)));
             Assert.That(first.Skipped, Has.Some.Contains("award Team Most Kills: no team Ghosts in the season"));
             Assert.That(kept.Select(a => (a.Name, a.Team)), Is.EqualTo(new[] { ("Most Kills (one game)", "Chicks"), ("Team Most Goals", "Rooster") }));
-            Assert.That((rerun.AwardsInserted, rerun.AwardsUpdated, rerun.AwardsRemoved), Is.EqualTo((1, 1, 3)),
-                "Hens' award went with the team and came back on Chicks; the team's moved up the list; the MVP and rookie went");
+            Assert.That((rerun.AwardsInserted, rerun.AwardsUpdated, rerun.AwardsRemoved), Is.EqualTo((0, 2, 2)),
+                "Benchy's award lost Hens with the team and is on Chicks now; the team's moved up the list; the MVP and rookie went");
         }
     }
 
     private static readonly bool[] PlayersButTheTeamsAward = [true, true, false, true];
+
+    private static ArchiveSeason AwardsSeason(params ArchiveAward[] awards)
+    {
+        var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"));
+        entry.Awards.AddRange(awards);
+        return entry;
+    }
+
+    [Test]
+    public async Task Import_AnAwardOfAPlayerOnlyItNames_StaysWithWhomTheirPlaceholderWasMergedInto()
+    {
+        // The rookie is in no stats or titles: a placeholder, which a merge then gives to a real account
+        await _service.Import(Input(AwardsSeason(new ArchiveAward { Name = "Rookie of the Year", Winner = "Newcomer" })));
+        Context.ChangeTracker.Clear();
+        var real = User.Seed(userName: "newcomer-real");
+        Context.Users.Add(real);
+        await Context.SaveChangesAsync();
+        var season = await Context.Seasons.WithAwards().SingleAsync();
+        var placeholder = season.Awards.Single().UserID!.Value;
+        season.MergeAwards(placeholder, real.Id);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var rerun = await _service.Import(Input(AwardsSeason(new ArchiveAward { Name = "Rookie of the Year", Winner = "Newcomer" })));
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.Seasons.Awards().Select(a => a.UserID).SingleAsync(), Is.EqualTo(real.Id), "Found again by the name it was listed under");
+            Assert.That((rerun.AwardsUpdated, rerun.DummyUsersCreated), Is.EqualTo((0, 0)));
+        }
+    }
+
+    [Test]
+    public async Task Run_Guardrail_StopsASeasonThatWouldLoseItsAwards()
+    {
+        // Its awards tab no longer read (renamed, say): every award would go
+        await _service.Import(Input(AwardsSeason(new ArchiveAward { Name = "MVP", Winner = "Silva" }, new ArchiveAward { Name = "Finals MVP", Winner = "Silva" })));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(Input(AwardsSeason()), new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions() });
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.Seasons.Awards().CountAsync(), Is.EqualTo(2), "Stopped: the awards are still there");
+            Assert.That(report.SeasonRemovals.Single().Stopped, Is.True);
+            Assert.That(report.SeasonRemovals.Single().Summary, Does.EndWith("2 of 2 awards"));
+        }
+    }
 
     [Test]
     public async Task Import_AStandingsRowOfLossesOnly_IsARecordOfNoWins()

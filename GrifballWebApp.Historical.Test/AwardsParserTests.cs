@@ -41,11 +41,12 @@ public class AwardsParserTests
     [Test]
     public void Columns_Ranked_FromItsAnchor_TakesTheRankOffAndGivesThePlace()
     {
-        // GWL SL23's PrePlayoff Standings: two ranked lists under a header row past the sheet's first, the first unnumbered
+        // GWL SL23's PrePlayoff Standings: two ranked lists under a header row past the sheet's first, the first unnumbered; a table left of
+        // the anchor on its row is not theirs
         var sheet = Sheet(
             ["Season notes"],
-            ["", "GWL'S TOP 5 RUNNERS", "", "GWL'S TOP 10 TANKS"],
-            ["", "yLuxe", "", "oDhmon"],
+            ["Standings", "GWL'S TOP 5 RUNNERS", "", "GWL'S TOP 10 TANKS"],
+            ["Tips N' Tricks", "yLuxe", "", "oDhmon"],
             ["", "2. EllisGotMyPills", "", "2. DIGITAL PAIN"],
             ["", "", "", "3. Itzreelz"]);
         var tab = new AwardsTab
@@ -86,7 +87,7 @@ public class AwardsParserTests
             ["", "Captain Sev", "", "", "", "Lmao"]);
         var tab = new AwardsTab
         {
-            Sheet = "Season Awards", Layout = AwardsLayout.Labels,
+            Sheet = "Season Awards", Layout = AwardsLayout.Labels, SplitWinners = true,
             Awards = new()
             {
                 ["MVP"] = "", ["Best Tank"] = "", ["Best Hybrid"] = "", ["Samurai"] = "", ["Best Duo"] = "", ["Best Runner"] = "",
@@ -120,7 +121,8 @@ public class AwardsParserTests
             ["Hells Angel cx", "Ace B S1lentND1", "", "", "FMVP: Ace"],
             ["SML25 Season 6 Legacy Champions - Reverse Sweepers", "", "", "", "MVP: Sev"],
             ["Rechargen", "", "", "", "FMVP: Rechargen", "Note: kept"],
-            ["Season 9 Champions - Unknown", "", "", "", "MVP: Nobody"]);
+            ["Season 9 Champions - Unknown", "", "", "", "MVP: Nobody"],
+            ["SL27 Season 10 Champions - Later", "", "", "", "MVP: Later"]);
         var tab = new AwardsTab
         {
             Sheet = "Record Book", Layout = AwardsLayout.Seasons,
@@ -136,7 +138,7 @@ public class AwardsParserTests
             ("wl23", "MVP", "yLuxe"), ("wl23", "Finals MVP", "Fanciest Pants"),
             ("sml25-pro", "MVP", "ACE B S1lentND1"), ("sml25-pro", "Finals MVP", "ACE B S1lentND1"),
             ("sml25-legacy", "MVP", "CaptainSev004"), ("sml25-legacy", "Finals MVP", "Rechargen"),
-        }), "The longest season key a title holds; a title of no season given is skipped");
+        }), "The longest season key a title holds, as whole words (Season 1 is not Season 10); a title of no season given is skipped");
     }
 
     [Test]
@@ -173,9 +175,28 @@ public class AwardsParserTests
             ["", "", "", "", "MysticalNovice And yLuxe"],
             ["yLuxe"]);
 
-        var awards = AwardsParser.Parse(sheet, new AwardsTab { Sheet = "Season Awards", Layout = AwardsLayout.Labels, Awards = new() { ["Tool Man"] = "", ["Best Hybrid"] = "" } });
+        var awards = AwardsParser.Parse(sheet, new AwardsTab { Sheet = "Season Awards", Layout = AwardsLayout.Labels, SplitWinners = true, Awards = new() { ["Tool Man"] = "", ["Best Hybrid"] = "" } });
 
-        Assert.That(Winners(awards), Is.EqualTo(new List<(string, string)> { ("Tool Man", "yLuxe"), ("Best Hybrid", "MysticalNovice"), ("Best Hybrid", "yLuxe") }));
+        Assert.That(Winners(awards), Is.EqualTo(new List<(string, string)> { ("Best Hybrid", "MysticalNovice"), ("Best Hybrid", "yLuxe"), ("Tool Man", "yLuxe") }),
+            "In the sheet's order, not the config's");
+    }
+
+    [Test]
+    public void Labels_AWinnersCellIsOnePlayer_UnlessTheTabSplitsIt()
+    {
+        var sheet = Sheet(["MVP"], ["Salt and Pepper, Esq"]);
+        var tab = new AwardsTab { Sheet = "Season Awards", Layout = AwardsLayout.Labels, Awards = new() { ["MVP"] = "" } };
+
+        Assert.That(Winners(AwardsParser.Parse(sheet, tab)), Is.EqualTo(new List<(string, string)> { ("MVP", "Salt and Pepper, Esq") }));
+    }
+
+    [Test]
+    public void Labels_AWinnerFarBelowItsLabel_IsNotItsWinner()
+    {
+        // A label with no winner of its own: what is four rows further down (another table, a legend) isn't its
+        var sheet = Sheet(["MVP"], ["", "", "", "", "x"], ["", "", "", "", "x"], ["", "", "", "", "x"], ["", "", "", "", "x"], ["The Most Valuable Player Of The Season"]);
+
+        Assert.That(AwardsParser.Parse(sheet, new AwardsTab { Sheet = "Season Awards", Layout = AwardsLayout.Labels, Awards = new() { ["MVP"] = "" } }), Is.Empty);
     }
 
     [Test]

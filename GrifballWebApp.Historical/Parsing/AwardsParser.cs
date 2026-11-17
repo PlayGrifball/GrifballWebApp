@@ -17,6 +17,10 @@ public static partial class AwardsParser
     /// are merged cells, the winner's text a column or two in; further right is the next label's, WL23's Best Hybrid beside Tool Man).</summary>
     private const int LabelSpan = 3;
 
+    /// <summary>How many rows (with text) below its label a <see cref="AwardsLayout.Labels"/> award's winner can be: further
+    /// down is another table or a legend.</summary>
+    private const int LabelDepth = 4;
+
     /// <summary>An award won: the season it is of when the tab names one per block (<see cref="AwardsLayout.Seasons"/>, the
     /// season's source ID), null for the tab's season.</summary>
     public sealed record ParsedAward(string? Season, ArchiveAward Award);
@@ -56,10 +60,11 @@ public static partial class AwardsParser
     private static List<ParsedAward> ByColumn(SheetTable sheet, AwardsTab tab)
     {
         var awards = new List<ParsedAward>();
-        var anchor = tab.Anchor is null ? 0 : Find(sheet, tab.Anchor)?.Row;
-        if (anchor is not int headerRow || headerRow >= sheet.Rows.Count)
+        // The header row from the anchor's cell: a table left of it on its row is another's
+        var anchor = tab.Anchor is null ? ((int Row, int Column)?)(0, 0) : Find(sheet, tab.Anchor);
+        if (anchor is not var (headerRow, firstColumn) || headerRow >= sheet.Rows.Count)
             return awards;
-        for (var column = 0; column < sheet.Rows[headerRow].Length; column++)
+        for (var column = firstColumn; column < sheet.Rows[headerRow].Length; column++)
         {
             var label = Text(sheet.Cell(headerRow, column));
             if (label.Length == 0)
@@ -83,16 +88,17 @@ public static partial class AwardsParser
     {
         var awards = new List<ParsedAward>();
         var labels = tab.Awards.Keys.Select(Text).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var label in tab.Awards.Keys)
+        // In the sheet's order: by where each label is
+        var found = tab.Awards.Keys.Select(label => (Label: label, At: Find(sheet, label))).Where(l => l.At is not null)
+            .OrderBy(l => l.At!.Value.Row).ThenBy(l => l.At!.Value.Column);
+        foreach (var (label, at) in found)
         {
-            if (Find(sheet, label) is not var (labelRow, labelColumn))
-                continue;
             var name = Renamed(Text(label), tab);
             // The first text below the label, in its columns: another award's label there means this one has no winner
-            var winners = Below(sheet, labelRow, labelColumn);
+            var winners = Below(sheet, at!.Value.Row, at.Value.Column);
             if (winners is null || labels.Contains(winners))
                 continue;
-            foreach (var winner in Winners(winners))
+            foreach (var winner in tab.SplitWinners ? Winners(winners) : new[] { winners })
                 awards.Add(new ParsedAward(null, new ArchiveAward { Name = name, Winner = winner }));
         }
         return awards;
@@ -107,7 +113,7 @@ public static partial class AwardsParser
 
     private static string? Below(SheetTable sheet, int labelRow, int labelColumn)
     {
-        for (var row = labelRow + 1; row < sheet.Rows.Count; row++)
+        for (var row = labelRow + 1; row < sheet.Rows.Count && row <= labelRow + LabelDepth; row++)
         {
             for (var column = labelColumn; column < labelColumn + LabelSpan; column++)
             {
@@ -127,10 +133,11 @@ public static partial class AwardsParser
     {
         var awards = new List<ParsedAward>();
         var seasons = tab.Seasons.OrderByDescending(s => s.Key.Length).ToList();
+        // A key as whole words: "Season 1" is not "Season 10"
         string? SeasonOf(int row)
         {
             var title = Text(sheet.Cell(row, 0));
-            return seasons.FirstOrDefault(s => title.Contains(s.Key.Trim(), StringComparison.OrdinalIgnoreCase)).Value?.Trim();
+            return seasons.FirstOrDefault(s => Regex.IsMatch(title, $@"(?<!\w){Regex.Escape(s.Key.Trim())}(?!\w)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1))).Value?.Trim();
         }
         for (var row = 0; row < sheet.Rows.Count; row++)
         {

@@ -260,11 +260,8 @@ public sealed class HistoricalArchiveBuilder
             var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
             // The season's names of its teams: its stats', and an earlier standings tab's (two tabs of a season spell a team
             // alike, the stats naming none)
-            var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(regular.Teams.Select(t => t.TeamName))
-                .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             // A captain is one of the season's players: a nickname ("Team (Snipez)") would be a placeholder player
-            var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
-                .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
+            var (known, players) = Spellings(season, regular);
             var named = teams.Select(t => t with
             {
                 TeamName = KnownName(t.TeamName, known),
@@ -314,10 +311,7 @@ public sealed class HistoricalArchiveBuilder
             return;
         }
         var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
-        var teams = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
-            .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
-            .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
+        var (teams, players) = Spellings(season, regular);
         regular.Awards.AddRange(awards.Select(a => a.IsTeam
             ? a with { Winner = KnownName(a.Winner, teams) }
             : a with
@@ -327,6 +321,17 @@ public sealed class HistoricalArchiveBuilder
             }));
         if (_changedSourceIds?.Contains(sourceId) != false)
             _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+    }
+
+    /// <summary>The season's spelling of its teams (its stats' and its standings' so far) and of its players' gamertags (by
+    /// normalised gamertag): what standings and awards put their names in.</summary>
+    private static (List<string> Teams, Dictionary<string, string> Players) Spellings(List<ArchiveSeason> season, ArchiveSeason regular)
+    {
+        var teams = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(regular.Teams.Select(t => t.TeamName))
+            .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
+            .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
+        return (teams, players);
     }
 
     /// <summary>

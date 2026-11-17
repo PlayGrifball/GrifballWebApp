@@ -421,12 +421,14 @@ public class Season : AuditableEntity
         return new AwardChanges(inserted, updated, removed);
     }
 
-    /// <summary>The awards of the imported season's teams the import removes go (a team's award, and a player's naming
-    /// the team), as a title does; the next record of its awards brings back any still given. Only an imported season
-    /// (throws otherwise).</summary>
+    /// <summary>The import removes the imported season's teams <paramref name="teamIDs"/>: a team's own award goes with it (as a
+    /// title does), and a player's award that names it keeps its player, without the team (as a stat row does). Returns how
+    /// many went. Only an imported season (throws otherwise).</summary>
     public int RemoveArchivedAwardsOf(IReadOnlyCollection<int> teamIDs)
     {
         RequireImported();
+        foreach (var award in _awards.Where(a => a.UserID is not null && a.TeamID is int teamID && teamIDs.Contains(teamID)))
+            award.ClearTeam();
         return _awards.RemoveWhere(a => a.TeamID is int teamID && teamIDs.Contains(teamID));
     }
 

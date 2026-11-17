@@ -11151,6 +11151,8 @@
       },
       "HistoricalSeasonRemoval": {
         "required": [
+          "awardsBefore",
+          "awardsRemoved",
           "removesAnything",
           "seasonKey",
           "seasonName",
@@ -11193,6 +11195,15 @@
             "format": "int32"
           },
           "titlesRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awardsBefore": {
+            "type": "integer",
+            "description": "The season's awards (SeasonAward rows): not kept on a review, which has the other counts.",
+            "format": "int32"
+          },
+          "awardsRemoved": {
             "type": "integer",
             "format": "int32"
           },

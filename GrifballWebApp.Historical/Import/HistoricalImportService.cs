@@ -47,14 +47,15 @@ public class HistoricalImportRunOptions
 /// <summary>When an automatic import stops a season for review (HistoricalImport:Guardrail).</summary>
 public class HistoricalGuardrailOptions
 {
-    /// <summary>More than this share of the season's stat rows or teams removed.</summary>
+    /// <summary>More than this share of the season's stat rows, teams or awards removed.</summary>
     public decimal MaxRemovedFraction { get; set; } = 0.2m;
     /// <summary>Any championship (a title or a title's player) removed.</summary>
     public bool StopOnAnyChampionshipRemoved { get; set; } = true;
 
     public bool Exceeded(HistoricalSeasonRemoval removal)
         => TooMany(removal.StatsRemoved, removal.StatsBefore) || TooMany(removal.TeamsRemoved, removal.TeamsBefore)
-           || (StopOnAnyChampionshipRemoved ? removal.TitlesRemoved > 0 : TooMany(removal.TitlesRemoved, removal.TitlesBefore));
+           || (StopOnAnyChampionshipRemoved ? removal.TitlesRemoved > 0 : TooMany(removal.TitlesRemoved, removal.TitlesBefore))
+           || TooMany(removal.AwardsRemoved, removal.AwardsBefore);
 
     private bool TooMany(int removed, int before) => removed > 0 && before > 0 && (decimal)removed / before > MaxRemovedFraction;
 }
@@ -70,12 +71,17 @@ public class HistoricalSeasonRemoval
     public int TeamsRemoved { get; set; }
     public int TitlesBefore { get; set; }
     public int TitlesRemoved { get; set; }
+    /// <summary>The season's awards (SeasonAward rows): not kept on a review, which has the other counts.</summary>
+    public int AwardsBefore { get; set; }
+    public int AwardsRemoved { get; set; }
     /// <summary>Rolled back by the guardrail: left as it was until a sysadmin approves it.</summary>
     public bool Stopped { get; set; }
 
-    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0;
+    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0 || AwardsRemoved > 0;
 
-    public string Summary => $"{StatsRemoved} of {StatsBefore} stat rows, {TeamsRemoved} of {TeamsBefore} teams, {TitlesRemoved} of {TitlesBefore} titles";
+    // What it removes of what it had; its awards only when it had any
+    public string Summary => $"{StatsRemoved} of {StatsBefore} stat rows, {TeamsRemoved} of {TeamsBefore} teams, {TitlesRemoved} of {TitlesBefore} titles"
+        + (AwardsBefore > 0 ? $", {AwardsRemoved} of {AwardsBefore} awards" : "");
 }
 
 public record HistoricalImportProgress(string Stage, int SeasonsDone, int SeasonsTotal);
@@ -697,6 +703,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             await _context.SaveChangesAsync(ct);
             counts.DummyUsersCreated = resolver.DummiesCreated;
             (removal.StatsRemoved, removal.TeamsRemoved, removal.TitlesRemoved) = (counts.StatsRemoved, counts.TeamsRemoved, counts.ChampionshipsRemoved);
+            removal.AwardsRemoved = counts.AwardsRemoved;
             removal.Stopped = !options.DryRun && options.Guardrail?.Exceeded(removal) == true;
             if (options.DryRun || removal.Stopped)
             {
@@ -740,6 +747,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         removal.StatsBefore = await _context.PlayerSeasonStats.CountAsync(s => s.SeasonID == seasonId, ct);
         removal.TeamsBefore = await _context.Teams.CountAsync(t => t.SeasonID == seasonId, ct);
         removal.TitlesBefore = await _context.Seasons.Championships().CountAsync(c => c.SeasonID == seasonId, ct);
+        removal.AwardsBefore = await _context.Seasons.Awards().CountAsync(a => a.SeasonID == seasonId, ct);
         return removal;
     }
 
@@ -1788,8 +1796,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             var userId = (await resolver.Resolve(award.Winner, null, ct)).UserId;
             winners.Add(new SeasonAwardWinner(award.Name, HistoricalKeys.CleanGamertag(award.Winner), userId, teams.Find(award.Team), award.Value));
         }
+        // Saved with the season's rosters next
         var changes = season.RecordArchivedAwards(winners);
-        await _context.SaveChangesAsync(ct);
         counts.AwardsInserted += changes.Inserted;
         counts.AwardsUpdated += changes.Updated;
         counts.AwardsRemoved += changes.Removed;

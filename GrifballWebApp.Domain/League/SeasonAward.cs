@@ -73,6 +73,9 @@ public class SeasonAward : AuditableEntity
         return true;
     }
 
+    /// <summary>The team the player's award names is gone (<see cref="Season.RemoveArchivedAwardsOf"/>).</summary>
+    internal void ClearTeam() => TeamID = null;
+
     /// <summary>A merge's: the award is another user's now (<see cref="Season.MergeAwards"/>).</summary>
     internal void ReassignUser(int userID) => UserID = userID;
 

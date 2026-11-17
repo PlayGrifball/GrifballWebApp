@@ -11,8 +11,6 @@ namespace GrifballWebApp.Domain.Test;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class SeasonAwardAggregateTests
 {
-    private static readonly string[] MvpOnly = ["MVP"];
-
     private static Season Imported() => Season.Imported("wb/Stats", "Winter League 2023", 2, 1, null, "https://sheets/wb", SeasonFormat.LeagueSeason);
 
     private static Team TeamOf(Season season, int teamID) => Team.Seed(teamID: teamID, seasonID: season.SeasonID, teamName: $"Team {teamID}");
@@ -110,7 +108,7 @@ public class SeasonAwardAggregateTests
     }
 
     [Test]
-    public void RemoveArchivedAwardsOf_TakesAwayTheTeamsAwards()
+    public void RemoveArchivedAwardsOf_TakesAwayTheTeamsAwards_AndLeavesItsPlayersWithoutIt()
     {
         var season = Imported();
         season.RecordArchivedAwards(
@@ -124,8 +122,9 @@ public class SeasonAwardAggregateTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(removed, Is.EqualTo(2));
-            Assert.That(season.Awards.Select(a => a.Name), Is.EqualTo(MvpOnly));
+            Assert.That(removed, Is.EqualTo(1), "The team's own award");
+            Assert.That(season.Awards.Select(a => (a.Name, a.UserID, a.TeamID)), Is.EquivalentTo(new[] { ("MVP", (int?)1, (int?)null), ("Most Kills", 2, null) }),
+                "A player's award naming the team keeps its player, as a stat row does");
             Assert.That(() => Season.Organized("Spring 2026", 1, 1).RemoveArchivedAwardsOf([4]), Throws.InvalidOperationException);
         }
     }
