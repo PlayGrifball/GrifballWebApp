@@ -23,7 +23,7 @@ import { StubVodListComponent } from '@shared/vodList/vodList.stub';
 /** A season as GetSeasonSummary answers: one played in the app unless changed. */
 function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): SeasonSummaryDto {
   return {
-    ...seasonInfo(id, { hasEnded: false }), teamCount: 4, signupCount: 10, matchCount: 6, bracketMatchCount: 3, playerStatCount: 0, champions: [],
+    ...seasonInfo(id, { hasEnded: false }), teamCount: 4, signupCount: 10, matchCount: 6, bracketMatchCount: 3, playerStatCount: 0, champions: [], awards: [],
     ...changes,
   };
 }
@@ -328,13 +328,15 @@ describe('SeasonComponent', () => {
       seasonName: 'Summer League 2010', year: 2010, gameVersionName: 'Halo 3', division: 'Pro', isHistorical: true,
       historicalSourceUrl: url, signupCount: 0, matchCount: 0, bracketMatchCount: 0, playerStatCount: 12,
       champions: [{ tier: 'Pro', teamID: 40, teamName: 'Relentless', roster: [{ userID: 7, gamertag: 'Captain R', isCaptain: true }] }],
+      awards: [{ name: 'MVP', winners: [{ userID: 7, teamID: null, name: 'Captain R', teamName: null, value: null }] }],
     }))));
 
-    it('shows the banner with its spreadsheet, its game and division, champions and player stats', () => {
+    it('shows the banner with its spreadsheet, its game and division, champions, awards and player stats', () => {
       fixture.detectChanges();
       expect(el().querySelector('app-backfilled-banner a')!.getAttribute('href')).toBe(url);
       expect(Array.from(el().querySelectorAll('.season-meta__pill')).map(p => p.textContent!.trim())).toEqual(['2010', 'AGLA', 'Halo 3', 'Pro']);
       expect(el().querySelector('app-season-champions')!.textContent).toContain('Relentless');
+      expect(el().querySelector('app-season-awards')!.textContent).toContain('Captain R');
       expect(el().querySelector('app-season-player-stats')).not.toBeNull();
     });
 

@@ -45,6 +45,8 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
     /// <summary>Each draft tab's teams, put on their season's regular season once every season (and its standings) is known.</summary>
     private readonly List<(string SourceId, DraftTab Tab, List<ArchiveTeam>? Teams)> _drafts = [];
+    /// <summary>Each awards tab's awards, put on their season's regular season once every season is known.</summary>
+    private readonly List<(string SourceId, AwardsTab Tab, List<AwardsParser.ParsedAward>? Awards)> _awards = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
     private bool _everySeason;
     private bool _playersChanged;
@@ -86,7 +88,7 @@ public sealed class HistoricalArchiveBuilder
         if (config.ChampionsSheet is not null)
             AddChampions(id, source.Url, config.ChampionsSheet, workbook, changed);
         AddWaypoint(id, config, workbook);
-        AddTeamTabs(id, config, workbook);
+        AddSeasonTabs(id, config, workbook);
         AddGames(id, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
@@ -95,8 +97,9 @@ public sealed class HistoricalArchiveBuilder
                 _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
     }
 
-    /// <summary>The source's tabs of teams (rosters, standings, drafts), parsed: put on their seasons once every season is known.</summary>
-    private void AddTeamTabs(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
+    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, drafts, awards): parsed
+    /// now, put on their seasons in <see cref="Finish"/>.</summary>
+    private void AddSeasonTabs(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
         foreach (var tab in config.Rosters)
             _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
@@ -104,6 +107,8 @@ public sealed class HistoricalArchiveBuilder
             _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
         foreach (var tab in config.Drafts)
             _drafts.Add((id, tab, workbook.Sheet(tab.Sheet) is { } draftSheet ? DraftParser.Parse(draftSheet, tab) : null));
+        foreach (var tab in config.Awards)
+            _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
     }
 
     /// <summary>The snapshot's workbook, the sheets its config reads; null (a warning said why) when it can't be read.</summary>
@@ -178,6 +183,7 @@ public sealed class HistoricalArchiveBuilder
         FillTeamsFromRosters();
         AddStandings();
         AddDrafts();
+        AddAwards();
 
         var input = new HistoricalArchiveInput
         {
@@ -257,9 +263,8 @@ public sealed class HistoricalArchiveBuilder
             }
             // The season's names of its teams: its stats', and an earlier standings tab's (two tabs of a season spell a team
             // alike, the stats naming none)
-            var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(regular.Teams.Select(t => t.TeamName))
-                .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             // A captain is one of the season's players: a nickname ("Team (Snipez)") would be a placeholder player
+            var (known, _) = Spellings(season, regular);
             var players = PlayersOf(season);
             var named = teams.Select(t => t with
             {
@@ -371,6 +376,59 @@ public sealed class HistoricalArchiveBuilder
         var allowed = key.Length >= 15 ? 3 : key.Length >= 8 ? 2 : 1;
         var close = players.Where(p => DuplicateSuggestionService.Distance(key, HistoricalKeys.StripFraming(p), allowed) is not null && SameNumber(key, HistoricalKeys.StripFraming(p))).ToList();
         return close.Count == 1 ? close[0] : null;
+    }
+
+    /// <summary>
+    /// Each awards tab's awards go on their season's regular-season entry (the first, or its <see cref="AwardsTab.Tab"/>),
+    /// where the import records them: a winner as one of the season's players spells their gamertag, a team as the season
+    /// names it.
+    /// </summary>
+    private void AddAwards()
+    {
+        foreach (var (sourceId, tab, awards) in _awards)
+        {
+            if (awards is null || awards.Count == 0)
+            {
+                _warnings.Add($"{sourceId}: awards '{tab.Sheet}' not read ({(awards is null ? "no such sheet" : "no awards in it")})");
+                continue;
+            }
+            foreach (var block in awards.GroupBy(a => a.Season ?? tab.Season ?? sourceId, StringComparer.OrdinalIgnoreCase))
+                AddAwards(sourceId, tab, block.Key, block.Select(a => a.Award));
+        }
+    }
+
+    /// <summary>A tab's awards of the season of <paramref name="workbook"/> go on its regular-season entry.</summary>
+    private void AddAwards(string sourceId, AwardsTab tab, string workbook, IEnumerable<ArchiveAward> awards)
+    {
+        var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase)
+            && (tab.Tab is null || string.Equals(s.SourceSheet, tab.Tab, StringComparison.OrdinalIgnoreCase)));
+        if (regular is null)
+        {
+            _warnings.Add($"{sourceId}: awards '{tab.Sheet}' not read (no season from {workbook})");
+            return;
+        }
+        var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
+        var (teams, players) = Spellings(season, regular);
+        regular.Awards.AddRange(awards.Select(a => a.IsTeam
+            ? a with { Winner = KnownName(a.Winner, teams) }
+            : a with
+            {
+                Winner = players.GetValueOrDefault(HistoricalKeys.Normalize(a.Winner)) ?? a.Winner,
+                Team = a.Team is { } team ? KnownName(team, teams) : null,
+            }));
+        if (_changedSourceIds?.Contains(sourceId) != false)
+            _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+    }
+
+    /// <summary>The season's spelling of its teams (its stats' and its standings' so far) and of its players' gamertags (by
+    /// normalised gamertag): what standings and awards put their names in.</summary>
+    private static (List<string> Teams, Dictionary<string, string> Players) Spellings(List<ArchiveSeason> season, ArchiveSeason regular)
+    {
+        var teams = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(regular.Teams.Select(t => t.TeamName))
+            .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
+            .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
+        return (teams, players);
     }
 
     /// <summary>
