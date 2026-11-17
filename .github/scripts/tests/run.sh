@@ -14,6 +14,7 @@
 #   layer-coverage.mjs: each layer's numbers from its own test project's Cobertura report, and their change from master.
 #   signalr-models.mjs: the typed SignalR client's DTOs as re-exports of the client's models (openapi.json).
 #   sablier-wake.sh: wakes a scaled-to-zero group through Sablier (curl stubbed), then waits for a real TCP port.
+#   env-deploy.sh: a promotion's deploy commit (the chart at the images' commit, with promoted-images.yaml) and its env/<env>/<date> and env/<env>/current tags (gh, docker stubbed).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -523,6 +524,71 @@ then ok "sablier-wake: a port that stays closed fails after the wait"; else bad 
 if wake 200 ready "sqlserver"; then bad "sablier-wake: no port passed"
 elif grep -qF 'WAKE_TCP is not host,port: sqlserver' "$work/out"; then ok "sablier-wake: a host without a port fails"; else bad "sablier-wake: no port:"; cat "$work/out"; fi
 kill "$listener" 2> /dev/null || true
+
+# env-deploy.sh: a promotion's deploy commit (the chart at the images' commit, plus promoted-images.yaml naming the
+# images by digest), a dated env/<environment>/<date> tag that never moves, and env/<environment>/current moved to it. gh
+# stubbed: each call is recorded in $DEPLOY_CALLS, a POST's --input body as the next line; the tags in $DEPLOY_EXISTING
+# exist. docker stubbed: every image's revision label is $DEPLOY_REVISION (empty: no label).
+mkdir -p "$work/deploybin"
+cat > "$work/deploybin/gh" <<'GH'
+#!/usr/bin/env bash
+echo "$*" >> "$DEPLOY_CALLS"
+input=""; prev=""; for a in "$@"; do [[ "$prev" == --input ]] && input=$a; prev=$a; done
+[[ -n "$input" ]] && { if [[ "$input" == - ]]; then cat; else cat "$input"; fi; echo; } >> "$DEPLOY_CALLS"
+case "$*" in
+  "api repos/o/r/git/commits/c0ffee --jq .tree.sha") echo tree0 ;;
+  "api repos/o/r/git/trees -X POST --input "*" --jq .sha") echo tree1 ;;
+  "api repos/o/r/git/commits -X POST --input "*" --jq .sha") echo d3p10y ;;
+  "api repos/o/r/git/ref/tags/"*) [[ " $DEPLOY_EXISTING " == *" ${2#repos/o/r/git/ref/tags/} "* ]] && echo old || { echo "Not Found (HTTP 404)" >&2; exit 1; } ;;
+  "api repos/o/r/git/refs/tags/env/"*" -X PATCH -f sha=d3p10y -F force=true --jq .object.sha") echo d3p10y ;;
+  "api repos/o/r/git/refs -X POST -f ref=refs/tags/env/"*" -f sha=d3p10y --jq .object.sha") echo d3p10y ;;
+  *) echo "unexpected gh $*" >&2; exit 9 ;;
+esac
+GH
+cat > "$work/deploybin/docker" <<'DOCKER'
+#!/usr/bin/env bash
+[[ "$1 $2 $3" == "buildx imagetools inspect" ]] || { echo "unexpected docker $*" >&2; exit 9; }
+printf '{"config":{"Labels":{%s}}}\n' "${DEPLOY_REVISION:+\"org.opencontainers.image.revision\":\"$DEPLOY_REVISION\"}"
+DOCKER
+chmod +x "$work/deploybin/gh" "$work/deploybin/docker"
+deploy() { # deploy <environment> [existing tags] [revision]: exit code; calls in $work/deploycalls, outputs in $work/deployout
+  : > "$work/deploycalls"; : > "$work/deployout"
+  (DEPLOY_CALLS="$work/deploycalls" DEPLOY_EXISTING="${2:-}" DEPLOY_REVISION="${3-c0ffee}" GITHUB_REPOSITORY=o/r \
+    GITHUB_OUTPUT="$work/deployout" PATH="$work/deploybin:$PATH" "$scripts/env-deploy.sh" "$1" \
+    ghcr.io/playgrifball/grifballwebappserver@sha256:aaa ghcr.io/playgrifball/grifballwebappclient@sha256:bbb) \
+    > "$work/out" 2>&1
+}
+# The tree and commit bodies the script POSTed (the line after each call)
+posted() { grep -A1 -F "api repos/o/r/git/$1 -X POST --input" "$work/deploycalls" | sed -n 2p; }
+images_file() { posted trees | jq -r '.tree[] | select(.path == "charts/grifballwebapp/promoted-images.yaml") | .content'; }
+if deploy staging && [[ "$(posted trees | jq -r '.base_tree, (.tree | length), .tree[0].mode')" = "$(printf 'tree0\n1\n100644')" ]] \
+  && [[ "$(images_file)" = "$(printf '%s\n' \
+    '# The images promote-to-staging deployed with this chart (env-deploy.sh), by digest.' \
+    'backend:' '  image:' '    repository: ghcr.io/playgrifball/grifballwebappserver' '    tag: staging@sha256:aaa' \
+    'frontend:' '  image:' '    repository: ghcr.io/playgrifball/grifballwebappclient' '    tag: staging@sha256:bbb')" ]]
+then ok "env-deploy: the chart at the images' commit, with promoted-images.yaml naming them by digest"
+else bad "env-deploy: the deploy tree:"; cat "$work/out" "$work/deploycalls"; fi
+if [[ "$(posted commits | jq -c '{tree, parents}')" = '{"tree":"tree1","parents":["c0ffee"]}' ]] \
+  && posted commits | jq -e '.message | startswith("Deploy staging: c0ffee")' > /dev/null
+then ok "env-deploy: one commit on top of the images' commit"
+else bad "env-deploy: the deploy commit:"; cat "$work/deploycalls"; fi
+today=$(date -u +%Y-%m-%d)
+if [[ "$(grep -E 'git/refs( |/)' "$work/deploycalls")" = "$(printf '%s\n' \
+    "api repos/o/r/git/refs -X POST -f ref=refs/tags/env/staging/$today -f sha=d3p10y --jq .object.sha" \
+    'api repos/o/r/git/refs -X POST -f ref=refs/tags/env/staging/current -f sha=d3p10y --jq .object.sha')" ]] \
+  && grep -qx 'deploy_commit=d3p10y' "$work/deployout" && grep -qx "deploy_tag=env/staging/$today" "$work/deployout"
+then ok "env-deploy: the first time, makes env/staging/<date> and env/staging/current, and outputs both"
+else bad "env-deploy: first tags:"; cat "$work/out" "$work/deploycalls" "$work/deployout"; fi
+if deploy prod "env/prod/current env/prod/$today" && [[ "$(grep -E 'git/refs( |/)' "$work/deploycalls")" = "$(printf '%s\n' \
+    "api repos/o/r/git/refs -X POST -f ref=refs/tags/env/prod/$today.2 -f sha=d3p10y --jq .object.sha" \
+    'api repos/o/r/git/refs/tags/env/prod/current -X PATCH -f sha=d3p10y -F force=true --jq .object.sha')" ]] \
+  && images_file | grep -qx '    tag: prod@sha256:aaa'
+then ok "env-deploy: a second deploy that day gets env/prod/<date>.2, and env/prod/current moves; no dated tag moves"
+else bad "env-deploy: moving env/prod:"; cat "$work/out" "$work/deploycalls"; fi
+if deploy staging "" ""; then bad "env-deploy: an image without a revision label passed"
+elif grep -qF 'has no org.opencontainers.image.revision label' "$work/out" && ! grep -q 'git/' "$work/deploycalls"
+then ok "env-deploy: an image without a revision label fails before writing anything"
+else bad "env-deploy: no label:"; cat "$work/out" "$work/deploycalls"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."
