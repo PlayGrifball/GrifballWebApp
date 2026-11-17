@@ -29,10 +29,12 @@ public class SeasonTools
     private readonly GradesService _grades;
     private readonly SignupsService _signups;
     private readonly IBracketService _brackets;
+    private readonly Draft.DraftHelperService _draft;
 
     public SeasonTools(ToolCaller caller, SeasonService seasons, SeasonVisibility visibility, TeamStandingsService standings,
-        MatchPlannerService matchPlanner, GradesService grades, SignupsService signups, IBracketService brackets)
+        MatchPlannerService matchPlanner, GradesService grades, SignupsService signups, IBracketService brackets, Draft.DraftHelperService draft)
     {
+        _draft = draft;
         _caller = caller;
         _seasons = seasons;
         _visibility = visibility;
@@ -91,6 +93,16 @@ public class SeasonTools
     [Description("Who signed up for a season, and whether each will captain.")]
     public async Task<List<SignupResponseDto>> GetSeasonSignups([Description("The season's ID; left out, the next season to start, else the running one.")] int? seasonID = null, CancellationToken ct = default)
         => await _signups.GetSignups(await SeasonOrDefault(seasonID, SeasonPurpose.Upcoming, ct), ct);
+
+    [Description("The draft's suggested picks for a team (the one on deck unless one is named), best first: each player's score (0 to 1) and "
+        + "why, from how they have played against the rest of the pool, the team's short timeslots they can play, and the captain's region.")]
+    public async Task<Draft.DraftSuggestions> SuggestDraftPicks(
+        [Description("The season's ID; left out, the next season to start, else the running one.")] int? seasonID = null,
+        [Description("The team's ID (get_season_standings lists them); left out, the team on deck.")] int? teamID = null,
+        [Description("How many, 1 to 10; left out, 5.")] int count = Draft.DraftHelperService.DefaultSuggestions,
+        CancellationToken ct = default)
+        => await _draft.SuggestAsync(await SeasonOrDefault(seasonID, SeasonPurpose.Upcoming, ct), teamID, Math.Clamp(count, 1, 10), ct)
+            ?? throw new ToolException("There is no team to suggest picks for: the season has no captains yet, or no such team.");
 
     [Description("A season's playoff bracket: its winners' and losers' rounds, each match's teams and result, and the grand final.")]
     public async Task<BracketDto> GetSeasonBracket([Description("The season's ID; left out, the running season, else the one that ended last.")] int? seasonID = null, CancellationToken ct = default)
