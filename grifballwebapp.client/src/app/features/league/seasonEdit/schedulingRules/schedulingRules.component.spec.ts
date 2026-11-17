@@ -52,6 +52,7 @@ describe('SchedulingRulesComponent', () => {
     fixture.detectChanges();
     expect(save().disabled).toBeTrue();
     save().click();
+    fixture.componentInstance.save();
     http.expectNone('/api/seasons/3/scheduling-rules');
   });
 });

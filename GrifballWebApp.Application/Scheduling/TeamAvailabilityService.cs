@@ -6,13 +6,13 @@ namespace GrifballWebApp.Application.Scheduling;
 /// <summary>One of a season's timeslots for a team: whether it's the team's, and how many of its roster can play it.</summary>
 public sealed record TeamSlot(int AvailabilityOptionID, DayOfWeek DayOfWeek, TimeOnly Time, bool Available, int PlayersAvailable);
 
+/// <summary>One of a season's weekly timeslots.</summary>
+internal sealed record SeasonSlot(int AvailabilityOptionID, DayOfWeek DayOfWeek, TimeOnly Time);
+
 /// <summary>
 /// A team's timeslots, each of its season's: its captain's own (<see cref="SetByCaptain"/>), else its roster's (a slot is
 /// the team's when enough of its players can play it: the season's rule).
 /// </summary>
-/// <summary>One of a season's weekly timeslots.</summary>
-internal sealed record SeasonSlot(int AvailabilityOptionID, DayOfWeek DayOfWeek, TimeOnly Time);
-
 public sealed record TeamSlots(int TeamID, bool SetByCaptain, int RosterSize, IReadOnlyList<TeamSlot> Slots)
 {
     /// <summary>The caller may change them: the team's captain, or staff (<see cref="TeamAvailabilityService.MayChangeAsync"/>).</summary>
