@@ -17359,7 +17359,8 @@
             "description": "The caller may change them: the team's captain, or staff (M:GrifballWebApp.Application.Scheduling.TeamAvailabilityService.MayChangeAsync(System.Int32,System.Int32,System.Boolean,System.Threading.CancellationToken))."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A team's timeslots, each of its season's: its captain's own (GrifballWebApp.Application.Scheduling.TeamSlots.SetByCaptain), else its roster's (a slot is\nthe team's when enough of its players can play it: the season's rule)."
       },
       "TeamStandingDto": {
         "required": [
