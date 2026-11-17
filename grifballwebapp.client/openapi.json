@@ -1032,6 +1032,9 @@
               }
             }
           },
+          "304": {
+            "description": "Not Modified"
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -1074,6 +1077,9 @@
               }
             }
           },
+          "304": {
+            "description": "Not Modified"
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -1115,6 +1121,9 @@
                 }
               }
             }
+          },
+          "304": {
+            "description": "Not Modified"
           },
           "404": {
             "description": "Not Found",
@@ -15095,6 +15104,7 @@
           "hasEnded",
           "historicalSourceUrl",
           "isHistorical",
+          "isPublic",
           "leagueID",
           "leagueName",
           "leagueSlug",
@@ -15171,6 +15181,10 @@
           "historicalSourceUrl": {
             "type": "string",
             "nullable": true
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't."
           }
         },
         "additionalProperties": false,
@@ -15188,6 +15202,7 @@
           "hasEnded",
           "historicalSourceUrl",
           "isHistorical",
+          "isPublic",
           "leagueID",
           "leagueName",
           "leagueSlug",
@@ -15267,6 +15282,10 @@
           "historicalSourceUrl": {
             "type": "string",
             "nullable": true
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't."
           },
           "teamCount": {
             "type": "integer",
@@ -15774,6 +15793,7 @@
           "hasEnded",
           "historicalSourceUrl",
           "isHistorical",
+          "isPublic",
           "leagueID",
           "leagueName",
           "leagueSlug",
@@ -15854,6 +15874,10 @@
           "historicalSourceUrl": {
             "type": "string",
             "nullable": true
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't."
           },
           "teamCount": {
             "type": "integer",

@@ -122,7 +122,7 @@ public class CareerTotalsTests
     public void SeasonInfo_SaysWhetherThePublicMaySeeTheSeason_AsOfNow()
     {
         var announced = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-        var season = Season.Seed(seasonID: 5, seasonName: "Next").WithDates(signupsOpen: announced.AddDays(10), signupsClose: announced.AddDays(20),
+        var season = Season.Seed(seasonID: 5, seasonName: "Next", league: League.Seed("AGLA", "agla")).WithDates(signupsOpen: announced.AddDays(10), signupsClose: announced.AddDays(20),
             draftStart: announced.AddDays(25), seasonStart: announced.AddDays(30), seasonEnd: announced.AddDays(90), publicAt: announced);
 
         using (Assert.EnterMultipleScope())
