@@ -113,7 +113,8 @@ export class SchedulingService extends BaseService {
   static readonly GetTeamAvailabilityPath = '/teams/{teamID}/availability';
 
   /**
-   * A team's timeslots, each of its season's: whether it's the team's, and how many of its roster can play it.
+   * A team's timeslots, each of its season's: whether it's the team's, and how many of its roster can play it; and whether
+   *             the caller may change them (its captain, or staff).
    *
    *
    *
@@ -128,7 +129,8 @@ export class SchedulingService extends BaseService {
   }
 
   /**
-   * A team's timeslots, each of its season's: whether it's the team's, and how many of its roster can play it.
+   * A team's timeslots, each of its season's: whether it's the team's, and how many of its roster can play it; and whether
+   *             the caller may change them (its captain, or staff).
    *
    *
    *
