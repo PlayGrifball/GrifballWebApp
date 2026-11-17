@@ -233,6 +233,10 @@ public partial class HistoricalImportService : IHistoricalImportService
         public HashSet<(int TeamID, int UserID)> Players { get; } = [];
         /// <summary>The captain (user) of each team a title names one for.</summary>
         public Dictionary<int, int> Captains { get; } = [];
+        /// <summary>Each team's captain's place in the draft order, from its draft board.</summary>
+        public Dictionary<int, int> CaptainOrders { get; } = [];
+        /// <summary>Each team's draft picks by user, from its draft board.</summary>
+        public Dictionary<int, Dictionary<int, ArchivedPick>> Picks { get; } = [];
 
         /// <summary>The team the schedule puts each player on (<see cref="AssignScheduleTeams"/>), by Xbox user, by
         /// account once resolved, and by gamertag: for players whose sheets name no team.</summary>
@@ -971,8 +975,9 @@ public partial class HistoricalImportService : IHistoricalImportService
     }
 
     /// <summary>
-    /// Each team's roster and captain from the archive's team standings (<see cref="ArchiveSeason.Teams"/>): puts the
-    /// captain and roster players on the team, and sets the team's captain when no championship title names one.
+    /// Each team's roster and captain from the archive's team standings and draft boards (<see cref="ArchiveSeason.Teams"/>):
+    /// puts the captain, roster players and draft picks on the team, and sets the team's captain when no championship title
+    /// names one. A team's draft (its captain's order, each pick's round) is the first tab's that gives it.
     /// </summary>
     private static async Task ImportTeamRosters(SeasonGroup group, PlayerResolver resolver, SeasonTeams teams, CancellationToken ct)
     {
@@ -992,7 +997,27 @@ public partial class HistoricalImportService : IHistoricalImportService
                 var userId = (await resolver.Resolve(gamertag, null, ct)).UserId;
                 teams.Join(team.TeamName, userId);
             }
+            if (archiveTeam.DraftOrder is int order && order >= 1)
+                teams.CaptainOrders.TryAdd(team.TeamID, order);
+            await ImportPicks(archiveTeam, team, resolver, teams, ct);
         }
+    }
+
+    /// <summary>A draft board's picks of the team: each player on its roster (a pick traded away played for both), with
+    /// the round; a team's picks come from the first board that gives any.</summary>
+    private static async Task ImportPicks(ArchiveTeam archiveTeam, Team team, PlayerResolver resolver, SeasonTeams teams, CancellationToken ct)
+    {
+        var picks = archiveTeam.Picks.Where(p => p.Round >= 1 && !string.IsNullOrWhiteSpace(p.Gamertag)).ToList();
+        if (picks.Count == 0 || teams.Picks.ContainsKey(team.TeamID))
+            return;
+        var byUser = new Dictionary<int, ArchivedPick>();
+        foreach (var pick in picks)
+        {
+            var userId = (await resolver.Resolve(pick.Gamertag, null, ct)).UserId;
+            teams.Join(team.TeamName, userId);
+            byUser.TryAdd(userId, new ArchivedPick(pick.Round, pick.Pick is >= 1 ? pick.Pick : null));
+        }
+        teams.Picks[team.TeamID] = byUser;
     }
 
     /// <summary>
@@ -1144,7 +1169,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     }
 
     /// <summary>Each team's roster becomes its players on the sheets and titles (rows added, and removed for players no
-    /// longer there), and the captain its title names is the team's captain.</summary>
+    /// longer there), the captain its title names is the team's captain, and its draft is its board's.</summary>
     private async Task SyncRosters(SeasonTeams teams, CancellationToken ct)
     {
         var teamIds = teams.ByName.Values.Select(t => t.TeamID).ToList();
@@ -1162,6 +1187,9 @@ public partial class HistoricalImportService : IHistoricalImportService
                 team.ClearCaptain();
             foreach (var row in team.TeamPlayers.Where(r => !teams.Players.Contains((team.TeamID, r.UserID))).ToList())
                 team.RemovePlayer(row.UserID);
+            // The draft board's, or none: an earlier import's draft doesn't stay
+            team.RecordArchivedDraft(teams.CaptainOrders.TryGetValue(team.TeamID, out var order) ? order : null,
+                teams.Picks.GetValueOrDefault(team.TeamID) ?? new Dictionary<int, ArchivedPick>());
         }
         await _context.SaveChangesAsync(ct);
     }
