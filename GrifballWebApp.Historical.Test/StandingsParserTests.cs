@@ -16,8 +16,6 @@ public class StandingsParserTests
     private static readonly (string, int?, int?)[] RecordsOfAlphaAndBravo = [("Alpha", 5, 3), ("Bravo", 4, 4)];
 
     private static readonly (string, int?, int?)[] SecondBlockOwnRanks = [("Charlie", 2, null), ("Delta", 1, null)];
-    private static readonly string[] H3ActionLastTeams = ["The Boys Szn 3", "Team Name", "The Smurfs", "sPeCiAl ReAsOnS", "12 Inches of Tommy"];
-    private static readonly (int?, int?)[] H3ActionLastRecords = [(12, 8), (14, 6), (7, 13), (5, 15)];
     private static readonly (string, int?, int?)[] LegacyWithoutProSeeds = [("Legacy A", null, 7), ("Legacy B", null, 3)];
 
     private static SheetTable Sheet(params string[][] rows) => new() { Name = "Standings", Rows = [.. rows] };
@@ -196,10 +194,12 @@ public class StandingsParserTests
 
         var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns });
 
-        Assert.That(teams!.Select(t => t.TeamName).TakeLast(5), Is.EqualTo(H3ActionLastTeams), "All 11 up to 12 Inches of Tommy, not the chart beside them");
-        Assert.That(teams!, Has.Count.EqualTo(11));
-        Assert.That(teams!.Single(t => t.TeamName == "Team Name").Captain, Is.EqualTo("RDG NHL"));
-        Assert.That(teams!.Select(t => (t.Wins, t.Losses)).Skip(7), Is.EqualTo(H3ActionLastRecords));
+        Assert.That(Rows(teams).Skip(5), Is.EqualTo(new (string, int?, int?, int?, int?, string?)[]
+        {
+            ("42 Dugga’s (Yeah, aight)", null, null, 17, 3, "oDhmon"), ("The Boys Szn 3", null, null, 4, 16, "AJ DaJuiceMayne"),
+            ("Team Name", null, null, 12, 8, "RDG NHL"), ("The Smurfs", null, null, 14, 6, "I robot9000"),
+            ("sPeCiAl ReAsOnS", null, null, 7, 13, "Mavbrid"), ("12 Inches of Tommy", null, null, 5, 15, "Priest XYZ"),
+        }), "All 11 teams, \"Team Name\" too, up to 12 Inches of Tommy: not the chart beside them");
     }
 
     [Test]
