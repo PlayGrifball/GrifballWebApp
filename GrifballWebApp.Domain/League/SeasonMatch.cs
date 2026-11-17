@@ -152,6 +152,24 @@ public class SeasonMatch : AuditableEntity
     public SeasonMatchResult? AwayTeamResult { get; private set; }
     /// <summary>When it is to be played, once scheduled (<see cref="ScheduleAt"/>).</summary>
     public DateTime? ScheduledTime { get; private set; }
+    /// <summary>How long a game of Grifball takes to play, start to finish.</summary>
+    public const int MinutesPerGame = 15;
+
+    /// <summary>The time to get both teams into the lobby before a match starts.</summary>
+    public static readonly TimeSpan LobbyTime = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// How long a best-of-<paramref name="bestOf"/> match takes to play: its games, 15 minutes each (at least one). What the
+    /// calendar feeds block out: the time the players are actually playing.
+    /// </summary>
+    public static TimeSpan PlayingTime(int bestOf) => TimeSpan.FromMinutes(MinutesPerGame * Math.Max(bestOf, 1));
+
+    /// <summary>
+    /// How much time scheduling keeps for a best-of-<paramref name="bestOf"/> match: its playing time and the lobby before it
+    /// (<see cref="LobbyTime"/>), so two matches set back to back still leave the second's teams time to get in. More than the
+    /// calendar shows (<see cref="PlayingTime"/>), on purpose.
+    /// </summary>
+    public static TimeSpan ScheduledLength(int bestOf) => PlayingTime(bestOf) + LobbyTime;
     /// <summary>The series' length: a team with more than half of it in wins wins the match.</summary>
     public int BestOf { get; private set; }
     // Read-only: only the match's own methods add, number or remove a game (EF uses the field)

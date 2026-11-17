@@ -158,6 +158,42 @@ public class SeasonVisibilityHostTests
         }
     }
 
+    /// <summary>A calendar feed holds only what a signed-out visitor may see, whoever fetches it: a hidden season's team or
+    /// season has none, for the sysadmin too, and answers as one that doesn't exist.</summary>
+    [TestCase("/teams/{team}/calendar.ics", "/teams/999999/calendar.ics")]
+    [TestCase("/seasons/{season}/calendar.ics", "/seasons/999999/calendar.ics")]
+    public async Task AHiddenSeasonsCalendarFeed_IsNotFound_SignedOutAndToTheSysadmin_AsOneThatDoesntExist(string hidden, string missing)
+    {
+        using var anonymous = await _anonymous.GetAsync(Path(hidden));
+        using var sysadmin = await _sysadmin.GetAsync(Path(hidden));
+        using var missingResponse = await _anonymous.GetAsync(missing);
+        var hiddenProblem = await anonymous.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+        var missingProblem = await missingResponse.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(anonymous.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(sysadmin.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(missingResponse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(missingProblem!.Detail, Is.EqualTo(hiddenProblem!.Detail));
+        }
+    }
+
+    [Test]
+    public async Task APublicTeamsCalendarFeed_IsTextCalendar_SignedOut()
+    {
+        using var response = await _anonymous.GetAsync($"/teams/{_publicTeamID}/calendar.ics");
+        var body = await response.Content.ReadAsStringAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), body);
+            Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/calendar"));
+            Assert.That(response.Content.Headers.ContentType?.CharSet, Is.EqualTo("utf-8"));
+            Assert.That(body, Does.StartWith("BEGIN:VCALENDAR\r\n").And.EndWith("END:VCALENDAR\r\n"));
+        }
+    }
+
     [Test]
     public async Task APublicFranchisesHistory_ListsItsTeamOfASeasonNotAnnouncedYet_ForTheSysadminAlone()
     {

@@ -506,4 +506,16 @@ public class SeasonMatchModelTests
             Assert.That(match.LoserTeamID, Is.EqualTo(loser is { } l ? match.TeamOf(l) : null));
         }
     }
+
+    [Test]
+    public void PlayingTime_IsItsGames_AndScheduledLength_LeavesTimeToGetIntoTheLobby()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(SeasonMatch.PlayingTime(3), Is.EqualTo(TimeSpan.FromMinutes(45)), "15 minutes a game");
+            Assert.That(SeasonMatch.PlayingTime(0), Is.EqualTo(TimeSpan.FromMinutes(15)), "At least a game");
+            Assert.That(SeasonMatch.ScheduledLength(1), Is.EqualTo(TimeSpan.FromMinutes(30)), "A game and the lobby before it");
+            Assert.That(SeasonMatch.ScheduledLength(3), Is.EqualTo(TimeSpan.FromMinutes(60)));
+        }
+    }
 }

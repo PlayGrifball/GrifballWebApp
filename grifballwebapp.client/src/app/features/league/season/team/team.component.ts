@@ -9,6 +9,7 @@ import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent, DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
+import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
 import type { TeamDto } from '@api/models';
 import { describePage, PageDescription } from '@shared/pageMeta';
 import { TeamStore } from './team.store';
@@ -42,6 +43,7 @@ export function describeTeam(team: TeamDto): PageDescription {
         SeasonPlayerStatsComponent,
         VodListComponent,
         DatePipe,
+        CalendarSubscribeComponent,
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',
@@ -53,6 +55,8 @@ export class TeamComponent {
 
   teamID = input.required<number>();
   seasonID = input.required<number>();
+  /** The team's matches as a calendar feed, on the API. */
+  readonly calendarPath = computed(() => `teams/${this.teamID()}/calendar.ics`);
 
   readonly team = this.store.team;
   readonly matches = this.store.matches;

@@ -14,6 +14,7 @@ import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.comp
 import { AccessTokensComponent } from './accessTokens/accessTokens.component';
 import { ServiceRecordComponent } from './serviceRecord/serviceRecord.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
+import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
 import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
 import type { GameCareerSummaryDto, MatchmakingPlayerStatDto, PlayerSeasonStatDetailDto, ProfileStatsDto } from '@api/models';
 import { ProfileStore } from './profile.store';
@@ -56,6 +57,7 @@ export function describeProfile(profile: ProfileStatsDto): PageDescription | nul
     ServiceRecordComponent,
     VodListComponent,
     ProfileCommendationsComponent,
+    CalendarSubscribeComponent,
   ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss',
@@ -70,6 +72,8 @@ export class ProfileComponent {
   /** The :userID of the route. Angular keeps this page when only it changes (Profile in the header while on someone
    * else's profile), so a new one loads that user's profile in place of the one shown. */
   readonly userID = input.required({ transform: numberAttribute });
+  /** The matches of the player's teams as a calendar feed, on the API. */
+  readonly calendarPath = computed(() => `users/${this.userID()}/calendar.ics`);
   /** The player's gamertag; on your own profile without one, what the prompt to set it holds. */
   readonly gamertag = this.store.gamertag;
   readonly settingGamertag = this.store.settingGamertag;
