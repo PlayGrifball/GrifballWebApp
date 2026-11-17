@@ -50,6 +50,7 @@ public class HistoricalSourceConfig
         [
             .. Tabs.Select(t => t.Name),
             .. Tabs.Select(t => t.DatesSheet),
+            .. Tabs.Select(t => t.GamesSheet),
             .. Tables.SelectMany(t => new[] { t.Sheet, t.Players?.Sheet, t.Teams?.Sheet, t.StandingsSheet }),
             .. Waypoint.Select(t => t.Sheet),
             .. Games.Select(t => t.Sheet),
@@ -99,6 +100,10 @@ public class StatsTab
     public int? TeamColumn { get; init; }
     /// <summary>A tab whose Timestamp column dates this season, when this tab has none (e.g. a Late League match history).</summary>
     public string? DatesSheet { get; init; }
+    /// <summary>A tab of the season's games, a row per player per game (a Waypoint match export: PlayerId and Outcome; or a
+    /// Name, Wins and Losses per game): each player's games played, and their wins and losses, for a stats tab without those
+    /// columns. The Infinite stats tool's tabs (2025 on) count rounds (Rounds Won, Rounds Lost), not games.</summary>
+    public string? GamesSheet { get; init; }
     /// <summary>The season's year when nothing in the sheets dates it, nor its name: the source's year otherwise.</summary>
     public int? Year { get; init; }
     /// <summary>Carry a non-empty Team cell down to subsequent player rows in the same block (resetting on totals,
