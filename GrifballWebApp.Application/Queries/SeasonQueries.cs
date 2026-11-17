@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GrifballWebApp.Application.Queries;
 
 /// <summary>
-/// How a <see cref="Season"/>, its titles (<see cref="PlayerChampionship"/>) and its timeslots (<see cref="SeasonAvailability"/>)
+/// How a <see cref="Season"/>, its titles (<see cref="PlayerChampionship"/>), its awards (<see cref="SeasonAward"/>) and its timeslots (<see cref="SeasonAvailability"/>)
 /// are read. The titles and timeslots are changed only through the season; the readers (leaderboards, profiles, signups,
 /// the merge's checks) read them untracked through <see cref="Championships"/> and <see cref="Timeslots"/>. A season whose
 /// titles weren't loaded finds none of them, so every title method of the season gets a season loaded through
@@ -17,6 +17,12 @@ public static class SeasonQueries
 
     /// <summary>Every season's titles, to read: <c>context.Seasons.Championships()</c>.</summary>
     public static IQueryable<PlayerChampionship> Championships(this IQueryable<Season> seasons) => seasons.SelectMany(s => s.PlayerChampionships).AsNoTracking();
+
+    /// <summary>The season with its awards: all its award methods need (<see cref="Season.RecordArchivedAwards"/>, <see cref="Season.MergeAwards"/>).</summary>
+    public static IQueryable<Season> WithAwards(this IQueryable<Season> seasons) => seasons.Include(s => s.Awards);
+
+    /// <summary>Every season's awards, to read: <c>context.Seasons.Awards()</c>.</summary>
+    public static IQueryable<SeasonAward> Awards(this IQueryable<Season> seasons) => seasons.SelectMany(s => s.Awards).AsNoTracking();
 
     /// <summary>Every season's timeslots, to read: <c>context.Seasons.Timeslots()</c>.</summary>
     public static IQueryable<SeasonAvailability> Timeslots(this IQueryable<Season> seasons) => seasons.SelectMany(s => s.SeasonAvailability).AsNoTracking();
