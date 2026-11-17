@@ -73,11 +73,12 @@ public sealed class SchedulingService(IApplicationDbContext context, TimeProvide
         var now = time.GetUtcNow().UtcDateTime;
         var start = new[] { season.Start, now, from ?? DateTime.MinValue }.Max();
         var end = to is { } before && before < season.End ? before : season.End;
-        var home = season.Teams.GetValueOrDefault(match.HomeTeamID);
-        var away = season.Teams.GetValueOrDefault(match.AwayTeamID);
+        // Each of the season's teams has each of its timeslots (TeamAvailabilityService.ForSeasonAsync)
+        var home = season.Teams[match.HomeTeamID];
+        var away = season.Teams[match.AwayTeamID];
 
         return Instants(season.Slots, start, end)
-            .Select(at => (At: at, Conflicts: season.Checker.Check(match.At(at), season.Scheduled), Slot: Slot(at)))
+            .Select(i => (i.At, Conflicts: season.Checker.Check(match.At(i.At), season.Scheduled), i.Slot))
             .Where(s => !s.Conflicts.Any(c => c.Refuses))
             .Select(s => new TimeSuggestion(s.At, s.Conflicts, Players(home, s.Slot), Players(away, s.Slot)))
             .OrderBy(s => s.Conflicts.Count)
@@ -87,8 +88,8 @@ public sealed class SchedulingService(IApplicationDbContext context, TimeProvide
             .ToList();
     }
 
-    /// <summary>Each of the season's weekly timeslots as a UTC time from <paramref name="start"/> to before <paramref name="end"/>.</summary>
-    private static IEnumerable<DateTime> Instants(IReadOnlyList<(DayOfWeek Day, TimeOnly Time)> slots, DateTime start, DateTime end)
+    /// <summary>Each of the season's weekly timeslots as a UTC time from <paramref name="start"/> to before <paramref name="end"/>, with the slot it is.</summary>
+    private static IEnumerable<(DateTime At, (DayOfWeek Day, TimeOnly Time) Slot)> Instants(IReadOnlyList<(DayOfWeek Day, TimeOnly Time)> slots, DateTime start, DateTime end)
     {
         var league = ScheduleService.LeagueTimeZone();
         var first = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(start, league));
@@ -98,18 +99,13 @@ public sealed class SchedulingService(IApplicationDbContext context, TimeProvide
             {
                 var at = ScheduleService.ToUtc(day.ToDateTime(slot.Time));
                 if (at >= start && at < end)
-                    yield return at;
+                    yield return (at, slot);
             }
     }
 
-    private static (DayOfWeek, TimeOnly) Slot(DateTime utc)
-    {
-        var local = TimeZoneInfo.ConvertTimeFromUtc(utc, ScheduleService.LeagueTimeZone());
-        return (local.DayOfWeek, TimeOnly.FromDateTime(local));
-    }
-
-    private static int Players(TeamSlots? team, (DayOfWeek Day, TimeOnly Time) slot)
-        => team?.Slots.FirstOrDefault(s => s.DayOfWeek == slot.Day && s.Time == slot.Time)?.PlayersAvailable ?? 0;
+    /// <summary>How many of the team's players can play the slot: one of the season's, which the team has each of.</summary>
+    private static int Players(TeamSlots team, (DayOfWeek Day, TimeOnly Time) slot)
+        => team.Slots.First(s => s.DayOfWeek == slot.Day && s.Time == slot.Time).PlayersAvailable;
 
     private async Task<Match?> MatchAsync(int seasonMatchID, CancellationToken ct)
     {

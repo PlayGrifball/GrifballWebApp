@@ -55,6 +55,7 @@ public class ScheduleCheckerUnitTests
             Assert.That(checker.Check(Match(10, Home, Away, SeasonEnd.AddDays(5)), []).Single(c => c.Kind == ScheduleConflictKind.OutsideSeason).Refuses, Is.True);
             Assert.That(Kinds(checker.Check(Match(10, Home, Away, SeasonEnd.AddMinutes(-30)), [])), Does.Contain(ScheduleConflictKind.OutsideSeason),
                 "Begun before the season ends, but running past it");
+            Assert.That(Kinds(checker.Check(Match(10, Home, Away, SeasonStart.AddDays(-1)), [])), Does.Contain(ScheduleConflictKind.OutsideSeason), "Before it starts");
             Assert.That(checker.Check(Match(10, Home, Away, Monday8pm.AddMinutes(30)), []).Any(c => c.Refuses), Is.False, "Not a slot: a warning");
             Assert.That(Kinds(checker.Check(Match(10, Home, Away, Monday8pm.AddMinutes(30)), [])), Does.Contain(ScheduleConflictKind.NotASeasonTimeslot),
                 "20:30 is no slot of the season's (nor so of either team's)");

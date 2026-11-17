@@ -101,6 +101,11 @@ describe('TeamComponent', () => {
 
   it("shows the team's availability to those signed in, editable by its captain and staff", () => {
     const editor = () => fixture.debugElement.query(By.directive(StubTeamAvailability))?.componentInstance as StubTeamAvailability | undefined;
+    account.isLoggedIn.set(true);
+    account.personID.set(10);
+    expect(component.canEditAvailability()).withContext('No team yet: no captain to be').toBeFalse();
+    account.isLoggedIn.set(false);
+    account.personID.set(null);
     load({ ...team, players: [{ ...team.players[0], isCaptain: true }, team.players[1]] }, []);
     expect(editor()).toBeUndefined();
 
