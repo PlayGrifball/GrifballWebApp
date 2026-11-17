@@ -783,9 +783,10 @@ spec:
 Image Updater can write digests back with its Helm target: `backend.image.tag` and `frontend.image.tag`
 accept `tag`, `tag@sha256:...` or `sha256:...`, and `*.image.digest` takes a digest on its own.
 
-### Staging and prod: the promote deploy
+### Test, staging and prod: the deploy tags
 
-Staging and prod deploy what Promote to staging / Promote to prod promoted, chart and images together. Each promotion
+Each environment deploys the chart and its images together. Test deploys after every master build
+(`docker-publish.yml`, once `:test` moves), staging and prod on Promote to staging / Promote to prod. Each deploy
 makes a deploy commit (`.github/scripts/env-deploy.sh`): this chart at the commit the images were built from, plus
 `promoted-images.yaml` naming both images by digest. It is tagged `env/<environment>/<UTC date>` (`.2`, `.3` for more
 that day), which never moves, and `env/<environment>/current`, which moves to each new deploy. An Application follows
@@ -801,8 +802,9 @@ spec:
         valueFiles: [..., promoted-images.yaml]
 ```
 
-`env/<environment>/<date>` tags are the history: what the environment ran, and from when. The `:staging` and `:prod`
-image tags still move with each promotion, for anyone who pulls them; the deploy names the images by digest.
+`env/<environment>/<date>` tags are the history: what the environment ran, and from when. The `:test`, `:staging` and
+`:prod` image tags still move as before, for anyone who pulls them; the deploy names the images by digest. Previews
+run the newest test chart (`env/test/current`) with their pull request's images, so the chart needs no other updates.
 
 ## Developing
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # env-deploy.sh <environment> <backend image@digest> <frontend image@digest>
 #
-# Deploys a promotion (promote.yml): the homelab's staging and prod read this chart from git at the tag
-# env/<environment>/current, so moving that tag deploys the chart and the images together, in one sync. The tag points
-# at a deploy commit: the commit the images were built from (their revision label, as env-release.sh tags its
-# release), plus charts/grifballwebapp/promoted-images.yaml, which names both images by digest. The chart is always the
-# one written with the code it runs, and the images can't arrive before or after it. The commit is on no branch; its
-# tags keep it: env/<environment>/<date>, which never moves, and env/<environment>/current.
+# Deploys an environment: test after every master build (docker-publish.yml), staging and prod on a promotion
+# (promote.yml). The homelab reads this chart from git at the tag env/<environment>/current, so moving that tag deploys
+# the chart and the images together, in one sync. The tag points at a deploy commit: the commit the images were built
+# from (their revision label, as env-release.sh tags its release), plus charts/grifballwebapp/promoted-images.yaml,
+# which names both images by digest. The chart is always the one written with the code it runs, and the images can't
+# arrive before or after it. The commit is on no branch; its tags keep it: env/<environment>/<date>, which never
+# moves, and env/<environment>/current.
 # Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY. Outputs deploy_commit and deploy_tag to $GITHUB_OUTPUT.
 set -euo pipefail
 
@@ -24,7 +25,7 @@ fi
 
 # <environment>@sha256:...: the tag says which promotion, the digest is what runs (as the Image Updater wrote it)
 images=$(printf '%s\n' \
-  "# The images promote-to-$environment deployed with this chart (env-deploy.sh), by digest." \
+  "# The images deployed to $environment with this chart (env-deploy.sh), by digest." \
   'backend:' '  image:' "    repository: ${backend%@*}" "    tag: $environment@${backend#*@}" \
   'frontend:' '  image:' "    repository: ${frontend%@*}" "    tag: $environment@${frontend#*@}")
 

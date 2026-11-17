@@ -614,8 +614,9 @@ jobs:
             'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3'
 
   # Moves :test to this run's images, all or nothing: it runs only after every build
-  # above succeeded, so a failed build leaves it on the previous complete set. The homelab's
-  # ArgoCD Image Updater follows :test by digest (staging and prod deploy through promote.yml). Retagging is metadata only
+  # above succeeded, so a failed build leaves it on the previous complete set. Then deploys test as promote.yml deploys
+  # staging and prod (env-deploy.sh): the chart at this commit with these images, tagged env/test/<date> and
+  # env/test/current, which the homelab's grif-test (and its previews' chart) follow. Retagging is metadata only
   # (no rebuild, no re-upload), and backend goes first: it carries the migrations bundle, and the backend/frontend pair only
   # has to stay API-compatible for the seconds between the two.
   # :test only moves forward: master's runs go side by side and finish in any order, and a run (or a rerun) of an older
@@ -629,9 +630,15 @@ jobs:
     # A hung job fails after this rather than GitHub's 6 hours (under a minute usually)
     timeout-minutes: 15
     permissions:
-      contents: read  # compare commits
+      contents: write  # compare commits; the test deploy commit and its tags
       packages: write
     steps:
+      - name: Checkout scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         with:
@@ -647,6 +654,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Point test at this run's images
+        id: retag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -661,10 +669,7 @@ jobs:
           # Image references are lowercase; IMAGE_NAME_* keep the org's capitalisation.
           BACKEND="${BACKEND,,}"; FRONTEND="${FRONTEND,,}"
           # The commit :test has now: its images' revision label
-          current() {
-            docker buildx imagetools inspect "$BACKEND:test" --format '{{json .Image}}' \
-              | jq -r 'if has("config") then . else to_entries[0].value end | .config.Labels["org.opencontainers.image.revision"] // empty'
-          }
+          current() { .github/scripts/image-revision.sh "$BACKEND:test"; }
           # :test is what the homelab's grif-test deploys. Staging, prod and :latest (prod's images, the
           # Helm chart's default tag) move only through the Promote workflows. Moved only to a newer commit,
           # and moved again if an older run's retag lands after this one's (it saw :test before this did).
@@ -674,6 +679,7 @@ jobs:
               # ahead: this commit comes after :test's; behind or diverged: it doesn't
               status=$(gh api "repos/$REPO/compare/$on...$COMMIT" --jq .status)
               if [ "$status" != ahead ]; then
+                echo "moved=false" >> "$GITHUB_OUTPUT"
                 if [ "$attempt" = 1 ]; then
                   echo "::notice:::test stays on ${on:0:7}: this run's ${COMMIT:0:7} is $status of it"
                   echo "### :test stays on \`${on:0:7}\` (this run's \`${COMMIT:0:7}\` is $status of it)" >> "$GITHUB_STEP_SUMMARY"
@@ -681,12 +687,34 @@ jobs:
                 exit 0
               fi
             elif [ "$attempt" != 1 ]; then
+              echo "moved=true" >> "$GITHUB_OUTPUT"
               exit 0  # still this run's
             fi
             docker buildx imagetools create -t "$BACKEND:test" "$BACKEND@$BACKEND_DIGEST"
             docker buildx imagetools create -t "$FRONTEND:test" "$FRONTEND@$FRONTEND_DIGEST"
             sleep 20
           done
+          echo "moved=true" >> "$GITHUB_OUTPUT"
+
+      # Only when this run moved :test, and only while :test is still this commit's: a newer run deploys its own
+      - name: Deploy test
+        if: steps.retag.outputs.moved == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT: ${{ github.sha }}
+          BACKEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+          FRONTEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
+          BACKEND_DIGEST: ${{ needs.build-backend.outputs.digest }}
+          FRONTEND_DIGEST: ${{ needs.build-frontend.outputs.digest }}
+        run: |
+          set -euo pipefail
+          BACKEND="${BACKEND,,}"; FRONTEND="${FRONTEND,,}"
+          on=$(.github/scripts/image-revision.sh "$BACKEND:test")
+          if [ "$on" != "$COMMIT" ]; then
+            echo "::notice:::test moved on to ${on:0:7}: its run deploys it"
+            exit 0
+          fi
+          .github/scripts/env-deploy.sh test "$BACKEND@$BACKEND_DIGEST" "$FRONTEND@$FRONTEND_DIGEST"
 
   # A preview's images are pushed: tell the homelab's Argo CD to look at this PR now rather than at its next poll, so the
   # preview deploys (or moves to this commit) straight away. The ApplicationSet controller's webhook takes a GitHub-style
