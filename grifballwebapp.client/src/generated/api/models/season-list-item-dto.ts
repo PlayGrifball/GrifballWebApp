@@ -34,6 +34,11 @@ export interface SeasonListItemDto {
    * Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet.
    */
   isHistorical: boolean;
+
+  /**
+   * Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't.
+   */
+  isPublic: boolean;
   leagueID: number;
   leagueName: string;
   leagueSlug: string;
