@@ -902,6 +902,8 @@ broken "Release missing a deploy output" promote.yml \
 broken "the promotion with more permissions" promote-to-prod.yml '.jobs.promote.permissions["id-token"] = "write"' \
   "promote-to-prod.yml: the promotion has"
 broken "the chart release without its if" helm-chart.yml 'del(.jobs.release.if)' "helm-chart: release needs publish"
+broken "the chart release on its output alone (no status check)" helm-chart.yml \
+  '.jobs.release.if = "${{ needs.publish.outputs.digest != '"''"' }}"' "helm-chart: release needs publish"
 broken "publish able to write the repository" helm-chart.yml '.jobs.publish.permissions.contents = "write"' \
   "helm-chart: only release"
 # shellcheck disable=SC2016 # a workflow expression in a yq edit
