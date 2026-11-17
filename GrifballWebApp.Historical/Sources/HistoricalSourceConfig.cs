@@ -299,6 +299,9 @@ public class StandingsTab
     public bool Ranked { get; init; }
     /// <summary>A team is named "Team (captain)": the name in brackets is its captain's.</summary>
     public bool CaptainInName { get; init; }
+    /// <summary>Players the tab names otherwise than the stats, by the name it gives (any case): a captain's nickname to their
+    /// gamertag (SL25's Team Chart "Nkot", NKOTB4evah), who would otherwise be no player of the season.</summary>
+    public Dictionary<string, string> Names { get; init; } = [];
 }
 
 /// <summary>
