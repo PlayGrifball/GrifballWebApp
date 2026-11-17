@@ -57,7 +57,8 @@ export class TeamBuilderComponent implements OnInit {
       return "No Teams Added";
     if (this.playerPool().length === 0)
       return "Player pool is empty";
-    return this.onDeck()!.name + " is on deck";
+    const onDeck = this.onDeck();
+    return onDeck ? onDeck.name + " is on deck" : "The draft starts once the captains are locked";
   });
 
   /** The drag data for each pick (team and player), built once per change instead of per render. */

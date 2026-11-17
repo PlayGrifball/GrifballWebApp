@@ -56,7 +56,8 @@ export class TeamBuilderStore {
   /** Whose pick it is: the first team (in pick order) with the fewest players, while players are left. */
   readonly onDeck = computed<CaptainDto | null>(() => {
     const teams = this.teams();
-    if (teams.length === 0 || this.playerPool().length === 0)
+    // No one picks before the captains are locked (the server refuses a captain's pick until then)
+    if (teams.length === 0 || this.playerPool().length === 0 || !this.captainLocked())
       return null;
     return teams.reduce((fewest, team) => team.players.length < fewest.players.length ? team : fewest, teams[0]).captain;
   });

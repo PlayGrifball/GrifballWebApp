@@ -392,6 +392,14 @@ describe('TeamBuilderComponent', () => {
 
       expect(component.statusText()).toBe('Captain Name is on deck');
     });
+
+    it('should say the draft starts at the lock, before it', () => {
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Captain Name', personID: 1, order: 1, region: null }, players: [] }]);
+      component.playerPool.set([{ name: 'Player', personID: 4, pick: null, round: null, region: null }]);
+      component.captainLocked.set(false);
+
+      expect(component.statusText()).toBe('The draft starts once the captains are locked');
+    });
   });
 
   describe('MapToPlayer', () => {
