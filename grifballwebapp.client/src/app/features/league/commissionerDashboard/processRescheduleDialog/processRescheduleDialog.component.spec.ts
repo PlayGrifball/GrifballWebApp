@@ -3,7 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ProcessRescheduleDialogComponent } from './processRescheduleDialog.component';
-import type { RescheduleDto } from '@api/models';
+import type { RescheduleDto, TimeSuggestion } from '@api/models';
 
 describe('ProcessRescheduleDialogComponent', () => {
   let fixture: ComponentFixture<ProcessRescheduleDialogComponent>;
@@ -44,9 +44,15 @@ describe('ProcessRescheduleDialogComponent', () => {
     fixture = TestBed.createComponent(ProcessRescheduleDialogComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+    http.expectOne(r => r.url === '/api/season-matches/9/time-suggestions').flush(alternatives);
+    fixture.detectChanges();
   });
 
   afterEach(() => http.verify());
+
+  const alternatives: TimeSuggestion[] = [
+    { startsAt: '2026-03-02T00:00:00Z', homePlayersAvailable: 5, awayPlayersAvailable: 4, conflicts: [] },
+  ];
 
   const el = () => fixture.nativeElement as HTMLElement;
   const actionButton = () => el().querySelectorAll('mat-dialog-actions button')[1] as HTMLButtonElement;
@@ -210,5 +216,11 @@ describe('ProcessRescheduleDialogComponent for a match that can no longer move',
 
     action.click();
     expect(http.expectOne('/api/reschedules/56/decision').request.body).toEqual({ approved: false, commissionerNotes: null });
+  });
+
+  it('lists the best other times for the match, for a decision to point to', () => {
+    const other = el().querySelector('.prd-alternatives')!.textContent!;
+    expect(other).toContain(new Date('2026-03-02T00:00:00Z').toLocaleString());
+    expect(other).toContain('5 and 4 players');
   });
 });
