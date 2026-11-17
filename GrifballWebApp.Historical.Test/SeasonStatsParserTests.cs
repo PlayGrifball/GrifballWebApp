@@ -65,6 +65,27 @@ public class SeasonStatsParserTests
     }
 
     [Test]
+    public void AWorkbookOfStandingsWithNoStats_NamingOnlyItsSeason_IsAnOpenAglaSeason()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Rosters", [Row("Team", "Captain"), Row("Alpha", "Ace")])))!;
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Spring League 2020" }, Standings = [new() { Sheet = "Rosters" }] };
+
+        var season = SeasonStatsParser.Parse("s", config, workbook, []).Single();
+
+        Assert.That((season.GameVersion, season.League, season.Division, season.SourceSheet), Is.EqualTo(("", "AGLA", "Open", "Rosters")));
+    }
+
+    [TestCase("Games")]
+    [TestCase("Wins")]
+    public void ATabWhoseGamesNotWonAreLost_WithoutItsGamesOrWins_HasNoLosses(string column)
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Stats", [Row("Player", column), Row("A", 3)])))!;
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Summer League 2021", Game = "halo3" }, Tabs = [new() { Name = "Stats", LossesAreGamesNotWon = true }] };
+
+        Assert.That(SeasonStatsParser.Parse("s", config, workbook, []).Single().Players.Single().Losses, Is.Zero);
+    }
+
+    [Test]
     public void CarryTeam_FillsTeamDownBlock_AndResetsOnTotalsAndExcludedTeams()
     {
         var workbook = SheetWorkbook.Read(Workbook(

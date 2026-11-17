@@ -35,6 +35,18 @@ public class StandingsParserTests
         Assert.That(legacy!.Select(t => (t.TeamName, t.Rank, t.Wins)), Is.EqualTo(LegacyWithoutProSeeds));
     }
 
+    [TestCase("Gamertag")]
+    [TestCase("Gamertags")]
+    [TestCase("Player")]
+    [TestCase("Players")]
+    [TestCase("Player Name")]
+    public void Rows_APlayersTablesHeaderInTheTeamColumn_EndsTheTable(string header)
+    {
+        var sheet = Sheet(["Team", "Wins", "Losses"], ["Alpha", "9", "1"], [header, "2", "3"], ["Someone", "1", "1"]);
+
+        Assert.That(StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" })!.Select(t => t.TeamName), Is.EqualTo(AlphaOnly));
+    }
+
     [Test]
     public void Columns_TwoBlocksStacked_EachReadsItsOwnLabelledRows()
     {
