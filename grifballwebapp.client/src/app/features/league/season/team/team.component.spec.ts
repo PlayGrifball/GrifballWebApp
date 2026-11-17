@@ -13,6 +13,8 @@ import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { StubVodListComponent } from '@shared/vodList/vodList.stub';
+import { AccountService } from '@core/auth/account.service';
+import { TeamAvailabilityComponent } from './teamAvailability/teamAvailability.component';
 
 /** The season's player stats table (tested on its own): here only what the team page gives it and reads back. */
 @Component({ selector: 'app-season-player-stats', template: '' })
@@ -22,10 +24,18 @@ class StubPlayerStats {
   readonly hasRows = signal(false);
 }
 
+/** The team's availability editor (tested on its own): here only whether the page shows it, and who may edit. */
+@Component({ selector: 'app-team-availability', template: '' })
+class StubTeamAvailability {
+  readonly teamID = input<number>();
+  readonly canEdit = input(false);
+}
+
 describe('TeamComponent', () => {
   let fixture: ComponentFixture<TeamComponent>;
   let component: TeamComponent;
   let http: HttpTestingController;
+  const account = { isLoggedIn: signal(false), isSysAdmin: signal(false), isEventOrganizer: signal(false), personID: signal<number | null>(null) };
 
   const team: TeamDto = {
     teamName: 'Red Team',
@@ -53,15 +63,19 @@ describe('TeamComponent', () => {
   });
 
   beforeEach(async () => {
+    account.isLoggedIn.set(false);
+    account.isSysAdmin.set(false);
+    account.personID.set(null);
     await TestBed.configureTestingModule({
       imports: [TeamComponent],
       providers: [
         provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]),
         // Times show in UTC here, so the expected strings hold on any machine's timezone.
         { provide: DATE_PIPE_DEFAULT_OPTIONS, useValue: { timezone: 'UTC' } },
+        { provide: AccountService, useValue: account },
       ]
     })
-      .overrideComponent(TeamComponent, { remove: { imports: [SeasonPlayerStatsComponent, VodListComponent] }, add: { imports: [StubPlayerStats, StubVodListComponent] } })
+      .overrideComponent(TeamComponent, { remove: { imports: [SeasonPlayerStatsComponent, VodListComponent, TeamAvailabilityComponent] }, add: { imports: [StubPlayerStats, StubVodListComponent, StubTeamAvailability] } })
       .compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -84,6 +98,27 @@ describe('TeamComponent', () => {
   const stats = () => fixture.debugElement.query(By.directive(StubPlayerStats)).componentInstance as StubPlayerStats;
   const rows = () => Array.from(el().querySelectorAll('tr.mat-mdc-row'))
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
+
+  it("shows the team's availability to those signed in, editable by its captain and staff", () => {
+    const editor = () => fixture.debugElement.query(By.directive(StubTeamAvailability))?.componentInstance as StubTeamAvailability | undefined;
+    load({ ...team, players: [{ ...team.players[0], isCaptain: true }, team.players[1]] }, []);
+    expect(editor()).toBeUndefined();
+
+    account.isLoggedIn.set(true);
+    account.personID.set(11);
+    fixture.detectChanges();
+    expect(editor()!.teamID()).toBe(7);
+    expect(editor()!.canEdit()).toBeFalse();
+
+    account.personID.set(10);
+    fixture.detectChanges();
+    expect(editor()!.canEdit()).toBeTrue();
+
+    account.personID.set(11);
+    account.isSysAdmin.set(true);
+    fixture.detectChanges();
+    expect(editor()!.canEdit()).toBeTrue();
+  });
 
   it('drops the previous team, and its title, while another loads, and cancels its requests', () => {
     load(team, []);
