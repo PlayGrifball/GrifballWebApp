@@ -136,7 +136,11 @@ done
 check "helm-chart: release needs publish and runs only when publish output a chart" helm-chart.yml '
 .jobs.release
 | if (needs_of | index("publish")) == null then "release needs \(needs_of)" else empty end,
-  (if (.if // "" | test("needs\\.publish\\.outputs\\.(version|digest) != '"''"'")) then empty else "release if: \(.if)" end)'
+  (if (.if // "" | test("needs\\.publish\\.outputs\\.(version|digest) != '"''"'")) then empty else "release if: \(.if)" end),
+  # A skipped job before publish (apk-archive, once its packages are released) skips release through the implicit
+  # success() an if without a status function gets: publish checks results itself, and so must release.
+  (if (.if // "" | contains("!cancelled()") and contains("needs.publish.result == '"'success'"'")) then empty
+   else "release if (\(.if)) lacks !cancelled() and needs.publish.result == success: a skipped job before publish skips it" end)'
 check "helm-chart: only release and apk-archive can write the repository" helm-chart.yml '
 writers | if . != ["apk-archive", "release"] then "the jobs that can write the repository are \(.)" else empty end'
 # The outputs chart-publish.sh writes: its { echo "version=..."; echo "digest=..."; } >> "$GITHUB_OUTPUT" line
