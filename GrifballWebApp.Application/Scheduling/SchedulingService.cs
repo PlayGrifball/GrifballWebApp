@@ -36,7 +36,7 @@ public sealed class SchedulingService(IApplicationDbContext context, TimeProvide
         var availability = new TeamAvailabilityService(context);
         var rules = await new SeasonSchedulingRulesService(context).ForAsync(seasonID, ct);
         var slots = await availability.SeasonSlotsAsync(seasonID, ct);
-        var teams = await availability.ForSeasonAsync(seasonID, rules, slots, ct);
+        var teams = await availability.ForSeasonAsync(seasonID, rules, slots, null, ct);
         var scheduled = await context.SeasonMatches.AsNoTracking()
             .Where(m => m.SeasonID == seasonID && m.ScheduledTime != null && m.HomeTeamID != null && m.AwayTeamID != null)
             .Select(m => new { m.SeasonMatchID, m.HomeTeamID, m.AwayTeamID, m.ScheduledTime, m.BestOf })
@@ -70,6 +70,9 @@ public sealed class SchedulingService(IApplicationDbContext context, TimeProvide
         if (await MatchAsync(seasonMatchID, ct) is not { } match || await LoadAsync(match.SeasonID, ct) is not { } season)
             return null;
         var now = time.GetUtcNow().UtcDateTime;
+        // A caller's times as UTC: JSON reads one with an offset other than Z as local
+        from = Utc(from);
+        to = Utc(to);
         var start = new[] { season.Start, now, from ?? DateTime.MinValue }.Max();
         var end = to is { } before && before < season.End ? before : season.End;
         // Each of the season's teams has each of its timeslots (TeamAvailabilityService.ForSeasonAsync)
@@ -100,6 +103,13 @@ public sealed class SchedulingService(IApplicationDbContext context, TimeProvide
                 if (at >= start && at < end)
                     yield return (at, slot);
             }
+    }
+
+    private static DateTime? Utc(DateTime? time)
+    {
+        if (time is not { } t)
+            return null;
+        return t.Kind == DateTimeKind.Local ? t.ToUniversalTime() : DateTime.SpecifyKind(t, DateTimeKind.Utc);
     }
 
     /// <summary>How many of the team's players can play the slot: one of the season's, which the team has each of.</summary>

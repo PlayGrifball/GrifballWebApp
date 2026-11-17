@@ -25,6 +25,10 @@ public enum ScheduleConflictKind
 public sealed record ScheduleConflict(ScheduleConflictKind Kind, string Message)
 {
     public bool Refuses => Kind is ScheduleConflictKind.OutsideSeason or ScheduleConflictKind.TeamPlaysThen;
+
+    /// <summary>What is wrong with a time just set, after a reply (<paramref name="before"/> it): "But: " and each in words; nothing when nothing is.</summary>
+    public static string Warnings(IReadOnlyCollection<ScheduleConflict> conflicts, string before)
+        => conflicts.Count == 0 ? "" : before + "But: " + string.Join(" ", conflicts.Select(c => c.Message));
 }
 
 /// <summary>A match at a time (UTC), and how long it lasts.</summary>
@@ -82,8 +86,9 @@ public sealed class ScheduleChecker(DateTime seasonStart, DateTime seasonEnd, Se
     {
         if (others.Any(o => o.Shares(match) && o.Overlaps(match)))
             yield return new(ScheduleConflictKind.TeamPlaysThen, "One of its teams plays another match then.");
-        // Availability is of the season's timeslots: a season without them has none to check
-        if (_slots.Count == 0)
+        // Availability is of the season's timeslots: a season without them has none to check, and a time off them says nothing
+        // of either team (NotASeasonTimeslot says it)
+        if (_slots.Count == 0 || !_slots.Contains(slot))
             yield break;
         if (!CanPlay(match.HomeTeamID, slot))
             yield return new(ScheduleConflictKind.HomeTeamUnavailable, "The home team isn't available then.");
