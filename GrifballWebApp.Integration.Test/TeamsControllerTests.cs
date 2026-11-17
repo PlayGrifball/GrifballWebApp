@@ -78,9 +78,10 @@ public class TeamsControllerTests
         }
     }
 
+    [TestCase(null, GrifballWebApp.Application.Draft.DraftHelperService.DefaultSuggestions)]
     [TestCase(0, 1)]
     [TestCase(100, TeamsController.MaxSuggestions)]
-    public void DraftSuggestions_HowMany_IsKeptToAFew(int asked, int given) => Assert.That(TeamsController.HowManyPicks(asked), Is.EqualTo(given));
+    public void DraftSuggestions_HowMany_IsKeptToAFew(int? asked, int given) => Assert.That(TeamsController.HowManyPicks(asked), Is.EqualTo(given));
 
     [Test]
     public async Task GetTeams_And_GetPlayerPool_Should_ReturnServiceData()
