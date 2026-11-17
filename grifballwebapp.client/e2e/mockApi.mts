@@ -804,6 +804,16 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
     '/api/seasons/13/draft/teams': answer('getTeams', draftTeams),
     '/api/seasons/13/draft/player-pool': answer('getPlayerPool', draftPool),
     '/api/seasons/13/draft/captains/locked': answer('areCaptainsLocked', true),
+    // The draft helper: the pool in detail (a career for the first two, the rest new) and the picks for the team on deck
+    '/api/seasons/13/draft/pool-details': answer('getDraftPoolDetails', draftPool.map((p, i) => ({
+      userID: p.personID, name: p.name, region: p.region ?? null, willCaptain: false,
+      timeslots: [{ availabilityOptionID: 1, dayOfWeek: 'Monday' as const, time: '20:00:00' }],
+      career: i < 2 ? { seasons: 2, games: 20, winPercent: 60 - 10 * i, goalsPerGame: 1.5, killsPerGame: 12, titles: 1 - i } : null,
+    }))),
+    '/api/seasons/13/draft/suggestions': answer('getDraftSuggestions', { teamID: 1, teamName: "Sarge Prime's Crew", captainName: 'Sarge Prime', picks: [
+      { userID: 401, name: 'Warthog Wes', score: 0.82, reasons: ['Won 60% of 20 games, a title (top 10% of the pool)', 'Can play 1 of the 1 timeslots the team is short of'] },
+      { userID: 403, name: 'Spartan Sam', score: 0.6, reasons: ['No recorded games: an unknown'] },
+    ] }),
     '/api/commissioner-dashboard': answer('getDashboardData', commissionerDashboard),
     // The historical import page (/usermanagement/historicalimport): its sources, jobs, schedule, and a guarded import's job
     '/api/historical-sources': answer('getHistoricalSources', historicalSources),
