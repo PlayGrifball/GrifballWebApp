@@ -220,6 +220,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         public WaypointSeasonMatches? Waypoint { get; set; }
         /// <summary>The season's recorded games; null when the archive has none for it (its games are then left as they are).</summary>
         public List<RecordedGameInput>? RecordedGames { get; set; }
+        /// <summary>The season's forfeits; null when the archive has none for it (its forfeited matches are then left as they are).</summary>
+        public List<ArchiveForfeitInput>? Forfeits { get; set; }
         public SeasonFormat Format { get; set; } = SeasonFormat.LeagueSeason;
     }
 
@@ -412,6 +414,19 @@ public partial class HistoricalImportService : IHistoricalImportService
                 (group.RecordedGames ??= []).Add(game);
             else
                 Skip(report, $"Recorded game {game.SourceKey}: no season with the key {game.SeasonSourceId} in the archive");
+        }
+        AssignForfeits(input, bySourceId, report);
+    }
+
+    /// <summary>The forfeits to their seasons (never a matchmaking one: it has no teams).</summary>
+    private void AssignForfeits(HistoricalArchiveInput input, Dictionary<string, SeasonGroup> bySourceId, HistoricalImportReport report)
+    {
+        foreach (var forfeit in input.Forfeits ?? [])
+        {
+            if (bySourceId.TryGetValue(forfeit.SeasonSourceId.Trim(), out var group) && !group.IsMatchmaking)
+                (group.Forfeits ??= []).Add(forfeit);
+            else
+                Skip(report, $"Forfeit {forfeit.SourceKey}: no season with the key {forfeit.SeasonSourceId} in the archive");
         }
     }
 
@@ -709,6 +724,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (group.RecordedGames is not null)
                 games.AddRange(await ImportRecordedGames(group, season, gameVersions, resolver, teams, games, counts, ct));
             await LinkSeries(group, season, games, bracket, counts, ct);
+            if (group.Forfeits is not null)
+                await ImportForfeits(group, season, teams, counts, ct);
             var tiers = await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
             await RemoveTitlesNoLongerThere(season, tiers, counts, ct);
             await ImportAwards(group, season, resolver, teams, counts, ct);
@@ -1606,11 +1623,13 @@ public partial class HistoricalImportService : IHistoricalImportService
         Warn(counts, $"Recorded game {key}: skipped, {why}");
     }
 
-    /// <summary>Each side's team, the season team most of its players are on (by its name otherwise); neither when both are the same team.</summary>
+    /// <summary>Each side's team: the team its name is, when it names its team (<see cref="RecordedTeamInput.NamesItsTeam"/>), else the season team most of its players are on (by its name otherwise); neither when both are the same team.</summary>
     private (Dictionary<int, int?> SideTeams, int? A, int? B) SideTeams(string key, List<(RecordedPlayerInput Input, int UserId)> players, List<RecordedTeamInput> sides, RecordedGamesRun run)
     {
         var teams = run.Teams;
-        var sideTeams = sides.ToDictionary(t => t.Side, t => MajorityTeam(players.Where(p => p.Input.Side == t.Side).Select(p => p.UserId), teams) ?? teams.Find(t.Name)?.TeamID);
+        var sideTeams = sides.ToDictionary(t => t.Side, t => t.NamesItsTeam
+            ? teams.Find(t.Name)?.TeamID
+            : MajorityTeam(players.Where(p => p.Input.Side == t.Side).Select(p => p.UserId), teams) ?? teams.Find(t.Name)?.TeamID);
         var (a, b) = (sides.Count > 0 ? sideTeams[sides[0].Side] : null, sides.Count > 1 ? sideTeams[sides[1].Side] : null);
         if (a is not null && a == b)
         {

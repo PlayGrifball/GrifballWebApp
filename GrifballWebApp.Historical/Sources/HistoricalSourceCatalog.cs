@@ -162,6 +162,8 @@ public static class HistoricalSourceCatalog
                     },
                 },
             ],
+            // Every game the site kept (no dates, no phase), its player lines in Match_Players; a forfeit has no game
+            GameTables = [new() { Sheet = "Matches", Layout = GamesTableLayout.Matches, Stats = "Season_Player_Stats", PlayersSheet = "Match_Players" }],
             // Its single-game records were all set in Winter League 2008 (January 2008, games of league 1)
             Awards = [new() { Sheet = "Records", Layout = AwardsLayout.Records, Tab = "Season_Player_Stats#s1" }],
         } },
@@ -169,7 +171,11 @@ public static class HistoricalSourceCatalog
         // phase; teams and Winter League 2011's Pro/Amateur split in gb_teamindex), Halo 4's season 20 in h4_pstats (a row per
         // player per game; gamertags in h_players, teams in h_teams). The workbook has no season names: each season ID is named
         // here by the champions it holds (the AGLA champions record's winners are its teams). Season -1 rows are all-time
-        // totals (and h3_pstats has nothing else), so they are skipped.
+        // totals (and h3_pstats has nothing else), so they are skipped. Its games: the Reach seasons' in gb_teamstats (a row per
+        // team per game, no player lines, no dates; a forfeit's rows have no game ID), Winter League 2013's in h_games (its
+        // player lines h4_pstats' rows of the game's link). The agla_* tables are a Halo 3 league of summer 2011 (SML11) beside
+        // the Reach one, in Pro and Amateur divisions (agla_teamindex's isPro), its games in agla_gamesreported with a line per
+        // player in agla_playerstats; the champions record doesn't list it.
         new Entry { HistoricalSourceID = "history-grifball-info-db", Category = "History", Year = null, Title = "grifball.info Stats Database Backup", Url = "https://docs.google.com/spreadsheets/d/1ZSJMHofO00ELIcNZ1eqWJzMls0IDuufV08Cqs1q_tv0/edit?usp=sharing", Kind = HistoricalSourceKind.GoogleSheet, SheetKey = "1ZSJMHofO00ELIcNZ1eqWJzMls0IDuufV08Cqs1q_tv0", League = "AGLA", GameVersion = "multi", Format = "LeagueSeason", Config = new HistoricalSourceConfig
         {
             Tables =
@@ -197,6 +203,18 @@ public static class HistoricalSourceCatalog
                     Teams = new() { Sheet = "h_teams", Key = "teamid", Column = "teamname" },
                     Seasons = new() { ["20"] = new() { Name = "Winter League 2013" } },
                 },
+                new()
+                {
+                    Sheet = "agla_playerstats", Game = "halo3", SeasonColumn = "p_season", PlayoffsColumn = "playoffs", PerGame = true,
+                    Teams = new() { Sheet = "agla_teamindex", Key = "TeamName", Column = "TeamName" }, DivisionColumn = "isPro", StandingsSheet = "agla_teamindex",
+                    Seasons = new() { ["SML11"] = new() { Name = "Summer League 2011 Halo 3", Year = 2011, Divisions = new() { ["1"] = "Pro", ["0"] = "Amateur" } } },
+                },
+            ],
+            GameTables =
+            [
+                new() { Sheet = "gb_teamstats", Layout = GamesTableLayout.TeamRows, Stats = "hr_pstats", DeletedSheet = "gb_deletedgames" },
+                new() { Sheet = "h_games", Layout = GamesTableLayout.Schedule, Stats = "h4_pstats", PlayersSheet = "h4_pstats" },
+                new() { Sheet = "agla_gamesreported", Layout = GamesTableLayout.Reported, Stats = "agla_playerstats", PlayersSheet = "agla_playerstats", DeletedSheet = "agla_deletedgames" },
             ],
         } },
         new Entry { HistoricalSourceID = "history-all-time-infinite-stats-luxe", Category = "History", Year = null, Title = "All-time Infinite Stats by Luxe", Url = "https://docs.google.com/spreadsheets/d/1Y3NPRp004pzB57-vSysnyhyhMgqM3Yz0Vh_UnU2yIS8/edit?gid=96634953#gid=96634953", Kind = HistoricalSourceKind.GoogleSheet, SheetKey = "1Y3NPRp004pzB57-vSysnyhyhMgqM3Yz0Vh_UnU2yIS8", Config = new HistoricalSourceConfig { Awards = [new() { Sheet = "Record Book", Layout = AwardsLayout.Seasons, Awards = new() { ["MVP"] = "", ["FMVP"] = "Finals MVP" }, Seasons = new() { ["Season 1"] = "2023-da-wl23-stats", ["Season 2"] = "2024-da-sl24-stats", ["Season 3"] = "2024-igl-evolved-fl24-stats", ["Season 4"] = "2025-octane-wl25-stats", ["Season 5"] = "2025-octane-sl25-bid-stats", ["Season 6 Pro"] = "2025-classic-sml25-pro-stats", ["Season 6 Legacy"] = "2025-classic-sml25-legacy-stats", ["Season 7"] = "2026-sl26-major-stats" }, Names = new() { ["Luxe"] = "yLuxe", ["Fancy"] = "Fanciest Pants", ["ASpence"] = "ASpence501", ["Spank"] = "SPANKTR0N", ["Novice"] = "MysticalNovice", ["Shrek"] = "ill shrek u", ["Sab"] = "Sabasauros rex", ["Ace"] = "ACE B S1lentND1", ["Sev"] = "CaptainSev004", ["lmao"] = "" } }] } },

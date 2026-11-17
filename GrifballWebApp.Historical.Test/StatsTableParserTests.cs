@@ -46,6 +46,8 @@ public class StatsTableParserTests
             ("hr_pstats#s13", "Spring League 2011", "reach", "Open", false, "AGLA"),
             ("hr_pstats#s13", "Spring League 2011", "reach", "Open", true, "AGLA"),
             ("h4_pstats#s20", "Winter League 2013", "halo4", "Open", false, "AGLA"),
+            ("agla_playerstats#sSML11_Amateur", "Summer League 2011 Halo 3 (Amateur)", "halo3", "Amateur", false, "AGLA"),
+            ("agla_playerstats#sSML11_Amateur", "Summer League 2011 Halo 3 (Amateur)", "halo3", "Amateur", true, "AGLA"),
         }));
             Assert.That(seasons.Select(s => s.SourceWorkbook), Is.All.EqualTo(SourceId));
         }
@@ -111,12 +113,14 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(build.Warnings, Is.EquivalentTo(new[]
+            Assert.That(build.Warnings, Is.SupersetOf(new[]
             {
                 $"{SourceId}: hr_pstats: 2 row(s) of season -1, which its config doesn't name, skipped",
                 $"{SourceId}: hr_pstats: 1 row(s) of season 12 without one of its divisions, skipped",
                 $"{SourceId}: hr_pstats: 1 row(s) without a gamertag, skipped",
+                $"{SourceId}: agla_playerstats: 1 row(s) of season SML11 without one of its divisions, skipped",
             }));
+            Assert.That(build.Warnings.Where(w => w.Contains(": hr_pstats:") || w.Contains(": agla_playerstats:")).ToList(), Has.Count.EqualTo(4));
             Assert.That(Seasons(build).SelectMany(s => s.Players).Select(p => p.Gamertag), Has.None.EqualTo("Twizzted Status").And.None.EqualTo("Limbo Larry"));
         }
     }
@@ -217,7 +221,7 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(config.Tables.Select(t => (t.Sheet, t.Game, t.PerGame)), Is.EqualTo(new[] { ("hr_pstats", "reach", false), ("h4_pstats", "halo4", true) }));
+            Assert.That(config.Tables.Select(t => (t.Sheet, t.Game, t.PerGame)), Is.EqualTo(new[] { ("hr_pstats", "reach", false), ("h4_pstats", "halo4", true), ("agla_playerstats", "halo3", true) }));
             Assert.That(config.Tables[0].Seasons.Keys, Is.EqualTo(expected), "In order");
             Assert.That(config.Tables[0].Seasons["12"].Divisions, Is.EqualTo(new Dictionary<string, string> { ["1"] = "Pro", ["0"] = "Amateur" }));
         }
@@ -249,7 +253,7 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(build.Warnings, Is.EqualTo(NoRecordsTab), "This copy has no Records tab, whose single-game records are Winter League 2008's");
+            Assert.That(build.Warnings, Is.EquivalentTo(NoRecordsTabNorMatches), "This copy has no Records tab, whose single-game records are Winter League 2008's, and no Matches tab (GamesTableParserTests')");
             Assert.That(config.SheetNames(), Does.Contain("Standings").And.Contain("Season_Player_Stats"));
             Assert.That(seasons.Select(s => (s.SourceSheet, s.SeasonName, s.GameVersion, s.Division, s.SourceYear, s.Titles)), Is.EqualTo(new[]
             {
@@ -280,7 +284,8 @@ public class StatsTableParserTests
         }
     }
 
-    private static readonly string[] NoRecordsTab = ["history-grifball-com-db: awards 'Records' not read (no such sheet)"];
+    private static readonly string[] NoMatchesTab = ["history-grifball-com-db: games table 'Matches' not read (no such sheet, or it is empty)"];
+    private static readonly string[] NoRecordsTabNorMatches = ["history-grifball-com-db: awards 'Records' not read (no such sheet)", "history-grifball-com-db: games table 'Matches' not read (no such sheet, or it is empty)"];
 
     [Test]
     public void GrifballComCatalogEntry_PutsItsRecords_OnWinterLeague2008()
@@ -301,7 +306,7 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(build.Warnings, Is.Empty);
+            Assert.That(build.Warnings, Is.EqualTo(NoMatchesTab), "Its games are GamesTableParserTests'");
             Assert.That(winter08.SeasonName, Is.EqualTo("Winter League 2008"));
             Assert.That(winter08.Awards.Select(a => (a.Name, a.Winner, a.IsTeam, a.Team, a.Value)), Is.EqualTo(new (string, string, bool, string?, string?)[]
             {

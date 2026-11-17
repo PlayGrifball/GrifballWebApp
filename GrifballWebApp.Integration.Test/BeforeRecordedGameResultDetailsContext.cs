@@ -5,7 +5,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>
-/// The model as the database had it before AddRecordedGameResultDetails: recorded games without Vod, Host and IsForfeit.
+/// The model as the database had it before AddRecordedGameResultDetails: recorded games without Vod, Host and IsForfeit,
+/// and (from the later AddRecordedGameGrabs) their lines without Grabs.
 /// A migration test that seeds recorded games in a database migrated to before an earlier migration writes them through
 /// this (or a context that ignores the same, <see cref="IgnoreResultDetails"/>), as the model of the day did. Its own
 /// context type, so its own cached model.
@@ -29,5 +30,6 @@ internal sealed class BeforeRecordedGameResultDetailsContext(DbContextOptions<Gr
     {
         base.OnModelCreating(modelBuilder);
         IgnoreResultDetails(modelBuilder);
+        modelBuilder.Entity<RecordedGameParticipant>().Ignore(p => p.Grabs);
     }
 }

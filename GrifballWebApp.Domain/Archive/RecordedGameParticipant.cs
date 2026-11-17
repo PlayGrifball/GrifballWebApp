@@ -38,6 +38,8 @@ public class RecordedGameParticipant : AuditableEntity
     public int? SwordKills { get; private set; }
     public int? BallKills { get; private set; }
     public int? Punches { get; private set; }
+    /// <summary>Times the player picked up the ball, where the source counts them (grifball.com).</summary>
+    public int? Grabs { get; private set; }
 
     internal void Record(RecordedPlayerLine line, RecordedGameTeam? side)
     {
@@ -58,6 +60,7 @@ public class RecordedGameParticipant : AuditableEntity
         SwordKills = line.SwordKills;
         BallKills = line.BallKills;
         Punches = line.Punches;
+        Grabs = line.Grabs;
     }
 
     /// <summary>The line is another user's now (a merge): EF points the navigation at them by the key.</summary>

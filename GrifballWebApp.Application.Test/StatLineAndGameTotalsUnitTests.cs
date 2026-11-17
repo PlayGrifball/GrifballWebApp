@@ -123,6 +123,64 @@ internal sealed class StatLineAndGameTotalsUnitTests
     }
 
     [Test]
+    public void SetGames_GamesThatCountGrabs_GiveTheGrabsAndGrifballComsAverages()
+    {
+        // Two grifball.com games: 62 kills, 53 deaths, 2 betrayals, 1 goal from 6 grabs, as T3hFox's line on the site
+        var totals = new GameTotals { UserID = 1, Played = 2, Kills = 62, Deaths = 53, Betrayals = 2, Goals = 1, Grabs = 6, RecordingGrabs = 2 };
+
+        var line = NewLine();
+        line.SetGames(totals, null);
+
+        Assert.That((line.Grabs, line.BattingAverage, line.ScoringAverage, line.CombinedAverage), Is.EqualTo(((int?)6, (decimal?)55m, (decimal?)17m, (decimal?)36m)));
+    }
+
+    [Test]
+    public void SetGames_NoGameCountsGrabs_LeavesGrabsAndTheAveragesNull()
+    {
+        var totals = new GameTotals { UserID = 1, Played = 2, Kills = 62, Deaths = 53, Grabs = 0, RecordingGrabs = 0 };
+
+        var line = NewLine();
+        line.SetGames(totals, null);
+
+        Assert.That((line.Grabs, line.BattingAverage, line.ScoringAverage, line.CombinedAverage), Is.EqualTo(((int?)null, (decimal?)null, (decimal?)null, (decimal?)null)));
+    }
+
+    [Test]
+    public void SetGames_SomeGamesWithoutGrabs_GiveTheGrabsButNoAverages()
+    {
+        // A game without grabs would count its goals and not its grabs
+        var totals = new GameTotals { UserID = 1, Played = 3, Kills = 62, Deaths = 53, Goals = 4, Grabs = 6, RecordingGrabs = 2 };
+
+        var line = NewLine();
+        line.SetGames(totals, null);
+
+        Assert.That((line.Grabs, line.BattingAverage, line.ScoringAverage, line.CombinedAverage), Is.EqualTo(((int?)6, (decimal?)null, (decimal?)null, (decimal?)null)));
+    }
+
+    [TestCase(0, 0, 0, 0, 0, 0, 0, 0, TestName = "GrifballComAverages_NothingToCountOver_IsZero")]
+    [TestCase(62, 53, 2, 0, 6, 55, 0, 28, TestName = "GrifballComAverages_AHalfRoundsUp_AsTheSiteShowedIt")]
+    [TestCase(100, 107, 8, 1, 5, 50, 20, 35, TestName = "GrifballComAverages_BattingLeavesBetrayalsOutOfTheLives")]
+    public void GrifballComAverages_AreTheSitesWholeNumbers(int kills, int deaths, int betrayals, int goals, int grabs, int batting, int scoring, int combined)
+    {
+        Assert.That(StatMath.GrifballComAverages(kills, deaths, betrayals, goals, grabs), Is.EqualTo(((decimal)batting, (decimal)scoring, (decimal)combined)));
+    }
+
+    [Test]
+    public void GameTotals_Of_AddsUpGrabs_AndCountsTheGamesThatRecordThem()
+    {
+        var games = new List<PlayerGameStat>
+        {
+            new() { SeasonID = 1, UserID = 1, Gamertag = "Grif", GameVersionID = 1, Grabs = 4 },
+            new() { SeasonID = 1, UserID = 1, Gamertag = "Grif", GameVersionID = 1, Grabs = 3 },
+            new() { SeasonID = 1, UserID = 1, Gamertag = "Grif", GameVersionID = 1 },
+        }.AsQueryable();
+
+        var totals = GameTotals.Of(games).Single();
+
+        Assert.That((totals.Grabs, totals.RecordingGrabs), Is.EqualTo((7, 2)));
+    }
+
+    [Test]
     public void GameTotals_Of_GroupsAndSumsByPlayerSeasonPhaseAndTeam()
     {
         var games = new List<PlayerGameStat>

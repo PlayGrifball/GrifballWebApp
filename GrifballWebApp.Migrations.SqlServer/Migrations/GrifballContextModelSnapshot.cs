@@ -632,6 +632,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int?>("Goals")
                         .HasColumnType("int");
 
+                    b.Property<int?>("Grabs")
+                        .HasColumnType("int");
+
                     b.Property<int?>("HammerKills")
                         .HasColumnType("int");
 

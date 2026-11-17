@@ -71,6 +71,21 @@ public static partial class ArchiveCells
         return (TrailingPattern().Replace(text, "").Trim(), trade, role);
     }
 
+    /// <summary>A database table's cell (a row of a database export, its columns by index): its text, empty for one past
+    /// the row or a column the table hasn't (-1).</summary>
+    public static string TableCell(string[] row, int column) => row.ElementAtOrDefault(column) ?? "";
+
+    /// <summary>A database table's cell (<see cref="TableCell"/>), null when empty or the database's NULL.</summary>
+    public static string? TableValue(string[] row, int column)
+    {
+        var text = TableCell(row, column).Trim();
+        return text.Length == 0 || text.Equals("NULL", StringComparison.OrdinalIgnoreCase) ? null : text;
+    }
+
+    /// <summary>A database table's cell as a whole number; null for none, or one beyond an int (a stray value, never a count).</summary>
+    public static int? TableInt(string[] row, int column)
+        => Number(TableValue(row, column)) is decimal d && Math.Round(d) is var whole && whole >= int.MinValue && whole <= int.MaxValue ? (int)whole : null;
+
     /// <summary>A header compared loosely: lower case, without spaces ("Games Played" is "gamesplayed").</summary>
     public static string HeaderKey(string header) => new(header.Trim().ToLowerInvariant().Where(c => !char.IsWhiteSpace(c)).ToArray());
 

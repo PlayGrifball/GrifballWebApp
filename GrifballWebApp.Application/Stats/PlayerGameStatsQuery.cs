@@ -65,6 +65,8 @@ public class PlayerGameStat
     public int? Punches { get; set; }
     public int? DamageDealt { get; set; }
     public int? DamageTaken { get; set; }
+    /// <summary>Times the player picked up the ball: a recorded game's, where its source counts them (grifball.com).</summary>
+    public int? Grabs { get; set; }
 }
 
 /// <summary>
@@ -131,6 +133,7 @@ public static class PlayerGameStatsQuery
                 Punches = p.BallPunches,
                 DamageDealt = (int?)p.DamageDealt,
                 DamageTaken = (int?)p.DamageTaken,
+                Grabs = (int?)null,
             }));
 
     /// <summary>The lines of a season's recorded games, in a series or not. Same members, same order as
@@ -167,6 +170,7 @@ public static class PlayerGameStatsQuery
                 Punches = p.Punches,
                 DamageDealt = (int?)null,
                 DamageTaken = (int?)null,
+                Grabs = p.Grabs,
             });
 
     /// <summary>
@@ -211,6 +215,7 @@ public static class PlayerGameStatsQuery
                 Punches = p.BallPunches,
                 DamageDealt = (int?)p.DamageDealt,
                 DamageTaken = (int?)p.DamageTaken,
+                Grabs = (int?)null,
             }));
 
         var recorded = context.RecordedGameLines
@@ -245,6 +250,7 @@ public static class PlayerGameStatsQuery
                 Punches = p.Punches,
                 DamageDealt = (int?)null,
                 DamageTaken = (int?)null,
+                Grabs = p.Grabs,
             });
 
         // A game decided by its players' vote has no Halo match, so no box score: a game played, won or lost, by the players
@@ -281,6 +287,7 @@ public static class PlayerGameStatsQuery
                 Punches = (int?)null,
                 DamageDealt = (int?)null,
                 DamageTaken = (int?)null,
+                Grabs = (int?)null,
             });
 
         return infinite.Concat(recorded).Concat(voted);

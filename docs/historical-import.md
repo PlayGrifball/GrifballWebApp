@@ -29,6 +29,12 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   Finished, Playoffs, Playoff Ending). A standings name a few letters off the stats' team takes the stats' name. A team
   keeps them as `Team.ArchivedRank` and `ArchivedFinish`; the season page orders its standings by the sheet's ranks (one
   table's) and shows each team's finish.
+- **Website games** (`GamesTableParser`, a source's `GameTables`): the grifball.com and grifball.info databases' game tables
+  (grifball.com's Matches, grifball.info's Reach gb_teamstats, Winter League 2013's h_games and the 2011 Halo 3 league's
+  agla_gamesreported), read with the stats table whose seasons they are of. Each game is a recorded game of its season
+  with its players' lines where the database has them (grifball.com's grabs included: a season's grabs and grifball.com's
+  batting, scoring and combined averages are then counted from them), and each forfeit a forfeited season match without
+  games. grifball.com's games have no dates, so each is a series of its own.
 - **Ladders** (`LadderParser`, a source's `Ladders` tabs and its `FinishesSheet`): a Late League season's ranked ladder, a row
   per player under headers (Division, League, Rank, LP, Streak, MMR, P/ Win, P/ Loss), in the tab's order. The past finishes
   tab ("Past Seasons": League, Rank and Pos under each season's heading) gives a player's place on its ladder. A ladder goes

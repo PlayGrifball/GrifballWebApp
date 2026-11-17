@@ -13,6 +13,19 @@ public static class StatMath
 
     /// <summary>A stat per game, to two places; null without a game.</summary>
     public static decimal? PerGame(long total, int games) => games > 0 ? Math.Round((decimal)total / games, 2) : null;
+
+    /// <summary>
+    /// grifball.com's averages, as its season pages counted them, in whole numbers: batting is kills in a hundred of
+    /// kills and deaths less betrayals, scoring is goals in a hundred grabs, combined is their mean. One with nothing to
+    /// count over is 0, as the site showed it.
+    /// </summary>
+    public static (decimal Batting, decimal Scoring, decimal Combined) GrifballComAverages(int kills, int deaths, int betrayals, long goals, int grabs)
+    {
+        var lives = kills + deaths - betrayals;
+        var batting = lives > 0 ? Math.Round(100m * kills / lives, MidpointRounding.AwayFromZero) : 0;
+        var scoring = grabs > 0 ? Math.Round(100m * goals / grabs, MidpointRounding.AwayFromZero) : 0;
+        return (batting, scoring, Math.Round((batting + scoring) / 2, MidpointRounding.AwayFromZero));
+    }
 }
 
 /// <summary>

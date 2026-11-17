@@ -148,6 +148,11 @@ public abstract class StatLine
         Score = t.RecordingScore > 0 ? t.Score : null;
         DamageDealt = IfRecorded(t.DamageDealt, t.RecordingDamageDealt);
         DamageTaken = IfRecorded(t.DamageTaken, t.RecordingDamageTaken);
+        Grabs = IfRecorded(t.Grabs, t.RecordingGrabs);
+        // Grabs are grifball.com's, so are its averages: counted from the games as its season pages counted them, when every
+        // game counts grabs (a game without would count its goals and not its grabs)
+        if (Grabs is int grabs && t.RecordingGrabs == t.Played)
+            (BattingAverage, ScoringAverage, CombinedAverage) = StatMath.GrifballComAverages(t.Kills, t.Deaths, t.Betrayals, t.Goals, grabs);
     }
 }
 
@@ -187,6 +192,8 @@ public class GameTotals
     public int RecordingDamageDealt { get; set; }
     public int DamageTaken { get; set; }
     public int RecordingDamageTaken { get; set; }
+    public int Grabs { get; set; }
+    public int RecordingGrabs { get; set; }
 
     /// <summary>The games' totals by season, player, phase and team, added up in the database (both providers).</summary>
     public static IQueryable<GameTotals> Of(IQueryable<PlayerGameStat> games) => games
@@ -224,5 +231,7 @@ public class GameTotals
             RecordingDamageDealt = t.Count(g => g.DamageDealt != null),
             DamageTaken = t.Sum(g => g.DamageTaken ?? 0),
             RecordingDamageTaken = t.Count(g => g.DamageTaken != null),
+            Grabs = t.Sum(g => g.Grabs ?? 0),
+            RecordingGrabs = t.Count(g => g.Grabs != null),
         });
 }
