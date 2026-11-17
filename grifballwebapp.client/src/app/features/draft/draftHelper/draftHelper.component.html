@@ -25,7 +25,7 @@
   }
 
   @if (pool().length > 0) {
-  <div class="dh-table-wrap">
+  <div class="dh-table-wrap" tabindex="0" role="region" aria-label="The pool in detail"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
     <table class="dh-pool">
       <caption class="hud-label">The pool in detail</caption>
       <thead>
