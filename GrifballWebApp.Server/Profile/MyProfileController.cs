@@ -43,7 +43,7 @@ public class MyProfileController : ControllerBase
         return await _regions.Set(userId, request.RegionID, ct) switch
         {
             SetRegionResult.NoSuchRegion => this.BadRequestProblem("There is no such region"),
-            SetRegionResult.NoSuchUser => this.NotFoundProblem("There is no such user"),
+            SetRegionResult.NoSuchUser => this.NotFoundProblem(ApiProblems.NoSuchUser),
             _ => NoContent(),
         };
     }
