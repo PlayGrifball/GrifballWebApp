@@ -9,20 +9,31 @@
 # get the release's tag as a docker tag (grifballwebappserver:prod-2026-11-08), to find them by; a docker tag can be
 # moved, so the release's digests are what count.
 # Made as a draft, then published once complete: an immutable release can't take assets after.
-# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, FROM (the tag promoted from), RUN_URL, ACTOR.
+# A re-run of the promotion releases once: a published release of this run (its notes link RUN_URL) ends it, and an
+# unfinished draft of this run is deleted and made again.
+# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, FROM (the tag promoted from), RUN_URL, ACTOR; COMMIT and
+# FRONTEND_COMMIT, the images' revisions when env-deploy.sh already read them; DEPLOY_COMMIT and DEPLOY_TAG, the deploy
+# env-deploy.sh made (the chart at the commit, with these images) and its dated tag, when it ran first.
 set -euo pipefail
 
 environment=${1:?usage: $0 <environment> <backend@digest> <frontend@digest>}
 backend=${2:?} frontend=${3:?}
 repo=${GITHUB_REPOSITORY:?}
 
-# The commit an image was built from: its revision label (one platform's: they're one build)
-revision() {
-  docker buildx imagetools inspect "$1" --format '{{json .Image}}' \
-    | jq -r 'if has("config") then . else to_entries[0].value end | .config.Labels["org.opencontainers.image.revision"] // empty'
-}
-commit=$(revision "$backend")
-frontend_commit=$(revision "$frontend")
+# A re-run: this run's release published (nothing to do), or left a draft (made again)
+mine=$(gh api "repos/$repo/releases" --paginate \
+  --jq ".[] | select((.body // \"\") | contains(\"([run]($RUN_URL))\")) | \"\(.id) \(.draft) \(.tag_name)\"")
+while read -r id draft tag; do
+  [[ -n "$id" ]] || continue
+  if [[ "$draft" = false ]]; then echo "This run already released $tag; nothing to do."; exit 0; fi
+  echo "Deleting this run's unfinished draft release ($tag) to make it again."
+  gh api "repos/$repo/releases/$id" -X DELETE
+done <<< "$mine"
+
+# The commit an image was built from: its revision label (given by env-deploy.sh's outputs, or read here)
+revision() { "$(dirname "$0")/image-revision.sh" "$1"; }
+commit=${COMMIT:-$(revision "$backend")}
+frontend_commit=${FRONTEND_COMMIT:-$(revision "$frontend")}
 [[ -n "$commit" ]] || { echo "::error::$backend has no org.opencontainers.image.revision label" >&2; exit 1; }
 if [[ "$frontend_commit" != "$commit" ]]; then
   echo "::warning::The frontend image was built from $frontend_commit, the backend from $commit: the release is tagged at the backend's"
@@ -60,6 +71,10 @@ notes=$(mktemp)
   echo
   echo "Also tagged \`:$tag\`, e.g. \`docker pull $(image "$backend"):$tag\`. A docker tag can be moved; the digests above are what this release recorded."
   [[ "$frontend_commit" = "$commit" ]] || echo "(The frontend image was built from \`$frontend_commit\`.)"
+  if [[ -n "${DEPLOY_COMMIT:-}" ]]; then
+    echo
+    echo "Deployed as [\`${DEPLOY_COMMIT:0:7}\`](https://github.com/$repo/commit/$DEPLOY_COMMIT), tagged \`$DEPLOY_TAG\`: the chart at \`${commit:0:7}\` with these images (charts/grifballwebapp/promoted-images.yaml)."
+  fi
   echo
   echo "### Verify"
   echo '```sh'
@@ -82,7 +97,9 @@ notes=$(mktemp)
 manifest=$(mktemp -d)/release.json
 jq -n --arg environment "$environment" --arg tag "$tag" --arg commit "$commit" --arg frontend_commit "$frontend_commit" \
   --arg backend "$backend" --arg frontend "$frontend" --arg from "$FROM" --arg run "$RUN_URL" --arg actor "$ACTOR" \
+  --arg deploy_commit "${DEPLOY_COMMIT:-}" --arg deploy_tag "${DEPLOY_TAG:-}" \
   '{environment: $environment, tag: $tag, docker_tag: $tag, commit: $commit, promoted_from: $from, run: $run, actor: $actor,
+    deploy: (if $deploy_commit == "" then null else {commit: $deploy_commit, tag: $deploy_tag} end),
     images: {backend: {image: ($backend | split("@")[0]), digest: ($backend | split("@")[1]), commit: $commit},
              frontend: {image: ($frontend | split("@")[0]), digest: ($frontend | split("@")[1]), commit: $frontend_commit}}}' \
   > "$manifest"
