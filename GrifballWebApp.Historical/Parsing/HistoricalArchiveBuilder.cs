@@ -92,7 +92,8 @@ public sealed partial class HistoricalArchiveBuilder
         if (config.ChampionsSheet is not null)
             AddChampions(id, source.Url, config.ChampionsSheet, workbook, changed);
         AddWaypoint(id, config, workbook);
-        AddSeasonTabs(id, source.Year, config, workbook);
+        AddSeasonTabs(id, config, workbook);
+        AddResultLists(id, source.Year, config, workbook);
         AddGames(id, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
@@ -101,22 +102,27 @@ public sealed partial class HistoricalArchiveBuilder
                 _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
     }
 
-    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, drafts, result lists,
-    /// awards): parsed now, put on their seasons in <see cref="Finish"/>.</summary>
-    private void AddSeasonTabs(string id, int? year, HistoricalSourceConfig config, SheetWorkbook workbook)
+    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, drafts, awards,
+    /// brackets): parsed now, put on their seasons in <see cref="Finish"/>. Result lists are <see cref="AddResultLists"/>.</summary>
+    private void AddSeasonTabs(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
         foreach (var tab in config.Rosters)
             _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
         foreach (var tab in config.Standings)
             _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
-        foreach (var tab in config.Results)
-            _results.Add((id, year, config.Season, tab, workbook.Sheet(tab.Sheet) is { } resultsSheet ? GameResultsParser.Parse(id, tab, resultsSheet, _warnings) : null));
         foreach (var tab in config.Drafts)
             _drafts.Add((id, tab, workbook.Sheet(tab.Sheet) is { } draftSheet ? DraftParser.Parse(draftSheet, tab) : null));
         foreach (var tab in config.Awards)
             _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
         foreach (var tab in config.Brackets)
             _brackets.Add((id, tab, BracketParser.Parse(id, tab, workbook, _warnings)));
+    }
+
+    /// <summary>The result lists of a source (<see cref="AddResults"/> puts their games under their seasons).</summary>
+    private void AddResultLists(string id, int? year, HistoricalSourceConfig config, SheetWorkbook workbook)
+    {
+        foreach (var tab in config.Results)
+            _results.Add((id, year, config.Season, tab, workbook.Sheet(tab.Sheet) is { } resultsSheet ? GameResultsParser.Parse(id, tab, resultsSheet, _warnings) : null));
     }
 
     /// <summary>The snapshot's workbook, the sheets its config reads; null (a warning said why) when it can't be read.</summary>
