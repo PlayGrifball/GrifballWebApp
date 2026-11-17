@@ -100,6 +100,20 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
     }
 
     [Test]
+    public async Task Recommend_FewerThanTwoLeftToPlay_SaysToSetItByHand()
+    {
+        var regular = await SeedSeason();
+        foreach (var id in regular.Skip(1))
+            (await Context.SeasonMatches.FindAsync(id))!.WonBy(SeasonMatchSide.Away);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 2, TimeBudget = null }));
+
+        Assert.That(ex!.Message, Is.EqualTo(ScheduleService.TooFewToPlace));
+    }
+
+    [Test]
     public async Task Recommend_ASeasonUnderWay_PlacesNothingInThePast_NorRunningPastItsEnd()
     {
         var regular = await SeedSeason();
