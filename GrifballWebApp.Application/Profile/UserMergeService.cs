@@ -271,6 +271,13 @@ public class UserMergeService : IUserMergeService
             .FirstOrDefaultAsync(ct);
         if (matchmaking is not null)
             throw new MergeConflictException($"Both users have historical stats for {matchmaking}. Remove or fix one of them first.");
+        var ladder = await _context.MatchmakingLadderRanks
+            .Where(MatchmakingLadderRank.ClashesOnMerge(_context.MatchmakingLadderRanks, mergeFromId, mergeToId))
+            .OrderBy(r => r.MatchmakingSeasonID)
+            .Select(r => r.MatchmakingSeason.Name)
+            .FirstOrDefaultAsync(ct);
+        if (ladder is not null)
+            throw new MergeConflictException($"Both users have a place on the ladder of {ladder}. Remove or fix one of them first.");
     }
 
     /// <summary>
@@ -295,14 +302,15 @@ public class UserMergeService : IUserMergeService
     /// </summary>
     private async Task ThrowIfHistoricalRecordsWouldBeLeft(int mergeFromId, MergeOptions options, CancellationToken ct)
     {
-        var left = (!options.TransferSeasonStats && (await _context.PlayerSeasonStats.AnyAsync(x => x.UserID == mergeFromId, ct) || await _context.MatchmakingPlayerStats.AnyAsync(x => x.UserID == mergeFromId, ct)))
+        var left = (!options.TransferSeasonStats && (await _context.PlayerSeasonStats.AnyAsync(x => x.UserID == mergeFromId, ct) || await _context.MatchmakingPlayerStats.AnyAsync(x => x.UserID == mergeFromId, ct)
+                || await _context.MatchmakingLadderRanks.AnyAsync(x => x.UserID == mergeFromId, ct)))
             || (!options.TransferChampionships && await _context.Seasons.Championships().AnyAsync(x => x.UserID == mergeFromId, ct));
         if (left)
             throw new UserHasHistoricalStatsException(mergeFromId);
     }
 
     /// <summary>The source's season stats move to the target; a clash was refused before the merge. Its matchmaking
-    /// seasons' too.</summary>
+    /// seasons' too, and its places on their ladders.</summary>
     private async Task TransferSeasonStats(int mergeToId, int mergeFromId, CancellationToken ct)
     {
         var stats = await _context.PlayerSeasonStats.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
@@ -310,6 +318,8 @@ public class UserMergeService : IUserMergeService
             stat.ReassignUser(mergeFromId, mergeToId);
         foreach (var stat in await _context.MatchmakingPlayerStats.Where(x => x.UserID == mergeFromId).ToListAsync(ct))
             stat.ReassignUser(mergeFromId, mergeToId);
+        foreach (var rank in await _context.MatchmakingLadderRanks.Where(x => x.UserID == mergeFromId).ToListAsync(ct))
+            rank.ReassignUser(mergeFromId, mergeToId);
         await _recorder.SaveChangesAsync(ct);
     }
 

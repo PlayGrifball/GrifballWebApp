@@ -55,6 +55,7 @@ public class HistoricalGuardrailOptions
     public bool Exceeded(HistoricalSeasonRemoval removal)
         => TooMany(removal.StatsRemoved, removal.StatsBefore) || TooMany(removal.TeamsRemoved, removal.TeamsBefore)
            || (StopOnAnyChampionshipRemoved ? removal.TitlesRemoved > 0 : TooMany(removal.TitlesRemoved, removal.TitlesBefore))
+           || TooMany(removal.LadderRemoved, removal.LadderBefore)
            || TooMany(removal.AwardsRemoved, removal.AwardsBefore);
 
     private bool TooMany(int removed, int before) => removed > 0 && before > 0 && (decimal)removed / before > MaxRemovedFraction;
@@ -71,17 +72,21 @@ public class HistoricalSeasonRemoval
     public int TeamsRemoved { get; set; }
     public int TitlesBefore { get; set; }
     public int TitlesRemoved { get; set; }
+    /// <summary>A Late League season's ladder rows (MatchmakingLadderRank), measured apart from its stat rows.</summary>
+    public int LadderBefore { get; set; }
+    public int LadderRemoved { get; set; }
     /// <summary>The season's awards (SeasonAward rows): not kept on a review, which has the other counts.</summary>
     public int AwardsBefore { get; set; }
     public int AwardsRemoved { get; set; }
     /// <summary>Rolled back by the guardrail: left as it was until a sysadmin approves it.</summary>
     public bool Stopped { get; set; }
 
-    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0 || AwardsRemoved > 0;
+    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0 || AwardsRemoved > 0 || LadderRemoved > 0;
 
-    // What it removes of what it had; its awards only when it had any
+    // What it removes of what it had; its awards and ladder rows only when it had any
     public string Summary => $"{StatsRemoved} of {StatsBefore} stat rows, {TeamsRemoved} of {TeamsBefore} teams, {TitlesRemoved} of {TitlesBefore} titles"
-        + (AwardsBefore > 0 ? $", {AwardsRemoved} of {AwardsBefore} awards" : "");
+        + (AwardsBefore > 0 ? $", {AwardsRemoved} of {AwardsBefore} awards" : "")
+        + (LadderBefore > 0 ? $", {LadderRemoved} of {LadderBefore} ladder rows" : "");
 }
 
 public record HistoricalImportProgress(string Stage, int SeasonsDone, int SeasonsTotal);
@@ -113,6 +118,11 @@ public class HistoricalImportReport
     public int ChampionshipsRemoved { get; set; }
     public int StatsInserted { get; set; }
     public int StatsUpdated { get; set; }
+    /// <summary>Late League ladder rows (a player's place on a matchmaking season's ladder) added, updated and removed (no longer
+    /// on the ladder).</summary>
+    public int LadderRanksInserted { get; set; }
+    public int LadderRanksUpdated { get; set; }
+    public int LadderRanksRemoved { get; set; }
     /// <summary>Season matches made from Waypoint games, and the games linked to them.</summary>
     public int SeasonMatchesCreated { get; set; }
     public int GamesLinked { get; set; }
@@ -1928,6 +1938,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         report.ChampionshipsRemoved += season.ChampionshipsRemoved;
         report.StatsInserted += season.StatsInserted;
         report.StatsUpdated += season.StatsUpdated;
+        report.LadderRanksInserted += season.LadderRanksInserted;
+        report.LadderRanksUpdated += season.LadderRanksUpdated;
+        report.LadderRanksRemoved += season.LadderRanksRemoved;
         report.SeasonMatchesCreated += season.SeasonMatchesCreated;
         report.GamesLinked += season.GamesLinked;
         report.SeasonMatchesRemoved += season.SeasonMatchesRemoved;

@@ -35,6 +35,11 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   with its players' lines where the database has them (grifball.com's grabs included: a season's grabs and grifball.com's
   batting, scoring and combined averages are then counted from them), and each forfeit a forfeited season match without
   games. grifball.com's games have no dates, so each is a series of its own.
+- **Ladders** (`LadderParser`, a source's `Ladders` tabs and its `FinishesSheet`): a Late League season's ranked ladder, a row
+  per player under headers (Division, League, Rank, LP, Streak, MMR, P/ Win, P/ Loss), in the tab's order. The past finishes
+  tab ("Past Seasons": League, Rank and Pos under each season's heading) gives a player's place on its ladder. A ladder goes
+  on its season (by name), or on a season of its own when no stats tab has one (the early seasons). Each row is a
+  `MatchmakingLadderRank`; the Late League season page shows them under Ladder.
 - **Result lists** (`GameResultsParser`, a source's `Results` tabs): a season's results where no per-game stats tab has its
   games: a table of Winner, score, Loser (and Host, VOD, Halo game, Map) rows under week and playoffs markers; cells such as
   "A over B 2-0 (5-1, 5-4)" or "A 2-1 B" with the game scores beside; or a Halo Infinite game history's rows without a match
@@ -95,7 +100,8 @@ the Discord bot; there is no separate archive API. What makes it imported is `Se
   (`PlayerSeasonStat`), never both. Career totals are `CareerTotals`, over seasons and Late League alike.
 - **Late League** is matchmaking (random, skill-matched sides, like the queue), not a season: the import makes each
   archive Late League season (league or format Late League, or a name starting "Late League") a `MatchmakingSeason`,
-  its games finished `MatchedMatch`es of recorded games, and its sheet totals `MatchmakingPlayerStat` rows. No teams,
+  its games finished `MatchedMatch`es of recorded games, its sheet totals `MatchmakingPlayerStat` rows and its ladder
+  `MatchmakingLadderRank` rows. No teams,
   series, playoffs or titles. `MatchmakingStatsService` reads its stats (games first, as for seasons), for
   `GET /api/late-league/queue` (the Discord queue's games: Late League as it is played now), `GET /api/late-league/seasons`,
   `GET /api/late-league/seasons/{matchmakingSeasonID}`, profiles and the career leaderboards.

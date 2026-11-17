@@ -14,22 +14,26 @@ public partial class HistoricalImportService
 {
     /// <summary>
     /// A Late League season: matchmaking, not a season of the app's, so a <see cref="MatchmakingSeason"/> found again by its
-    /// key. Its players' sheet totals are its <see cref="MatchmakingPlayerStat"/> rows (by player), and each of its recorded
-    /// games is a finished <see cref="MatchedMatch"/> of its two sides, as the queue's matches are: no teams, standings,
-    /// playoffs or champion. What this run doesn't bring back (a row, a game) goes. One transaction, under the dry run and the
-    /// guardrail like a season's (its stat rows are what removals are measured by).
+    /// key. Its players' sheet totals are its <see cref="MatchmakingPlayerStat"/> rows (by player), their places on its ladder its
+    /// <see cref="MatchmakingLadderRank"/> rows, and each of its recorded games is a finished <see cref="MatchedMatch"/> of its
+    /// two sides, as the queue's matches are: no teams, playoffs or champion. What this run doesn't bring back (a row, a game)
+    /// goes. One transaction, under the dry run and the guardrail like a season's (its stat rows and, apart, its ladder rows are
+    /// what removals are measured by).
     /// </summary>
     private async Task ImportMatchmakingSeason(SeasonGroup group, List<GameVersion> gameVersions, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
     {
         var counts = new HistoricalImportReport();
         var removal = new HistoricalSeasonRemoval { SeasonKey = group.SourceId, SeasonName = group.SeasonName };
         removal.StatsBefore = await _context.MatchmakingPlayerStats.CountAsync(s => s.MatchmakingSeason.HistoricalSourceID == group.SourceId, ct);
+        // Its ladder is measured on its own: a ladder the sheet lost is stopped for review however many stat rows there are
+        removal.LadderBefore = await _context.MatchmakingLadderRanks.CountAsync(r => r.MatchmakingSeason.HistoricalSourceID == group.SourceId, ct);
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         try
         {
             var season = await UpsertMatchmakingSeason(group, counts, ct);
             var resolver = new PlayerResolver(_context, 0, season.StartsAt, season.MatchmakingSeasonID);
             await ImportMatchmakingStats(group, season, resolver, counts, ct);
+            await ImportMatchmakingLadder(group, season, resolver, counts, ct);
             if (group.RecordedGames is not null)
                 await ImportMatchmakingGames(group, season, gameVersions, resolver, counts, ct);
             foreach (var gamertag in resolver.Ambiguous.Distinct(StringComparer.OrdinalIgnoreCase))
@@ -38,6 +42,7 @@ public partial class HistoricalImportService
             await _context.SaveChangesAsync(ct);
             counts.DummyUsersCreated = resolver.DummiesCreated;
             removal.StatsRemoved = counts.StatsRemoved;
+            removal.LadderRemoved = counts.LadderRanksRemoved;
             removal.Stopped = !options.DryRun && options.Guardrail?.Exceeded(removal) == true;
             if (options.DryRun || removal.Stopped)
             {
@@ -126,6 +131,40 @@ public partial class HistoricalImportService
         var stale = existing.Values.Where(s => !kept.Contains(s.UserID)).ToList();
         _context.MatchmakingPlayerStats.RemoveRange(stale);
         counts.StatsRemoved += stale.Count;
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>The season's ladder, a row per player (a second row for the same player, e.g. a past finish under another
+    /// gamertag, is reported and skipped); the season's ladder rows this run didn't write go.</summary>
+    private async Task ImportMatchmakingLadder(SeasonGroup group, MatchmakingSeason season, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
+    {
+        var existing = await _context.MatchmakingLadderRanks.Where(r => r.MatchmakingSeasonID == season.MatchmakingSeasonID)
+            .ToDictionaryAsync(r => r.UserID, ct);
+        var kept = new HashSet<int>();
+        foreach (var standing in group.Entries.SelectMany(e => e.Ladder).Where(s => !string.IsNullOrWhiteSpace(s.Gamertag)))
+        {
+            var userId = (await resolver.Resolve(standing.Gamertag, null, ct)).UserId;
+            if (!kept.Add(userId))
+            {
+                Skip(counts, $"{group.SourceId}: {standing.Gamertag} is a second ladder row for the same player");
+                continue;
+            }
+            var row = MatchmakingLadderRank.FromSheet(season.MatchmakingSeasonID, userId, standing with { Gamertag = HistoricalKeys.CleanGamertag(standing.Gamertag) });
+            if (existing.TryGetValue(userId, out var stored))
+            {
+                // Only the values that changed are written: a re-run of the same archive changes nothing
+                stored.Restate(row);
+                counts.LadderRanksUpdated++;
+            }
+            else
+            {
+                _context.MatchmakingLadderRanks.Add(row);
+                counts.LadderRanksInserted++;
+            }
+        }
+        var stale = existing.Values.Where(r => !kept.Contains(r.UserID)).ToList();
+        _context.MatchmakingLadderRanks.RemoveRange(stale);
+        counts.LadderRanksRemoved += stale.Count;
         await _context.SaveChangesAsync(ct);
     }
 

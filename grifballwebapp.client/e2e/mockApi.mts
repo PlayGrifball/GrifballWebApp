@@ -6,7 +6,7 @@ import type { BrowserContext } from '@playwright/test';
 import type { AnswerOf, Operation } from './apiOperations.mts';
 import type {
   BracketsMatch, CommissionerDashboardDto, DayOfWeek, GamertagClaimDto, HistoricalImportJobDto, LetterDto, MatchDetailsDto, MatchDetailsMedalDto,
-  MatchDetailsTeamDto, MatchmakingPlayerStatDto, MatchmakingSeasonDto, MetricLeaderDto, Outcomes, ParticpantResult, Participant, PossibleTeamDto,
+  MatchDetailsTeamDto, MatchmakingLadderRankDto, MatchmakingPlayerStatDto, MatchmakingSeasonDto, MetricLeaderDto, Outcomes, ParticpantResult, Participant, PossibleTeamDto,
   ProfileCommendationsDto, ProfileStatsDto, QuickSearchDto, QuickSearchPlayerDto, SeasonDto, SeasonInfoDto, SeasonListItemDto, SeasonPlayerStatDto,
   SeasonMatchPageDto, SeasonSummaryDto, Status, TeamDto, TeamHistoryDto, TeamHistorySeasonDto, TeamResponseDto, TeamsPlayerDto, TitleDto, UserResponseDto, ViewerDataDto,
 } from '../src/generated/api/models';
@@ -504,11 +504,11 @@ const teamHistory: TeamHistoryDto = {
 };
 
 // Late League (/late-league, /late-league/3): the Discord queue's players now, and two archived seasons
-const matchmakingSeason = (matchmakingSeasonID: number, name: string, startsAt: string, endsAt: string, gameCount: number, playerCount: number): MatchmakingSeasonDto => ({
+const matchmakingSeason = (matchmakingSeasonID: number, name: string, startsAt: string, endsAt: string, gameCount: number, playerCount: number, ladderCount = 0): MatchmakingSeasonDto => ({
   matchmakingSeasonID, name, gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', startsAt: startsAt + 'T00:00:00Z', endsAt: endsAt + 'T00:00:00Z',
-  gameCount, playerCount, isHistorical: true, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/e2e-late-league-' + matchmakingSeasonID,
+  gameCount, playerCount, ladderCount, isHistorical: true, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/e2e-late-league-' + matchmakingSeasonID,
 });
-const lateLeagueSeasons = [matchmakingSeason(3, 'Late League Season 3', '2011-01-03', '2011-04-25', 212, 48), matchmakingSeason(2, 'Late League Season 2', '2010-08-02', '2010-12-13', 187, 41)];
+const lateLeagueSeasons = [matchmakingSeason(3, 'Late League Season 3', '2011-01-03', '2011-04-25', 212, 48, 3), matchmakingSeason(2, 'Late League Season 2', '2010-08-02', '2010-12-13', 187, 41)];
 const matchmakingStat = (userID: number, gamertag: string, gamesPlayed: number, wins: number, goals: number, kills: number, deaths: number, season: MatchmakingSeasonDto | null): MatchmakingPlayerStatDto => ({
   matchmakingSeasonID: season?.matchmakingSeasonID ?? null, matchmakingSeasonName: season?.name ?? null, userID, gamertag,
   gameVersionID: season ? 1 : 6, gameVersionName: season ? 'Halo 3' : 'Halo Infinite', gameVersionSlug: season ? 'halo3' : 'infinite',
@@ -518,6 +518,14 @@ const matchmakingStat = (userID: number, gamertag: string, gamesPlayed: number, 
 const lateLeaguePlayers = (season: MatchmakingSeasonDto | null) => [
   matchmakingStat(117, 'MasterChief117', 42, 27, 31, 412, 298, season), matchmakingStat(501, 'Legendary', 38, 22, 25, 377, 301, season),
   matchmakingStat(12, 'Banshee Bri', 35, 16, 12, 289, 310, season), matchmakingStat(999, 'CommanderGrif', 29, 11, 8, 201, 260, season),
+];
+// Season 3's ladder: where its players finished on the ranked ladder
+const ladderRank = (userID: number, gamertag: string, position: number, league: string, leaguePoints: number, streak: number, mmr: number, wins: number, losses: number): MatchmakingLadderRankDto => ({
+  userID, gamertag, position, division: null, league, rank: null, leaguePoints, streak, mmr, wins, losses,
+});
+const lateLeagueLadder = [
+  ladderRank(117, 'MasterChief117', 1, 'Masters 2', 64, 4, 900, 27, 15), ladderRank(501, 'Legendary', 2, 'Diamond 1', 30, -1, 800, 22, 16),
+  ladderRank(12, 'Banshee Bri', 3, 'Gold 3', 85, 2, 400, 16, 19),
 ];
 
 // Two players of one name, told apart by their labels (QuickSearchPlayerDto.Kind): the Xbox account that holds the
@@ -873,7 +881,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
     '/api/teams/1/history': answer('history', teamHistory),
     '/api/late-league/queue': answer('getLateLeagueQueue', { gameCount: 96, voteDecidedGameCount: 0, players: lateLeaguePlayers(null) }),
     '/api/late-league/seasons': answer('getLateLeagueSeasons', lateLeagueSeasons),
-    '/api/late-league/seasons/3': answer('getLateLeagueSeason', { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) }),
+    '/api/late-league/seasons/3': answer('getLateLeagueSeason', { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]), ladder: lateLeagueLadder }),
     '/api/search': answer('quickSearch', quickSearch),
     // The database backup page (/databasebackup): a SQLite backup made, and the last export done
     '/api/backups/info': answer('backupInfo', { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] }),
@@ -965,6 +973,7 @@ const historicalJob: HistoricalImportJobDto = {
     seasonRemovals: [], sourcesChanged: [], sourcesFailed: [], sourcesUnchanged: 0, importJobID: null, discordClaimsCreated: 0, discordLinked: 0,
     discordMerged: 0, gamesLinked: 0, manualReplacedByWaypoint: 0, matchmakingSeasonsCreated: 0, matchmakingSeasonsUpdated: 0, missingMatches: [],
     recordedGamesSkippedAsWaypoint: 0, regionsSet: 0, seasonMatchesCreated: 0, seasonMatchesRemoved: 0, seasonsRetired: 0, suggestionsCreated: 0,
+    ladderRanksInserted: 0, ladderRanksUpdated: 0, ladderRanksRemoved: 0,
   },
   error: null, createdAt: '2026-10-29T06:02:00Z', startedAt: '2026-10-29T06:02:01Z', finishedAt: '2026-10-29T06:09:00Z',
   reviews: [

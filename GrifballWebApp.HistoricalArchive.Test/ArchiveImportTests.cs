@@ -1,4 +1,5 @@
 using System.Text;
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Historical.Sources;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ public class ArchiveImportTests
     private sealed record SeasonCounts(string Name, string SourceID, string Format, int Teams, int Captains, int Ranked, int Finished, int Stats, int PlayoffStats,
         int Matches, int PlayoffMatches, int Titles, int Awards, int Mvps, int CaptainsOrdered, int Picks, int PicksNumbered);
 
-    private sealed record LateLeagueCounts(string Name, string? SourceID, int Stats, int Games);
+    private sealed record LateLeagueCounts(string Name, string? SourceID, int Stats, int Games, int Ladder);
 
     // Read once: the database doesn't change after the import
     private static readonly Lazy<Task<List<SeasonCounts>>> SeasonsRead = new(async () =>
@@ -38,7 +39,7 @@ public class ArchiveImportTests
         await using var context = Archive.NewContext();
         return await context.MatchmakingSeasons.AsNoTracking().Where(s => s.HistoricalSourceID != null)
             .OrderBy(s => s.StartsAt).ThenBy(s => s.Name)
-            .Select(s => new LateLeagueCounts(s.Name, s.HistoricalSourceID, s.PlayerStats.Count, s.MatchedMatches.Count))
+            .Select(s => new LateLeagueCounts(s.Name, s.HistoricalSourceID, s.PlayerStats.Count, s.MatchedMatches.Count, s.LadderRanks.Count))
             .ToListAsync();
     });
 
@@ -298,7 +299,35 @@ public class ArchiveImportTests
     [Test]
     public async Task EveryLateLeagueSeason_HasStatsAndGames()
     {
-        Assert.That((await LateLeagueRead.Value).Where(s => s.Stats == 0 || s.Games == 0).Select(s => $"{s.Name}: {s.Stats} stats, {s.Games} games"), Is.Empty);
+        // A season only its ladder records (the early seasons, kept before the stats sheets) has neither
+        Assert.That((await LateLeagueRead.Value).Where(s => (s.Stats == 0 || s.Games == 0) && !(s.Stats == 0 && s.Games == 0 && s.Ladder > 0))
+            .Select(s => $"{s.Name}: {s.Stats} stats, {s.Games} games"), Is.Empty);
+    }
+
+    /// <summary>
+    /// Every ladder tab the catalog names is read onto its season, and each of its players has a row on that season's
+    /// ladder: the ladder's rows less those the import reported as a second row for the same player.
+    /// </summary>
+    [Test]
+    public async Task EveryLadderTable_ImportsItsPlayers()
+    {
+        var expected = Archive.Build.Input.Seasons.Seasons.Where(s => s.Ladder.Count > 0)
+            .GroupBy(s => HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Sum(s => s.Ladder.Count), StringComparer.OrdinalIgnoreCase);
+        var ladders = (await LateLeagueRead.Value).Where(s => s.SourceID is not null).ToDictionary(s => s.SourceID!, s => s.Ladder, StringComparer.OrdinalIgnoreCase);
+        var tabs = ArchiveSnapshots.ImportedEntries().Where(e => Archive.Snapshots.Manifest.ContainsKey(e.HistoricalSourceID))
+            .SelectMany(e => e.Config!.Ladders.Select(t => $"{e.HistoricalSourceID}: ladder '{t.Sheet}'"));
+
+        int SecondRows(string key) => Archive.Report.Skipped.Count(s => s.StartsWith($"{key}: ", StringComparison.Ordinal)
+            && s.EndsWith("is a second ladder row for the same player", StringComparison.Ordinal));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Archive.Build.Warnings.Where(w => tabs.Any(t => w.StartsWith(t, StringComparison.Ordinal))), Is.Empty, "Every ladder tab is read");
+            Assert.That(expected, Has.Count.EqualTo(tabs.Count()), "A season per ladder tab");
+            Assert.That(expected.Where(e => ladders.GetValueOrDefault(e.Key) + SecondRows(e.Key) != e.Value)
+                .Select(e => $"{e.Key}: {ladders.GetValueOrDefault(e.Key)} rows and {SecondRows(e.Key)} second rows of {e.Value} players"), Is.Empty);
+        }
     }
 
     /// <summary>Not a check: each season's counts, in <c>summary.md</c> beside the copy, to compare runs.</summary>
@@ -308,9 +337,9 @@ public class ArchiveImportTests
         var summary = new StringBuilder("## Seasons\n\n| Season | Source | Format | Teams | Captains | Ranked | Finished | Stats | Playoff stats | Matches | Playoff matches | Titles | Awards | Captains ordered | Picks | Picks numbered |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
         foreach (var s in await Seasons())
             summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Format} | {s.Teams} | {s.Captains} | {s.Ranked} | {s.Finished} | {s.Stats} | {s.PlayoffStats} | {s.Matches} | {s.PlayoffMatches} | {s.Titles} | {s.Awards} | {s.CaptainsOrdered} | {s.Picks} | {s.PicksNumbered} |");
-        summary.AppendLine().AppendLine("## Late League").AppendLine().AppendLine("| Season | Source | Stats | Games |").AppendLine("|---|---|---|---|");
+        summary.AppendLine().AppendLine("## Late League").AppendLine().AppendLine("| Season | Source | Stats | Games | Ladder |").AppendLine("|---|---|---|---|---|");
         foreach (var s in await LateLeagueRead.Value)
-            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Stats} | {s.Games} |");
+            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Stats} | {s.Games} | {s.Ladder} |");
         Section(summary, "Placings (the seasons whose standings place a team: rank / finish, record)", await Placings());
         Section(summary, "Result lists (games listed, in a series, forfeits; sides that are none of the season's teams)", await ResultLists());
         Section(summary, "Bracket sheets (slots of the sheet's series, teams of its teams, champion: the bracket's / the titles')",

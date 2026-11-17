@@ -121,6 +121,17 @@ public class MatchmakingStatsService
             return null;
         var lines = await GetAsync(matchmakingSeasonID, ct: ct);
         season.PlayerCount = lines.Count;
-        return new MatchmakingSeasonDetailDto { Season = season, Players = lines.Select(MatchmakingPlayerStatDto.From).ToList() };
+        var ladder = await _context.MatchmakingLadderRanks.AsNoTracking()
+            .Where(r => r.MatchmakingSeasonID == matchmakingSeasonID)
+            .Select(MatchmakingLadderRankDto.Of)
+            .ToListAsync(ct);
+        return new MatchmakingSeasonDetailDto
+        {
+            Season = season,
+            Players = lines.Select(MatchmakingPlayerStatDto.From).ToList(),
+            // Top first: by place, then (no place given) by MMR and LP
+            Ladder = ladder.OrderBy(r => r.Position ?? int.MaxValue).ThenByDescending(r => r.Mmr).ThenByDescending(r => r.LeaguePoints)
+                .ThenBy(r => r.Gamertag, StringComparer.OrdinalIgnoreCase).ToList(),
+        };
     }
 }

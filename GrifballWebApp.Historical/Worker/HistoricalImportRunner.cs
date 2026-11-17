@@ -133,9 +133,10 @@ public partial class HistoricalImportRunner
         if (decide.Count > 0)
         {
             var tracked = await _context.HistoricalImportJobs.FirstAsync(j => j.HistoricalImportJobID == job.HistoricalImportJobID, ct);
+            // A review shows a Late League season's ladder rows with its stat rows (the guardrail measured them apart)
             foreach (var r in decide)
                 tracked.AddReview(r.SeasonKey, r.SeasonName, r.Stopped,
-                    new HistoricalSeasonRemovals(r.StatsBefore, r.StatsRemoved, r.TeamsBefore, r.TeamsRemoved, r.TitlesBefore, r.TitlesRemoved));
+                    new HistoricalSeasonRemovals(r.StatsBefore + r.LadderBefore, r.StatsRemoved + r.LadderRemoved, r.TeamsBefore, r.TeamsRemoved, r.TitlesBefore, r.TitlesRemoved));
             await _context.SaveChangesAsync(ct);
         }
 
