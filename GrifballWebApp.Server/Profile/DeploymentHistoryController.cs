@@ -24,7 +24,7 @@ public class DeploymentHistoryController : ControllerBase
     {
         var history = await _history.GetAsync(userID, ct);
         if (history is null)
-            return this.NotFoundProblem("There is no such user");
+            return this.NotFoundProblem(ApiProblems.NoSuchUser);
         return history;
     }
 }

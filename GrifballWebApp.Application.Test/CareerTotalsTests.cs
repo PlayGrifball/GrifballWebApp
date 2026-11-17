@@ -117,4 +117,18 @@ public class CareerTotalsTests
         }
         Assert.Throws<ArgumentException>(() => SeasonInfoDto.Select<SeasonListItemDto>(DateTime.UtcNow, s => null!));
     }
+
+    [Test]
+    public void SeasonInfo_SaysWhetherThePublicMaySeeTheSeason_AsOfNow()
+    {
+        var announced = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var season = Season.Seed(seasonID: 5, seasonName: "Next", league: League.Seed("AGLA", "agla")).WithDates(signupsOpen: announced.AddDays(10), signupsClose: announced.AddDays(20),
+            draftStart: announced.AddDays(25), seasonStart: announced.AddDays(30), seasonEnd: announced.AddDays(90), publicAt: announced);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(SeasonInfoDto.Of(announced.AddTicks(-1)).Compile()(season).IsPublic, Is.False, "Not announced yet: staff's alone");
+            Assert.That(SeasonInfoDto.Of(announced).Compile()(season).IsPublic, Is.True);
+        }
+    }
 }

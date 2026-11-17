@@ -1,0 +1,31 @@
+/* Its own space above and below, wherever a page puts it */
+:host { display: block; margin-block: 8px; }
+
+.cal-sub__toggle { cursor: pointer; }
+
+.cal-sub__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+
+  p { margin: 0; }
+}
+
+.cal-sub__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cal-sub__url {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--hud-muted);
+}

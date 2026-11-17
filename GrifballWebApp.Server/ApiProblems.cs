@@ -9,6 +9,9 @@ namespace GrifballWebApp.Server;
 /// </summary>
 public static class ApiProblems
 {
+    /// <summary>The 404's reason for a user there is none of, the same from every endpoint.</summary>
+    public const string NoSuchUser = "There is no such user";
+
     /// <summary>400: the request itself is wrong (a missing or invalid value).</summary>
     public static ObjectResult BadRequestProblem(this ControllerBase controller, string detail)
         => controller.Refusal(StatusCodes.Status400BadRequest, detail);
