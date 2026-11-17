@@ -143,7 +143,7 @@ public static partial class DraftParser
             var name = Name(sheet.Cell(r, teamColumn));
             if (HistoricalKeys.IsExcludedTeamName(name))
                 continue;
-            var team = teams.Find(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+            var team = teams.Find(t => string.Equals(t.TeamName, name, StringComparison.OrdinalIgnoreCase));
             if (team is null)
                 teams.Add(team = new TableTeam(name));
             if (orderColumn >= 0)
@@ -152,13 +152,13 @@ public static partial class DraftParser
                 team.Take(Player(sheet.Cell(r, playerColumn)), sheet.Cell(r, pickColumn).Trim());
         }
         return [.. teams.Where(t => t.Order is not null || t.Captain is not null || t.Picks.Count > 0)
-            .Select(t => new ArchiveTeam { TeamName = t.Name, DraftOrder = t.Order, Captain = t.Captain, Picks = t.Picks })];
+            .Select(t => new ArchiveTeam { TeamName = t.TeamName, DraftOrder = t.Order, Captain = t.Captain, Picks = t.Picks })];
     }
 
     /// <summary>A team of a draft table, as its rows are read.</summary>
     private sealed class TableTeam(string name)
     {
-        public string Name { get; } = name;
+        public string TeamName { get; } = name;
         public int? Order { get; set; }
         public string? Captain { get; private set; }
         public List<ArchiveDraftPick> Picks { get; } = [];
