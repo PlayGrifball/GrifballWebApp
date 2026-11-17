@@ -35,6 +35,14 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   with its players' lines where the database has them (grifball.com's grabs included: a season's grabs and grifball.com's
   batting, scoring and combined averages are then counted from them), and each forfeit a forfeited season match without
   games. grifball.com's games have no dates, so each is a series of its own.
+- **Drafts** (`DraftParser`, a source's `Drafts` tabs): a season's draft board (a team per column: Team Name, Captain, and a
+  row per round, a row of numbers above a round numbering its picks) or a TeamInfo table ("Draft Order", "Seed #: Draft
+  Spot 3", or "Draft Pick" codes: C3 for the 3rd captain, R2P3 for a 2nd-round pick). A board's team is one the season
+  has (by name, or its captain's team); its captain and picks are the season's players, a few letters off at most (a
+  nickname is left out). The team's captain, its place in the draft order and each pick's round (and number, when the
+  board gives one or its `Order` is `Linear`) are kept on its roster (`TeamPlayer.DraftCaptainOrder`, `DraftRound`,
+  `DraftPick`), as the app's own draft keeps them. A board whose columns are no draft order (`Order` `None`: a bid draft's teams)
+  gives captains and rounds but no order; bid prices wait for the bid draft (#19).
 - **Jobs**: everything runs in the worker role through the historical import job queue (one job at a time):
   refresh, preview (a dry run: each season's transaction rolled back) and import.
 - **Schedule** (`HistoricalRefreshJob`, a Quartz job, daily by default): a scheduled refresh queues a guarded import of

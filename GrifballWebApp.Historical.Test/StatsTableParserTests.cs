@@ -284,6 +284,7 @@ public class StatsTableParserTests
         }
     }
 
+    private static readonly string[] NoMatchesTab = ["history-grifball-com-db: games table 'Matches' not read (no such sheet, or it is empty)"];
     private static readonly string[] NoRecordsTabNorMatches = ["history-grifball-com-db: awards 'Records' not read (no such sheet)", "history-grifball-com-db: games table 'Matches' not read (no such sheet, or it is empty)"];
 
     [Test]
@@ -305,7 +306,7 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(build.Warnings, Is.Empty);
+            Assert.That(build.Warnings, Is.EqualTo(NoMatchesTab), "Its games are GamesTableParserTests'");
             Assert.That(winter08.SeasonName, Is.EqualTo("Winter League 2008"));
             Assert.That(winter08.Awards.Select(a => (a.Name, a.Winner, a.IsTeam, a.Team, a.Value)), Is.EqualTo(new (string, string, bool, string?, string?)[]
             {

@@ -110,7 +110,15 @@ public record ArchiveTeam
     public int? GoalsAgainst { get; init; }
     public string? Captain { get; init; }
     public List<string> Roster { get; init; } = [];
+    /// <summary>Its captain's place in the season's draft order (1 picks first), from a draft board.</summary>
+    public int? DraftOrder { get; init; }
+    /// <summary>Its draft picks, from a draft board: each player it picked and in which round.</summary>
+    public List<ArchiveDraftPick> Picks { get; init; } = [];
 }
+
+/// <summary>A pick of a season's draft: the player (a gamertag of the season's), its round and, when the board gives it,
+/// its number in the whole draft.</summary>
+public record ArchiveDraftPick(string Gamertag, int Round, int? Pick = null);
 
 public class ArchivePlayer
 {
