@@ -121,6 +121,24 @@ public class SchedulingControllerTests
     }
 
     [Test]
+    public async Task TeamAvailability_SaysWhetherTheCallerMayChangeIt_AsTheServerDecides()
+    {
+        _controller.WithUser(RedsCaptain.ToString());
+        var captain = Body<TeamSlots>(await _controller.GetTeamAvailability(_s.Reds.TeamID, CancellationToken.None));
+        _controller.WithUser(BluesCaptain.ToString());
+        var other = Body<TeamSlots>(await _controller.GetTeamAvailability(_s.Reds.TeamID, CancellationToken.None));
+        _controller.WithUser(BluesCaptain.ToString(), null, "Sysadmin");
+        var staff = Body<TeamSlots>(await _controller.GetTeamAvailability(_s.Reds.TeamID, CancellationToken.None));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(captain.CanChange, Is.True);
+            Assert.That(other.CanChange, Is.False, "Another team's captain");
+            Assert.That(staff.CanChange, Is.True);
+        }
+    }
+
+    [Test]
     public async Task SchedulingRules_TheDefaults_UntilStaffChangeThem_AndTheRefusalsSayWhy()
     {
         _controller.WithUser(RedsCaptain.ToString(), null, "Commissioner");
