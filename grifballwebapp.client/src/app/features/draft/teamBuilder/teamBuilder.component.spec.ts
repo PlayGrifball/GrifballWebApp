@@ -350,6 +350,14 @@ describe('TeamBuilderComponent', () => {
       expect(component.onDeck()).toBeNull();
     });
 
+    it('should return null before the captains are locked, when no one may pick yet', () => {
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1, region: null }, players: [] }]);
+      component.playerPool.set([{ name: 'Player', personID: 4, pick: null, round: null, region: null }]);
+      component.captainLocked.set(false);
+
+      expect(component.onDeck()).toBeNull();
+    });
+
     it('should return captain with fewest players', () => {
       component.teams.set([
         { teamID: 0, teamName: 'Team 1', captain: { name: 'Cap 1', personID: 1, order: 1, region: null }, players: [{ name: 'P1', personID: 3, pick: 1, round: 1, region: null }] },

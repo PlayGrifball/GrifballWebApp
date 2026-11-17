@@ -128,6 +128,32 @@ public class DraftStringMenuInteractionsTests
     }
 
     [Test]
+    public async Task DraftPick_FromAnEarlierPicksMenu_IsRefused_EvenForACommissioner()
+    {
+        // The menu was posted while A was on deck; A has picked since, so B is now
+        var season = await _context.AddSeason(captainsLocked: true);
+        var commish = await _context.AddUser("commish", "Commish", gamertag: "CommishGT", commissioner: true);
+        commish.LinkDiscord(DiscordUser.FromDiscord((long)DiscordId, "commish"));
+        await _context.SaveChangesAsync();
+        var capA = await _context.AddUser("capA", "Cap A");
+        var capB = await _context.AddUser("capB", "Cap B");
+        var picked = await _context.AddUser("picked", "Picked");
+        await _context.AddTeam(season, "A", capA, 1, picked);
+        await _context.AddTeam(season, "B", capB, 2);
+        var player = await _context.AddUser("player", "Player");
+        await _context.AddSignup(season, player);
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)), player.Id.ToString());
+
+        await handler.DraftPick(discordContext, season.SeasonID, capA.Id);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ModifiedContents().Single(), Does.Contain("an earlier pick").And.Contain("Cap B"));
+            Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(x => x.UserID == player.Id), Is.False, "Not put on A's team");
+        }
+    }
+
+    [Test]
     public async Task DraftPick_Should_ReportTeamServiceErrors()
     {
         var (season, captain, player) = await SeedDraft(); // player not signed up
