@@ -24,7 +24,10 @@ namespace GrifballWebApp.Historical.Parsing;
 public static partial class DraftParser
 {
     /// <summary>The tab's teams, in its order; null when it has no board or table.</summary>
-    public static List<ArchiveTeam>? Parse(SheetTable sheet, DraftTab tab)
+    /// <param name="sheet">The draft tab.</param>
+    /// <param name="tab">Its config.</param>
+    /// <param name="config">The workbook's config, for the teams it names another way (<see cref="HistoricalSourceConfig.TeamNames"/>).</param>
+    public static List<ArchiveTeam>? Parse(SheetTable sheet, DraftTab tab, HistoricalSourceConfig? config = null)
     {
         var teams = tab.Layout == DraftLayout.Table ? Table(sheet) : Board(sheet, tab.Order);
         return teams.Count == 0 ? null : teams;
