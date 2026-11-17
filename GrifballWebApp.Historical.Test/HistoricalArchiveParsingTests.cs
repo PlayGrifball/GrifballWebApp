@@ -1629,7 +1629,8 @@ public class HistoricalArchiveParsingTests
                 Is.SubsetOf(sources.Where(s => s.Config?.Tabs.Count > 0).Select(s => s.HistoricalSourceID)));
             Assert.That(sources.Count(s => s.Config?.ChampionsSheet is not null), Is.EqualTo(1));
             Assert.That(sources.Single(s => s.Kind == HistoricalSourceKind.YouTubeChannel).Enabled, Is.True, "Kept for the VODs to come");
-            Assert.That(stats, Has.Count.EqualTo(54), "The seasons the Node compiler made, and the DJBluePDX Summer Series since");
+            Assert.That(stats, Has.Count.EqualTo(52),
+                "The seasons the Node compiler made, and the DJBluePDX Summer Series since; not SML21's copies of WL21 Legacy's Playoff Stats");
         }
     }
 
