@@ -358,14 +358,15 @@ public static partial class GamesTableParser
         /// <summary>The stats table's gamertags by player ID (its <see cref="StatsTable.Players"/> lookup), for lines with none.</summary>
         private (int RowKey, Dictionary<string, string> ById) Gamertags(Header lines)
         {
-            var lookup = _stats.Players;
-            var (header, rows) = Table(lookup?.Sheet);
-            var (key, column) = (header[ArchiveCells.HeaderKey(lookup?.Key ?? "")], header[ArchiveCells.HeaderKey(lookup?.Column ?? "")]);
             var byId = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (_stats.Players is not { } lookup)
+                return (-1, byId);
+            var (header, rows) = Table(lookup.Sheet);
+            var (key, column) = (header[ArchiveCells.HeaderKey(lookup.Key)], header[ArchiveCells.HeaderKey(lookup.Column)]);
             foreach (var row in rows)
                 if (Value(row, key) is { } id && Value(row, column) is { } gamertag)
                     byId.TryAdd(id, gamertag);
-            return (lines[ArchiveCells.HeaderKey(lookup?.RowKey ?? lookup?.Key ?? "")], byId);
+            return (lines[ArchiveCells.HeaderKey(lookup.RowKey ?? lookup.Key)], byId);
         }
 
         /// <summary>A schedule game's player line: its side by its team, its gamertag its own or the lookup's.</summary>
