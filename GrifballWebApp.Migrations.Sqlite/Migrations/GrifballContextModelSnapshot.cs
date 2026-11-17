@@ -696,14 +696,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
-                    b.Property<string>("Host")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT")
-                        .UseCollation("NOCASE");
-
-                    b.Property<bool>("IsForfeit")
-                        .HasColumnType("INTEGER");
-
                     b.Property<bool>("IsPlayoffs")
                         .HasColumnType("INTEGER");
 
@@ -742,11 +734,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<string>("SourceKey")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("Vod")
-                        .HasMaxLength(500)
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
@@ -793,16 +780,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnName("Gametype")
                         .UseCollation("NOCASE");
 
-                    b.Property<string>("Host")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Host")
-                        .UseCollation("NOCASE");
-
-                    b.Property<bool?>("IsForfeit")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("IsForfeit");
-
                     b.Property<bool?>("IsPlayoffs")
                         .HasColumnType("INTEGER")
                         .HasColumnName("IsPlayoffs");
@@ -848,12 +825,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT")
                         .HasColumnName("SourceKey")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("Vod")
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Vod")
                         .UseCollation("NOCASE");
 
                     b.HasIndex("GameVersionID", "PeriodEnd");
@@ -4680,6 +4651,160 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.ToTable("SeasonAvailabilityHistory", "Event");
 
                     b.HasAnnotation("Grif:HistoryOf", "SeasonAvailability");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonAward", b =>
+                {
+                    b.Property<int>("SeasonAwardID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("TEXT")
+                        .HasComputedColumnSql("'9999-12-31 23:59:59.9999999'", false);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("WinnerName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.HasKey("SeasonAwardID");
+
+                    b.HasIndex("TeamID");
+
+                    b.HasIndex("UserID");
+
+                    b.HasIndex("SeasonID", "Name", "WinnerName")
+                        .IsUnique();
+
+                    b.ToTable("SeasonAwards", "Event", t =>
+                        {
+                            t.HasTrigger("SeasonAwards_History_Delete");
+
+                            t.HasTrigger("SeasonAwards_History_Update");
+
+                            t.HasCheckConstraint("CK_Event_SeasonAwards_PlayerOrTeam", "UserID IS NOT NULL OR TeamID IS NOT NULL");
+                        });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonAward.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Name")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("Position")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Position");
+
+                    b.Property<int?>("SeasonAwardID")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("SeasonAwardID");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("TeamID");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("UserID");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Value")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("WinnerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("WinnerName")
+                        .UseCollation("NOCASE");
+
+                    b.HasIndex("SeasonAwardID", "PeriodEnd");
+
+                    b.HasIndex("SeasonID", "PeriodEnd");
+
+                    b.HasIndex("TeamID", "PeriodEnd");
+
+                    b.HasIndex("UserID", "PeriodEnd");
+
+                    b.ToTable("SeasonAwardsHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "SeasonAwards");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonMatch", b =>
@@ -9061,6 +9186,31 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Navigation("Season");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonAward", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.League.Season", "Season")
+                        .WithMany("Awards")
+                        .HasForeignKey("SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Domain.League.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamID")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("GrifballWebApp.Domain.Players.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Season");
+
+                    b.Navigation("Team");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonMatch", b =>
                 {
                     b.HasOne("GrifballWebApp.Domain.League.Team", "AwayTeam")
@@ -9486,6 +9636,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.Season", b =>
                 {
+                    b.Navigation("Awards");
+
                     b.Navigation("PlayerChampionships");
 
                     b.Navigation("SeasonAvailability");

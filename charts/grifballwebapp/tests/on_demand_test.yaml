@@ -584,13 +584,15 @@ tests:
 
   # The Jobs that wait for the chart's database, stopped while nobody visits
 
+  # Sablier's NetworkPolicy may drop a new pod's first packets (kube-router learns its IP seconds after it starts;
+  # grif-test, 2026-11-16): one refused try left the database asleep, so the poke retries for a minute
   - it: starts the group from the migration Job before it waits for the database, and lets it reach Sablier
     set:
       onDemand.enabled: true
     asserts:
       - matchRegex:
           path: "spec.template.spec.initContainers[0].args[0]"
-          pattern: "wget -q -T 10 -O /dev/null 'http://sablier.sablier.svc:10000/api/strategies/poke\\?group=grif-x&session_duration=30m' \\|\\| echo .*\\nend=\\$\\(\\( \\$\\(date \\+%s\\) \\+ WAIT_SECONDS \\)\\)"
+          pattern: "poke_end=\\$\\(\\( \\$\\(date \\+%s\\) \\+ 60 \\)\\)\\nuntil timeout 12 wget -q -T 10 -O /dev/null 'http://sablier.sablier.svc:10000/api/strategies/poke\\?group=grif-x&session_duration=30m'; do\\n  if \\[ \"\\$\\(date \\+%s\\)\" -ge \"\\$poke_end\" \\]; then echo \"Sablier didn't answer .*\"; break; fi\\n  sleep 2\\ndone\\nend=\\$\\(\\( \\$\\(date \\+%s\\) \\+ WAIT_SECONDS \\)\\)"
         template: templates/migrations-job.yaml
       - contains:
           path: spec.egress
