@@ -176,6 +176,12 @@ describe('ProcessRescheduleDialogComponent', () => {
     expect(actionButton().textContent).toContain('Approve');
     expect(actionButton().disabled).toBeFalse();
   });
+
+  it('lists the best other times for the match, for a decision to point to', () => {
+    const other = el().querySelector('.prd-alternatives')!.textContent!;
+    expect(other).toContain(new Date('2026-03-02T00:00:00Z').toLocaleString());
+    expect(other).toContain('5 and 4 players');
+  });
 });
 
 describe('ProcessRescheduleDialogComponent for a match that can no longer move', () => {
@@ -200,6 +206,7 @@ describe('ProcessRescheduleDialogComponent for a match that can no longer move',
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ProcessRescheduleDialogComponent);
+    http.expectOne(r => r.url === '/api/season-matches/9/time-suggestions').flush([]);
     await fixture.whenStable();
   });
 
@@ -216,11 +223,5 @@ describe('ProcessRescheduleDialogComponent for a match that can no longer move',
 
     action.click();
     expect(http.expectOne('/api/reschedules/56/decision').request.body).toEqual({ approved: false, commissionerNotes: null });
-  });
-
-  it('lists the best other times for the match, for a decision to point to', () => {
-    const other = el().querySelector('.prd-alternatives')!.textContent!;
-    expect(other).toContain(new Date('2026-03-02T00:00:00Z').toLocaleString());
-    expect(other).toContain('5 and 4 players');
   });
 });
