@@ -180,7 +180,7 @@ export class SchedulingService extends BaseService {
   }
 
   /** Path part for operation `resetTeamAvailability()` */
-  static readonly ResetTeamAvailabilityPath = '/teams/{teamID}/availability';
+  static readonly ResetTeamAvailabilityPath = '/teams/{teamID}/availability/reset';
 
   /**
    * The team's captain (or staff) reset its timeslots to its roster's.

@@ -13,7 +13,7 @@ export interface ResetTeamAvailability$Params {
 }
 
 export function resetTeamAvailability(http: HttpClient, rootUrl: string, params: ResetTeamAvailability$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
-  const rb = new RequestBuilder(rootUrl, resetTeamAvailability.PATH, 'delete');
+  const rb = new RequestBuilder(rootUrl, resetTeamAvailability.PATH, 'post');
   if (params) {
     rb.path('teamID', params.teamID, {});
   }
@@ -28,4 +28,4 @@ export function resetTeamAvailability(http: HttpClient, rootUrl: string, params:
   );
 }
 
-resetTeamAvailability.PATH = '/teams/{teamID}/availability';
+resetTeamAvailability.PATH = '/teams/{teamID}/availability/reset';

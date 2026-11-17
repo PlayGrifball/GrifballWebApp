@@ -275,7 +275,7 @@ describe('ScheduleListComponent behaviour', () => {
     const req = http.expectOne('/api/season-matches/1/time');
     expect(req.request.body).toEqual({ seasonMatchID: 1, time: '2026-01-09T20:00:00.000Z' });
     expect(before.time).toBe(original);
-    req.flush({});
+    req.flush([]);
     http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
     http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
   });
@@ -298,7 +298,7 @@ describe('ScheduleListComponent behaviour', () => {
 
     const req = http.expectOne('/api/season-matches/5/time');
     expect(req.request.body).toEqual({ seasonMatchID: 5, time: null });
-    req.flush({});
+    req.flush([]);
     http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
     http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
   });

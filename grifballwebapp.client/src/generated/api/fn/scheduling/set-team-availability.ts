@@ -15,7 +15,7 @@ export interface SetTeamAvailability$Params {
 }
 
 export function setTeamAvailability(http: HttpClient, rootUrl: string, params: SetTeamAvailability$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
-  const rb = new RequestBuilder(rootUrl, setTeamAvailability.PATH, 'put');
+  const rb = new RequestBuilder(rootUrl, setTeamAvailability.PATH, 'post');
   if (params) {
     rb.path('teamID', params.teamID, {});
     rb.body(params.body, 'application/json');

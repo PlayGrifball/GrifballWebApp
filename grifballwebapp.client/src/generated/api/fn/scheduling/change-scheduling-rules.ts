@@ -15,7 +15,7 @@ export interface ChangeSchedulingRules$Params {
 }
 
 export function changeSchedulingRules(http: HttpClient, rootUrl: string, params: ChangeSchedulingRules$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
-  const rb = new RequestBuilder(rootUrl, changeSchedulingRules.PATH, 'put');
+  const rb = new RequestBuilder(rootUrl, changeSchedulingRules.PATH, 'post');
   if (params) {
     rb.path('seasonID', params.seasonID, {});
     rb.body(params.body, 'application/json');

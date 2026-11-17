@@ -5500,7 +5500,7 @@
           }
         }
       },
-      "put": {
+      "post": {
         "tags": [
           "Scheduling"
         ],
@@ -5576,8 +5576,10 @@
             }
           }
         }
-      },
-      "delete": {
+      }
+    },
+    "/teams/{teamID}/availability/reset": {
+      "post": {
         "tags": [
           "Scheduling"
         ],
@@ -5672,7 +5674,7 @@
           }
         }
       },
-      "put": {
+      "post": {
         "tags": [
           "Scheduling"
         ],
