@@ -170,8 +170,8 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names.Contains("Playoff Stats"), Is.False);
-            Assert.That(names.Contains("FL21_PlayoffStats"), Is.True, "Its own FL21 playoff tab stays");
+            Assert.That(names, Does.Not.Contain("Playoff Stats"));
+            Assert.That(names, Does.Contain("FL21_PlayoffStats"), "Its own FL21 playoff tab stays");
         }
     }
 

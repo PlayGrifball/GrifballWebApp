@@ -147,7 +147,7 @@ public class ArchiveSeasonTests
         if (titles.Count == 0)
             Assert.Ignore("Neither 2022 H3 Action League nor the record's Summer League 2022 is in this copy of the archive");
 
-        Assert.That(titles.Select(t => $"{t.SeasonName}: {t.TeamName.ToUpperInvariant()}"), Has.Count.EqualTo(5).And.All.EqualTo("2022 H3 Action League: JUNKYARD DOGS"));
+        Assert.That(titles.Select(t => $"{t.SeasonName}: {t.TeamName.ToUpperInvariant()}").ToList(), Has.Count.EqualTo(5).And.All.EqualTo("2022 H3 Action League: JUNKYARD DOGS"));
     }
 
     /// <summary>The game histories' sides named after a captain the season knows by another spelling: WL23's SPANKATRON
