@@ -30,13 +30,25 @@ public partial class ScheduleService
 
     /// <summary>A league wall-clock time (the GA's, which picks the season's weekly timeslots) as UTC, the time matches are kept in.</summary>
     public static DateTime ToUtc(DateTime leagueTime)
-        => TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(leagueTime, DateTimeKind.Unspecified), LeagueTimeZone());
+    {
+        var local = DateTime.SpecifyKind(leagueTime, DateTimeKind.Unspecified);
+        // A time the clocks skip (spring forward: 2:00 to 3:00) is the hour after, as a clock on the wall reads it
+        if (LeagueTimeZone().IsInvalidTime(local))
+            local = local.AddHours(1);
+        return TimeZoneInfo.ConvertTimeToUtc(local, LeagueTimeZone());
+    }
 
     /// <summary>Why a season can't be scheduled: it has no timeslots of its own.</summary>
     public const string NoTimeslots = "The season has no timeslots: set them on its edit page first.";
 
     /// <summary>Why a season can't be scheduled: the algorithm needs two matches to place, and fewer are left to play.</summary>
     public const string TooFewToPlace = "Fewer than two matches are left to schedule: set the time by hand (its match page suggests some).";
+
+    /// <summary>Why a season can't be scheduled: it has ended.</summary>
+    public const string SeasonOver = "The season is over: there is no time left to schedule its matches in.";
+
+    /// <summary>Why a season can't be scheduled: none of its timeslots is left before it ends (each match over by its end).</summary>
+    public const string NoTimeLeft = "None of the season's timeslots is left before it ends: set the times by hand, or move its end.";
 
     /// <summary>The GA's best schedule (gene i is match i's time), as the old endpoint returned it: 100 generations.</summary>
     public async Task<List<SeasonMatchGene>> GetTimeRecommendations(int seasonID, CancellationToken ct = default)
@@ -53,6 +65,9 @@ public partial class ScheduleService
     {
         var season = await _context.Seasons.Where(x => x.SeasonID == seasonID).FirstOrDefaultAsync(ct)
             ?? throw new Exception("Season not found");
+        var now = _time.GetUtcNow().UtcDateTime;
+        if (now >= season.SeasonEnd)
+            throw new InvalidOperationException(SeasonOver);
 
         // The matches it places: the regular ones still to play, not one whose reschedule is waiting or was agreed (a time
         // already). The rest with a time are fixed: the placed are checked against them where they are.
@@ -69,7 +84,6 @@ public partial class ScheduleService
             throw new InvalidOperationException(TooFewToPlace);
 
         // A season under way: only times still to come. And each match over by the season's end (the longest series's length)
-        var now = _time.GetUtcNow().UtcDateTime;
         var from = now > season.SeasonStart && now < season.SeasonEnd ? now : season.SeasonStart;
         var longest = GrifballWebApp.Application.Scheduling.ScheduleChecker.LengthOf(matches.Select(m => m.BestOf).DefaultIfEmpty(1).Max());
         var timeZone = LeagueTimeZone();
@@ -82,8 +96,10 @@ public partial class ScheduleService
             .ToArrayAsync(ct);
         if (timeSlots.Length == 0)
             throw new InvalidOperationException(NoTimeslots);
+        if (SeasonScheduleChromosome.TimesInWindow(start, end, timeSlots).Count == 0)
+            throw new InvalidOperationException(NoTimeLeft);
         // The season's rules and its teams' availability, and the matches it doesn't place (a time already: a bracket's)
-        var schedule = (await new GrifballWebApp.Application.Scheduling.SchedulingService(_context, TimeProvider.System).LoadAsync(seasonID, ct))!;
+        var schedule = (await new GrifballWebApp.Application.Scheduling.SchedulingService(_context, _time).LoadAsync(seasonID, ct))!;
         var placing = matches.Select(m => m.SeasonMatchID).ToHashSet();
         var fixedMatches = schedule.Scheduled.Where(m => !placing.Contains(m.SeasonMatchID)).ToList();
 

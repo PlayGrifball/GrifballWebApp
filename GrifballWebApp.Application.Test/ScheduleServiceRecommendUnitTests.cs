@@ -25,12 +25,15 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
     private static readonly int[] NineOnly = [21];
     private static readonly (int Home, int Away)[] RoundRobin = [(1, 2), (3, 4), (1, 3), (2, 4), (1, 4), (2, 3)];
 
+    /// <summary>1 June 2026: before the season (6 July to 3 August), the whole of it to schedule.</summary>
+    private static readonly Microsoft.Extensions.Time.Testing.FakeTimeProvider BeforeTheSeason = new(new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero));
+
     private ScheduleService _service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _service = new ScheduleService(Context, Substitute.For<ILogger<ScheduleService>>());
+        _service = new ScheduleService(Context, Substitute.For<ILogger<ScheduleService>>(), BeforeTheSeason);
     }
 
     /// <summary>A season of teams 1-4 playing a round robin (and a bracket match and one still missing a team, which
@@ -75,7 +78,7 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
     {
         await SeedSeason();
         var logger = new FakeLogger<ScheduleService>();
-        var service = new ScheduleService(Context, logger);
+        var service = new ScheduleService(Context, logger, BeforeTheSeason);
 
         var run = await service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 3, TimeBudget = TimeSpan.FromMinutes(1) });
 

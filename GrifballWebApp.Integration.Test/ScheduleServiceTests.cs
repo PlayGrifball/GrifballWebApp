@@ -27,7 +27,8 @@ public class ScheduleServiceTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new ScheduleService(_context, Substitute.For<ILogger<ScheduleService>>());
+        // Before the season (January 2024): the whole of it to schedule
+        _service = new ScheduleService(_context, Substitute.For<ILogger<ScheduleService>>(), new Microsoft.Extensions.Time.Testing.FakeTimeProvider(new DateTimeOffset(2023, 12, 1, 0, 0, 0, TimeSpan.Zero)));
     }
 
     [TearDown]
