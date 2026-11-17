@@ -40,6 +40,10 @@ internal sealed record SchedulingTestData(int SeasonID, int MondaysID, int Tuesd
         int[] both = [mondays.AvailabilityOptionID, tuesdays.AvailabilityOptionID], monday = [mondays.AvailabilityOptionID];
         context.SeasonSignups.AddRange(users.Select((u, i) => SeasonSignup.Seed(seasonID, u.Id, timeslots: i switch { < 2 => both, < 4 => monday, _ => both })));
         await context.SaveChangesAsync();
+        // A captain only once the roster is saved (each points at the other)
+        foreach (var (team, captain) in new[] { (reds, users[0]), (blues, users[4]), (greens, users[8]) })
+            team.SetCaptain(captain.Id);
+        await context.SaveChangesAsync();
         var match = SeasonMatch.Between(seasonID, reds.TeamID, blues.TeamID, bestOf: 3);
         var other = SeasonMatch.Between(seasonID, blues.TeamID, greens.TeamID, bestOf: 3);
         other.ScheduleAt(Tuesday);

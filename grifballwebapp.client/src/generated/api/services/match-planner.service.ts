@@ -16,6 +16,7 @@ import { getScheduledMatches } from '../fn/match-planner/get-scheduled-matches';
 import { GetScheduledMatches$Params } from '../fn/match-planner/get-scheduled-matches';
 import { getUnscheduledMatches } from '../fn/match-planner/get-unscheduled-matches';
 import { GetUnscheduledMatches$Params } from '../fn/match-planner/get-unscheduled-matches';
+import { ScheduleConflict } from '../models/schedule-conflict';
 import { ScheduledMatchDto } from '../models/scheduled-match-dto';
 import { UnscheduledMatchDto } from '../models/unscheduled-match-dto';
 import { updateMatchTime } from '../fn/match-planner/update-match-time';
@@ -145,7 +146,7 @@ export class MatchPlannerService extends BaseService {
    *
    * This method sends `application/json` and handles request body of type `application/json`.
    */
-  updateMatchTime$Response(params: UpdateMatchTime$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+  updateMatchTime$Response(params: UpdateMatchTime$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<ScheduleConflict>>> {
     const obs = updateMatchTime(this.http, this.rootUrl, params, context);
     return obs;
   }
@@ -160,10 +161,10 @@ export class MatchPlannerService extends BaseService {
    *
    * This method sends `application/json` and handles request body of type `application/json`.
    */
-  updateMatchTime(params: UpdateMatchTime$Params, context?: HttpContext): Observable<void> {
+  updateMatchTime(params: UpdateMatchTime$Params, context?: HttpContext): Observable<Array<ScheduleConflict>> {
     const resp = this.updateMatchTime$Response(params, context);
     return resp.pipe(
-      map((r: StrictHttpResponse<void>): void => r.body)
+      map((r: StrictHttpResponse<Array<ScheduleConflict>>): Array<ScheduleConflict> => r.body)
     );
   }
 
