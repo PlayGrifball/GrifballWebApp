@@ -38,7 +38,7 @@ public class ProfileController : ControllerBase
                 Gamertag = x.XboxUser!.Gamertag
             })
             .FirstOrDefaultAsync(ct);
-        return profile is null ? this.NotFoundProblem("There is no such user") : profile;
+        return profile is null ? this.NotFoundProblem(ApiProblems.NoSuchUser) : profile;
     }
 
     /// <summary>A player's profile stats.</summary>
@@ -50,7 +50,7 @@ public class ProfileController : ControllerBase
     {
         var profile = await _profiles.GetAsync(userID, ct);
         if (profile is null)
-            return this.NotFoundProblem("There is no such user");
+            return this.NotFoundProblem(ApiProblems.NoSuchUser);
         return profile;
     }
 

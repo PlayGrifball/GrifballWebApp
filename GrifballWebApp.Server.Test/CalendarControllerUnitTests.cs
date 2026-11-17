@@ -133,7 +133,7 @@ public class CalendarControllerUnitTests : SqliteGrifballContextFixture
     {
         var result = await Anonymous().PlayerCalendar(999, CancellationToken.None);
 
-        result.AssertProblem(StatusCodes.Status404NotFound, CalendarController.NoSuchUser);
+        result.AssertProblem(StatusCodes.Status404NotFound, ApiProblems.NoSuchUser);
     }
 
     [Test]
