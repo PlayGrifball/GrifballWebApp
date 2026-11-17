@@ -80,4 +80,20 @@ public class ArchiveSeasonTests
             Assert.That(Archive.Report.Warnings.Where(w => w.StartsWith("2022-h3-action", StringComparison.Ordinal) && w.Contains("in no slot", StringComparison.Ordinal)), Is.Empty);
         }
     }
+
+    /// <summary>
+    /// No season has a team named by a number: FL21's "0" and "1" (both SML21 workbooks: game sides of hosts who played no
+    /// game, below the stats) and SML20's "4" and "5" (its playoff bracket's seeds, below the playoff stats) were rows outside
+    /// the stats tables.
+    /// </summary>
+    [Test]
+    public async Task NoSeason_HasATeamNamedByANumber()
+    {
+        await using var context = Archive.NewContext();
+        var teams = await context.Teams.AsNoTracking().Where(t => t.Season.HistoricalSourceID != null)
+            .Select(t => new { t.Season.SeasonName, t.TeamName })
+            .ToListAsync();
+
+        Assert.That(teams.Where(t => t.TeamName.Trim().Length > 0 && t.TeamName.Trim().All(char.IsAsciiDigit)).Select(t => $"{t.SeasonName}: {t.TeamName}"), Is.Empty);
+    }
 }

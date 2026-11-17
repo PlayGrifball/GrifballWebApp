@@ -1275,6 +1275,28 @@ public class HistoricalArchiveParsingTests
         }
     }
 
+    private static readonly (string, string?)[] OnlyTheNamedTeamsPlayers = [("ixGingy", "Natural Wonders"), ("yLuxe", "Nets Dimension")];
+
+    [Test]
+    public void ARowWhoseTeamIsANumber_InATabThatNamesItsTeams_IsNoPlayersLine()
+    {
+        // FL21's stats end with the hosts who played no game, their Team cell a game side ("0 | ixjaga"); SML20's playoff
+        // bracket sits below its stats, under the same columns ("4 | Bank Your Items!": a seed and a team, its "3" a medals
+        // cell). Neither is a team, and neither row a player's line
+        var xlsx = Workbook(("Stats", [
+            Row("Team", "Player", "GamesPlayed", "Wins", "Kills", "Medals"),
+            Row("Natural Wonders", "ixGingy", 10, 8, 746, 900),
+            Row("Nets Dimension", "yLuxe", 8, 3, 567, 600),
+            Row(0, "ixjaga", 0, 0, 0, 0),
+            Row(1, "RandyJacksonBK", 0, 0, 0, 0),
+            Row(4, "Bank Your Items!", null, null, null, 3)]));
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Fall League 2021 (Pro)", Game = "halo3" }, Tabs = [new() { Name = "Stats" }] };
+
+        var season = SeasonStatsParser.Parse("sml21", config, Read(xlsx), []).Single();
+
+        Assert.That(season.Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(OnlyTheNamedTeamsPlayers));
+    }
+
     [Test]
     public void AnUnheadedTeamColumn_IsReadWhereTheConfigSays_BesideAHeadedPlayerColumn()
     {
