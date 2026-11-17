@@ -17,6 +17,12 @@ import { AddPlayerToTeam$Params } from '../fn/teams/add-player-to-team';
 import { areCaptainsLocked } from '../fn/teams/are-captains-locked';
 import { AreCaptainsLocked$Params } from '../fn/teams/are-captains-locked';
 import { CaptainAddedResponseDto } from '../models/captain-added-response-dto';
+import { DraftPoolPlayer } from '../models/draft-pool-player';
+import { DraftSuggestions } from '../models/draft-suggestions';
+import { getDraftPoolDetails } from '../fn/teams/get-draft-pool-details';
+import { GetDraftPoolDetails$Params } from '../fn/teams/get-draft-pool-details';
+import { getDraftSuggestions } from '../fn/teams/get-draft-suggestions';
+import { GetDraftSuggestions$Params } from '../fn/teams/get-draft-suggestions';
 import { getPlayerPool } from '../fn/teams/get-player-pool';
 import { GetPlayerPool$Params } from '../fn/teams/get-player-pool';
 import { getTeams } from '../fn/teams/get-teams';
@@ -109,6 +115,80 @@ export class TeamsService extends BaseService {
     const resp = this.getPlayerPool$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<Array<TeamsPlayerDto>>): Array<TeamsPlayerDto> => r.body)
+    );
+  }
+
+  /** Path part for operation `getDraftPoolDetails()` */
+  static readonly GetDraftPoolDetailsPath = '/seasons/{seasonID}/draft/pool-details';
+
+  /**
+   * A season's remaining player pool with what a captain weighs: each player's region, whether they'd captain, the timeslots they
+   * signed up for and their career (null for one who never played).
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getDraftPoolDetails()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getDraftPoolDetails$Response(params: GetDraftPoolDetails$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<DraftPoolPlayer>>> {
+    const obs = getDraftPoolDetails(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * A season's remaining player pool with what a captain weighs: each player's region, whether they'd captain, the timeslots they
+   * signed up for and their career (null for one who never played).
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getDraftPoolDetails$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getDraftPoolDetails(params: GetDraftPoolDetails$Params, context?: HttpContext): Observable<Array<DraftPoolPlayer>> {
+    const resp = this.getDraftPoolDetails$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Array<DraftPoolPlayer>>): Array<DraftPoolPlayer> => r.body)
+    );
+  }
+
+  /** Path part for operation `getDraftSuggestions()` */
+  static readonly GetDraftSuggestionsPath = '/seasons/{seasonID}/draft/suggestions';
+
+  /**
+   * The picks suggested for a team (the one on deck unless teamID is given), best first, each with its score and
+   * reasons: how the player has played against the pool, the team's short timeslots they fill, and the captain's region.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getDraftSuggestions()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getDraftSuggestions$Response(params: GetDraftSuggestions$Params, context?: HttpContext): Observable<StrictHttpResponse<DraftSuggestions>> {
+    const obs = getDraftSuggestions(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The picks suggested for a team (the one on deck unless teamID is given), best first, each with its score and
+   * reasons: how the player has played against the pool, the team's short timeslots they fill, and the captain's region.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getDraftSuggestions$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getDraftSuggestions(params: GetDraftSuggestions$Params, context?: HttpContext): Observable<DraftSuggestions> {
+    const resp = this.getDraftSuggestions$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<DraftSuggestions>): DraftSuggestions => r.body)
     );
   }
 

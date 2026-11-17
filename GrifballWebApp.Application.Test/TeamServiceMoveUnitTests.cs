@@ -273,7 +273,7 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() => _service.AddPlayerToTeam(
             new AddPlayerToTeamRequestDto { SeasonID = SeasonID, CaptainID = CaptainB, PersonID = PickA1 }, CaptainB));
 
-        Assert.That(ex!.Message, Is.EqualTo($"It is not your turn to be making a draft pick. It is {CaptainA}'s turn"));
+        Assert.That(ex!.Message, Is.EqualTo("It is not your turn to pick: it is User1's."), "Captain A by name, not by user ID");
     }
 
     [Test]
