@@ -133,15 +133,17 @@ public class ArchiveImportTests
                 .Select(s => new
                 {
                     Slots = s.SeasonMatches.Where(m => m.BracketMatch != null)
-                        .Select(m => new { m.HomeTeamID, m.AwayTeamID, m.BracketMatch!.Bracket, m.BracketMatch.MatchNumber, Winner = m.HomeTeamResult == SeasonMatchResult.Won ? m.HomeTeam!.TeamName : m.AwayTeamResult == SeasonMatchResult.Won ? m.AwayTeam!.TeamName : null })
+                        .Select(m => new { m.HomeTeamID, m.AwayTeamID, m.BracketMatch!.Bracket, m.BracketMatch.RoundNumber, m.BracketMatch.MatchNumber, Winner = m.HomeTeamResult == SeasonMatchResult.Won ? m.HomeTeam!.TeamName : m.AwayTeamResult == SeasonMatchResult.Won ? m.AwayTeam!.TeamName : null })
                         .ToList(),
                     Titles = s.PlayerChampionships.Select(c => c.Team.TeamName).Distinct().ToList(),
                 })
                 .FirstOrDefaultAsync();
             var sheet = entry.Bracket!.Series;
-            // The final: the grand final (its sudden death) in double elimination, else the winners' bracket's last slot
+            // The final: the grand final (its sudden death) in double elimination, else the winners' bracket's last round's slot
+            // (by round: a series no slot of the sheet took is numbered after the sheet's, in its own round)
             var doubleElimination = season?.Slots.Any(m => m.Bracket == Bracket.Loser) == true;
-            var final = season?.Slots.Where(m => doubleElimination ? m.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath : m.Bracket == Bracket.Winner).MaxBy(m => m.MatchNumber);
+            var final = season?.Slots.Where(m => doubleElimination ? m.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath : m.Bracket == Bracket.Winner)
+                .OrderBy(m => m.RoundNumber).ThenBy(m => m.MatchNumber).LastOrDefault();
             counts.Add(new BracketCounts(entry.SeasonName, sheet.Count, season?.Slots.Count ?? 0,
                 sheet.SelectMany(x => new[] { x.Home, x.Away }).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                 season?.Slots.SelectMany(m => new[] { m.HomeTeamID, m.AwayTeamID }).OfType<int>().Distinct().Count() ?? 0,
