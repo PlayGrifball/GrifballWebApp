@@ -88,7 +88,7 @@ public class DraftOutboxTests
     [Test]
     public async Task PlayerAdded_AnnouncesThePick_ThenWhoIsOnDeck()
     {
-        await Send(o => o.EnqueuePlayerAddedAsync(_context, _teams, new AddPlayerToTeamRequestDto { SeasonID = _season.SeasonID, CaptainID = _cap.Id, PersonID = _player.Id }, CancellationToken.None));
+        await Send(o => o.EnqueuePlayerAddedAsync(_context, _teams, new AddPlayerToTeamRequestDto { SeasonID = _season.SeasonID, CaptainID = _cap.Id, PersonID = _player.Id }, null, CancellationToken.None));
 
         Assert.That(SentContents(), Is.EqualTo(PlayerAddedMessages));
         var messages = await _outbox.MessagesAsync();
@@ -102,7 +102,7 @@ public class DraftOutboxTests
     [Test]
     public async Task PlayerRemoved_AnnouncesTheReturnToThePool_UsingTheIdFallback()
     {
-        await Send(o => o.EnqueuePlayerRemovedAsync(_context, _teams, new RemovePlayerFromTeamRequestDto { SeasonID = _season.SeasonID, CaptainID = _cap.Id, PersonID = _noName.Id }, CancellationToken.None));
+        await Send(o => o.EnqueuePlayerRemovedAsync(_context, _teams, new RemovePlayerFromTeamRequestDto { SeasonID = _season.SeasonID, CaptainID = _cap.Id, PersonID = _noName.Id }, null, CancellationToken.None));
 
         Assert.That(SentContents(), Is.EqualTo(new[]
         {
@@ -114,7 +114,7 @@ public class DraftOutboxTests
     [Test]
     public async Task PlayerMoved_AnnouncesTheMove()
     {
-        await Send(o => o.EnqueuePlayerMovedAsync(_context, _teams, new MovePlayerToTeamRequestDto { SeasonID = _season.SeasonID, PreviousCaptainID = _cap.Id, NewCaptainID = _cap2.Id, PersonID = _player.Id, RoundNumber = 1 }, CancellationToken.None));
+        await Send(o => o.EnqueuePlayerMovedAsync(_context, _teams, new MovePlayerToTeamRequestDto { SeasonID = _season.SeasonID, PreviousCaptainID = _cap.Id, NewCaptainID = _cap2.Id, PersonID = _player.Id, RoundNumber = 1 }, null, CancellationToken.None));
 
         Assert.That(SentContents(), Is.EqualTo(PlayerMovedMessages));
     }
@@ -122,8 +122,8 @@ public class DraftOutboxTests
     [Test]
     public async Task Lock_AnnouncesAndPostsWhoIsOnDeck_Unlock_OnlyThePause()
     {
-        await Send(o => o.EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, true, CancellationToken.None));
-        await Send(o => o.EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, false, CancellationToken.None));
+        await Send(o => o.EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, true, null, CancellationToken.None));
+        await Send(o => o.EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, false, null, CancellationToken.None));
 
         Assert.That(SentContents(), Is.EqualTo(LockThenUnlockMessages));
     }
@@ -161,7 +161,7 @@ public class DraftOutboxTests
     public async Task PreviewWithoutDiscord_SendsNothing()
     {
         await using var preview = new OutboxTestDriver(_context, Substitute.For<IDiscordRestClient>(), new DiscordOptions { DraftChannel = DraftChannel, DisableGlobally = true });
-        await new ContextOutbox(_context).EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, true, CancellationToken.None);
+        await new ContextOutbox(_context).EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, true, null, CancellationToken.None);
         await _context.SaveChangesAsync();
 
         await preview.DrainAsync();
@@ -259,7 +259,7 @@ public class DraftOutboxTests
         discord.GetMessagesAsync(DraftChannel, Arg.Any<NetCord.Rest.PaginationProperties<ulong>>(), Arg.Any<NetCord.Rest.RestRequestProperties>())
             .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
         await using var outbox = new OutboxTestDriver(_context, discord, new DiscordOptions { DraftChannel = DraftChannel });
-        await new ContextOutbox(_context).EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, true, CancellationToken.None);
+        await new ContextOutbox(_context).EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, true, null, CancellationToken.None);
         _context.Outbox.Add(new OutboxMessage
         {
             Kind = DraftOutbox.OnDeck,

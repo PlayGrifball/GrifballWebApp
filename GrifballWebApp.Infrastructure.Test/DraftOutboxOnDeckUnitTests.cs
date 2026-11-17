@@ -68,7 +68,7 @@ public class DraftOutboxOnDeckUnitTests : SqliteContextFixture
 
     private async Task<DraftOnDeckPayload> EnqueueAndRead(int seasonId)
     {
-        await _outbox.EnqueueOnDeckAsync(Context, _teams, seasonId, CancellationToken.None);
+        await _outbox.EnqueueOnDeckAsync(Context, _teams, seasonId, null, CancellationToken.None);
         await Context.SaveChangesAsync();
         var message = await Context.Outbox.AsNoTracking().SingleAsync(m => m.Kind == DraftOutbox.OnDeck);
         return JsonSerializer.Deserialize<DraftOnDeckPayload>(message.Payload, OutboxJson.Options)!;
