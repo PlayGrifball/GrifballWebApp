@@ -17,8 +17,7 @@ public static class ChampionsParser
         {
             var season = sheet.Cell(r, 0).Trim().TrimEnd(':');
             var team = sheet.Cell(r, 3).Trim();
-            if (config is not null && team.Length > 0)
-                team = config.TeamName(team);
+            team = config?.TeamName(team) ?? team;
             if (season.Length == 0 || team.Length == 0)
                 continue;
             var tier = sheet.Cell(r, 2).Trim();
