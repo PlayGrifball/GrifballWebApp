@@ -165,6 +165,7 @@ internal sealed class FakeApplicationDbContext :
         builder.Entity<Season>().HasIndex(e => e.HistoricalSourceID).HasFilter("[HistoricalSourceID] IS NOT NULL");
         builder.ApplyConfiguration(new PlayerSeasonStatConfiguration());
         builder.ApplyConfiguration(new PlayerChampionshipConfiguration());
+        builder.ApplyConfiguration(new SeasonAwardConfiguration());
         builder.ApplyConfiguration(new XboxGamertagHistoryConfiguration());
         builder.ApplyConfiguration(new GamertagClaimConfiguration());
         builder.Entity<GamertagClaim>().HasIndex(e => new { e.Kind, e.XboxUserID, e.NormalizedGamertag }).IsUnique()

@@ -90,6 +90,7 @@ public class SeasonService
         if (summary is null)
             return null;
         summary.Champions = (await GetChampions([seasonID], ct)).GetValueOrDefault(seasonID) ?? [];
+        summary.Awards = await GetAwards(seasonID, ct);
         summary.PlayerStatCount = (await _stats.GetAsync(seasonID: seasonID, ct: ct)).Count;
         return summary;
     }
@@ -258,6 +259,19 @@ public class SeasonService
             season.TeamNames = teams.GetValueOrDefault(season.SeasonID) ?? [];
         }
         return page;
+    }
+
+    /// <summary>The season's awards in its source's order, each with its winners in theirs.</summary>
+    private async Task<List<SeasonAwardDto>> GetAwards(int seasonID, CancellationToken ct)
+    {
+        var awards = await _context.Seasons.Awards()
+            .Where(a => a.SeasonID == seasonID)
+            .OrderBy(a => a.Position)
+            .Select(a => new { a.Name, a.Position, Winner = new SeasonAwardWinnerDto { UserID = a.UserID, TeamID = a.TeamID, Name = a.WinnerName, TeamName = a.Team != null ? a.Team.TeamName : null, Value = a.Value } })
+            .ToListAsync(ct);
+        return awards.GroupBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(award => new SeasonAwardDto { Name = award.First().Name, Winners = award.Select(a => a.Winner).ToList() })
+            .ToList();
     }
 
     /// <summary>The seasons' champions, by season: each tier's team and the players who hold its title, captain first.</summary>

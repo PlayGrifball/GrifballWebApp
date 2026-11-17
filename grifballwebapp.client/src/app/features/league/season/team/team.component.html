@@ -5,6 +5,9 @@
         <h1 class="hud-title">{{team()?.teamName}}</h1>
         @if (team()) {
             <a class="team-history-link hud-text-link" [routerLink]="['/history', 'team', teamID()]">Franchise history across seasons</a>
+            @if (team()!.season.isPublic) {
+                <app-calendar-subscribe [path]="calendarPath()" description="This team's matches" />
+            }
         }
     </div>
 

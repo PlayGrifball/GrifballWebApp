@@ -199,7 +199,7 @@ const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Br
 const seasonInfo = (seasonID: number, changes: Partial<SeasonInfoDto> = {}): SeasonInfoDto => ({
   seasonID, seasonName: seasonNames[seasonID] ?? `Season ${seasonID}`, start: '2026-01-01T00:00:00Z', end: '2026-03-01T00:00:00Z', year: 2026,
   hasEnded: true, leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
-  division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null, ...changes,
+  division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null, isPublic: true, ...changes,
 });
 
 // The season editor's form (/seasonEdit/12), in the shape GetSeasons lists them
@@ -416,7 +416,7 @@ const manualGame = {
 
 /** A season played in the app, as GetSeasonSummary answers. */
 const summary = (seasonID: number): SeasonSummaryDto => ({
-  ...seasonInfo(seasonID, { hasEnded: seasonID === 11 }), teamCount: 6, signupCount: 10, matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [],
+  ...seasonInfo(seasonID, { hasEnded: seasonID === 11 }), teamCount: 6, signupCount: 10, matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [], awards: [],
 });
 
 // Season 5 was backfilled from the historical archive: teams, rosters, stats and a title, but no signups, schedule or matches
@@ -700,6 +700,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
               matchCount: 0, bracketMatchCount: 0, playerStatCount: historicalStats.length,
               champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [
                 { userID: 501, gamertag: 'Legendary', isCaptain: true }, { userID: 502, gamertag: 'Old Timer', isCaptain: false }] }],
+              awards: [],
             }),
     // The season's stats, and on the team page (?teamID=41) its team's: matched on the path alone, so the same rows
     '/api/seasons/5/player-stats': answer('getSeasonPlayerStats', historicalStats),
@@ -946,7 +947,7 @@ const historicalJob: HistoricalImportJobDto = {
   jobID: 41, kind: 'Import', trigger: 'Scheduled', guarded: true, status: 'Succeeded', stage: 'Done', seasonsDone: 12, seasonsTotal: 12,
   report: {
     seasonsCreated: 0, seasonsUpdated: 11, teamsCreated: 0, teamsRemoved: 0, statsRemoved: 2, championshipsRemoved: 0, statsInserted: 3, statsUpdated: 540,
-    recordedGamesImported: 1210, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, dummyUsersCreated: 4, waypointMatchesPulled: 0,
+    recordedGamesImported: 1210, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, awardsInserted: 0, awardsUpdated: 0, awardsRemoved: 0, dummyUsersCreated: 4, waypointMatchesPulled: 0,
     skipped: [], warnings: ['late-league-aspence-main/S8Halo 3 Stats: stopped for review, it would remove 30 of 64 stat rows, 2 of 8 teams, 0 of 0 titles'], errors: [],
     seasonRemovals: [], sourcesChanged: [], sourcesFailed: [], sourcesUnchanged: 0, importJobID: null, discordClaimsCreated: 0, discordLinked: 0,
     discordMerged: 0, gamesLinked: 0, manualReplacedByWaypoint: 0, matchmakingSeasonsCreated: 0, matchmakingSeasonsUpdated: 0, missingMatches: [],

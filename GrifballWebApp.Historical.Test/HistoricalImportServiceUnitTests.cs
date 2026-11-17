@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
@@ -156,6 +157,102 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
             Assert.That(teams[1].TeamPlayers.Select(tp => tp.User.DisplayName), Is.EquivalentTo(RoosterTitleRoster), "Its title's roster too");
             Assert.That(teams[1].Captain!.User.DisplayName, Is.EqualTo("Silva"), "The title's captain");
             Assert.That(titles.Select(t => t.Team.TeamName), Is.All.EqualTo("Rooster"));
+        }
+    }
+
+    [Test]
+    public async Task Import_RecordsTheSeasonsAwards_ToTheirPlayersAndTeams_AndReconcilesThemOnARerun()
+    {
+        static ArchiveSeason Season(string benchysTeam, params ArchiveAward[] awards)
+        {
+            var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Benchy", team: benchysTeam));
+            entry.Awards.AddRange(awards);
+            return entry;
+        }
+
+        var first = await _service.Import(Input(Season("Hens",
+            new ArchiveAward { Name = "MVP", Winner = "Silva" },
+            new ArchiveAward { Name = "Most Kills (one game)", Winner = "Benchy", Team = "Hens", Value = "50" },
+            new ArchiveAward { Name = "Team Most Goals", Winner = "rooster", IsTeam = true, Value = "9" },
+            new ArchiveAward { Name = "Team Most Kills", Winner = "Ghosts", IsTeam = true },
+            new ArchiveAward { Name = "Rookie of the Year", Winner = "Newcomer" })));
+        Context.ChangeTracker.Clear();
+        var given = await Context.Seasons.Awards().OrderBy(a => a.Position)
+            .Select(a => new { a.Name, a.WinnerName, a.UserID, Team = a.Team != null ? a.Team.TeamName : null, a.Value })
+            .ToListAsync();
+
+        // Benchy has moved to Chicks (Hens are gone), and the MVP and rookie are no longer listed
+        var rerun = await _service.Import(Input(Season("Chicks",
+            new ArchiveAward { Name = "Most Kills (one game)", Winner = "Benchy", Team = "Chicks", Value = "50" },
+            new ArchiveAward { Name = "Team Most Goals", Winner = "Rooster", IsTeam = true, Value = "9" })));
+        Context.ChangeTracker.Clear();
+        var kept = await Context.Seasons.Awards().OrderBy(a => a.Position).Select(a => new { a.Name, Team = a.Team!.TeamName }).ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(given.Select(a => (a.Name, a.WinnerName, a.Team, a.Value)), Is.EqualTo(new (string, string, string?, string?)[]
+            {
+                ("MVP", "Silva", null, null), ("Most Kills (one game)", "Benchy", "Hens", "50"), ("Team Most Goals", "Rooster", "Rooster", "9"),
+                ("Rookie of the Year", "Newcomer", null, null),
+            }), "A team's award goes to the season's team by its name; a player's to the player, a placeholder if the season has none");
+            Assert.That(given.Select(a => a.UserID is not null), Is.EqualTo(PlayersButTheTeamsAward));
+            Assert.That((first.AwardsInserted, first.AwardsUpdated, first.AwardsRemoved), Is.EqualTo((4, 0, 0)));
+            Assert.That(first.Skipped, Has.Some.Contains("award Team Most Kills: no team Ghosts in the season"));
+            Assert.That(kept.Select(a => (a.Name, a.Team)), Is.EqualTo(new[] { ("Most Kills (one game)", "Chicks"), ("Team Most Goals", "Rooster") }));
+            Assert.That((rerun.AwardsInserted, rerun.AwardsUpdated, rerun.AwardsRemoved), Is.EqualTo((0, 2, 2)),
+                "Benchy's award lost Hens with the team and is on Chicks now; the team's moved up the list; the MVP and rookie went");
+        }
+    }
+
+    private static readonly bool[] PlayersButTheTeamsAward = [true, true, false, true];
+
+    private static ArchiveSeason AwardsSeason(params ArchiveAward[] awards)
+    {
+        var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"));
+        entry.Awards.AddRange(awards);
+        return entry;
+    }
+
+    [Test]
+    public async Task Import_AnAwardOfAPlayerOnlyItNames_StaysWithWhomTheirPlaceholderWasMergedInto()
+    {
+        // The rookie is in no stats or titles: a placeholder, which a merge then gives to a real account
+        await _service.Import(Input(AwardsSeason(new ArchiveAward { Name = "Rookie of the Year", Winner = "Newcomer" })));
+        Context.ChangeTracker.Clear();
+        var real = User.Seed(userName: "newcomer-real");
+        Context.Users.Add(real);
+        await Context.SaveChangesAsync();
+        var season = await Context.Seasons.WithAwards().SingleAsync();
+        var placeholder = season.Awards.Single().UserID!.Value;
+        season.MergeAwards(placeholder, real.Id);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var rerun = await _service.Import(Input(AwardsSeason(new ArchiveAward { Name = "Rookie of the Year", Winner = "Newcomer" })));
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.Seasons.Awards().Select(a => a.UserID).SingleAsync(), Is.EqualTo(real.Id), "Found again by the name it was listed under");
+            Assert.That((rerun.AwardsUpdated, rerun.DummyUsersCreated), Is.EqualTo((0, 0)));
+        }
+    }
+
+    [Test]
+    public async Task Run_Guardrail_StopsASeasonThatWouldLoseItsAwards()
+    {
+        // Its awards tab no longer read (renamed, say): every award would go
+        await _service.Import(Input(AwardsSeason(new ArchiveAward { Name = "MVP", Winner = "Silva" }, new ArchiveAward { Name = "Finals MVP", Winner = "Silva" })));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(Input(AwardsSeason()), new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions() });
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.Seasons.Awards().CountAsync(), Is.EqualTo(2), "Stopped: the awards are still there");
+            Assert.That(report.SeasonRemovals.Single().Stopped, Is.True);
+            Assert.That(report.SeasonRemovals.Single().Summary, Does.EndWith("2 of 2 awards"));
         }
     }
 

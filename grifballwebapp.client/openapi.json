@@ -1003,6 +1003,141 @@
         }
       }
     },
+    "/teams/{teamID}/calendar.ics": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "The team's scheduled matches, as a calendar to subscribe to. 404 when there is no such team.",
+        "operationId": "TeamCalendar",
+        "parameters": [
+          {
+            "name": "teamID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userID}/calendar.ics": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "The scheduled matches of the player's teams, as a calendar to subscribe to. 404 when there is no such user.",
+        "operationId": "PlayerCalendar",
+        "parameters": [
+          {
+            "name": "userID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/seasons/{seasonID}/calendar.ics": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "The season's scheduled matches, as a calendar to subscribe to. 404 when there is no such season.",
+        "operationId": "SeasonCalendar",
+        "parameters": [
+          {
+            "name": "seasonID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/client-telemetry": {
       "post": {
         "tags": [
@@ -11332,6 +11467,9 @@
       },
       "HistoricalImportReport": {
         "required": [
+          "awardsInserted",
+          "awardsRemoved",
+          "awardsUpdated",
           "championshipsInserted",
           "championshipsRemoved",
           "championshipsUpdated",
@@ -11454,6 +11592,19 @@
             "format": "int32"
           },
           "championshipsUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awardsInserted": {
+            "type": "integer",
+            "description": "Season awards added, changed and removed (the archive no longer gives them, or their team went).",
+            "format": "int32"
+          },
+          "awardsUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awardsRemoved": {
             "type": "integer",
             "format": "int32"
           },
@@ -11591,6 +11742,8 @@
       },
       "HistoricalSeasonRemoval": {
         "required": [
+          "awardsBefore",
+          "awardsRemoved",
           "removesAnything",
           "seasonKey",
           "seasonName",
@@ -11633,6 +11786,15 @@
             "format": "int32"
           },
           "titlesRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awardsBefore": {
+            "type": "integer",
+            "description": "The season's awards (SeasonAward rows): not kept on a review, which has the other counts.",
+            "format": "int32"
+          },
+          "awardsRemoved": {
             "type": "integer",
             "format": "int32"
           },
@@ -15314,6 +15476,65 @@
         },
         "additionalProperties": false
       },
+      "SeasonAwardDto": {
+        "required": [
+          "name",
+          "winners"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "winners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonAwardWinnerDto"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "An award of the season and who won it: one winner, or several (a Best Duo, a top 5 in its order)."
+      },
+      "SeasonAwardWinnerDto": {
+        "required": [
+          "name",
+          "teamID",
+          "teamName",
+          "userID",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "userID": {
+            "type": "integer",
+            "description": "The player; null for a team's award.",
+            "format": "int32",
+            "nullable": true
+          },
+          "teamID": {
+            "type": "integer",
+            "description": "The team that won it, or the player's team when the source names it.",
+            "format": "int32",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "The winner as the source names them: the gamertag used, or the team's name."
+          },
+          "teamName": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "type": "string",
+            "description": "What the award is worth: a record's value, a ranked list's place.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A winner of a season's award: a player, a team (no player), or a player of a team."
+      },
       "SeasonChampionDto": {
         "required": [
           "roster",
@@ -15466,6 +15687,7 @@
           "hasEnded",
           "historicalSourceUrl",
           "isHistorical",
+          "isPublic",
           "leagueID",
           "leagueName",
           "leagueSlug",
@@ -15542,6 +15764,10 @@
           "historicalSourceUrl": {
             "type": "string",
             "nullable": true
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't."
           }
         },
         "additionalProperties": false,
@@ -15559,6 +15785,7 @@
           "hasEnded",
           "historicalSourceUrl",
           "isHistorical",
+          "isPublic",
           "leagueID",
           "leagueName",
           "leagueSlug",
@@ -15638,6 +15865,10 @@
           "historicalSourceUrl": {
             "type": "string",
             "nullable": true
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't."
           },
           "teamCount": {
             "type": "integer",
@@ -16165,6 +16396,7 @@
       },
       "SeasonSummaryDto": {
         "required": [
+          "awards",
           "bracketMatchCount",
           "champions",
           "division",
@@ -16176,6 +16408,7 @@
           "hasEnded",
           "historicalSourceUrl",
           "isHistorical",
+          "isPublic",
           "leagueID",
           "leagueName",
           "leagueSlug",
@@ -16257,6 +16490,10 @@
             "type": "string",
             "nullable": true
           },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't."
+          },
           "teamCount": {
             "type": "integer",
             "format": "int32"
@@ -16283,6 +16520,13 @@
             "items": {
               "$ref": "#/components/schemas/SeasonChampionDto"
             }
+          },
+          "awards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonAwardDto"
+            },
+            "description": "The season's awards (its MVP, named awards, records), in its source's order."
           }
         },
         "additionalProperties": false,
@@ -18436,6 +18680,9 @@
     },
     {
       "name": "Build"
+    },
+    {
+      "name": "Calendar"
     },
     {
       "name": "ClientTelemetry"

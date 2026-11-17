@@ -51,6 +51,12 @@ export type { GetCommitHash$Params as GetCommitHash$Params } from './fn/build/ge
 export { getCommitHash as getCommitHash } from './fn/build/get-commit-hash';
 export type { GetCommitDate$Params as GetCommitDate$Params } from './fn/build/get-commit-date';
 export { getCommitDate as getCommitDate } from './fn/build/get-commit-date';
+export type { TeamCalendar$Params as TeamCalendar$Params } from './fn/calendar/team-calendar';
+export { teamCalendar as teamCalendar } from './fn/calendar/team-calendar';
+export type { PlayerCalendar$Params as PlayerCalendar$Params } from './fn/calendar/player-calendar';
+export { playerCalendar as playerCalendar } from './fn/calendar/player-calendar';
+export type { SeasonCalendar$Params as SeasonCalendar$Params } from './fn/calendar/season-calendar';
+export { seasonCalendar as seasonCalendar } from './fn/calendar/season-calendar';
 export type { ReportClientTelemetry$Params as ReportClientTelemetry$Params } from './fn/client-telemetry/report-client-telemetry';
 export { reportClientTelemetry as reportClientTelemetry } from './fn/client-telemetry/report-client-telemetry';
 export type { GetDashboardData$Params as GetDashboardData$Params } from './fn/commissioner-dashboard/get-dashboard-data';

@@ -113,6 +113,40 @@ internal sealed class SeasonServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task GetSeasonSummary_GivesTheSeasonsAwards_EachWithItsWinners_InTheSourcesOrder()
+    {
+        var season = Season.Seed(seasonName: "S1", seasonID: 1, historicalSourceID: "wb/Stats");
+        var team = Team.Seed(teamName: "Ram Ranch", seasonID: 1, teamID: 10);
+        Context.Seasons.Add(season);
+        Context.Teams.Add(team);
+        Context.Users.AddRange(User.Seed(userName: "luxe", id: 1), User.Seed(userName: "mav", id: 2), User.Seed(userName: "novice", id: 3));
+        await Context.SaveChangesAsync();
+        season.RecordArchivedAwards(
+        [
+            new SeasonAwardWinner("MVP", "yLuxe", 1, null),
+            new SeasonAwardWinner("Best Duo", "Mavbrid", 2, team),
+            new SeasonAwardWinner("Team Most Goals", "Ram Ranch", null, team, "9"),
+            new SeasonAwardWinner("Best Duo", "MysticalNovice", 3, null),
+        ]);
+        await Context.SaveChangesAsync();
+
+        var summary = await _service.GetSeasonSummary(1);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(summary!.Awards.Select(a => a.Name), Is.EqualTo(AwardsInOrder), "By where each award is first listed");
+            Assert.That(summary.Awards[1].Winners.Select(w => (w.UserID, w.TeamID, w.Name, w.TeamName, w.Value)), Is.EqualTo(new (int?, int?, string, string?, string?)[]
+            {
+                (2, 10, "Mavbrid", "Ram Ranch", null), (3, null, "MysticalNovice", null, null),
+            }));
+            Assert.That(summary.Awards[2].Winners.Single().UserID, Is.Null, "A team's award");
+            Assert.That(summary.Awards[2].Winners.Single().Value, Is.EqualTo("9"));
+        }
+    }
+
+    private static readonly string[] AwardsInOrder = ["MVP", "Best Duo", "Team Most Goals"];
+
+    [Test]
     public async Task GetSeasonTeams_NoSuchSeason_ReturnsNull()
     {
         var teams = await _service.GetSeasonTeams(999);

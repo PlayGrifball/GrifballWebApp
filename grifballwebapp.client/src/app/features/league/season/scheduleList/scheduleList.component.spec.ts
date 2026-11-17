@@ -15,6 +15,7 @@ import { AccountService } from '@core/auth/account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { Subject } from 'rxjs';
 import type { OnDemandJobStatusDto, ScheduleRecommendationDto, ScheduleRecommendationPageDto } from '@api/models';
+import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
 
 describe('ScheduleListComponent', () => {
   let component: ScheduleListComponent;
@@ -94,6 +95,16 @@ describe('ScheduleListComponent behaviour', () => {
     fixture.detectChanges();
     http.expectNone(() => true);
     expect(component.scheduledMatches()).toEqual([]);
+  });
+
+  it("offers a calendar feed of the season's schedule, once the public may see it", () => {
+    load([], []);
+    expect(fixture.debugElement.query(By.directive(CalendarSubscribeComponent))).withContext('Not announced yet: its feed is a 404').toBeNull();
+
+    fixture.componentRef.setInput('feedPublic', true);
+    fixture.detectChanges();
+    const feed = fixture.debugElement.query(By.directive(CalendarSubscribeComponent)).componentInstance as CalendarSubscribeComponent;
+    expect(feed.path()).toBe('seasons/4/calendar.ics');
   });
 
   it('groups scheduled matches into numbered weeks', () => {

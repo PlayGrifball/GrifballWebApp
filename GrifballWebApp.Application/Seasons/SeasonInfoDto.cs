@@ -35,6 +35,8 @@ public class SeasonInfoDto
     /// <summary>Imported from the historical archive: <see cref="HistoricalSourceUrl"/> is its source spreadsheet.</summary>
     public bool IsHistorical { get; set; }
     public string? HistoricalSourceUrl { get; set; }
+    /// <summary>Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't.</summary>
+    public bool IsPublic { get; set; }
 
     /// <summary>The season's own fields but the rules of the model (<see cref="Of"/>): <see cref="HasEnded"/>, which
     /// depends on the time, and <see cref="IsHistorical"/>.</summary>
@@ -59,10 +61,10 @@ public class SeasonInfoDto
     /// <summary>The season as a <see cref="SeasonInfoDto"/> as of <paramref name="now"/>.</summary>
     public static Expression<Func<Season, SeasonInfoDto>> Of(DateTime now)
     {
-        // HasEnded is Season.EndedAt and IsHistorical Season.ImportedFromArchive, written into the projection (a query can't
+        // HasEnded is Season.EndedAt, IsHistorical Season.ImportedFromArchive and IsPublic Season.PublicAsOf, written into the projection (a query can't
         // call an expression)
-        return Projections.Extend(Projections.Extend(Fields, Bound(nameof(HasEnded), Season.EndedAt(now))),
-            Bound(nameof(IsHistorical), Season.ImportedFromArchive));
+        return Projections.Extend(Projections.Extend(Projections.Extend(Fields, Bound(nameof(HasEnded), Season.EndedAt(now))),
+            Bound(nameof(IsHistorical), Season.ImportedFromArchive)), Bound(nameof(IsPublic), Season.PublicAsOf(now)));
     }
 
     /// <summary>The projection that sets only <paramref name="member"/>, to <paramref name="rule"/>.</summary>

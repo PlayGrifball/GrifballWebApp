@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Calendar;
 using GrifballWebApp.Application.Championships;
 using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Database;
@@ -74,6 +75,7 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         yield return Of(typeof(ProfileCommendationsService), typeof(ProfileCommendationsService), ServiceLifetime.Transient);
         yield return Of(typeof(SeasonService), typeof(SeasonService), ServiceLifetime.Transient);
         yield return Of(typeof(HomeEventsService), typeof(HomeEventsService), ServiceLifetime.Transient);
+        yield return Of(typeof(MatchCalendarService), typeof(MatchCalendarService), ServiceLifetime.Transient);
         yield return Of(typeof(RegionService), typeof(RegionService), ServiceLifetime.Transient);
         yield return Of(typeof(QuickSearchService), typeof(QuickSearchService), ServiceLifetime.Transient);
         yield return Of(typeof(TeamService), typeof(TeamService), ServiceLifetime.Transient);

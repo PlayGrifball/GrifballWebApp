@@ -19,10 +19,10 @@ type Handler = (route: Route, url: URL) => Promise<void> | void;
 const winter: SeasonInfoDto = {
   seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', year: 2025, hasEnded: false,
   leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
-  division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null,
+  division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null, isPublic: true,
 };
 const winterListed = { ...winter, teamCount: 0, playerCount: 0, champions: [], teamNames: [] };
-const winterSummary = { ...winter, seasonName: 'Winter Season', teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] };
+const winterSummary = { ...winter, seasonName: 'Winter Season', teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [], awards: [] };
 
 /** A side of a bracket match (brackets-model's ParticipantResult). */
 const side = (id: number | null, extra: Partial<ParticpantResult> = {}): ParticpantResult => ({ id, forfeit: false, ...extra });

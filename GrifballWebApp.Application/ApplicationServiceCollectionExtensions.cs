@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Calendar;
 using GrifballWebApp.Application.Championships;
 using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.EventOrganizer;
@@ -93,6 +94,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<Commissioner.CommissionerDashboardService>();
         services.AddTransient<SeasonVisibility>();
         services.AddTransient<Home.HomeEventsService>();
+        // The calendar feeds of the matches (iCalendar), of what the public may see
+        services.AddTransient<MatchCalendarService>();
         services.AddTransient<RegionService>();
         services.AddTransient<QuickSearchService>();
         services.AddTransient<TeamService>();
