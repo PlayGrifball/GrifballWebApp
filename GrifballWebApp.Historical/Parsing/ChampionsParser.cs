@@ -1,6 +1,7 @@
 using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Historical.Import;
+using GrifballWebApp.Historical.Sources;
 
 namespace GrifballWebApp.Historical.Parsing;
 
@@ -8,7 +9,7 @@ namespace GrifballWebApp.Historical.Parsing;
 /// players, the captain first). A tier of "-" is Open.</summary>
 public static class ChampionsParser
 {
-    public static ChampionsArchive Parse(string sourceId, string? sourceUrl, SheetTable sheet)
+    public static ChampionsArchive Parse(string sourceId, string? sourceUrl, SheetTable sheet, HistoricalSourceConfig? config = null)
     {
         var champions = new List<ArchiveChampionship>();
         for (var r = 2; r < sheet.Rows.Count; r++)

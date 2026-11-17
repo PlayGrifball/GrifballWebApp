@@ -302,6 +302,24 @@ public class HistoricalArchiveParsingTests
         }
     }
 
+    private static readonly string[] ChampionsAsTheirSeasonsName = ["Yung Humma", "Yeji's Toasted Banana Icey", "Tuna"];
+
+    [Test]
+    public void Champions_ATitleSpellingItsTeamAnotherWay_TakesTheNameTheRecordsConfigGives()
+    {
+        // The record's "Yung Hummu" (Winter League 2021 Pro) is the sheets' Yung Humma; its "Yeji's Iced Toasted Banana" (Summer
+        // League 2021 Pro) the stats' Yeji's Toasted Banana Icey. A title by another name made a second team of the champion
+        var sheet = Read(Workbook(("AGLA Champions", [Row("AGLA Champions"), Row("Season", "Game", "League", "Team"),
+            Row("Winter League 2021", "MCC Halo 3", "Pro", "Yung Hummu", "ixGingy"),
+            Row("Summer League 2021", "MCC Split", "Pro", "Yeji's Iced Toasted Banana", "xStarBlade"),
+            Row("Winter League 2019", "MCC Halo 3", "-", "Tuna", "Rayzyr")]))).Sheet("AGLA Champions")!;
+        var config = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "history-agla-champions").Config!;
+
+        var champions = ChampionsParser.Parse("history-agla-champions", "https://example.org/c", sheet, config);
+
+        Assert.That(champions.Champions.Select(c => c.Team), Is.EqualTo(ChampionsAsTheirSeasonsName));
+    }
+
     [Test]
     public void WaypointGames_AreSplitIntoRegularAndPlayoffs_ByTheFirstColumn()
     {

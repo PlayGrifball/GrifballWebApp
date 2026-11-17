@@ -112,4 +112,24 @@ public class ArchiveSeasonTests
 
         Assert.That(teams.Intersect(Wl21LegacyPlayoffTeams, StringComparer.OrdinalIgnoreCase), Is.Empty, "The hidden Playoff Stats tab is WL21 Legacy's");
     }
+
+    /// <summary>The champions record spells two champions otherwise than their sheets ("Yung Hummu", "Yeji's Iced Toasted
+    /// Banana"): the titles go to the team the stats have, not a second team of the record's name.</summary>
+    [TestCase("Winter League 2021 (Legacy)", "Yung Humma")]
+    [TestCase("Summer League 2021 (Pro)", "Yeji's Toasted Banana Icey")]
+    public async Task TheChampion_IsTheStatsTeam_NotASecondTeamOfTheRecordsSpelling(string seasonName, string champion)
+    {
+        await using var context = Archive.NewContext();
+        var teams = await context.Teams.AsNoTracking().Where(t => t.Season.HistoricalSourceID != null && t.Season.SeasonName == seasonName)
+            .Select(t => new { t.TeamName, Titles = t.Season.PlayerChampionships.Count(c => c.TeamID == t.TeamID), Lines = context.PlayerSeasonStats.Count(p => p.TeamID == t.TeamID) })
+            .ToListAsync();
+        if (teams.Count == 0)
+            Assert.Ignore($"{seasonName} isn't in this copy of the archive");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams.Where(t => t.Titles > 0).Select(t => t.TeamName), Is.EqualTo(new[] { champion }), "The titles' team");
+            Assert.That(teams.Where(t => t.Lines == 0).Select(t => t.TeamName), Is.Empty, "No team of the record's name without stats");
+        }
+    }
 }
