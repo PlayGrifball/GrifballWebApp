@@ -164,6 +164,21 @@ public class AwardsParserTests
     }
 
     [Test]
+    public void Labels_AWinnerFourColumnsRight_IsAnotherLabels()
+    {
+        // WL23: Tool Man (S19) and its winner (S23), Best Hybrid (W15) and its winners (W21): W21 is no Tool Man's
+        var sheet = Sheet(
+            ["", "", "", "", "Best Hybrid"],
+            ["Tool Man"],
+            ["", "", "", "", "MysticalNovice And yLuxe"],
+            ["yLuxe"]);
+
+        var awards = AwardsParser.Parse(sheet, new AwardsTab { Sheet = "Season Awards", Layout = AwardsLayout.Labels, Awards = new() { ["Tool Man"] = "", ["Best Hybrid"] = "" } });
+
+        Assert.That(Winners(awards), Is.EqualTo(new List<(string, string)> { ("Tool Man", "yLuxe"), ("Best Hybrid", "MysticalNovice"), ("Best Hybrid", "yLuxe") }));
+    }
+
+    [Test]
     public void Labels_ALabelWithNothingBelowIt_HasNoWinner()
     {
         var sheet = Sheet(["MVP", "", "", "", "", "", "Tool Man"], ["yLuxe"]);

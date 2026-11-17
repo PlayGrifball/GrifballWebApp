@@ -14,8 +14,8 @@ namespace GrifballWebApp.Historical.Parsing;
 public static partial class AwardsParser
 {
     /// <summary>How far right of its label a <see cref="AwardsLayout.Labels"/> award's winner can be (a label and its winner
-    /// are merged cells, the winner's text a column or two in).</summary>
-    private const int LabelSpan = 5;
+    /// are merged cells, the winner's text a column or two in; further right is the next label's, WL23's Best Hybrid beside Tool Man).</summary>
+    private const int LabelSpan = 3;
 
     /// <summary>An award won: the season it is of when the tab names one per block (<see cref="AwardsLayout.Seasons"/>, the
     /// season's source ID), null for the tab's season.</summary>

@@ -283,7 +283,7 @@ public enum AwardsLayout
     /// <summary>A header row of award names, each award's winners down its column below it to the first gap.</summary>
     Columns,
     /// <summary>Award labels anywhere in the sheet (<see cref="AwardsTab.Awards"/>), each winner the first text below its
-    /// label, within the label's column and the next four ("Mavbrid And MysticalNovice" are two winners).</summary>
+    /// label, within the label's column and the next two ("Mavbrid And MysticalNovice" are two winners).</summary>
     Labels,
     /// <summary>A block per season, its title in the first column ("SL24 Season 2 Champions - ..."), and "MVP: name"
     /// cells in its row and the row below (<see cref="AwardsTab.Awards"/>: "MVP", "FMVP").</summary>
