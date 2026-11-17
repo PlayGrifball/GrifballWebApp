@@ -148,4 +148,21 @@ public class ArchiveSeasonTests
 
         Assert.That(titles.Select(t => $"{t.SeasonName}: {t.TeamName.ToUpperInvariant()}"), Has.Count.EqualTo(5).And.All.EqualTo("2022 H3 Action League: JUNKYARD DOGS"));
     }
+
+    /// <summary>The game histories' sides named after a captain the season knows by another spelling: WL23's SPANKATRON
+    /// (USURPER SZN's SPANKATR0N), SL25's nkot (Junkyard Dogs) and Squirel (Murder Incorporated) are their teams.</summary>
+    [TestCase("2023-da-wl23-schedule/Game History#")]
+    [TestCase("2025-octane-sl25-bid-schedule/Game History#")]
+    public async Task AGameHistorysCaptainNamedSide_IsTheirTeam(string keys)
+    {
+        await using var context = Archive.NewContext();
+        var sides = await context.Set<GrifballWebApp.Domain.Archive.RecordedGameTeam>().AsNoTracking()
+            .Where(t => t.RecordedGame.SourceKey.StartsWith(keys))
+            .Select(t => new { t.Name, HasTeam = t.TeamID != null })
+            .ToListAsync();
+        if (sides.Count == 0)
+            Assert.Ignore($"No {keys} games in this copy of the archive");
+
+        Assert.That(sides.Where(s => !s.HasTeam).Select(s => s.Name).Distinct(), Is.Empty);
+    }
 }
