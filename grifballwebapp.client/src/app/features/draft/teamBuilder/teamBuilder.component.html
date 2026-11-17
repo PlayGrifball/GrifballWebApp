@@ -91,4 +91,8 @@
   }
 </mat-list>
 
+@if (shownSeasonID() > 0) {
+<app-draft-helper [seasonID]="shownSeasonID()" [poolKey]="poolKey()" />
+}
+
 </div>

@@ -10,6 +10,7 @@ import { AccountService } from '@core/auth/account.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { SeasonTabsComponent } from '../../league';
+import { DraftHelperComponent } from '../draftHelper/draftHelper.component';
 import { TeamBuilderStore } from './teamBuilder.store';
 import { AppLog } from '@core/telemetry/appLog';
 
@@ -23,6 +24,7 @@ import { AppLog } from '@core/telemetry/appLog';
         MatButtonModule,
         MatCardModule,
         RouterLink,
+        DraftHelperComponent,
     ],
     templateUrl: './teamBuilder.component.html',
     styleUrl: './teamBuilder.component.scss',
@@ -44,6 +46,8 @@ export class TeamBuilderComponent implements OnInit {
   readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
   /** The season shown: the route's, or the current season's ID once known. */
   protected readonly shownSeasonID = this.store.shownSeasonID;
+  /** The pool's players, by ID: the draft helper loads again when it changes (a pick made, undone or moved). */
+  protected readonly poolKey = computed(() => this.playerPool().map(p => p.personID).join(','));
   readonly captainLocked = this.store.captainLocked;
   readonly teams = this.store.teams;
   readonly playerPool = this.store.playerPool;

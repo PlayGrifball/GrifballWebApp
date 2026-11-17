@@ -1,0 +1,49 @@
+:host {
+  display: block;
+  margin-top: 24px;
+}
+
+.dh-how {
+  margin: 0 0 12px;
+}
+
+.dh-picks {
+  margin: 8px 0 16px;
+  padding-left: 22px;
+}
+
+.dh-pick-name {
+  font-weight: 600;
+}
+
+.dh-reasons {
+  margin: 2px 0 8px;
+  padding-left: 18px;
+  color: var(--hud-muted);
+}
+
+.dh-table-wrap {
+  overflow-x: auto;
+}
+
+.dh-pool {
+  width: 100%;
+  border-collapse: collapse;
+
+  caption {
+    text-align: left;
+    padding-bottom: 6px;
+  }
+
+  th,
+  td {
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--hud-hairline);
+  }
+
+  thead th {
+    color: var(--hud-muted);
+    font-weight: 500;
+  }
+}
