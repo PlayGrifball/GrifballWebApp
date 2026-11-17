@@ -14,6 +14,7 @@ public class StandingsParserTests
     private static readonly string[] AlphaOnly = ["Alpha"];
     private static readonly (string, string?)[] NamesAndCaptains = [("Alpha", "Ace"), ("Bravo", "Bee")];
     private static readonly (string, int?, int?)[] RecordsOfAlphaAndBravo = [("Alpha", 5, 3), ("Bravo", 4, 4)];
+    private static readonly (string, int?, int?)[] AlphaBlankBravoCharlie = [("Alpha", 5, 3), ("Bravo", null, null), ("Charlie", 4, 4)];
 
     private static readonly (string, int?, int?)[] SecondBlockOwnRanks = [("Charlie", 2, null), ("Delta", 1, null)];
     private static readonly (string, int?, int?)[] LegacyWithoutProSeeds = [("Legacy A", null, 7), ("Legacy B", null, 3)];
@@ -211,6 +212,27 @@ public class StandingsParserTests
             ["Season Standings", "", "", "", "", ""]);
 
         var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Draft Sheet", Layout = StandingsLayout.Columns, Anchor = "Team Name:" });
+
+        Assert.That(teams!.Select(t => t.TeamName), Is.EqualTo(AlphaAndBravo));
+    }
+
+    [Test]
+    public void Columns_ATeamWithoutARecord_AmongTeamsWithOne_IsStillATeam()
+    {
+        var sheet = Sheet(["Team Name", "Alpha", "Bravo", "Charlie"], ["Record", "5-3", "", "4-4"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Wins, t.Losses)), Is.EqualTo(AlphaBlankBravoCharlie), "Only columns after the last team with a record are another table's");
+    }
+
+    [Test]
+    public void Columns_ALabelOfTheTablesBesideTheTeams_EndsThem()
+    {
+        // H3 Action 2022's list of records beside its teams, without the chart between them
+        var sheet = Sheet(["Team Name", "Alpha", "Bravo", "", "Record"], ["Record", "5-3", "4-4", "", "17-3"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns });
 
         Assert.That(teams!.Select(t => t.TeamName), Is.EqualTo(AlphaAndBravo));
     }

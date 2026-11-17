@@ -32,8 +32,9 @@ public class HistoricalArchiveParsingTests
     private static readonly string[] BravoThenAlpha = ["Bravo", "Alpha"];
     private static readonly (string, string?)[] CaptainOnlyIfAPlayer = [("Alpha", "Ace"), ("Bravo", null)];
     private static readonly string[] TeamOneAndTen = ["Team 1", "Team 10"];
-    private static readonly (string, string?)[] PlaceholderTeamsPlayers = [("RDG NHL", "RDG NHL"), ("DlGITAL PAIN", "RDG NHL"), ("AJ DaJuiceMayne", "THE BOYS SZN 3")];
+    private static readonly (string, string?)[] PlaceholderTeamsPlayers = [("RDG NHL", "RDG NHL"), ("DlGITAL PAIN", "RDG NHL"), ("Myst the Cold", "RDG NHL"), ("AJ DaJuiceMayne", "THE BOYS SZN 3")];
     private static readonly (string, int?, int?, string?)[] PlaceholderTeamsStandings = [("THE BOYS SZN 3", 4, 16, "AJ DaJuiceMayne"), ("RDG NHL", 12, 8, "RDG NHL")];
+    private static readonly (string, int?, int?)[] TeamGameOnly = [("Team Game", 9, 1)];
     private static readonly string[] TeamAlfaTwice = ["Team Alfa", "Team Alfa"];
     private static readonly string[] MysteryHeroesThenTheWinners = ["Mystery Heroes", "THE WINNERS TEAM", "Trespa5s"];
     private static readonly string[] StatsNamesOfStandingsTeams = ["Chemical Imbalance", "Like Clockwork", "Bravo", "Alpah Team", "Puffy Grifbussy", "Buff Oily Men (& Women)", "SML08 All Stars + Kazink", "(TBD)"];
@@ -874,7 +875,8 @@ public class HistoricalArchiveParsingTests
     [Test]
     public void APlaceholderTeamName_TheConfigNames_IsThatTeam_InTheRostersAndTheStandings()
     {
-        // H3 Action 2022: RDG NHL's team was never named, its rows say "Team Name" in TeamInfo and on the Teams tab
+        // H3 Action 2022: RDG NHL's team was never named, its rows say "Team Name" in TeamInfo and on the Teams tab ("TEAM NAME" on
+        // the draft's Big Board: the config's name is any case and spacing of it)
         List<HistoricalSourceContent> sources =
         [
             Source("h3", new HistoricalSourceConfig
@@ -885,8 +887,8 @@ public class HistoricalArchiveParsingTests
                     Standings = [new() { Sheet = "Teams", Layout = StandingsLayout.Columns }],
                     TeamNames = new() { ["Team Name"] = "RDG NHL" },
                 },
-                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("RDG NHL", 1, 4, 10), Row("DlGITAL PAIN", 1, 4, 9), Row("AJ DaJuiceMayne", 0, 4, 5)]),
-                    ("TeamInfo", [Row("Team Name", "Player Name"), Row("THE BOYS SZN 3", "AJ DaJuiceMayne"), Row("Team Name", "RDG NHL"), Row("Team Name", "DlGITAL PAIN")]),
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("RDG NHL", 1, 4, 10), Row("DlGITAL PAIN", 1, 4, 9), Row("Myst the Cold", 1, 4, 2), Row("AJ DaJuiceMayne", 0, 4, 5)]),
+                    ("TeamInfo", [Row("Team Name", "Player Name"), Row("THE BOYS SZN 3", "AJ DaJuiceMayne"), Row("Team Name", "RDG NHL"), Row("Team Name", "DlGITAL PAIN"), Row("TEAM  NAME", "Myst the Cold")]),
                     ("Teams", [Row("Team Name", "The Boys Szn 3", "Team Name"), Row("Record", "4-16", "12-8 (0-2)"), Row("Captain", "AJ DaJuiceMayne", "RDG NHL")]))),
         ];
 
@@ -897,6 +899,18 @@ public class HistoricalArchiveParsingTests
             Assert.That(season.Players.Select(p => (p.Gamertag, p.TeamName)), Is.EquivalentTo(PlaceholderTeamsPlayers));
             Assert.That(season.Teams.Select(t => (t.TeamName, t.Wins, t.Losses, t.Captain)), Is.EqualTo(PlaceholderTeamsStandings));
         }
+    }
+
+    [Test]
+    public void AStandingsPlaceholderTeam_TheConfigDoesNotName_IsNoTeam_NotOneALetterAway()
+    {
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("A", "Team Game", 4, 1)],
+            ("Teams", new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns }, [Row("Team Name", "Team Game", "Team Name"), Row("Record", "9-1", "1-9")]));
+
+        var teams = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams;
+
+        Assert.That(teams.Select(t => (t.TeamName, t.Wins, t.Losses)), Is.EqualTo(TeamGameOnly), "\"Team Name\" is a placeholder: never Team Game's second record");
     }
 
     [Test]
