@@ -46,7 +46,7 @@ public class DraftHelperServiceTests
     /// The season drafting plays Mondays and Tuesdays at 20:00: Reds (captain Cap, East, Mondays) is the only team, and short of
     /// players on both. Ace (West) can play Mondays; Mid and Bench (East) both; Rookie (East) Mondays.
     /// </summary>
-    private async Task Seed()
+    private async Task Seed(int[]? capSlots = null)
     {
         var old = await _context.AddSeason("Old");
         _season = await _context.AddSeason("Now", captainsLocked: true);
@@ -57,7 +57,7 @@ public class DraftHelperServiceTests
         (_monday, _tuesday) = (mondays.AvailabilityOptionID, tuesdays.AvailabilityOptionID);
         _context.AddRange(SeasonAvailability.Seed(_season.SeasonID, _monday), SeasonAvailability.Seed(_season.SeasonID, _tuesday));
 
-        _cap = await Player("cap", "Cap", East, [_monday]);
+        _cap = await Player("cap", "Cap", East, capSlots ?? [_monday]);
         _ace = await Player("ace", "Ace", West, [_monday]);
         _mid = await Player("mid", "Mid", East, [_monday, _tuesday]);
         _bench = await Player("bench", "Bench", East, [_monday, _tuesday]);
@@ -80,8 +80,8 @@ public class DraftHelperServiceTests
         return user;
     }
 
-    private static PlayerSeasonStat Stats(Season season, User user, int wins, int goals, int kills)
-        => PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = user.DisplayName!, GamesPlayed = 20, Wins = wins, Losses = 20 - wins, Goals = goals, Kills = kills });
+    private static PlayerSeasonStat Stats(Season season, User user, int wins, int goals, int kills, int games = 20)
+        => PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = user.DisplayName!, GamesPlayed = games, Wins = wins, Losses = games - wins, Goals = goals, Kills = kills });
 
     [Test]
     public async Task Pool_HasEachPlayerLeft_WithTheirCareer_Timeslots_AndRegion()
@@ -120,6 +120,34 @@ public class DraftHelperServiceTests
             Assert.That(mid.Reasons, Has.Some.Contains("Same region as the captain"));
             Assert.That(suggestions.Picks[1].Reasons, Has.Some.Contains("80% of 20 games"));
             Assert.That(suggestions.Picks[2].Reasons, Has.Some.Contains("No recorded games"));
+        }
+    }
+
+    [Test]
+    public async Task Suggest_ForATeamShortOfNoTimeslot_FitsByItsOwn_WithTitles_AndFewGamesAnUnknown()
+    {
+        await Seed(capSlots: [_monday, _tuesday]);
+        // One player a slot is enough: Cap alone plays both, so the team is short of neither
+        var rules = SeasonSchedulingRules.Defaults(_season.SeasonID);
+        rules.Change(1, 1, 2, null);
+        _context.SeasonSchedulingRules.Add(rules);
+        // Ace won two past titles, Bench one; Rookie played 3 games, too few to count
+        var old = await _context.Seasons.SingleAsync(s => s.SeasonName == "Old");
+        var older = await _context.AddSeason("Older");
+        await _context.SeedChampionsAsync(old.SeasonID, "Open", (await _context.AddTeam(old, "Champs", _ace, 1, _bench)).TeamID);
+        await _context.SeedChampionsAsync(older.SeasonID, "Open", (await _context.AddTeam(older, "Champs Again", _ace, 1)).TeamID);
+        _context.PlayerSeasonStats.Add(Stats(older, _rookie, wins: 2, goals: 1, kills: 10, games: 3));
+        await _context.SaveChangesAsync();
+
+        var picks = (await Service().SuggestAsync(_season.SeasonID, count: 10))!.Picks.ToDictionary(p => p.UserID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(picks[_ace.Id].Reasons, Has.Some.Contains(", 2 titles"));
+            Assert.That(picks[_ace.Id].Reasons, Has.Some.Contains("Can play 1 of the team's 2 timeslots"));
+            Assert.That(picks[_bench.Id].Reasons, Has.Some.Contains(", a title"));
+            Assert.That(picks[_mid.Id].Reasons, Has.Some.Contains("Can play 2 of the team's 2 timeslots"));
+            Assert.That(picks[_rookie.Id].Reasons, Has.Some.EqualTo("Only 3 recorded games: an unknown"));
         }
     }
 

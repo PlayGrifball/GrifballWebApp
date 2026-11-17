@@ -38,4 +38,13 @@ describe('DraftHelperStore', () => {
     expect(store.pool()).toEqual(pool);
     expect(store.suggestions()).toBeNull();
   });
+
+  it('shows an empty pool when the pool fails to load, the suggestions all the same', () => {
+    store.load(5);
+    http.expectOne('/api/seasons/5/draft/pool-details').flush('boom', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
+
+    expect(store.pool()).toEqual([]);
+    expect(store.suggestions()).toEqual(suggestions);
+  });
 });

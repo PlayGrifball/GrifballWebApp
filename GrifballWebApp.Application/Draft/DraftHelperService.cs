@@ -2,6 +2,7 @@ using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Leaderboards;
 using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Scheduling;
+using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
@@ -113,9 +114,7 @@ public sealed class DraftHelperService(IApplicationDbContext context, Leaderboar
     private static DraftCareer Career(PlayerCareerSummary career)
     {
         var t = career.Totals;
-        decimal? perGame(long value) => t.GamesWithStats > 0 ? Math.Round((decimal)value / t.GamesWithStats, 2) : null;
-        return new DraftCareer(t.SeasonsCount, t.GamesPlayed, t.WinPercent, t.GoalsPerGame ?? (t.Goals is { } goals ? perGame(goals) : null),
-            perGame(t.Kills), career.Titles);
+        return new DraftCareer(t.SeasonsCount, t.GamesPlayed, t.WinPercent, t.GoalsPerGame, StatMath.PerGame(t.Kills, t.GamesWithStats), career.Titles);
     }
 
     /// <summary>
