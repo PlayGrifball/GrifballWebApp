@@ -325,7 +325,7 @@ describe('ScheduleListComponent behaviour', () => {
   it('words what is wrong with a recommended time', () => {
     const [fine, clash] = recommendation().matches;
     expect(conflictText(fine)).toBe('');
-    expect(conflictText(clash)).toBe('Overlaps another match, Greens unavailable');
+    expect(conflictText(clash)).toBe('Another match then, or past a season limit, Greens unavailable');
   });
 
   it('shows the latest recommendation to organizers while editing, each match with its conflicts', () => {
@@ -334,7 +334,7 @@ describe('ScheduleListComponent behaviour', () => {
       .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.replace(/\s+/g, ' ').trim()));
     expect(rows.map(r => r[0])).toEqual(['Reds vs Blues', 'Reds vs Greens', 'Blues vs Greens · Final']);
     expect(rows[0][2]).toBe('Unscheduled');
-    expect(rows.map(r => r[3])).toEqual(['-', 'Overlaps another match, Greens unavailable', '-']);
+    expect(rows.map(r => r[3])).toEqual(['-', 'Another match then, or past a season limit, Greens unavailable', '-']);
     expect(text()).toContain('1 of 3 matches with a conflict');
     expect(component.applicable()).toBe(2);
   });

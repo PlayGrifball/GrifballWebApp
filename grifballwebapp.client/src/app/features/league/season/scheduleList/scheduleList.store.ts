@@ -15,10 +15,10 @@ import { scheduleWeeks, WeekDto } from './weekDto';
 /** How often a queued or running schedule recommendation is looked at again. */
 export const RECOMMEND_POLL_MS = 3000;
 
-/** What is wrong with a recommended time: an overlap, a team that isn't available then; empty when nothing is. */
+/** What is wrong with a recommended time: another match then or a season limit passed, a team that isn't available then; empty when nothing is. */
 export function conflictText(match: ScheduleRecommendationMatchDto): string {
   const problems = [
-    match.overlaps ? 'Overlaps another match' : '',
+    match.overlaps ? 'Another match then, or past a season limit' : '',
     match.homeTeamAvailable ? '' : `${match.homeTeam} unavailable`,
     match.awayTeamAvailable ? '' : `${match.awayTeam} unavailable`,
   ];

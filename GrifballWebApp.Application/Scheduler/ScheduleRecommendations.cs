@@ -59,12 +59,13 @@ public class ScheduleRecommendations
 
     public async Task<ScheduleRecommendation> Save(int seasonID, ScheduleRun run, string? requestedBy, CancellationToken ct = default)
     {
-        // The GA works in the league's wall-clock time (its timeslots'); matches are kept in UTC. Its flags are the season's rules'
+        // The GA works in the league's wall-clock time (its timeslots'); matches are kept in UTC. Its flags are the season's rules':
+        // a team unavailable each its own, any other rule broken (a team plays then, outside the season, a cap) the first
         var recommendation = ScheduleRecommendation.Propose(seasonID, requestedBy, run.Fitness, run.Generations, run.Genes.Select(g =>
         {
             var conflicts = run.Conflicts(g, run.Genes).Select(c => c.Kind).ToList();
             return new ProposedMatchTime(g.SeasonMatchID, ScheduleService.ToUtc(g.ScheduledTime),
-                conflicts.Contains(Scheduling.ScheduleConflictKind.TeamPlaysThen),
+                conflicts.Exists(k => k is not (Scheduling.ScheduleConflictKind.HomeTeamUnavailable or Scheduling.ScheduleConflictKind.AwayTeamUnavailable)),
                 !conflicts.Contains(Scheduling.ScheduleConflictKind.HomeTeamUnavailable),
                 !conflicts.Contains(Scheduling.ScheduleConflictKind.AwayTeamUnavailable));
         }));
