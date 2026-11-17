@@ -253,7 +253,7 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(build.Warnings, Is.EqualTo(new[] { $"{grifballComId}: games table 'Matches' not read (no such sheet, or it is empty)" }), "Its games are GamesTableParserTests'");
+            Assert.That(build.Warnings, Is.EquivalentTo(NoRecordsTabNorMatches), "This copy has no Records tab, whose single-game records are Winter League 2008's, and no Matches tab (GamesTableParserTests')");
             Assert.That(config.SheetNames(), Does.Contain("Standings").And.Contain("Season_Player_Stats"));
             Assert.That(seasons.Select(s => (s.SourceSheet, s.SeasonName, s.GameVersion, s.Division, s.SourceYear, s.Titles)), Is.EqualTo(new[]
             {
@@ -281,6 +281,36 @@ public class StatsTableParserTests
             Assert.That(uk09.Players, Is.Empty, "Season with standings only has no player stat rows");
             Assert.That(uk09.Teams.Single().TeamName, Is.EqualTo("Tea & Hammers"));
             Assert.That(uk09.Teams.Single().Roster, Is.EqualTo(expectedUkRoster));
+        }
+    }
+
+    private static readonly string[] NoRecordsTabNorMatches = ["history-grifball-com-db: awards 'Records' not read (no such sheet)", "history-grifball-com-db: games table 'Matches' not read (no such sheet, or it is empty)"];
+
+    [Test]
+    public void GrifballComCatalogEntry_PutsItsRecords_OnWinterLeague2008()
+    {
+        var build = GrifballCom(
+            ("Season_Player_Stats", [
+                Row("league_id", "gamertag", "team_name", "games_played", "wins", "losses", "goals", "kills", "deaths"),
+                Row(1, "Sisum", "WYLASS", 8, 7, 1, 10, 134, 56),
+            ]),
+            ("Standings", [Row("league_id", "division", "rank", "team_name", "wins", "losses", "captain", "roster"), Row(1, "Open", 1, "WYLASS", 8, 1, "Syphith", "Syphith, Sisum")]),
+            ("Records", [
+                Row("category", "description", "record_value", "holder", "team_or_captain", "date", "opponent", "bungie_game_id"),
+                Row("Individual Player Records (Single Game)", "Most Kills (one game)", "134", "Sisum", "WYLASS", "1/9/08", "Tactical Warfare", "245795122"),
+                Row("Team Records (Single Game)", "Best K/D Spread", "+76", "WYLASS", "Syphith", "1/9/08", "Tactical Warfare", "245795122"),
+            ]));
+
+        var winter08 = Seasons(build).Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Is.Empty);
+            Assert.That(winter08.SeasonName, Is.EqualTo("Winter League 2008"));
+            Assert.That(winter08.Awards.Select(a => (a.Name, a.Winner, a.IsTeam, a.Team, a.Value)), Is.EqualTo(new (string, string, bool, string?, string?)[]
+            {
+                ("Most Kills (one game)", "Sisum", false, "WYLASS", "134"), ("Team Best K/D Spread", "WYLASS", true, null, "+76"),
+            }));
         }
     }
 

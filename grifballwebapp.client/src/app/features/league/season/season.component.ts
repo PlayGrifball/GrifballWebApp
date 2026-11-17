@@ -13,6 +13,7 @@ import type { SeasonSummaryDto } from '@api/models';
 import { seasonFormatLabel } from '@shared/seasonFormats';
 import { fromRequiredApiDate } from '@shared/apiDates';
 import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
+import { SeasonAwardsComponent } from './seasonAwards/seasonAwards.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { SeasonStore } from './season.store';
@@ -67,6 +68,7 @@ function describeChampions(champions: SeasonSummaryDto['champions']): string | n
         BackfilledBannerComponent,
         DataNoticeComponent,
         SeasonChampionsComponent,
+        SeasonAwardsComponent,
         SeasonPlayerStatsComponent,
         VodListComponent,
     ],
