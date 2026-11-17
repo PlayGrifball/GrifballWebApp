@@ -85,9 +85,9 @@ public sealed class HistoricalArchiveBuilder
             AddChampions(id, source.Url, config.ChampionsSheet, workbook, changed);
         AddWaypoint(id, config, workbook);
         foreach (var tab in config.Rosters)
-            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
+            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet, config.TeamNames) : null));
         foreach (var tab in config.Standings)
-            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
+            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? Named(StandingsParser.Parse(standingsSheet, tab), config.TeamNames) : null));
         AddGames(id, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
@@ -230,6 +230,10 @@ public sealed class HistoricalArchiveBuilder
                 _affected.UnionWith(entries.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
         }
     }
+
+    /// <summary>A standings tab's teams under the names the workbook's config gives them (<see cref="HistoricalSourceConfig.TeamNames"/>).</summary>
+    private static List<ArchiveTeam>? Named(List<ArchiveTeam>? teams, Dictionary<string, string> names)
+        => teams?.Select(t => names.TryGetValue(t.TeamName, out var name) ? t with { TeamName = name } : t).ToList();
 
     /// <summary>Each standings tab's teams go on its season's regular-season entry (the first, or its <see cref="StandingsTab.Tab"/>),
     /// where the import reads a team's record and placing.</summary>

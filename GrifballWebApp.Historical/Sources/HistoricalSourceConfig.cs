@@ -34,6 +34,9 @@ public class HistoricalSourceConfig
     public List<RosterTab> Rosters { get; init; } = [];
     /// <summary>Tabs of a season's team standings: each team's record, its rank (seed) and its final place.</summary>
     public List<StandingsTab> Standings { get; init; } = [];
+    /// <summary>Teams this workbook's rosters and standings name another way, by the name they give: a placeholder never
+    /// filled in (H3 Action 2022's "Team Name", RDG NHL's team) that would otherwise read as no team.</summary>
+    public Dictionary<string, string> TeamNames { get; init; } = [];
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
