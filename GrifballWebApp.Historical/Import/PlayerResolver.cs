@@ -31,12 +31,12 @@ public readonly record struct Resolution(int UserId, ResolvedBy By);
 /// the gamertag now. In order:
 /// <list type="number">
 /// <item>A Waypoint row's XUID: the user linked to that Xbox account.</item>
-/// <item>The user of this season's sheet rows or titles imported before under that gamertag: a re-run (also after a
+/// <item>The user of this season's sheet rows, titles or awards imported before under that gamertag: a re-run (also after a
 /// commissioner moved them to another user).</item>
 /// <item>XboxGamertagHistory: an account that still had the gamertag when the season began (its LastSeen is not
 /// before it), when no other account's history also can.</item>
 /// <item>An account whose current gamertag it is, when no rename of that account is known after the season began.</item>
-/// <item>The user of the archive's other seasons' sheet rows or titles under the gamertag (the same player, as far as
+/// <item>The user of the archive's other seasons' sheet rows, titles or awards under the gamertag (the same player, as far as
 /// is known; a placeholder a commissioner merged into an account keeps being found).</item>
 /// <item>The placeholder for the gamertag, by its user name.</item>
 /// </list>
@@ -149,7 +149,7 @@ internal sealed class PlayerResolver
         return placeholder is null ? null : new Resolution(placeholder.Id, ResolvedBy.Placeholder);
     }
 
-    /// <summary>The user of the sheet rows or titles under the gamertag, in the seasons chosen.</summary>
+    /// <summary>The user of the sheet rows, titles or awards under the gamertag, in the seasons chosen.</summary>
     private async Task<int?> EarlierRows(string gamertag, bool thisSeason, CancellationToken ct)
     {
         var fromStats = await _context.PlayerSeasonStats
@@ -162,9 +162,15 @@ internal sealed class PlayerResolver
             .OrderBy(s => s.MatchmakingPlayerStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromMatchmaking is not null)
             return fromMatchmaking;
-        return await _context.Seasons.Championships()
+        var fromTitles = await _context.Seasons.Championships()
             .Where(c => c.GamertagUsed == gamertag && (c.SeasonID == _seasonId) == thisSeason)
             .OrderBy(c => c.PlayerChampionshipID).Select(c => (int?)c.UserID).FirstOrDefaultAsync(ct);
+        if (fromTitles is not null)
+            return fromTitles;
+        // An award's winner (one only an award names, or a merge moved it)
+        return await _context.Seasons.Awards()
+            .Where(a => a.UserID != null && a.WinnerName == gamertag && (a.SeasonID == _seasonId) == thisSeason)
+            .OrderBy(a => a.SeasonAwardID).Select(a => a.UserID).FirstOrDefaultAsync(ct);
     }
 
     /// <summary>

@@ -3,6 +3,13 @@
 
 import { HistoricalSeasonRemoval } from '../models/historical-season-removal';
 export interface HistoricalImportReport {
+
+  /**
+   * Season awards added, changed and removed (the archive no longer gives them, or their team went).
+   */
+  awardsInserted: number;
+  awardsRemoved: number;
+  awardsUpdated: number;
   championshipsInserted: number;
   championshipsRemoved: number;
   championshipsUpdated: number;

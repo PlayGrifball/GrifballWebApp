@@ -286,4 +286,179 @@ public class SeasonStatsParserTests
             ("TheAlphaTurtle", (string?)"ApoPo", (decimal?)1),
         }), "the finals' rows read once, as games");
     }
+
+    private static HistoricalSourceConfig RoundsConfig(string? gamesSheet = "Season Match History")
+        => new() { Season = new SeasonDefaults { Name = "Spring League 2025", Game = "infinite" }, Tabs = [new() { Name = "Stats", GamesSheet = gamesSheet }] };
+
+    private static readonly string[] BenchWarmerWarning = ["2025-octane-sl25-bid-stats: no games of 'Bench Warmer' in 'Season Match History'"];
+    private static readonly string[] TwoLinesWarning = ["2025-octane-sl25-bid-stats: 'Rayzyr' has 2 lines: their games in 'Season Match History' can't be split"];
+
+    private static readonly object?[] RoundsHeader = Row("Gamertag", "Time Played (Seconds)", "Rounds Won", "Rounds Lost", "Rounds Tied", "goals", "Average Life", "Kills", "Deaths");
+
+    [Test]
+    public void RoundsTab_TakesItsGamesFromTheMatchHistory_AndKeepsTheRounds()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Stats",
+            [
+                RoundsHeader,
+                Row("Almighty Tycoon", 1892.4, 9, 4, 1, 3, 15.075, 60, 40),
+                Row("Bench Warmer", 0, 0, 0, 0, 0, null, 0, 0),
+            ]),
+            ("Season Match History",
+            [
+                Row("BotAttributes", "LastTeamId", "Outcome", "TimePlayed", "PlayerId"),
+                Row(null, 1, "2.0", 946.2, "Almighty Tycoon"),
+                Row(null, 0, 3, 946.2, "almighty tycoon"),
+                Row(null, 1, 1, 946.2, "Almighty Tycoon"),
+                Row(null, 1, 2, 946.2, null),
+            ])))!;
+
+        var warnings = new List<string>();
+        var season = SeasonStatsParser.Parse("2025-octane-sl25-bid-stats", RoundsConfig(), workbook, warnings).Single();
+        var tycoon = season.Players.Single(p => p.Gamertag == "Almighty Tycoon");
+        var bench = season.Players.Single(p => p.Gamertag == "Bench Warmer");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(warnings, Is.EqualTo(BenchWarmerWarning));
+            Assert.That((tycoon.GamesPlayed, tycoon.Wins, tycoon.Losses), Is.EqualTo(((decimal?)3, (decimal?)1, (decimal?)1)), "a tie is a game, neither won nor lost");
+            Assert.That((tycoon.TotalSecondsPlayed, tycoon.AverageLifeSeconds, tycoon.Goals), Is.EqualTo(((decimal?)1892, (decimal?)15.075m, (decimal?)3)));
+            Assert.That((tycoon.ExtendedMetrics!.Value.GetProperty("roundsWon").GetDecimal(), tycoon.ExtendedMetrics.Value.GetProperty("roundsLost").GetDecimal(),
+                tycoon.ExtendedMetrics.Value.GetProperty("roundsTied").GetDecimal()), Is.EqualTo((9m, 4m, 1m)), "rounds are not games: kept as they are");
+            Assert.That((bench.GamesPlayed, bench.Wins, bench.Losses), Is.EqualTo(((decimal?)0, (decimal?)0, (decimal?)0)), "no games in the history");
+        }
+    }
+
+    [Test]
+    public void GamesTabHeadedAsAStatsTab_CountsTheGames_ButTheTabsOwnWinsAndLossesStay()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Stats",
+            [
+                Row("Name", "Wins", "Losses", "Goals", "Goal Assists", "Kills"),
+                Row("Solace VIII", 10, 5, 18, 2, 1204),
+            ]),
+            ("Hist",
+            [
+                Row("Name", "Wins", "Losses", "Goals"),
+                Row("Solace VIII", 1, 0, 1),
+                Row("Solace VIII", 0, 1, 0),
+                Row("Solace VIII", 0, 0, 0),
+            ])))!;
+
+        var player = SeasonStatsParser.Parse("2024-igl-evolved-fl24-stats", RoundsConfig("Hist"), workbook, []).Single().Players.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((player.GamesPlayed, player.Wins, player.Losses), Is.EqualTo(((decimal?)3, (decimal?)10, (decimal?)5)));
+            Assert.That(player.ExtendedMetrics!.Value.GetProperty("goalAssists").GetDecimal(), Is.EqualTo(2m));
+        }
+    }
+
+    [TestCase(null, "no sheet 'Season Match History'")]
+    [TestCase("Name", "'Season Match History' has no player and result columns")]
+    [TestCase("Outcome", "'Season Match History' has no player and result columns")]
+    public void AGamesTabThatIsMissingOrHasNoResults_IsAWarning_AndTheGamesStay0(string? header, string warning)
+    {
+        (string, object?[][])[] sheets = header is null
+            ? [("Stats", [RoundsHeader, Row("Almighty Tycoon", 1892, 9, 4, 1)])]
+            : [("Stats", [RoundsHeader, Row("Almighty Tycoon", 1892, 9, 4, 1)]), ("Season Match History", [Row(header), Row("Almighty Tycoon")])];
+        var workbook = SheetWorkbook.Read(Workbook(sheets))!;
+
+        var warnings = new List<string>();
+        var player = SeasonStatsParser.Parse("2025-octane-sl25-bid-stats", RoundsConfig(), workbook, warnings).Single().Players.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(warnings, Is.EqualTo(new[] { $"2025-octane-sl25-bid-stats: {warning}" }));
+            Assert.That((player.GamesPlayed, player.Wins, player.Losses), Is.EqualTo(((decimal?)0, (decimal?)0, (decimal?)0)));
+        }
+    }
+
+    [Test]
+    public void AveragesPerGame_AreTotalledOverTheGames_AndAverageLifeInSecondsIsRead()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Stats",
+            [
+                Row("Name", "SUM of Games Played", "AVG Score", "AVG Damage Dealt", "AVG Damage Taken", "Average Life (Seconds)"),
+                Row("ACE B S1lentND1", 23, 6944.565217, 2504.521739, 1760.086957, 10.8),
+                Row("No Games", 0, 5000, 2000, 1000, null),
+            ])))!;
+
+        var players = SeasonStatsParser.Parse("2024-da-sl24-stats", RoundsConfig(null), workbook, []).Single().Players;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((players[0].Score, players[0].DamageDealt, players[0].DamageTaken, players[0].AverageLifeSeconds),
+                Is.EqualTo(((decimal?)159725, (decimal?)57604, (decimal?)40482, (decimal?)10.8m)));
+            Assert.That((players[1].Score, players[1].DamageDealt, players[1].DamageTaken), Is.EqualTo(((decimal?)null, (decimal?)null, (decimal?)null)),
+                "an average over no games is no total");
+            Assert.That(players[0].ExtendedMetrics, Is.Null);
+        }
+    }
+
+    [Test]
+    public void ATotalColumn_WinsOverItsAverage()
+    {
+        var columns = SeasonStatsParser.ColumnsOf(["Name", "Games", "Score", "AVG Score"]);
+
+        var player = SeasonStatsParser.Player(["Ace", "2", "100", "70"], columns, "Ace", null, null, null, 1);
+
+        Assert.That(player.Score, Is.EqualTo(100m));
+    }
+
+    [Test]
+    public void ExtendedStats_JoinATablesExtendedMetrics()
+    {
+        var columns = SeasonStatsParser.ColumnsOf(["Name", "Rounds Won"]);
+        var table = System.Text.Json.JsonSerializer.SerializeToElement(new Dictionary<string, object> { ["battingAverage"] = 45.6m, ["roundsWon"] = 1m });
+
+        var player = SeasonStatsParser.Player(["Ace", "7"], columns, "Ace", null, null, null, 1, table);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(player.ExtendedMetrics!.Value.GetProperty("roundsWon").GetDecimal(), Is.EqualTo(7m), "the sheet's column");
+            Assert.That(player.ExtendedMetrics!.Value.GetProperty("battingAverage").GetDecimal(), Is.EqualTo(45.6m));
+        }
+    }
+
+    [Test]
+    public void NoExtendedStats_KeepATablesExtendedMetrics()
+    {
+        var columns = SeasonStatsParser.ColumnsOf(["Name", "Kills"]);
+        var table = System.Text.Json.JsonSerializer.SerializeToElement(new Dictionary<string, object> { ["grabs"] = 3m });
+
+        var player = SeasonStatsParser.Player(["Ace", "7"], columns, "Ace", null, null, null, 1, table);
+
+        Assert.That(player.ExtendedMetrics!.Value.GetProperty("grabs").GetDecimal(), Is.EqualTo(3m));
+    }
+
+    [Test]
+    public void APlayerWithTwoLines_GetsNoGames_TheGamesTabCantSplitThem()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Stats",
+            [
+                RoundsHeader,
+                Row("Rayzyr (to Tuna)", 900, 4, 2, 0),
+                Row("Rayzyr", 900, 3, 3, 0),
+            ]),
+            ("Season Match History",
+            [
+                Row("Outcome", "PlayerId"),
+                Row(2, "Rayzyr"),
+                Row(3, "Rayzyr"),
+            ])))!;
+
+        var warnings = new List<string>();
+        var players = SeasonStatsParser.Parse("2025-octane-sl25-bid-stats", RoundsConfig(), workbook, warnings).Single().Players;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(players.Select(p => (p.StintIndex, p.GamesPlayed, p.Wins, p.Losses)), Is.EqualTo(new[] { (1, (decimal?)0, (decimal?)0, (decimal?)0), (2, (decimal?)0, (decimal?)0, (decimal?)0) }));
+            Assert.That(warnings, Is.EqualTo(TwoLinesWarning));
+        }
+    }
 }
