@@ -75,6 +75,8 @@ public class ArchiveSeason
     /// <summary>The season's teams, their records, captains and rosters when a standings table lists them (e.g. the
     /// grifball.com archive), including teams with no captured player stat rows.</summary>
     public List<ArchiveTeam> Teams { get; init; } = [];
+    /// <summary>The season's awards (its MVP, named awards, records), in its sheets' order: a row per winner.</summary>
+    public List<ArchiveAward> Awards { get; init; } = [];
     /// <summary>The season's playoff bracket, when a sheet draws one (BracketParser): the import takes it over rebuilding
     /// one from the order its playoff games were played in.</summary>
     public ArchiveBracket? Bracket { get; set; }
@@ -106,6 +108,20 @@ public record ArchiveBracketSeries
     public int? BestOf { get; init; }
 }
 
+/// <summary>A winner of a season's award (AwardsParser). A record: a copy for a season's player (`with`) keeps every other value.</summary>
+public record ArchiveAward
+{
+    public required string Name { get; init; }
+    /// <summary>The winner's gamertag, or a team's name when <see cref="IsTeam"/>.</summary>
+    public required string Winner { get; init; }
+    /// <summary>A team's award: <see cref="Winner"/> is the team.</summary>
+    public bool IsTeam { get; init; }
+    /// <summary>The player's team, when the sheet names it.</summary>
+    public string? Team { get; init; }
+    /// <summary>What it is worth: a record's value, a ranked list's place.</summary>
+    public string? Value { get; init; }
+}
+
 /// <summary>A team of a season's standings. A record: a copy under another name (`with`) keeps every other value.</summary>
 public record ArchiveTeam
 {
@@ -130,9 +146,9 @@ public class ArchivePlayer
     public string? TradeNote { get; init; }
     public string? RoleNote { get; init; }
     public int StintIndex { get; init; } = 1;
-    public decimal? GamesPlayed { get; init; }
-    public decimal? Wins { get; init; }
-    public decimal? Losses { get; init; }
+    public decimal? GamesPlayed { get; set; }
+    public decimal? Wins { get; set; }
+    public decimal? Losses { get; set; }
     public decimal? WinPercent { get; init; }
     public decimal? Goals { get; init; }
     public decimal? Kills { get; init; }

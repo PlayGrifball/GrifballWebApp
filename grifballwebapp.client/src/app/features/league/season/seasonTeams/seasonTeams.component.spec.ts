@@ -29,6 +29,7 @@ describe('SeasonTeamsComponent', () => {
     bracketMatchCount: 4,
     playerStatCount: 30,
     champions: [],
+    awards: [],
     start: '2026-09-01T00:00:00Z',
     end: '2026-11-01T00:00:00Z',
     leagueID: 1,

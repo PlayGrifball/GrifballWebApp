@@ -835,6 +835,52 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void AwardsInItsOwnAndAnotherSource_GoOnTheirSeasonsRegularSeason_AsTheSeasonSpellsItsPlayersAndTeams()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Winter League 2023", Game = "infinite" },
+                    Tabs = [new() { Name = "Stats" }, new() { Name = "Playoff Stats", IsPlayoffs = true }],
+                    Awards = [new() { Sheet = "Records", Layout = AwardsLayout.Records }],
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("yLuxe", "Ram Ranch", 4, 10), Row("Sisum", "WYLASS", 4, 1)]),
+                    ("Playoff Stats", [Row("Player", "Team", "Games", "Kills"), Row("yLuxe", "Ram Ranch", 2, 3)]),
+                    ("Records", [Row("category", "description", "record_value", "holder", "team_or_captain"),
+                        Row("Individual", "Most Kills", 134, "SISUM", "wylass"), Row("Team Records", "Most Goals", 9, "Ram  Ranch", "yLuxe")]))),
+            Source("book", new HistoricalSourceConfig
+                {
+                    Awards =
+                    [
+                        new() { Sheet = "Record Book", Layout = AwardsLayout.Seasons, Awards = new() { ["MVP"] = "" }, Seasons = new() { ["Season 1"] = "stats", ["Season 2"] = "nothing" } },
+                        new() { Sheet = "Missing", Season = "stats" },
+                        new() { Sheet = "Empty", Season = "stats" },
+                        new() { Sheet = "Achievements", Season = "stats" },
+                    ],
+                },
+                Workbook(("Record Book", [Row("WL23 Season 1 Champions", "MVP: YLUXE"), Row("SL24 Season 2 Champions", "MVP: Someone")]), ("Empty", [Row("")]),
+                    ("Achievements", [Row("Divine Blade"), Row("Newbie")]))),
+        ];
+
+        var build = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "book" });
+
+        var regular = build.Input.Seasons.Seasons.Single(s => !s.IsPlayoffs);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(regular.Awards.Select(a => (a.Name, a.Winner, a.IsTeam, a.Team, a.Value)), Is.EqualTo(new (string, string, bool, string?, string?)[]
+            {
+                ("Most Kills", "Sisum", false, "WYLASS", "134"), ("Team Most Goals", "Ram Ranch", true, null, "9"), ("MVP", "yLuxe", false, null, null), ("Divine Blade", "Newbie", false, null, null),
+            }), "A winner who is none of the season's players keeps their name");
+            Assert.That(build.Input.Seasons.Seasons.Single(s => s.IsPlayoffs).Awards, Is.Empty);
+            Assert.That(build.Seasons, Is.EquivalentTo(StatsAndPlayoffStats), "The awards' season is the changed source's");
+            Assert.That(build.Warnings, Does.Contain("book: awards 'Record Book' not read (no season from nothing)"));
+            Assert.That(build.Warnings, Does.Contain("book: awards 'Missing' not read (no such sheet)"));
+            Assert.That(build.Warnings, Does.Contain("book: awards 'Empty' not read (no awards in it)"));
+        }
+    }
+
+    [Test]
     public void ABracketInAnotherSource_GoesOnItsSeasonsRegularSeason_ItsTeamsUnderTheSeasonsNames()
     {
         List<HistoricalSourceContent> sources =

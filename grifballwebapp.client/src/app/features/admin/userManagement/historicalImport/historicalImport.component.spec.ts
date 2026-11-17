@@ -24,7 +24,7 @@ function source(id: string, changes: Partial<HistoricalSourceDto> = {}): Histori
 function report(changes: Partial<HistoricalImportReport> = {}): HistoricalImportReport {
   return {
     seasonsCreated: 0, seasonsUpdated: 2, teamsCreated: 0, teamsRemoved: 1, statsRemoved: 3, championshipsRemoved: 0, statsInserted: 0, statsUpdated: 10,
-    recordedGamesImported: 4, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, dummyUsersCreated: 0, waypointMatchesPulled: 0,
+    recordedGamesImported: 4, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, awardsInserted: 0, awardsUpdated: 0, awardsRemoved: 0, dummyUsersCreated: 0, waypointMatchesPulled: 0,
     skipped: [], warnings: [], errors: [], seasonRemovals: [], sourcesChanged: [], sourcesFailed: [], sourcesUnchanged: 0, importJobID: null, discordClaimsCreated: 0, discordLinked: 0, discordMerged: 0, gamesLinked: 0, manualReplacedByWaypoint: 0, matchmakingSeasonsCreated: 0, matchmakingSeasonsUpdated: 0, missingMatches: [], recordedGamesSkippedAsWaypoint: 0, regionsSet: 0, seasonMatchesCreated: 0, seasonMatchesRemoved: 0, seasonsRetired: 0, suggestionsCreated: 0, ...changes,
   };
 }

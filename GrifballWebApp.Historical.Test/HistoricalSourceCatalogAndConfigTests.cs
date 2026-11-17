@@ -91,7 +91,7 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
     {
         var config = new HistoricalSourceConfig
         {
-            Tabs = [new StatsTab { Name = " Stats ", DatesSheet = "Dates" }],
+            Tabs = [new StatsTab { Name = " Stats ", DatesSheet = "Dates", GamesSheet = "Match History" }],
             Tables = [new StatsTable { Sheet = "Table", Game = "infinite", Players = new TableLookup { Sheet = "PlayerLookup", Key = "id", Column = "name" } }],
             Waypoint = [new WaypointTab { Sheet = "Waypoint", Season = "src/1" }],
             Games = [new GamesTab { Sheet = "Games", Season = "src/1", Game = "infinite" }],
@@ -106,9 +106,10 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names, Has.Count.EqualTo(12));
+            Assert.That(names, Has.Count.EqualTo(13));
             Assert.That(names, Does.Contain("Playoffs"));
             Assert.That(names, Does.Contain("Round 1"));
+            Assert.That(names, Does.Contain("Match History"));
             Assert.That(names, Does.Contain("Stats"));
             Assert.That(names, Does.Contain("Dates"));
             Assert.That(names, Does.Contain("Table"));

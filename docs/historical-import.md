@@ -17,6 +17,12 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   went private or was deleted still imports from its last one. Snapshots are in the database, so they ride its backups.
 - **Parsing** (`GrifballWebApp.Historical/Parsing`): the xlsx is read with ExcelDataReader into text cells and parsed into the same
   `HistoricalArchiveInput` the compiled JSON used to be; `HistoricalImportService` stays the only importer.
+- **Stat columns** (`SeasonStatsParser.Columns`): a stats tab's columns are found by their headers. The Infinite stats
+  tool's tabs (2025 on) count rounds, not games (an Infinite Grifball game is several rounds): their Rounds Won, Lost
+  and Tied (and FL24's Goal Assists) are kept in the line's extended metrics, and the games played, wins and losses come
+  from the season's per-game tab (a tab's `GamesSheet`: the Waypoint match export, a row per player per game, its
+  Outcome 2 a win and 3 a loss). A per-game average (SL24's AVG Score, AVG Damage Dealt, AVG Damage Taken) is kept as
+  its total, the average times the games.
 - **Standings** (`StandingsParser`, a source's `Standings` tabs): a season's team standings in any of its sheets' layouts (a team per
   row under headers, a team per column beside labels, or a list of "Team (captain) (W-L)" cells), its columns found by their
   headers: each team's record, its rank (seed: Rank, Seed, Standing, or the table's order) and its final place (Place
