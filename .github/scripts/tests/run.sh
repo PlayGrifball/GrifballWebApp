@@ -14,6 +14,8 @@
 #   layer-coverage.mjs: each layer's numbers from its own test project's Cobertura report, and their change from master.
 #   signalr-models.mjs: the typed SignalR client's DTOs as re-exports of the client's models (openapi.json).
 #   sablier-wake.sh: wakes a scaled-to-zero group through Sablier (curl stubbed), then waits for a real TCP port.
+#   chart-release.sh: a published chart version's GitHub release, its notes the chart's changes since the previous one by
+#     PR (gh stubbed): its tag, not the latest release, and nothing made when the version is already released.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -523,6 +525,79 @@ then ok "sablier-wake: a port that stays closed fails after the wait"; else bad 
 if wake 200 ready "sqlserver"; then bad "sablier-wake: no port passed"
 elif grep -qF 'WAKE_TCP is not host,port: sqlserver' "$work/out"; then ok "sablier-wake: a host without a port fails"; else bad "sablier-wake: no port:"; cat "$work/out"; fi
 kill "$listener" 2> /dev/null || true
+
+
+# chart-release.sh: a repository whose master changes the chart through merged PRs, a squash-merged one (#N in the
+# subject) and a direct commit, and also changes other files. gh stubbed: the release lookup answers 404 unless
+# CHART_RELEASE_EXISTS is set; the create call's arguments and notes are kept for the checks.
+crepo=$work/chartrepo
+git init -q -b master "$crepo"
+cg() { git -C "$crepo" -c user.name=t -c user.email=t@example.invalid "$@"; }
+cchange() { mkdir -p "$crepo/$(dirname "$1")"; echo "$2" >> "$crepo/$1"; cg add "$1"; cg commit -q -m "$2"; }
+for i in $(seq 1 22); do cchange charts/grifballwebapp/values.yaml "Old chart change $i"; done
+cchange README.md "Docs only"
+mkdir -p "$work/chartbin"
+cat > "$work/chartbin/gh" <<'GH'
+#!/usr/bin/env bash
+case "$*" in
+  "api repos/o/r/releases/tags/"*)
+    if [[ -n "${CHART_RELEASE_EXISTS:-}" ]]; then echo '{"id":1}'; else echo 'gh: Not Found (HTTP 404)' >&2; exit 1; fi ;;
+  "api repos/o/r/releases -X POST"*)
+    printf '%s\n' "$@" > "$CHART_CREATED"
+    for a in "$@"; do if [[ "$a" = body=@* ]]; then cp "${a#body=@}" "$CHART_BODY"; fi; done
+    echo "https://github.com/o/r/releases/tag/x" ;;
+  *) echo "unexpected gh $*" >&2; exit 1 ;;
+esac
+GH
+chmod +x "$work/chartbin/gh"
+chart_release() { # chart_release <version>: releases HEAD as <version>; the create call in $work/created, its notes in $work/body
+  rm -f "$work/created" "$work/body"
+  (cd "$crepo" && CHART_CREATED="$work/created" CHART_BODY="$work/body" GITHUB_REPOSITORY=o/r \
+    CHART=charts/grifballwebapp CHART_REPO=oci://ghcr.io/o/charts IDENTITY='^https://github\.com/o/r/x$' \
+    PATH="$work/chartbin:$PATH" "$scripts/chart-release.sh" "$1" sha256:d1g3st) > "$work/out" 2>&1
+}
+head=$(cg rev-parse HEAD)
+if chart_release 0.1.5 && grep -qxF 'tag_name=grifballwebapp-0.1.5' "$work/created" \
+  && grep -qxF "target_commitish=$head" "$work/created" && grep -qxF 'make_latest=false' "$work/created" \
+  && grep -qxF 'prerelease=false' "$work/created" && grep -qxF 'name=grifballwebapp 0.1.5' "$work/created"; then
+  ok "chart-release: the version's release, tagged grifballwebapp-<version> at the commit, not the latest"
+else bad "chart-release: first release not made:"; cat "$work/out" "$work/created" 2> /dev/null; fi
+if grep -qF 'first tagged release' "$work/body" && grep -qF -- '- Old chart change 22 (' "$work/body" \
+  && grep -qF -- '- Old chart change 3 (' "$work/body" && ! grep -qF -- '- Old chart change 2 (' "$work/body" \
+  && ! grep -qF 'Docs only' "$work/body"; then
+  ok "chart-release: the first release lists the chart's last 20 changes"
+else bad "chart-release: first release notes:"; cat "$work/body" 2> /dev/null; fi
+cg tag grifballwebapp-0.1.5
+
+# Since then: a merged PR that changes the chart, a merged PR that doesn't, a squash-merged one and a direct commit.
+cg checkout -q -b pr-7
+cchange charts/grifballwebapp/templates/a.yaml "Work in the PR"
+cg checkout -q master
+cg merge -q --no-ff pr-7 -m "Merge pull request #7 from o/pr-7" -m "Chart: retry the poke"
+cg checkout -q -b pr-8
+cchange GrifballWebApp.Server/x.cs "Server only"
+cg checkout -q master
+cg merge -q --no-ff pr-8 -m "Merge pull request #8 from o/pr-8" -m "Server things"
+cchange charts/grifballwebapp/Chart.yaml "Bump the gateway (#12)"
+cchange charts/grifballwebapp/values.yaml "Direct chart fix"
+head=$(cg rev-parse HEAD)
+merge7=$(cg log --format=%H --grep '#7' -1)
+if chart_release 0.1.9 && grep -qxF 'tag_name=grifballwebapp-0.1.9' "$work/created" \
+  && grep -qF '### Since grifballwebapp-0.1.5' "$work/body" \
+  && grep -qF 'https://github.com/o/r/compare/grifballwebapp-0.1.5...grifballwebapp-0.1.9' "$work/body" \
+  && grep -qxF -- "- Chart: retry the poke ([#7](https://github.com/o/r/pull/7)) ([\`${merge7:0:7}\`](https://github.com/o/r/commit/$merge7))" "$work/body" \
+  && grep -qF -- '- Bump the gateway ([#12](https://github.com/o/r/pull/12)) ([`' "$work/body" \
+  && grep -qxF -- "- Direct chart fix ([\`${head:0:7}\`](https://github.com/o/r/commit/$head))" "$work/body" \
+  && ! grep -qE 'Server|Work in the PR|Old chart change|first tagged' "$work/body"; then
+  ok "chart-release: the chart's changes since the previous release, by PR"
+else bad "chart-release: notes since the previous release:"; cat "$work/out" "$work/body" 2> /dev/null; fi
+if grep -qxF '`oci://ghcr.io/o/charts/grifballwebapp:0.1.9`, digest `sha256:d1g3st`.' "$work/body" \
+  && grep -qxF "cosign verify ghcr.io/o/charts/grifballwebapp@sha256:d1g3st --certificate-identity-regexp '^https://github\.com/o/r/x$' --certificate-oidc-issuer https://token.actions.githubusercontent.com" "$work/body"; then
+  ok "chart-release: the chart's OCI reference, digest and how to verify it"
+else bad "chart-release: OCI reference or verify line:"; cat "$work/body" 2> /dev/null; fi
+if CHART_RELEASE_EXISTS=1 chart_release 0.1.9 && [[ ! -e "$work/created" ]] && grep -qF 'already released' "$work/out"; then
+  ok "chart-release: a version already released (a re-run) is left alone"
+else bad "chart-release: re-run:"; cat "$work/out"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

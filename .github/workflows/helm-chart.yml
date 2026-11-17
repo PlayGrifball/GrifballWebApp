@@ -6,7 +6,7 @@ name: Helm chart
 # scaled-out one (worker and Redis), on Kubernetes 1.34 to 1.37.
 # master: the same, then, if the chart changed, publish it to
 # oci://ghcr.io/playgrifball/charts/grifballwebapp as <Chart.yaml's major.minor>.<run number>, signed
-# keyless with cosign.
+# keyless with cosign, and give it a GitHub release, tagged grifballwebapp-<version>, with the chart's changes.
 on:
   pull_request:
     branches: [ "master" ]
@@ -24,6 +24,8 @@ env:
   # The Kubernetes versions supported (Chart.yaml kubeVersion): the oldest and the newest.
   KUBERNETES_OLDEST: "1.34.0"
   KUBERNETES_NEWEST: "1.37.0"
+  # The publish job's certificate identity, which cosign verify checks the chart's signature against.
+  IDENTITY: ^https://github\.com/${{ github.repository }}/\.github/workflows/helm-chart\.yml@refs/heads/master$
 
 jobs:
   test:
@@ -303,6 +305,10 @@ jobs:
     runs-on: ubuntu-latest
     # A hung job fails after this rather than GitHub's 6 hours (under a minute usually)
     timeout-minutes: 15
+    outputs:
+      # Set once the version is published (or was, by an earlier attempt of this run): the release job then runs.
+      version: ${{ steps.publish.outputs.version }}
+      digest: ${{ steps.publish.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -350,18 +356,22 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish and sign
+        id: publish
         if: steps.changed.outputs.publish == 'true'
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IDENTITY: ^https://github\.com/${{ github.repository }}/\.github/workflows/helm-chart\.yml@refs/heads/master$
         run: |
           set -euo pipefail
           echo "$TOKEN" | helm registry login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
           base=$(sed -n 's/^version: *//p' "$CHART/Chart.yaml")
           version="${base%.*}.${{ github.run_number }}"
-          # A re-run of this run would reuse its number: never overwrite a published version.
+          # A re-run of this run would reuse its number: never overwrite a published version. Its digest still goes to
+          # the release job, which makes the release if the first attempt didn't.
           if helm show chart "$CHART_REPO/grifballwebapp" --version "$version" >/dev/null 2>&1; then
             echo "grifballwebapp $version is already published; not overwriting it."
+            digest=$(helm pull "$CHART_REPO/grifballwebapp" --version "$version" -d pulled 2>&1 | sed -n 's/^Digest: *//p')
+            test -n "$digest"
+            { echo "version=$version"; echo "digest=$digest"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           helm package "$CHART" --version "$version" -d dist
@@ -372,8 +382,35 @@ jobs:
           cosign sign --yes "$ref"
           cosign verify "$ref" --certificate-identity-regexp "$IDENTITY" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          { echo "version=$version"; echo "digest=$digest"; } >> "$GITHUB_OUTPUT"
           {
             echo "Published and signed $CHART_REPO/grifballwebapp:$version ($digest)."
             echo
             echo "Verify: cosign verify ${ref%@*}:$version --certificate-identity-regexp '$IDENTITY' --certificate-oidc-issuer https://token.actions.githubusercontent.com"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # The published version's GitHub release (.github/scripts/chart-release.sh): tagged grifballwebapp-<version> at the
+  # commit, its notes the chart's changes since the previous chart release, so Renovate shows them on a chart update.
+  # Never the latest release (prod's). Its own job, so only it can write to the repository. Skipped when nothing was
+  # published (the chart didn't change).
+  release:
+    needs: publish
+    if: ${{ needs.publish.outputs.digest != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write  # the chart version's tag and release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The history and the tags: the previous chart release, and the commits since it.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Release ${{ needs.publish.outputs.version }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ github.sha }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: .github/scripts/chart-release.sh "$VERSION" "$DIGEST"
