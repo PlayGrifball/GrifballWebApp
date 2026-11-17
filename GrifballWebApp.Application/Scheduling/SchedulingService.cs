@@ -32,12 +32,11 @@ public sealed class SchedulingService(IApplicationDbContext context, TimeProvide
             .Select(s => new { s.SeasonStart, s.SeasonEnd }).SingleOrDefaultAsync(ct);
         if (season is null)
             return null;
+        // The rules and timeslots once: the teams' are worked out from them
+        var availability = new TeamAvailabilityService(context);
         var rules = await new SeasonSchedulingRulesService(context).ForAsync(seasonID, ct);
-        var teams = await new TeamAvailabilityService(context).ForSeasonAsync(seasonID, ct);
-        var slots = await context.Availability.AsNoTracking()
-            .Where(o => o.SeasonAvailability.Any(s => s.SeasonID == seasonID))
-            .Select(o => new { o.DayOfWeek, o.Time })
-            .ToListAsync(ct);
+        var slots = await availability.SeasonSlotsAsync(seasonID, ct);
+        var teams = await availability.ForSeasonAsync(seasonID, rules, slots, ct);
         var scheduled = await context.SeasonMatches.AsNoTracking()
             .Where(m => m.SeasonID == seasonID && m.ScheduledTime != null && m.HomeTeamID != null && m.AwayTeamID != null)
             .Select(m => new { m.SeasonMatchID, m.HomeTeamID, m.AwayTeamID, m.ScheduledTime, m.BestOf })

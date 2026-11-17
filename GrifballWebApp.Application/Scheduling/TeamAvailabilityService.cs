@@ -10,6 +10,9 @@ public sealed record TeamSlot(int AvailabilityOptionID, DayOfWeek DayOfWeek, Tim
 /// A team's timeslots, each of its season's: its captain's own (<see cref="SetByCaptain"/>), else its roster's (a slot is
 /// the team's when enough of its players can play it: the season's rule).
 /// </summary>
+/// <summary>One of a season's weekly timeslots.</summary>
+internal sealed record SeasonSlot(int AvailabilityOptionID, DayOfWeek DayOfWeek, TimeOnly Time);
+
 public sealed record TeamSlots(int TeamID, bool SetByCaptain, int RosterSize, IReadOnlyList<TeamSlot> Slots)
 {
     /// <summary>The caller may change them: the team's captain, or staff (<see cref="TeamAvailabilityService.MayChangeAsync"/>).</summary>
@@ -31,13 +34,20 @@ public sealed class TeamAvailabilityService(IApplicationDbContext context)
 
     /// <summary>Each team of <paramref name="seasonID"/>'s timeslots, by its ID.</summary>
     public async Task<IReadOnlyDictionary<int, TeamSlots>> ForSeasonAsync(int seasonID, CancellationToken ct = default)
-    {
-        var rules = await new SeasonSchedulingRulesService(context).ForAsync(seasonID, ct);
-        var slots = await context.Availability.AsNoTracking()
+        => await ForSeasonAsync(seasonID, await new SeasonSchedulingRulesService(context).ForAsync(seasonID, ct), await SeasonSlotsAsync(seasonID, ct), ct);
+
+    /// <summary><paramref name="seasonID"/>'s weekly timeslots, by day and time.</summary>
+    internal Task<List<SeasonSlot>> SeasonSlotsAsync(int seasonID, CancellationToken ct)
+        => context.Availability.AsNoTracking()
             .Where(o => o.SeasonAvailability.Any(s => s.SeasonID == seasonID))
             .OrderBy(o => o.DayOfWeek).ThenBy(o => o.Time)
-            .Select(o => new { o.AvailabilityOptionID, o.DayOfWeek, o.Time })
+            .Select(o => new SeasonSlot(o.AvailabilityOptionID, o.DayOfWeek, o.Time))
             .ToListAsync(ct);
+
+    /// <summary>The same, with the season's <paramref name="rules"/> and <paramref name="slots"/> loaded already (SchedulingService.LoadAsync's).</summary>
+    internal async Task<IReadOnlyDictionary<int, TeamSlots>> ForSeasonAsync(int seasonID, Domain.League.SeasonSchedulingRules rules,
+        IReadOnlyList<SeasonSlot> slots, CancellationToken ct)
+    {
         var teams = await context.Teams.AsNoTracking()
             .Where(t => t.SeasonID == seasonID)
             .Select(t => new
