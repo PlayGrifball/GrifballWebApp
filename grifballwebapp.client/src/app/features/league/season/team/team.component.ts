@@ -12,6 +12,8 @@ import { VodListComponent } from '@shared/vodList/vodList.component';
 import type { TeamDto } from '@api/models';
 import { describePage, PageDescription } from '@shared/pageMeta';
 import { TeamStore } from './team.store';
+import { AccountService } from '@core/auth/account.service';
+import { TeamAvailabilityComponent } from './teamAvailability/teamAvailability.component';
 
 /** The team as search results and link previews show it: its name and season, record, titles and roster. */
 export function describeTeam(team: TeamDto): PageDescription {
@@ -42,6 +44,7 @@ export function describeTeam(team: TeamDto): PageDescription {
         SeasonPlayerStatsComponent,
         VodListComponent,
         DatePipe,
+        TeamAvailabilityComponent,
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',
@@ -50,6 +53,7 @@ export function describeTeam(team: TeamDto): PageDescription {
 })
 export class TeamComponent {
   private readonly store = inject(TeamStore);
+  private readonly account = inject(AccountService);
 
   teamID = input.required<number>();
   seasonID = input.required<number>();
@@ -63,6 +67,15 @@ export class TeamComponent {
   readonly noMatches = computed(() => {
     const team = this.team();
     return !!team && (team.season.isHistorical || team.season.hasEnded) && this.matchesLoaded() && this.matchCount() === 0;
+  });
+
+  /** The team's availability is shown to those signed in (its API is theirs alone). */
+  readonly signedIn = this.account.isLoggedIn;
+  /** The viewer captains the team, or is staff: they may change its availability. */
+  readonly canEditAvailability = computed(() => {
+    const me = this.account.personID();
+    return this.account.isSysAdmin() || this.account.isEventOrganizer()
+      || (me !== null && (this.team()?.players ?? []).some(p => p.isCaptain && p.userID === me));
   });
 
   displayedColumns: string[] = ['otherTeam', 'score', 'result', 'scheduledTime', 'matchPage'];

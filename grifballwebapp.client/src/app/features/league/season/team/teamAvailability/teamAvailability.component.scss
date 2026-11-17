@@ -1,0 +1,30 @@
+:host {
+  display: block;
+}
+
+.ta-source {
+  margin: 0 0 8px;
+}
+
+.ta-slots {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ta-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ta-slot--off > span:first-child {
+  color: var(--hud-muted);
+}
+
+.ta-actions {
+  margin-top: 8px;
+}
