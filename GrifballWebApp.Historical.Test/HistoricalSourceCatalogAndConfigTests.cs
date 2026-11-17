@@ -104,13 +104,16 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Drafts = [new DraftTab { Sheet = " Draft Board " }],
             ChampionsSheet = "Champions",
             PlayersSheet = "Players",
+            Brackets = [new BracketTab { Sheet = "Playoffs" }, new BracketTab { Rounds = [new BracketRoundTab { Sheet = "Round 1" }] }],
         };
 
         var names = config.SheetNames();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names, Has.Count.EqualTo(13));
+            Assert.That(names, Has.Count.EqualTo(15));
+            Assert.That(names, Does.Contain("Playoffs"));
+            Assert.That(names, Does.Contain("Round 1"));
             Assert.That(names, Does.Contain("Draft Board"));
             Assert.That(names, Does.Contain("Match History"));
             Assert.That(names, Does.Contain("Stats"));
@@ -129,6 +132,14 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             var hasStatsAnyCase = names.Contains("STATS");
             Assert.That(hasStatsAnyCase, Is.True);
         }
+    }
+
+    private static readonly int?[] GwlSeriesLengths = [5, 5, 5, 5, 7];
+
+    [Test]
+    public void BracketLayouts_TakeEachSeriesLengthFromItsSheetsHeader()
+    {
+        Assert.That(HistoricalBracketLayouts.GwlSpring2023().Select(s => s.BestOf), Is.EqualTo(GwlSeriesLengths), "Quarter- and semi-finals Bo5, the championship Bo7");
     }
 
     [Test]
