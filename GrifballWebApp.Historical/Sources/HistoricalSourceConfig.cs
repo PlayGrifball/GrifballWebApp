@@ -98,6 +98,7 @@ public class HistoricalSourceConfig
             FinishesSheet,
             .. Results.Select(t => t.Sheet),
             .. Brackets.Select(t => t.Sheet),
+            .. Brackets.Select(t => t.RecordsSheet),
             .. Brackets.SelectMany(t => t.Rounds.Select(r => r.Sheet)),
             .. Drafts.Select(t => t.Sheet),
             .. Awards.Select(t => t.Sheet),

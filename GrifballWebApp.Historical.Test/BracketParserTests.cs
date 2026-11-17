@@ -399,15 +399,15 @@ public class BracketParserTests
     public void Cells_PlayoffRecords_DecideOnlyASeriesOneSideCouldNotHaveLost()
     {
         // Bravo lost no playoff game: Alpha lost the 2-0. Charlie and Delta each lost one, too few to have lost a 2-1: the
-        // records can't tell. Foxtrot has no record. A tie breaker's game ("(0-1*)") isn't the playoffs', and a record
-        // under no name is nobody's
+        // records can't tell. Foxtrot has no record. A tie breaker's game ("(0-1*)") isn't the playoffs' (Golf played no
+        // other), and a record under no name is nobody's
         var bracket = Cells("Playoffs",
             ("A1", "Alpha"), ("A2", "vs (2-0)"), ("A3", "Bravo"),
             ("C1", "Charlie"), ("C2", "vs (2-1)"), ("C3", "Delta"),
             ("E1", "Echo"), ("E2", "vs (2-0)"), ("E3", "Foxtrot"));
         var records = Cells("Teams",
-            ("A1", "Alpha"), ("B1", "Bravo"), ("C1", "Charlie"), ("D1", "Delta"), ("E1", "Echo"),
-            ("A2", "3-1 (2-2) (0-1*)"), ("B2", "3-1 (2-0)"), ("C2", "5-0 (2-1)"), ("D2", "4-1 (2-1)"), ("E2", "2-2 (0-0)"), ("F2", "1-1 (0-2)"));
+            ("A1", "Alpha"), ("B1", "Bravo"), ("C1", "Charlie"), ("D1", "Delta"), ("E1", "Echo"), ("G1", "Golf"),
+            ("A2", "3-1 (2-2) (0-1*)"), ("B2", "3-1 (2-0)"), ("C2", "5-0 (2-1)"), ("D2", "4-1 (2-1)"), ("E2", "2-2 (0-0)"), ("F2", "1-1 (0-2)"), ("G2", "1-0 (1-0*)"));
         var tab = new BracketTab
         {
             Sheet = "Playoffs",
