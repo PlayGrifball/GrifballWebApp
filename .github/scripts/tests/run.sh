@@ -16,8 +16,12 @@
 #   sablier-wake.sh: wakes a scaled-to-zero group through Sablier (curl stubbed), then waits for a real TCP port.
 #   chart-release.sh: a published chart version's GitHub release, its notes the chart's changes since the previous one by
 #     PR (gh stubbed): its tag, not the latest release, and nothing made when the version is already released.
-#   env-deploy.sh: a promotion's deploy commit (the chart at the images' commit, with promoted-images.yaml) and its
-#     env/<env>/<date> and env/<env>/current tags (gh, docker stubbed).
+#   chart-publish.sh: a chart version pushed and signed, or on a re-run signed if it wasn't; output only once it verifies
+#     (helm, cosign stubbed).
+#   env-deploy.sh: a deploy commit (the chart at the images' commit, with promoted-images.yaml), its env/<env>/<date>
+#     tag (staging and prod only) and env/<env>/current; test never moves back; a deploy of the same images is reused.
+#   env-run-images.sh: the images a promotion's earlier attempt deployed. env-release.sh: the promotion's release, from
+#     env-deploy.sh's commits, naming the dated tag; a re-run doesn't release twice (gh, docker stubbed).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -600,70 +604,257 @@ else bad "chart-release: OCI reference or verify line:"; cat "$work/body" 2> /de
 if CHART_RELEASE_EXISTS=1 chart_release 0.1.9 && [[ ! -e "$work/created" ]] && grep -qF 'already released' "$work/out"; then
   ok "chart-release: a version already released (a re-run) is left alone"
 else bad "chart-release: re-run:"; cat "$work/out"; fi
-# env-deploy.sh: a promotion's deploy commit (the chart at the images' commit, plus promoted-images.yaml naming the
-# images by digest), a dated env/<environment>/<date> tag that never moves, and env/<environment>/current moved to it. gh
-# stubbed: each call is recorded in $DEPLOY_CALLS, a POST's --input body as the next line; the tags in $DEPLOY_EXISTING
-# exist. docker stubbed: every image's revision label is $DEPLOY_REVISION (empty: no label).
-mkdir -p "$work/deploybin"
-cat > "$work/deploybin/gh" <<'GH'
+
+# chart-publish.sh: publishes and signs a chart version; on a re-run whose version is already published, signs it if
+# this workflow hasn't. Either way the version and digest are output only once the chart verifies as signed. helm
+# stubbed as helm v4 behaves: pull prints the digest, then fails when -d names a missing directory. cosign stubbed:
+# verify passes for a reference listed in $PUB_SIGNED, sign adds it there (or fails, with PUB_SIGN_FAILS). Calls in
+# $PUB_CALLS.
+mkdir -p "$work/pubbin"
+cat > "$work/pubbin/helm" <<'HELM'
 #!/usr/bin/env bash
-echo "$*" >> "$DEPLOY_CALLS"
-input=""; prev=""; for a in "$@"; do [[ "$prev" == --input ]] && input=$a; prev=$a; done
-[[ -n "$input" ]] && { if [[ "$input" == - ]]; then cat; else cat "$input"; fi; echo; } >> "$DEPLOY_CALLS"
-case "$*" in
-  "api repos/o/r/git/commits/c0ffee --jq .tree.sha") echo tree0 ;;
-  "api repos/o/r/git/trees -X POST --input "*" --jq .sha") echo tree1 ;;
-  "api repos/o/r/git/commits -X POST --input "*" --jq .sha") echo d3p10y ;;
-  "api repos/o/r/git/ref/tags/"*) [[ " $DEPLOY_EXISTING " == *" ${2#repos/o/r/git/ref/tags/} "* ]] && echo old || { echo "Not Found (HTTP 404)" >&2; exit 1; } ;;
-  "api repos/o/r/git/refs/tags/env/"*" -X PATCH -f sha=d3p10y -F force=true --jq .object.sha") echo d3p10y ;;
-  "api repos/o/r/git/refs -X POST -f ref=refs/tags/env/"*" -f sha=d3p10y --jq .object.sha") echo d3p10y ;;
-  *) echo "unexpected gh $*" >&2; exit 9 ;;
+echo "helm $*" >> "$PUB_CALLS"
+dir=""; prev=""; for a in "$@"; do [[ "$prev" == -d ]] && dir=$a; prev=$a; done
+case "$1 $2" in
+  "show chart") [[ -n "${PUB_PUBLISHED:-}" ]] || { echo 'Error: not found' >&2; exit 1; } ;;
+  "pull "*)
+    echo "Pulled: ghcr.io/o/charts/grifballwebapp:x"; echo "Digest: sha256:0ld"
+    [[ -d "$dir" ]] || { echo "Error: failed to untar: stat $dir: no such file or directory" >&2; exit 1; } ;;
+  "package "*) mkdir -p "$dir"; touch "$dir/grifballwebapp-0.1.42.tgz" ;;
+  "push "*) echo "Pushed: ghcr.io/o/charts/grifballwebapp:0.1.42"; echo "Digest: sha256:n3w" ;;
+  *) echo "unexpected helm $*" >&2; exit 9 ;;
 esac
-GH
-cat > "$work/deploybin/docker" <<'DOCKER'
+HELM
+cat > "$work/pubbin/cosign" <<'COSIGN'
 #!/usr/bin/env bash
-[[ "$1 $2 $3" == "buildx imagetools inspect" ]] || { echo "unexpected docker $*" >&2; exit 9; }
-printf '{"config":{"Labels":{%s}}}\n' "${DEPLOY_REVISION:+\"org.opencontainers.image.revision\":\"$DEPLOY_REVISION\"}"
-DOCKER
-chmod +x "$work/deploybin/gh" "$work/deploybin/docker"
-deploy() { # deploy <environment> [existing tags] [revision]: exit code; calls in $work/deploycalls, outputs in $work/deployout
-  : > "$work/deploycalls"; : > "$work/deployout"
-  (DEPLOY_CALLS="$work/deploycalls" DEPLOY_EXISTING="${2:-}" DEPLOY_REVISION="${3-c0ffee}" GITHUB_REPOSITORY=o/r \
-    GITHUB_OUTPUT="$work/deployout" PATH="$work/deploybin:$PATH" "$scripts/env-deploy.sh" "$1" \
-    ghcr.io/playgrifball/grifballwebappserver@sha256:aaa ghcr.io/playgrifball/grifballwebappclient@sha256:bbb) \
-    > "$work/out" 2>&1
+echo "cosign $*" >> "$PUB_CALLS"
+case "$1" in
+  verify) grep -qxF "$2" "$PUB_SIGNED" || { echo 'Error: no matching signatures' >&2; exit 1; } ;;
+  sign) [[ -z "${PUB_SIGN_FAILS:-}" ]] || { echo 'Error: signing failed' >&2; exit 1; }; echo "${*: -1}" >> "$PUB_SIGNED" ;;
+  *) echo "unexpected cosign $*" >&2; exit 9 ;;
+esac
+COSIGN
+chmod +x "$work/pubbin/helm" "$work/pubbin/cosign"
+publish() { # publish <version> [a reference already signed]: exit code; calls in $work/pubcalls, outputs in $work/pubout
+  : > "$work/pubcalls"; : > "$work/pubout"; printf '%s\n' "${2:-}" > "$work/signed"
+  (cd "$work" && PUB_CALLS="$work/pubcalls" PUB_SIGNED="$work/signed" GITHUB_OUTPUT="$work/pubout" \
+    CHART=charts/grifballwebapp CHART_REPO=oci://ghcr.io/o/charts IDENTITY='^https://github\.com/o/r/x$' \
+    PATH="$work/pubbin:$PATH" "$scripts/chart-publish.sh" "$1") > "$work/out" 2>&1
 }
+pubout() { printf 'version=%s\ndigest=%s\n' "$1" "$2"; }
+verify_call="cosign verify ghcr.io/o/charts/grifballwebapp@sha256:%s --certificate-identity-regexp ^https://github\.com/o/r/x$ --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+# shellcheck disable=SC2059 # the format is ours
+if publish 0.1.42 && grep -qxF 'helm push dist/grifballwebapp-0.1.42.tgz oci://ghcr.io/o/charts' "$work/pubcalls" \
+  && grep -qxF 'cosign sign --yes ghcr.io/o/charts/grifballwebapp@sha256:n3w' "$work/pubcalls" \
+  && grep -qxF "$(printf "$verify_call" n3w)" "$work/pubcalls" && [[ "$(cat "$work/pubout")" = "$(pubout 0.1.42 sha256:n3w)" ]]
+then ok "chart-publish: a new version is pushed, signed and verified, then output"
+else bad "chart-publish: new version:"; cat "$work/out" "$work/pubcalls" "$work/pubout"; fi
+if PUB_PUBLISHED=1 publish 0.1.42 ghcr.io/o/charts/grifballwebapp@sha256:0ld \
+  && [[ "$(cat "$work/pubout")" = "$(pubout 0.1.42 sha256:0ld)" ]] && ! grep -qE '^helm push|^cosign sign' "$work/pubcalls"
+then ok "chart-publish: a re-run of a published, signed version outputs its digest (helm pull into a directory that exists)"
+else bad "chart-publish: re-run, signed:"; cat "$work/out" "$work/pubcalls" "$work/pubout"; fi
+# shellcheck disable=SC2059
+if PUB_PUBLISHED=1 publish 0.1.42 && ! grep -q '^helm push' "$work/pubcalls" \
+  && [[ "$(grep '^cosign' "$work/pubcalls")" = "$(printf '%s\n' "$(printf "$verify_call" 0ld)" \
+    'cosign sign --yes ghcr.io/o/charts/grifballwebapp@sha256:0ld' "$(printf "$verify_call" 0ld)")" ]] \
+  && [[ "$(cat "$work/pubout")" = "$(pubout 0.1.42 sha256:0ld)" ]]
+then ok "chart-publish: a re-run of a version published but never signed signs it, verifies it, then outputs it"
+else bad "chart-publish: re-run, unsigned:"; cat "$work/out" "$work/pubcalls" "$work/pubout"; fi
+if PUB_PUBLISHED=1 PUB_SIGN_FAILS=1 publish 0.1.42; then bad "chart-publish: an unsigned re-run that couldn't sign passed"
+elif [[ ! -s "$work/pubout" ]]; then ok "chart-publish: a chart that can't be signed outputs nothing (so no release)"
+else bad "chart-publish: unsigned, sign failed:"; cat "$work/out" "$work/pubout"; fi
+
+# env-deploy.sh, env-run-images.sh and env-release.sh: gh stubbed as the REST API, answering JSON (through --jq when
+# given, as gh does): ENV_REFS, the repository's tags ("<tag> <sha>" lines); ENV_PARENT, the parent of any deploy commit
+# read (not the images' commit c0ffee), ENV_MESSAGE its message; ENV_IMAGES, every commit's promoted-images.yaml (unset:
+# none); ENV_COMPARE, the compare API's status, one word per call (the last from then on); ENV_SETTLED, what
+# env/test/current reads as, one sha per read; ENV_RELEASES, the release list. Each call is logged in $ENV_CALLS as
+# "<method> <path> <fields>", a POSTed --input as the next line; a release's notes go to $ENV_BODY, its asset to
+# $ENV_ASSET. docker stubbed (logged too): every image's revision label is $ENV_REVISION (empty: none).
+mkdir -p "$work/envbin"
+cat > "$work/envbin/gh" <<'GH'
+#!/usr/bin/env bash
+shift  # api
+method="" path="" jqx="" input="" fields=()
+while (($#)); do
+  case "$1" in
+    -X) method=$2; shift ;;
+    --jq) jqx=$2; shift ;;
+    --input) input=$2; shift ;;
+    -f|-F) fields+=("$2"); shift ;;
+    -H) shift ;;
+    --paginate) ;;
+    *) path=$1 ;;
+  esac
+  shift
+done
+[[ -n "$method" ]] || { if ((${#fields[@]})); then method=POST; else method=GET; fi; }
+path=${path#https://uploads.github.com/}; path=${path#repos/o/r/}
+echo "$method $path${fields[*]:+ ${fields[*]}}" >> "$ENV_CALLS"
+[[ -z "$input" ]] || { cat "$input"; echo; } >> "$ENV_CALLS"
+notfound() { echo "gh: Not Found (HTTP 404)" >&2; exit 1; }
+nth() { # nth <words> <call pattern>: the word for this call of that kind (the last one from then on)
+  local words count; read -ra words <<< "$1"; count=$(grep -cE "$2" "$ENV_CALLS")
+  ((count <= ${#words[@]})) || count=${#words[@]}; echo "${words[count - 1]}"
+}
+tags() { # tags <prefix>: the matching tags, as git/matching-refs lists them
+  while read -r tag sha; do
+    [[ -n "$tag" && "refs/tags/$tag" == "$1"* ]] && jq -cn --arg ref "refs/tags/$tag" --arg sha "$sha" '{ref: $ref, object: {type: "commit", sha: $sha}}'
+  done <<< "${ENV_REFS:-}" | jq -cs .
+}
+case "$method $path" in
+  "GET git/matching-refs/"*) json=$(tags "refs/${path#git/matching-refs/}") ;;
+  "GET git/ref/tags/env/test/current") json=$(jq -cn --arg sha "$(nth "${ENV_SETTLED:?}" '^GET git/ref/tags/env/test/current$')" '{object: {sha: $sha}}') ;;
+  "GET git/ref/"*) json=$(tags "refs/${path#git/ref/}" | jq -c --arg ref "refs/${path#git/ref/}" '.[] | select(.ref == $ref)'); [[ -n "$json" ]] || notfound ;;
+  "GET git/commits/c0ffee") json='{"tree":{"sha":"tree0"}}' ;;
+  "GET git/commits/"*) json=$(jq -cn --arg p "${ENV_PARENT:-}" --arg m "${ENV_MESSAGE:-}" '{parents: [{sha: $p}], message: $m}') ;;
+  "GET contents/charts/grifballwebapp/promoted-images.yaml?ref="*)
+    [[ -n "${ENV_IMAGES+set}" ]] || notfound
+    json=$(jq -cn --arg c "$(printf '%s\n' "$ENV_IMAGES" | base64)" '{content: $c, encoding: "base64"}') ;;
+  "GET compare/"*) json=$(jq -cn --arg s "$(nth "${ENV_COMPARE:-ahead}" '^GET compare/')" '{status: $s}') ;;
+  "POST git/trees") json='{"sha":"tree1"}' ;;
+  "POST git/commits") json='{"sha":"d3p10y"}' ;;
+  "POST git/refs"|"PATCH git/refs/"*) json='{"object":{"sha":"d3p10y"}}' ;;
+  "GET releases") json=${ENV_RELEASES:-[]} ;;
+  "POST releases/generate-notes") json='{"body":"- the changes"}' ;;
+  "POST releases")
+    for f in "${fields[@]}"; do [[ "$f" != body=@* ]] || cp "${f#body=@}" "$ENV_BODY"; done
+    json='{"id":7}' ;;
+  "POST releases/7/assets?name=release.json") cp "$input" "$ENV_ASSET"; json='{}' ;;
+  "PATCH releases/7") json='{"html_url":"https://github.com/o/r/releases/tag/x"}' ;;
+  "DELETE releases/"*) exit 0 ;;
+  *) echo "unexpected gh $method $path" >&2; exit 9 ;;
+esac
+if [[ -n "$jqx" ]]; then jq -r "$jqx" <<< "$json"; else printf '%s\n' "$json"; fi
+GH
+cat > "$work/envbin/docker" <<'DOCKER'
+#!/usr/bin/env bash
+echo "docker $*" >> "$ENV_CALLS"
+case "$1 $2 $3" in
+  "buildx imagetools inspect") printf '{"config":{"Labels":{%s}}}\n' "${ENV_REVISION:+\"org.opencontainers.image.revision\":\"$ENV_REVISION\"}" ;;
+  "buildx imagetools create") ;;
+  *) echo "unexpected docker $*" >&2; exit 9 ;;
+esac
+DOCKER
+chmod +x "$work/envbin/gh" "$work/envbin/docker"
+run_url=https://github.com/o/r/actions/runs/9
+backend_ref=ghcr.io/playgrifball/grifballwebappserver@sha256:aaa frontend_ref=ghcr.io/playgrifball/grifballwebappclient@sha256:bbb
+env_run() { # env_run <script> <args...>: exit code; calls in $work/calls, outputs in $work/envout, stdout+stderr in $work/out
+  : > "$work/calls"; : > "$work/envout"; rm -f "$work/body" "$work/asset"
+  (ENV_CALLS="$work/calls" ENV_BODY="$work/body" ENV_ASSET="$work/asset" ENV_REVISION="${ENV_REVISION-c0ffee}" \
+    GITHUB_REPOSITORY=o/r GITHUB_OUTPUT="$work/envout" DEPLOY_SETTLE_SECONDS=0 RUN_URL=$run_url \
+    PATH="$work/envbin:$PATH" "$scripts/$1" "${@:2}") > "$work/out" 2>&1
+}
+deploy() { env_run env-deploy.sh "$1" "$backend_ref" "$frontend_ref"; }
 # The tree and commit bodies the script POSTed (the line after each call)
-posted() { grep -A1 -F "api repos/o/r/git/$1 -X POST --input" "$work/deploycalls" | sed -n 2p; }
+posted() { grep -A1 -xF "POST git/$1" "$work/calls" | sed -n 2p; }
 images_file() { posted trees | jq -r '.tree[] | select(.path == "charts/grifballwebapp/promoted-images.yaml") | .content'; }
-if deploy staging && [[ "$(posted trees | jq -r '.base_tree, (.tree | length), .tree[0].mode')" = "$(printf 'tree0\n1\n100644')" ]] \
-  && [[ "$(images_file)" = "$(printf '%s\n' \
-    '# The images deployed to staging with this chart (env-deploy.sh), by digest.' \
-    'backend:' '  image:' '    repository: ghcr.io/playgrifball/grifballwebappserver' '    tag: staging@sha256:aaa' \
-    'frontend:' '  image:' '    repository: ghcr.io/playgrifball/grifballwebappclient' '    tag: staging@sha256:bbb')" ]]
-then ok "env-deploy: the chart at the images' commit, with promoted-images.yaml naming them by digest"
-else bad "env-deploy: the deploy tree:"; cat "$work/out" "$work/deploycalls"; fi
-if [[ "$(posted commits | jq -c '{tree, parents}')" = '{"tree":"tree1","parents":["c0ffee"]}' ]] \
-  && posted commits | jq -e '.message | startswith("Deploy staging: c0ffee")' > /dev/null
-then ok "env-deploy: one commit on top of the images' commit"
-else bad "env-deploy: the deploy commit:"; cat "$work/deploycalls"; fi
+refcalls() { grep -E '^(POST git/refs|PATCH git/refs/)' "$work/calls" || true; }
+promoted() { # promoted <environment>: the promoted-images.yaml env-deploy.sh writes for these images
+  printf '%s\n' "# The images deployed to $1 with this chart (env-deploy.sh), by digest." \
+    'backend:' '  image:' '    repository: ghcr.io/playgrifball/grifballwebappserver' "    tag: $1@sha256:aaa" \
+    'frontend:' '  image:' '    repository: ghcr.io/playgrifball/grifballwebappclient' "    tag: $1@sha256:bbb"
+}
 today=$(date -u +%Y-%m-%d)
-if [[ "$(grep -E 'git/refs( |/)' "$work/deploycalls")" = "$(printf '%s\n' \
-    "api repos/o/r/git/refs -X POST -f ref=refs/tags/env/staging/$today -f sha=d3p10y --jq .object.sha" \
-    'api repos/o/r/git/refs -X POST -f ref=refs/tags/env/staging/current -f sha=d3p10y --jq .object.sha')" ]] \
-  && grep -qx 'deploy_commit=d3p10y' "$work/deployout" && grep -qx "deploy_tag=env/staging/$today" "$work/deployout"
-then ok "env-deploy: the first time, makes env/staging/<date> and env/staging/current, and outputs both"
-else bad "env-deploy: first tags:"; cat "$work/out" "$work/deploycalls" "$work/deployout"; fi
-if deploy prod "env/prod/current env/prod/$today" && [[ "$(grep -E 'git/refs( |/)' "$work/deploycalls")" = "$(printf '%s\n' \
-    "api repos/o/r/git/refs -X POST -f ref=refs/tags/env/prod/$today.2 -f sha=d3p10y --jq .object.sha" \
-    'api repos/o/r/git/refs/tags/env/prod/current -X PATCH -f sha=d3p10y -F force=true --jq .object.sha')" ]] \
-  && images_file | grep -qx '    tag: prod@sha256:aaa'
-then ok "env-deploy: a second deploy that day gets env/prod/<date>.2, and env/prod/current moves; no dated tag moves"
-else bad "env-deploy: moving env/prod:"; cat "$work/out" "$work/deploycalls"; fi
-if deploy staging "" ""; then bad "env-deploy: an image without a revision label passed"
-elif grep -qF 'has no org.opencontainers.image.revision label' "$work/out" && ! grep -q 'git/' "$work/deploycalls"
+if deploy staging && [[ "$(posted trees | jq -r '.base_tree, (.tree | length), .tree[0].mode')" = "$(printf 'tree0\n1\n100644')" ]] \
+  && [[ "$(images_file)" = "$(promoted staging)" ]]
+then ok "env-deploy: the chart at the images' commit, with promoted-images.yaml naming them by digest"
+else bad "env-deploy: the deploy tree:"; cat "$work/out" "$work/calls"; fi
+if [[ "$(posted commits | jq -c '{tree, parents}')" = '{"tree":"tree1","parents":["c0ffee"]}' ]] \
+  && posted commits | jq -e --arg run "$run_url" '(.message | startswith("Deploy staging: c0ffee")) and (.message | split("\n") | index("Run: " + $run))' > /dev/null
+then ok "env-deploy: one commit on top of the images' commit, naming the run that made it"
+else bad "env-deploy: the deploy commit:"; cat "$work/calls"; fi
+if [[ "$(refcalls)" = "$(printf '%s\n' "POST git/refs ref=refs/tags/env/staging/$today sha=d3p10y" \
+    'POST git/refs ref=refs/tags/env/staging/current sha=d3p10y')" ]] \
+  && [[ "$(cat "$work/envout")" = "$(printf '%s\n' commit=c0ffee frontend_commit=c0ffee deploy_commit=d3p10y "deploy_tag=env/staging/$today")" ]]
+then ok "env-deploy: the first time, makes env/staging/<date> and env/staging/current, and outputs them and the commits"
+else bad "env-deploy: first tags:"; cat "$work/out" "$work/calls" "$work/envout"; fi
+if [[ "$(grep -c '^GET git/' "$work/calls")" = 2 ]] && grep -qxF 'GET git/matching-refs/tags/env/staging/' "$work/calls"
+then ok "env-deploy: one listing of env/staging/ tags (current and the dated ones), no lookup per tag"
+else bad "env-deploy: tag lookups:"; grep '^GET' "$work/calls"; fi
+if ENV_REFS=$(printf '%s\n' "env/prod/current cur1" "env/prod/$today cur0" "env/prod/$today.3 cur1" "env/prod/2026-01-01.9 x") \
+  ENV_IMAGES=old ENV_PARENT=p0 deploy prod \
+  && [[ "$(refcalls)" = "$(printf '%s\n' "POST git/refs ref=refs/tags/env/prod/$today.4 sha=d3p10y" \
+    'PATCH git/refs/tags/env/prod/current sha=d3p10y force=true')" ]] \
+  && grep -qxF 'GET compare/p0...c0ffee' "$work/calls" && images_file | grep -qx '    tag: prod@sha256:aaa'
+then ok "env-deploy: a later deploy that day gets the next free env/prod/<date>.N, and env/prod/current moves; no dated tag moves"
+else bad "env-deploy: moving env/prod:"; cat "$work/out" "$work/calls"; fi
+if ENV_REFS="env/prod/current cur1" ENV_IMAGES=old ENV_PARENT=p0 ENV_COMPARE=behind deploy prod \
+  && refcalls | grep -qxF 'PATCH git/refs/tags/env/prod/current sha=d3p10y force=true' \
+  && grep -qF '::notice::env/prod/current moves back' "$work/out"
+then ok "env-deploy: prod can move back (promoting older images), with a notice"
+else bad "env-deploy: prod back:"; cat "$work/out" "$work/calls"; fi
+if deploy test && [[ "$(refcalls)" = 'POST git/refs ref=refs/tags/env/test/current sha=d3p10y' ]] \
+  && grep -qx 'deploy_tag=' "$work/envout" && grep -qx 'deploy_commit=d3p10y' "$work/envout"
+then ok "env-deploy: test gets env/test/current only, no dated tag"
+else bad "env-deploy: test tags:"; cat "$work/out" "$work/calls" "$work/envout"; fi
+for status in behind diverged; do
+  if ENV_REFS="env/test/current cur1" ENV_IMAGES=old ENV_PARENT=p9 ENV_COMPARE=$status deploy test \
+    && [[ -z "$(refcalls)" ]] && ! grep -q '^POST' "$work/calls" && [[ ! -s "$work/envout" ]] \
+    && grep -qF "::notice::env/test/current stays on p9" "$work/out"
+  then ok "env-deploy: test never moves back: this commit $status of the deployed one changes nothing, outputs nothing"
+  else bad "env-deploy: test $status:"; cat "$work/out" "$work/calls" "$work/envout"; fi
+done
+if ENV_REFS="env/test/current cur1" ENV_IMAGES=old ENV_PARENT=p0 ENV_SETTLED="0lder d3p10y" deploy test \
+  && [[ "$(refcalls)" = "$(printf '%s\n' 'PATCH git/refs/tags/env/test/current sha=d3p10y force=true' \
+    'PATCH git/refs/tags/env/test/current sha=d3p10y force=true')" ]]
+then ok "env-deploy: an older test deploy landing after this one is moved forward again"
+else bad "env-deploy: test, older landed after:"; cat "$work/out" "$work/calls"; fi
+if ENV_REFS="env/test/current cur1" ENV_IMAGES=old ENV_PARENT=p0 ENV_SETTLED="n3wer" ENV_COMPARE="ahead behind" deploy test \
+  && [[ "$(refcalls)" = 'PATCH git/refs/tags/env/test/current sha=d3p10y force=true' ]] && grep -qF 'n3wer' "$work/out"
+then ok "env-deploy: a newer test deploy landing after this one is left there"
+else bad "env-deploy: test, newer landed after:"; cat "$work/out" "$work/calls"; fi
+if ENV_REFS=$(printf '%s\n' "env/staging/current cur1" "env/staging/2026-11-01 cur1") ENV_IMAGES=$(promoted staging) deploy staging \
+  && ! grep -qE '^POST|^PATCH' "$work/calls" \
+  && [[ "$(cat "$work/envout")" = "$(printf '%s\n' commit=c0ffee frontend_commit=c0ffee deploy_commit=cur1 deploy_tag=env/staging/2026-11-01)" ]]
+then ok "env-deploy: env/staging/current already deploying these images (a re-run) is reused, with its dated tag"
+else bad "env-deploy: reuse:"; cat "$work/out" "$work/calls" "$work/envout"; fi
+if ENV_REFS="env/test/current cur1" ENV_IMAGES=$(promoted test) deploy test && ! grep -qE '^POST|^PATCH' "$work/calls" \
+  && grep -qx 'deploy_commit=cur1' "$work/envout"
+then ok "env-deploy: test already deploying these images: nothing to do"
+else bad "env-deploy: test reuse:"; cat "$work/out" "$work/calls" "$work/envout"; fi
+if ENV_REVISION="" deploy staging; then bad "env-deploy: an image without a revision label passed"
+elif grep -qF 'has no org.opencontainers.image.revision label' "$work/out" && ! grep -q 'git/' "$work/calls"
 then ok "env-deploy: an image without a revision label fails before writing anything"
-else bad "env-deploy: no label:"; cat "$work/out" "$work/deploycalls"; fi
+else bad "env-deploy: no label:"; cat "$work/out" "$work/calls"; fi
+
+# env-run-images.sh: on a re-run of a promotion, the images its first attempt deployed (env/<env>/current's
+# promoted-images.yaml, when this run's deploy commit is still current); nothing otherwise
+if ENV_REFS="env/prod/current cur1" ENV_MESSAGE=$'Deploy prod: c0ffee\n\nRun: '"$run_url" ENV_IMAGES=$(promoted prod) \
+  env_run env-run-images.sh prod && [[ "$(cat "$work/out")" = "$(printf 'backend=%s\nfrontend=%s' "$backend_ref" "$frontend_ref")" ]]
+then ok "env-run-images: the images this run already deployed, by digest"
+else bad "env-run-images: this run's deploy:"; cat "$work/out" "$work/calls"; fi
+if ENV_REFS="env/prod/current cur1" ENV_MESSAGE=$'Deploy prod: c0ffee\n\nRun: '"${run_url}0" ENV_IMAGES=$(promoted prod) \
+  env_run env-run-images.sh prod && [[ ! -s "$work/out" ]]
+then ok "env-run-images: another run's deploy: nothing"
+else bad "env-run-images: another run's:"; cat "$work/out"; fi
+if env_run env-run-images.sh prod && [[ ! -s "$work/out" ]]
+then ok "env-run-images: no deploy yet: nothing"
+else bad "env-run-images: none:"; cat "$work/out"; fi
+
+# env-release.sh: the promotion's release, from the commits env-deploy.sh output; a re-run doesn't release twice
+release_env() {
+  COMMIT=c0ffee FRONTEND_COMMIT=c0ffee DEPLOY_COMMIT=d3p10y DEPLOY_TAG="env/staging/$today" FROM=test ACTOR=noah \
+    env_run env-release.sh staging "$backend_ref" "$frontend_ref"
+}
+other_run='[{"id":3,"tag_name":"staging-2026-11-01","draft":false,"created_at":"2026-11-01T00:00:00Z","body":"([run](https://github.com/o/r/actions/runs/90))"}]'
+if ENV_RELEASES=$other_run release_env && ! grep -q 'imagetools inspect' "$work/calls" \
+  && grep -qE "^POST releases tag_name=staging-$today target_commitish=c0ffee " "$work/calls"
+then ok "env-release: tagged at the commit env-deploy.sh output, without reading the images' labels again"
+else bad "env-release: commits:"; cat "$work/out" "$work/calls"; fi
+if grep -qF "tagged \`env/staging/$today\`:" "$work/body" && ! grep -qF 'env/staging/current' "$work/body" \
+  && [[ "$(jq -c .deploy "$work/asset")" = "{\"commit\":\"d3p10y\",\"tag\":\"env/staging/$today\"}" ]]
+then ok "env-release: names only the deploy's dated tag, never env/staging/current (which moves)"
+else bad "env-release: deploy tag:"; cat "$work/body" "$work/asset"; fi
+this_run() { echo "[{\"id\":3,\"tag_name\":\"staging-$today\",\"draft\":$1,\"created_at\":\"2026-11-17T00:00:00Z\",\"body\":\"by @noah ([run]($run_url)).\"}]"; }
+if ENV_RELEASES=$(this_run false) release_env && grep -qF "already released" "$work/out" \
+  && ! grep -qE '^POST releases|^docker buildx imagetools create' "$work/calls"
+then ok "env-release: a re-run after this run's release was published releases nothing"
+else bad "env-release: published re-run:"; cat "$work/out" "$work/calls"; fi
+if ENV_RELEASES=$(this_run true) release_env \
+  && [[ "$(grep -E '^(DELETE|POST) releases' "$work/calls" | cut -d' ' -f1-2)" = "$(printf 'DELETE releases/3\nPOST releases')" ]]
+then ok "env-release: a re-run deletes this run's unfinished draft, then releases"
+else bad "env-release: draft re-run:"; cat "$work/out" "$work/calls"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."
