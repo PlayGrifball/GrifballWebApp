@@ -62,6 +62,7 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 | `get_player_vods` | Videos a player is in |
 | `get_player_rank` | A player's all-time leaderboard ranks |
 | `get_season_match` | A season match, its result and its games |
+| `suggest_match_times` | The best times for a season match from its season's timeslots, each with its warnings and how many players can play |
 | `get_game` | A recorded Halo game's teams, players and medals |
 | `get_leaderboards` | The all-time leaderboards |
 | `list_late_league_seasons` | Late League's seasons |

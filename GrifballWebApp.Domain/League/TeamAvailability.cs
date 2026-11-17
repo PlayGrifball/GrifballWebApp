@@ -10,6 +10,14 @@ public class TeamAvailability : AuditableEntity
     /// <summary>For EF. A timeslot is the team's through its team.</summary>
     private TeamAvailability() { }
 
+    /// <summary><paramref name="team"/>'s timeslot at the option <paramref name="availabilityOptionID"/>, as its captain set it.</summary>
+    internal static TeamAvailability Of(Team team, int availabilityOptionID) => new()
+    {
+        Team = team,
+        TeamID = team.TeamID,
+        AvailabilityOptionID = availabilityOptionID,
+    };
+
     /// <summary>A timeslot of saved rows by their keys: for tests, which seed a team's timeslots.</summary>
     internal static TeamAvailability Seed(int teamID, int availabilityOptionID = 0) => new()
     {

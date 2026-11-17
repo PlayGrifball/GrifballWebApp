@@ -40,6 +40,7 @@ public interface IApplicationDbContext
     DbSet<DuplicateDismissal> DuplicateDismissals { get; }
     DbSet<ChatMonth> ChatMonths { get; }
     DbSet<ChatChoice> ChatChoices { get; }
+    DbSet<SeasonSchedulingRules> SeasonSchedulingRules { get; }
     DbSet<VoiceConsent> VoiceConsents { get; }
     DbSet<Vod> Vods { get; }
     DbSet<SeasonMatch> SeasonMatches { get; }

@@ -13,6 +13,9 @@ namespace GrifballWebApp.Domain.Test;
 public class TeamAggregateTests
 {
     private const int Cap = 1, P1 = 2, P2 = 3, P3 = 4, Other = 9;
+    private static readonly int[] TenAndEleven = [10, 11];
+    private static readonly int[] OnlyTwelve = [12];
+    private static readonly int[] ElevenAndTwelve = [11, 12];
 
     /// <summary>A drafted team: its captain and picks in rounds 1, 2, 3.</summary>
     private static Team DraftedTeam()
@@ -388,6 +391,61 @@ public class TeamAggregateTests
             Assert.That(copy.TeamPlayers.All(p => p.Team == copy), Is.True);
             Assert.That((copy.Captain, captain), Is.EqualTo(((TeamPlayer?)null, (int?)Cap)), "The captain is set once the copy is saved");
             Assert.That((none.TeamPlayers.Count, noCaptain), Is.EqualTo((0, (int?)null)));
+        }
+    }
+
+    /// <summary>The season's timeslots in these tests.</summary>
+    private static readonly int[] SeasonSlots = [10, 11, 12];
+    private static readonly int[] OnlyTen = [10];
+
+    [Test]
+    public void SetAvailability_ATimeslotNotTheSeasons_IsRefused_NothingChanged()
+    {
+        var team = DraftedTeam();
+        team.SetAvailability([10], SeasonSlots);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(() => team.SetAvailability([11, 99], SeasonSlots), Throws.ArgumentException);
+            Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EqualTo(OnlyTen));
+        }
+    }
+
+    [Test]
+    public void SetAvailability_IsTheCaptainsChoice_InPlaceOfTheRosters_UntilCleared()
+    {
+        var team = DraftedTeam();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.HasOwnAvailability, Is.False, "Worked out from the roster until the captain sets it");
+            team.SetAvailability([10, 11, 11], SeasonSlots);
+            Assert.That(team.HasOwnAvailability, Is.True);
+            Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(TenAndEleven), "Once each");
+            team.SetAvailability([12], SeasonSlots);
+            Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(OnlyTwelve), "Replaced, not added to");
+            team.ClearAvailability();
+            Assert.That(team.HasOwnAvailability, Is.False, "Back to the roster's");
+        }
+    }
+
+    [Test]
+    public void SetAvailability_NoSlots_IsRefused_ClearIsTheWayBackToTheRosters()
+        => Assert.That(() => DraftedTeam().SetAvailability([], SeasonSlots), Throws.ArgumentException);
+
+    [Test]
+    public void SetAvailability_KeepsTheSlotsStillChosen_AsTheyWere()
+    {
+        var team = DraftedTeam();
+        team.SetAvailability([10, 11], SeasonSlots);
+        var kept = team.TeamAvailability.Single(a => a.AvailabilityOptionID == 11);
+
+        team.SetAvailability([11, 12], SeasonSlots);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(ElevenAndTwelve));
+            Assert.That(team.TeamAvailability.Single(a => a.AvailabilityOptionID == 11), Is.SameAs(kept), "The same row: nothing to delete and add again");
         }
     }
 }

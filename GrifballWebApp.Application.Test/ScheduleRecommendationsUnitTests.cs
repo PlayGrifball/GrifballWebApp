@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Scheduler;
+using GrifballWebApp.Application.Scheduling;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
@@ -14,7 +15,9 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
 {
     private const int SeasonID = 1;
     private static readonly DateTime Now = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly DateTime ProposedTime = new(2026, 6, 8, 18, 0, 0, DateTimeKind.Utc);
+    // The GA's times are the league's wall-clock (US Eastern) times; what is saved and applied is UTC (EDT: 4 hours on)
+    private static readonly DateTime ProposedTime = new(2026, 6, 8, 18, 0, 0, DateTimeKind.Unspecified);
+    private static readonly DateTime ProposedUtc = new(2026, 6, 8, 22, 0, 0, DateTimeKind.Utc);
     private FakeTimeProvider _time = null!;
     private ScheduleRecommendations _service = null!;
 
@@ -38,8 +41,35 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
         return (home, away, match);
     }
 
-    private static AvailabilityOption[] Options(DateTime time, params int[] availableTeamIDs) =>
-        new[] { AvailabilityOption.Seed(dayOfWeek: time.DayOfWeek, time: TimeOnly.FromDateTime(time), teamAvailability: availableTeamIDs.Select(id => TeamAvailability.Seed(id))) };
+    /// <summary>A run's conflicts, as the season scheduler's are: its rules over one timeslot (at <paramref name="time"/>, league time), <paramref name="availableTeamIDs"/> able to play it.</summary>
+    private static Func<SeasonMatchGene, IReadOnlyList<SeasonMatchGene>, IReadOnlyList<ScheduleConflict>> Options(DateTime time, params int[] availableTeamIDs)
+    {
+        (DayOfWeek, TimeOnly)[] slot = [(time.DayOfWeek, TimeOnly.FromDateTime(time))];
+        var checker = new ScheduleChecker(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonSchedulingRules.Defaults(SeasonID), slot,
+            availableTeamIDs.ToDictionary(t => t, _ => (IReadOnlySet<(DayOfWeek Day, TimeOnly Time)>)slot.ToHashSet()), ScheduleService.LeagueTimeZone());
+        return new SeasonScheduleEvaluator(checker, new Dictionary<int, int>()).ConflictsOf;
+    }
+
+    [TestCase(ScheduleConflictKind.OutsideSeason)]
+    [TestCase(ScheduleConflictKind.TooManyThisWeek)]
+    [TestCase(ScheduleConflictKind.TooManyTonight)]
+    [TestCase(ScheduleConflictKind.TooManyAtOnce)]
+    [TestCase(ScheduleConflictKind.NotASeasonTimeslot)]
+    public async Task Save_FlagsATimeBreakingAnyOfTheSeasonsRules(ScheduleConflictKind kind)
+    {
+        var (home, away, match) = await SeedMatch();
+        var gene = new SeasonMatchGene { SeasonMatchID = match.SeasonMatchID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, ScheduledTime = ProposedTime };
+        var run = new ScheduleRun([gene], 0.5, 3, (_, _) => [new ScheduleConflict(kind, "Against the season's rules.")]);
+
+        var saved = await _service.Save(SeasonID, run, "commissioner");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(saved.ConflictCount, Is.EqualTo(1), "Counted in the job's report");
+            Assert.That(saved.Matches.Single().Overlaps, Is.True, "Shown on the schedule");
+        }
+    }
 
     [Test]
     public async Task Save_StoresProposedTimesWithOverlapAndAvailabilityFlags()
@@ -61,7 +91,7 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
             Assert.That(reloaded.RequestedBy, Is.EqualTo("commissioner"));
             Assert.That(reloaded.AppliedAt, Is.Null);
             Assert.That(proposedMatch.SeasonMatchID, Is.EqualTo(match.SeasonMatchID));
-            Assert.That(proposedMatch.ScheduledTime, Is.EqualTo(ProposedTime));
+            Assert.That(proposedMatch.ScheduledTime, Is.EqualTo(ProposedUtc));
             Assert.That(proposedMatch.Overlaps, Is.False);
             Assert.That(proposedMatch.HomeTeamAvailable, Is.True);
             Assert.That(proposedMatch.AwayTeamAvailable, Is.False);
@@ -146,7 +176,7 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
         using (Assert.EnterMultipleScope())
         {
             Assert.That(count, Is.EqualTo(1));
-            Assert.That(updatedMatch.ScheduledTime, Is.EqualTo(ProposedTime));
+            Assert.That(updatedMatch.ScheduledTime, Is.EqualTo(ProposedUtc));
             Assert.That(reloaded.AppliedBy, Is.EqualTo("applier"));
             Assert.That(reloaded.AppliedAt, Is.EqualTo(Now));
         }
@@ -218,6 +248,69 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
         {
             Assert.That(count, Is.Zero);
             Assert.That(updatedMatch.ScheduledTime, Is.Null);
+        }
+    }
+
+    [TestCase(2026, 1, 10, 20, 2026, 1, 11, 1)]
+    [TestCase(2026, 6, 8, 18, 2026, 6, 8, 22)]
+    public async Task Save_TheGAsLeagueTimes_AreSavedAsUtc_EitherSideOfDaylightSaving(int y, int mo, int d, int h, int uy, int umo, int ud, int uh)
+    {
+        var (home, away, match) = await SeedMatch();
+        var leagueTime = new DateTime(y, mo, d, h, 0, 0, DateTimeKind.Unspecified);
+        var gene = new SeasonMatchGene { SeasonMatchID = match.SeasonMatchID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, ScheduledTime = leagueTime };
+
+        var saved = await _service.Save(SeasonID, new ScheduleRun([gene], 1, 1, Options(leagueTime, home.TeamID, away.TeamID)), "commissioner");
+
+        Assert.That(saved.Matches.Single().ScheduledTime, Is.EqualTo(new DateTime(uy, umo, ud, uh, 0, 0, DateTimeKind.Utc)));
+    }
+
+    /// <summary>A user to ask for reschedules, and a recommendation for <paramref name="match"/>, made at <see cref="Now"/>.</summary>
+    private async Task<(Domain.Players.User Asker, ScheduleRecommendation Saved)> Recommended(Team home, Team away, SeasonMatch match)
+    {
+        var asker = Domain.Players.User.Register("asker");
+        Context.Users.Add(asker);
+        await Context.SaveChangesAsync();
+        var gene = new SeasonMatchGene { SeasonMatchID = match.SeasonMatchID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, ScheduledTime = ProposedTime };
+        var saved = await _service.Save(SeasonID, new ScheduleRun([gene], 0.9, 30, Options(ProposedTime, home.TeamID, away.TeamID)), "commissioner");
+        return (asker, saved);
+    }
+
+    [Test]
+    public async Task Apply_SkipsAMatchWithARescheduleRequestPending()
+    {
+        var (home, away, match) = await SeedMatch();
+        var (asker, saved) = await Recommended(home, away, match);
+        MatchReschedule.Request(match, ProposedUtc.AddDays(1), "Can't make it", asker.Id, Now);
+        await Context.SaveChangesAsync();
+
+        var count = await _service.Apply(saved.ScheduleRecommendationID, "applier");
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(count, Is.Zero);
+            Assert.That((await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID)).ScheduledTime, Is.Null, "Left for the request's decision");
+        }
+    }
+
+    [Test]
+    public async Task Apply_SkipsAMatchRescheduledSinceTheRecommendationWasMade()
+    {
+        var (home, away, match) = await SeedMatch();
+        var (asker, saved) = await Recommended(home, away, match);
+        var agreed = ProposedUtc.AddDays(2);
+        // After the recommendation was made (its audit stamp)
+        var reschedule = MatchReschedule.Request(match, agreed, "Both teams agreed", asker.Id, saved.CreatedAt.AddHours(1)).Reschedule!;
+        reschedule.Decide(true, asker.Id, null, saved.CreatedAt.AddHours(2));
+        await Context.SaveChangesAsync();
+
+        var count = await _service.Apply(saved.ScheduleRecommendationID, "applier");
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(count, Is.Zero);
+            Assert.That((await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID)).ScheduledTime, Is.EqualTo(agreed), "The agreed time stands");
         }
     }
 }

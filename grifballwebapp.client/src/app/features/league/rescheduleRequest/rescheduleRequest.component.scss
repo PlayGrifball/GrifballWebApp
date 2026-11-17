@@ -24,3 +24,28 @@
 
   li { margin-bottom: 4px; }
 }
+
+.rr-suggestions {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-suggestion {
+  width: 100%;
+  height: auto;
+  padding: 8px 14px;
+  text-align: left;
+
+  span { display: block; }
+}
+
+.rr-suggestion-time {
+  font-weight: 600;
+}
+
+.rr-warning {
+  color: var(--hud-gold);
+}

@@ -762,6 +762,19 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
               { season: historicalSeason, teamID: 41, teamName: 'Relentless', isCaptain: false, wins: 4, losses: 4, recordFromSource: true, finish: 'Playoffs', championshipTiers: [] },
             ]),
     '/api/users/999/deployment-history': answer('getDeploymentHistory', []),
+    // The signed-in user's own profile lists their access tokens (none here)
+    '/api/identity/access-tokens': answer('getAccessTokens', []),
+    // The schedule helper: the match's best times, the team's timeslots and the season's rules
+    '/api/season-matches/31/time-suggestions': answer('getTimeSuggestions', [
+      { startsAt: '2026-11-18T01:00:00Z', homePlayersAvailable: 4, awayPlayersAvailable: 4, conflicts: [] },
+      { startsAt: '2026-11-19T01:00:00Z', homePlayersAvailable: 3, awayPlayersAvailable: 4,
+        conflicts: [{ kind: 'HomeTeamUnavailable', message: "The home team isn't available then.", refuses: false }] },
+    ]),
+    '/api/teams/1/availability': answer('getTeamAvailability', { teamID: 1, setByCaptain: false, rosterSize: 5, canChange: true, slots: [
+      { availabilityOptionID: 1, dayOfWeek: 'Monday', time: '20:00:00', available: true, playersAvailable: 5 },
+      { availabilityOptionID: 2, dayOfWeek: 'Tuesday', time: '20:00:00', available: false, playersAvailable: 2 },
+    ] }),
+    '/api/seasons/12/scheduling-rules': answer('getSchedulingRules', { minPlayersAvailable: 4, maxMatchesPerTeamPerNight: 1, maxMatchesPerTeamPerWeek: 2, maxConcurrentMatches: null }),
     '/api/users/117/commendations': answer('getCommendations', commendations(117)),
     '/api/users/999/commendations': answer('getCommendations', commendations(999)),
     '/api/me/external-logins': answer('getMyExternalLogins', { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] }),

@@ -10,6 +10,7 @@ import { provideDatePickers } from '@shared/datePickers';
 import { RouterLink } from '@angular/router';
 import type { DayOfWeek } from '@api/models';
 import { SeasonAvailabilityStore } from './seasonAvailability.store';
+import { SchedulingRulesComponent } from '../schedulingRules/schedulingRules.component';
 
 
 /** A row of the editor: a timeslot, its day empty until one is picked. */
@@ -29,6 +30,7 @@ export class AvailabilityOption {
         MatButton,
         MatSelectModule,
         RouterLink,
+        SchedulingRulesComponent,
     ],
     templateUrl: './seasonAvailability.component.html',
     styleUrl: './seasonAvailability.component.scss',

@@ -53,3 +53,13 @@
   background: var(--hud-red-text);
   color: #2B0507;
 }
+
+.prd-conflicts {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--hud-text);
+}
+
+.prd-refuses {
+  color: var(--hud-red-text);
+}

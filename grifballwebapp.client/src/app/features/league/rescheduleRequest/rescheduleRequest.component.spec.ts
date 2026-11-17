@@ -3,6 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Location } from '@angular/common';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import type { TimeSuggestion } from '@api/models';
 import { RescheduleRequestComponent } from './rescheduleRequest.component';
 
 describe('RescheduleRequestComponent', () => {
@@ -31,9 +32,20 @@ describe('RescheduleRequestComponent', () => {
     component = fixture.componentInstance;
     fixture.componentRef.setInput('seasonMatchID', 31);
     fixture.detectChanges();
+    http.expectOne(suggestionsOf(31)).flush(suggestions);
+    fixture.detectChanges();
   });
 
   afterEach(() => http.verify());
+
+  // Monday 1 June 2026 20:00 Eastern, nothing wrong; the Tuesday after, Reds short of players
+  const suggestions: TimeSuggestion[] = [
+    { startsAt: '2026-06-02T00:00:00Z', homePlayersAvailable: 4, awayPlayersAvailable: 4, conflicts: [] },
+    { startsAt: '2026-06-03T00:00:00Z', homePlayersAvailable: 2, awayPlayersAvailable: 4,
+      conflicts: [{ kind: 'HomeTeamUnavailable', message: 'Reds can\'t play then.', refuses: false }] },
+  ];
+  const suggestionsOf = (id: number) => (r: { url: string }) => r.url === `/api/season-matches/${id}/time-suggestions`;
+  const picks = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.rr-suggestion')) as HTMLButtonElement[];
 
   const buttons = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.rr-actions button')) as HTMLButtonElement[];
   const submitButton = () => buttons().find(b => b.textContent!.includes('Submit'))!;
@@ -85,6 +97,7 @@ describe('RescheduleRequestComponent', () => {
 
     fixture.componentRef.setInput('seasonMatchID', 32);
     fixture.detectChanges();
+    http.expectOne(suggestionsOf(32)).flush([]);
     expect(component.reason).toBe('');
     expect(component.newDate).toBeUndefined();
     expect(component.newTime).toBe('');
@@ -148,6 +161,21 @@ describe('RescheduleRequestComponent', () => {
 
     expect(snackBar.open).toHaveBeenCalledWith('There is already an active reschedule request for this match.', 'Close', { duration: 5000 });
     expect(location.back).not.toHaveBeenCalled();
+  });
+
+  it('lists the best times, each with its players and its warnings', () => {
+    expect(picks()).toHaveSize(2);
+    expect(picks()[0].textContent).toContain('4 and 4 players');
+    expect(picks()[0].textContent).toContain(new Date('2026-06-02T00:00:00Z').toLocaleString());
+    expect(picks()[1].textContent).toContain('Reds can\'t play then.');
+  });
+
+  it('fills in the date and time from a suggested one, sent as that time', () => {
+    picks()[0].click();
+    component.reason = 'x';
+    component.submitRescheduleRequest();
+
+    expect(http.expectOne('/api/season-matches/31/reschedules').request.body.newScheduledTime).toBe('2026-06-02T00:00:00.000Z');
   });
 
   it('goes back when cancel is clicked', () => {

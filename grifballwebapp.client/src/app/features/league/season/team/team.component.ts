@@ -13,6 +13,8 @@ import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSu
 import type { TeamDto } from '@api/models';
 import { describePage, PageDescription } from '@shared/pageMeta';
 import { TeamStore } from './team.store';
+import { AccountService } from '@core/auth/account.service';
+import { TeamAvailabilityComponent } from './teamAvailability/teamAvailability.component';
 
 /** The team as search results and link previews show it: its name and season, record, titles and roster. */
 export function describeTeam(team: TeamDto): PageDescription {
@@ -43,6 +45,7 @@ export function describeTeam(team: TeamDto): PageDescription {
         SeasonPlayerStatsComponent,
         VodListComponent,
         DatePipe,
+        TeamAvailabilityComponent,
         CalendarSubscribeComponent,
     ],
     templateUrl: './team.component.html',
@@ -52,6 +55,7 @@ export function describeTeam(team: TeamDto): PageDescription {
 })
 export class TeamComponent {
   private readonly store = inject(TeamStore);
+  private readonly account = inject(AccountService);
 
   teamID = input.required<number>();
   seasonID = input.required<number>();
@@ -69,6 +73,8 @@ export class TeamComponent {
     return !!team && (team.season.isHistorical || team.season.hasEnded) && this.matchesLoaded() && this.matchCount() === 0;
   });
 
+  /** The team's availability is shown to those signed in (its API is theirs alone); it says who may change it. */
+  readonly signedIn = this.account.isLoggedIn;
   displayedColumns: string[] = ['otherTeam', 'score', 'result', 'scheduledTime', 'matchPage'];
 
   constructor() {

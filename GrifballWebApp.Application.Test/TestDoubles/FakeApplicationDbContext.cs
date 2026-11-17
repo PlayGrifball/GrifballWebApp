@@ -105,6 +105,7 @@ internal sealed class FakeApplicationDbContext :
     public DbSet<DuplicateDismissal> DuplicateDismissals { get; set; } = null!;
     public DbSet<ChatMonth> ChatMonths { get; set; } = null!;
     public DbSet<ChatChoice> ChatChoices { get; set; } = null!;
+    public DbSet<SeasonSchedulingRules> SeasonSchedulingRules { get; set; } = null!;
     public DbSet<VoiceConsent> VoiceConsents { get; set; } = null!;
     public DbSet<Vod> Vods { get; set; } = null!;
     public DbSet<SeasonMatch> SeasonMatches { get; set; } = null!;
@@ -181,6 +182,7 @@ internal sealed class FakeApplicationDbContext :
         builder.ApplyConfiguration(new DuplicateDismissalConfiguration());
         builder.ApplyConfiguration(new ChatMonthConfiguration());
         builder.ApplyConfiguration(new ChatChoiceConfiguration());
+        builder.ApplyConfiguration(new SeasonSchedulingRulesConfiguration());
         builder.ApplyConfiguration(new VoiceConsentConfiguration());
         builder.ApplyConfiguration(new VodConfiguration());
         builder.ApplyConfiguration(new VodTeamConfiguration());
