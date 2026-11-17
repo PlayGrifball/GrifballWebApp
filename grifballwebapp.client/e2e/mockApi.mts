@@ -947,7 +947,7 @@ const historicalJob: HistoricalImportJobDto = {
   jobID: 41, kind: 'Import', trigger: 'Scheduled', guarded: true, status: 'Succeeded', stage: 'Done', seasonsDone: 12, seasonsTotal: 12,
   report: {
     seasonsCreated: 0, seasonsUpdated: 11, teamsCreated: 0, teamsRemoved: 0, statsRemoved: 2, championshipsRemoved: 0, statsInserted: 3, statsUpdated: 540,
-    recordedGamesImported: 1210, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, dummyUsersCreated: 4, waypointMatchesPulled: 0,
+    recordedGamesImported: 1210, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, awardsInserted: 0, awardsUpdated: 0, awardsRemoved: 0, dummyUsersCreated: 4, waypointMatchesPulled: 0,
     skipped: [], warnings: ['late-league-aspence-main/S8Halo 3 Stats: stopped for review, it would remove 30 of 64 stat rows, 2 of 8 teams, 0 of 0 titles'], errors: [],
     seasonRemovals: [], sourcesChanged: [], sourcesFailed: [], sourcesUnchanged: 0, importJobID: null, discordClaimsCreated: 0, discordLinked: 0,
     discordMerged: 0, gamesLinked: 0, manualReplacedByWaypoint: 0, matchmakingSeasonsCreated: 0, matchmakingSeasonsUpdated: 0, missingMatches: [],

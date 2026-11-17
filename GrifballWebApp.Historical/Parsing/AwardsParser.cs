@@ -159,34 +159,49 @@ public static partial class AwardsParser
     private static List<ParsedAward> ByRecord(SheetTable sheet)
     {
         var awards = new List<ParsedAward>();
-        for (var headerRow = 0; headerRow < sheet.Rows.Count; headerRow++)
+        if (RecordsHeader(sheet) is not var (headerRow, columns))
+            return awards;
+        for (var row = headerRow + 1; row < sheet.Rows.Count; row++)
         {
-            var columns = sheet.Rows[headerRow].Select((h, i) => (Header: Text(h).ToLowerInvariant(), Index: i))
-                .Where(h => h.Header.Length > 0).GroupBy(h => h.Header).ToDictionary(g => g.Key, g => g.First().Index);
-            if (!columns.TryGetValue("description", out var description) || !columns.TryGetValue("holder", out var holder))
-                continue;
-            for (var row = headerRow + 1; row < sheet.Rows.Count; row++)
-            {
-                string Value(string header) => columns.TryGetValue(header, out var c) ? Text(sheet.Cell(row, c)) : "";
-                var name = Text(sheet.Cell(row, description));
-                var winner = Text(sheet.Cell(row, holder));
-                if (name.Length == 0 || winner.Length == 0)
-                    continue;
-                // A team's record: its holder is the team, and the next column its captain
-                var isTeam = Value("category").StartsWith("team", StringComparison.OrdinalIgnoreCase);
-                var team = Value("team_or_captain");
-                awards.Add(new ParsedAward(null, new ArchiveAward
-                {
-                    Name = isTeam && !name.Contains("team", StringComparison.OrdinalIgnoreCase) ? $"Team {name}" : name,
-                    Winner = winner,
-                    IsTeam = isTeam,
-                    Team = isTeam || team.Length == 0 ? null : team,
-                    Value = Value("record_value") is { Length: > 0 } value ? value : null,
-                }));
-            }
-            break;
+            if (Record(sheet, row, columns) is { } award)
+                awards.Add(new ParsedAward(null, award));
         }
         return awards;
+    }
+
+    /// <summary>The records table's header row and its columns by name; null when no row has a description and a holder.</summary>
+    private static (int Row, Dictionary<string, int> Columns)? RecordsHeader(SheetTable sheet)
+    {
+        for (var row = 0; row < sheet.Rows.Count; row++)
+        {
+            var columns = sheet.Rows[row].Select((h, i) => (Header: Text(h).ToLowerInvariant(), Index: i))
+                .Where(h => h.Header.Length > 0).GroupBy(h => h.Header).ToDictionary(g => g.Key, g => g.First().Index);
+            if (columns.ContainsKey("description") && columns.ContainsKey("holder"))
+                return (row, columns);
+        }
+        return null;
+    }
+
+    /// <summary>A records table's row: a player's record with their team, or a team's (its holder is the team, the next
+    /// column its captain); null for a row without a description or a holder.</summary>
+    private static ArchiveAward? Record(SheetTable sheet, int row, Dictionary<string, int> columns)
+    {
+        string Value(string header) => columns.TryGetValue(header, out var c) ? Text(sheet.Cell(row, c)) : "";
+        var name = Value("description");
+        var winner = Value("holder");
+        if (name.Length == 0 || winner.Length == 0)
+            return null;
+        var isTeam = Value("category").StartsWith("team", StringComparison.OrdinalIgnoreCase);
+        var team = Value("team_or_captain");
+        var value = Value("record_value");
+        return new ArchiveAward
+        {
+            Name = isTeam && !name.Contains("team", StringComparison.OrdinalIgnoreCase) ? $"Team {name}" : name,
+            Winner = winner,
+            IsTeam = isTeam,
+            Team = isTeam || team.Length == 0 ? null : team,
+            Value = value.Length > 0 ? value : null,
+        };
     }
 
     /// <summary>The first cell (in reading order) whose text is <paramref name="text"/>, any case.</summary>
