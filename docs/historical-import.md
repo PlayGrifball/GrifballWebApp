@@ -32,7 +32,8 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
 - **Result lists** (`GameResultsParser`, a source's `Results` tabs): a season's results where no per-game stats tab has its
   games: a table of Winner, score, Loser (and Host, VOD, Halo game, Map) rows under week and playoffs markers; cells such as
   "A over B 2-0 (5-1, 5-4)" or "A 2-1 B" with the game scores beside; or a Halo Infinite game history's rows without a match
-  link (its forfeits, and games played without one). Each game is a recorded game without players (`RecordedGame.Vod`,
+  link (its forfeits, and games played without one). A calendar
+  (`Calendar`) gives a game per scored entry of its cells ("9:30pm: A (5) vs. B (1)"). Each game is a recorded game without players (`RecordedGame.Vod`,
   `Host`, `IsForfeit`), its sides named as the season names its teams (the same letters or a few off, an abbreviation
   either way, a player or captain of the team, or the tab's `Teams` aliases), in the series its list puts it in; a series
   of forfeits is forfeited. A list of a season no stats tab has (`CustomSeason`) makes that season, its teams the list's.

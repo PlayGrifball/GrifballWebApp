@@ -33,6 +33,9 @@ public static partial class GameResultsParser
             case ResultsLayout.GameHistory:
                 History(parse);
                 break;
+            case ResultsLayout.Calendar:
+                CalendarCells(parse);
+                break;
             default:
                 Table(parse);
                 break;
@@ -211,6 +214,27 @@ public static partial class GameResultsParser
                 }
                 else
                     parse.Unread.Add(row[c].Trim());
+            }
+        }
+    }
+
+    /// <summary>A calendar's games: each cell's, split at the times before them, a game each its two scores give.</summary>
+    private static void CalendarCells(ResultsParse parse)
+    {
+        for (var r = 0; r < parse.Sheet.Rows.Count; r++)
+        {
+            for (var c = 0; c < parse.Sheet.Rows[r].Length; c++)
+            {
+                var entries = TimePattern().Split(Whitespace().Replace(parse.Sheet.Rows[r][c], " "));
+                for (var e = 0; e < entries.Length; e++)
+                {
+                    var game = CalendarGamePattern().Match(entries[e].Trim());
+                    if (!game.Success || TeamName(game.Groups["a"].Value) is not { } a || TeamName(game.Groups["b"].Value) is not { } b)
+                        continue;
+                    var (sa, sb) = (int.Parse(game.Groups["sa"].Value, CultureInfo.InvariantCulture), int.Parse(game.Groups["sb"].Value, CultureInfo.InvariantCulture));
+                    var key = parse.Key($"{r}:{c}/{e}");
+                    Add(parse, key, key, new GameResult(a, b, Outcome(sa, sb), sa, sb));
+                }
             }
         }
     }
@@ -421,6 +445,17 @@ public static partial class GameResultsParser
 
     [GeneratedRegex("playoff|final|semi|quarter|championship|winners|losers|upper|lower|bracket", RegexOptions.IgnoreCase)]
     private static partial Regex PlayoffsPattern();
+
+    /// <summary>A calendar entry's time, "9:30pm:", "*8pm:", "9:30 pm:": what splits a cell into its games.</summary>
+    [GeneratedRegex(@"\*?\b\d{1,2}(?::\d{2})?\s*[ap]m\s*:", RegexOptions.IgnoreCase)]
+    private static partial Regex TimePattern();
+
+    /// <summary>A calendar's game: "Impulse (5) vs. High Voltage (1)", "A (0) @ B (5)".</summary>
+    [GeneratedRegex(@"^(?<a>[^()]+?)\s*\((?<sa>\d{1,2})\)\s*(vs\.?|@)\s*(?<b>[^()]+?)\s*\((?<sb>\d{1,2})\)$", RegexOptions.IgnoreCase)]
+    private static partial Regex CalendarGamePattern();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Whitespace();
 
     [GeneratedRegex(@"^(double\s+forfeit|double\s+ff|dbl\s+ff)\b", RegexOptions.IgnoreCase)]
     private static partial Regex DoubleForfeitPattern();

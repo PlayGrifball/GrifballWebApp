@@ -367,6 +367,26 @@ public class GameResultsParserTests
         }
     }
 
+    [Test]
+    public void Calendar_EachScoredGameOfACell_IsAGameOfItsOwn()
+    {
+        var games = Parse(new ResultsTab { Sheet = "Schedule", Layout = ResultsLayout.Calendar }, Sheet(
+            ["SUN", "MON"],
+            ["5", "\n\n9:30pm: Impulse (5) vs. High Voltage (1)\n\n10:00pm: Legacy (3) vs. Impulse (5)"],
+            ["*8pm: 2 Hype Crew (1) @ \nZero Gravity (5)", "9:30 pm: Gaming So Hard @ Rule #76", "8pm: TBD (5) vs. Nobody (0)"]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(Sides), Is.EqualTo(new[]
+            {
+                ((string?)"Impulse", Outcomes.Won, (int?)5, (string?)"High Voltage", Outcomes.Lost, (int?)1),
+                ("Legacy", Outcomes.Lost, 3, "Impulse", Outcomes.Won, 5),
+                ("2 Hype Crew", Outcomes.Lost, 1, "Zero Gravity", Outcomes.Won, 5),
+            }), "A game without scores, or naming no team, is none");
+            Assert.That(games.Select(g => g.Series).Distinct().Count(), Is.EqualTo(3), "Each its own series");
+        }
+    }
+
     [TestCase("G&tC", "Galvin & the Chipmunks", true)]
     [TestCase("A&tS", "A and the Spences", true)]
     [TestCase("MAB", "Mediocre At Best", true)]
