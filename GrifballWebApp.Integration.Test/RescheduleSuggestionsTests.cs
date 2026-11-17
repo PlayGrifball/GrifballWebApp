@@ -19,6 +19,10 @@ public class RescheduleSuggestionsTests
     private SchedulingTestData _s = null!;
     private readonly CommandContextRecorder _discord = new();
 
+    // The UTC the request reads: 20:00 Eastern on 1 and 8 June (Mondays) and 9 June (Tuesday)
+    private static readonly string[] BothMondaysThenTheSecondTuesday = ["2026-06-02 00:00", "2026-06-09 00:00", "2026-06-10 00:00"];
+    private static readonly string[] TheSecondTuesday = ["2026-06-10 00:00"];
+
     [SetUp]
     public async Task SetUp()
     {
@@ -63,11 +67,11 @@ public class RescheduleSuggestionsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(all.Select(c => c.StringValue), Is.EqualTo(new[] { "2026-06-02 00:00", "2026-06-09 00:00", "2026-06-10 00:00" }));
+            Assert.That(all.Select(c => c.StringValue), Is.EqualTo(BothMondaysThenTheSecondTuesday));
             Assert.That(CommandLookups.TryParseUtc(all[0].StringValue!, out var parsed) && parsed == SchedulingTestData.Monday, Is.True);
             Assert.That(all[0].Name, Does.Contain("Mon 1 Jun").And.Contain("8:00 PM ET").And.Contain("4 and 4 players"));
             Assert.That(all[2].Name, Does.Contain("⚠"));
-            Assert.That(typed.Select(c => c.StringValue), Is.EqualTo(new[] { "2026-06-10 00:00" }));
+            Assert.That(typed.Select(c => c.StringValue), Is.EqualTo(TheSecondTuesday));
         }
     }
 

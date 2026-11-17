@@ -104,7 +104,7 @@ public class RescheduleServiceTests
         await _context.SaveChangesAsync();
         var reschedule = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: clash);
 
-        var refused = Assert.ThrowsAsync<RescheduleNotAllowedException>(() =>
+        var refused = await Assert.ThrowsAsync<RescheduleNotAllowedException>(() =>
             _service.ProcessRescheduleAsync(reschedule.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id));
 
         _context.ChangeTracker.Clear();
