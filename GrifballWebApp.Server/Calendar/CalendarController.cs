@@ -2,6 +2,8 @@ using GrifballWebApp.Application.Calendar;
 using GrifballWebApp.Server.Seasons;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace GrifballWebApp.Server.Calendar;
 
@@ -14,9 +16,6 @@ namespace GrifballWebApp.Server.Calendar;
 [ApiController]
 public class CalendarController : ControllerBase
 {
-    /// <summary>The 404's reason for a player there is none of.</summary>
-    public const string NoSuchUser = "There is no such user";
-
     private const string CalendarMediaType = "text/calendar";
 
     private readonly MatchCalendarService _calendars;
@@ -30,6 +29,7 @@ public class CalendarController : ControllerBase
     [AllowAnonymous]
     [HttpGet("teams/{teamID:int}/calendar.ics", Name = "TeamCalendar")]
     [ProducesResponseType<string>(StatusCodes.Status200OK, CalendarMediaType)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> TeamCalendar([FromRoute] int teamID, CancellationToken ct)
         => Feed(await _calendars.TeamAsync(teamID, SiteUrl, ct), SeasonVisibilityFilter.NoSuchTeam);
@@ -38,14 +38,16 @@ public class CalendarController : ControllerBase
     [AllowAnonymous]
     [HttpGet("users/{userID:int}/calendar.ics", Name = "PlayerCalendar")]
     [ProducesResponseType<string>(StatusCodes.Status200OK, CalendarMediaType)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> PlayerCalendar([FromRoute] int userID, CancellationToken ct)
-        => Feed(await _calendars.PlayerAsync(userID, SiteUrl, ct), NoSuchUser);
+        => Feed(await _calendars.PlayerAsync(userID, SiteUrl, ct), ApiProblems.NoSuchUser);
 
     /// <summary>The season's scheduled matches, as a calendar to subscribe to. 404 when there is no such season.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/calendar.ics", Name = "SeasonCalendar")]
     [ProducesResponseType<string>(StatusCodes.Status200OK, CalendarMediaType)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> SeasonCalendar([FromRoute] int seasonID, CancellationToken ct)
         => Feed(await _calendars.SeasonAsync(seasonID, SiteUrl, ct), SeasonVisibilityFilter.NoSuchSeason);
@@ -56,7 +58,22 @@ public class CalendarController : ControllerBase
     /// </summary>
     private string SiteUrl => $"{Request.Scheme}://{Request.Host}";
 
-    /// <summary>The calendar as text/calendar, or a 404 with <paramref name="notFound"/> for none.</summary>
+    /// <summary>How long a calendar app or a proxy may keep a feed before asking again.</summary>
+    public const string CacheControl = "public, max-age=900";
+
+    /// <summary>
+    /// The calendar as text/calendar, or a 404 with <paramref name="notFound"/> for none. The same matches give the same bytes,
+    /// so their hash is its ETag: a poll that sends it back for an unchanged feed gets a 304, not the feed again.
+    /// </summary>
     private IActionResult Feed(string? ics, string notFound)
-        => ics is null ? this.NotFoundProblem(notFound) : Content(ics, IcsWriter.ContentType);
+    {
+        if (ics is null)
+            return this.NotFoundProblem(notFound);
+        var etag = $"\"{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(ics)))[..32]}\"";
+        Response.Headers.ETag = etag;
+        Response.Headers.CacheControl = CacheControl;
+        if (Request.Headers.IfNoneMatch.ToString().Split(',').Any(tag => tag.Trim() == etag))
+            return StatusCode(StatusCodes.Status304NotModified);
+        return Content(ics, IcsWriter.ContentType);
+    }
 }
