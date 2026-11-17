@@ -67,7 +67,7 @@ public sealed class DraftHelperService(IApplicationDbContext context, Leaderboar
         var careers = await leaderboards.CareersAsync(ct);
 
         return signups
-            .Select(s => new DraftPoolPlayer(s.UserID, names.GetValueOrDefault(s.UserID) ?? UnknownName, s.Region, s.WillCaptain,
+            .Select(s => new DraftPoolPlayer(s.UserID, names[s.UserID], s.Region, s.WillCaptain,
                 [.. ticked[s.UserID].OrderBy(t => t.DayOfWeek).ThenBy(t => t.Time).Select(t => new DraftTimeslot(t.AvailabilityOptionID, t.DayOfWeek, t.Time))],
                 careers.TryGetValue(s.UserID, out var career) && career.Totals.GamesPlayed > 0 ? Career(career) : null))
             .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
@@ -103,13 +103,13 @@ public sealed class DraftHelperService(IApplicationDbContext context, Leaderboar
             .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
             .Take(Math.Max(count, 1))
             .ToList();
-        var captain = (await Names([team.UserID], ct)).GetValueOrDefault(team.UserID) ?? UnknownName;
+        var captain = (await Names([team.UserID], ct))[team.UserID];
         return new DraftSuggestions(team.TeamID, team.TeamName, captain, picks);
     }
 
-    /// <summary>The name the app shows for each of <paramref name="users"/> (<see cref="User.Named"/>: never their login name).</summary>
-    private async Task<Dictionary<int, string?>> Names(IReadOnlyCollection<int> users, CancellationToken ct)
-        => await context.Users.AsNoTracking().Where(u => users.Contains(u.Id)).Select(User.Named).ToDictionaryAsync(n => n.UserID, n => n.Name, ct);
+    /// <summary>The name the app shows for each of <paramref name="users"/> (<see cref="User.Named"/>: never their login name), or "Unknown Spartan" for one with none.</summary>
+    private async Task<Dictionary<int, string>> Names(IReadOnlyCollection<int> users, CancellationToken ct)
+        => await context.Users.AsNoTracking().Where(u => users.Contains(u.Id)).Select(User.Named).ToDictionaryAsync(n => n.UserID, n => n.Name ?? UnknownName, ct);
 
     private static DraftCareer Career(PlayerCareerSummary career)
     {
@@ -147,20 +147,16 @@ public sealed class DraftHelperService(IApplicationDbContext context, Leaderboar
     /// </summary>
     private static (double Value, string? Reason) Fit(DraftPoolPlayer player, IReadOnlyList<TeamSlot> slots, int minPlayers)
     {
-        if (slots.Count == 0)
+        var shortOf = slots.Where(s => s.PlayersAvailable < minPlayers).ToList();
+        var counted = shortOf.Count > 0 ? shortOf : [.. slots.Where(s => s.Available)];
+        if (counted.Count == 0)
             return (0.5, null);
         var theirs = player.Timeslots.Select(t => t.AvailabilityOptionID).ToHashSet();
-        var shortOf = slots.Where(s => s.PlayersAvailable < minPlayers).ToList();
-        if (shortOf.Count > 0)
-        {
-            var fills = shortOf.Count(s => theirs.Contains(s.AvailabilityOptionID));
-            return ((double)fills / shortOf.Count, $"Can play {fills} of the {shortOf.Count} timeslots the team is short of");
-        }
-        var teams = slots.Where(s => s.Available).ToList();
-        if (teams.Count == 0)
-            return (0.5, null);
-        var plays = teams.Count(s => theirs.Contains(s.AvailabilityOptionID));
-        return ((double)plays / teams.Count, $"Can play {plays} of the team's {teams.Count} timeslots");
+        var plays = counted.Count(s => theirs.Contains(s.AvailabilityOptionID));
+        var reason = shortOf.Count > 0
+            ? $"Can play {plays} of the {counted.Count} timeslots the team is short of"
+            : $"Can play {plays} of the team's {counted.Count} timeslots";
+        return ((double)plays / counted.Count, reason);
     }
 
     /// <summary>Whether the player shares the captain's region (1, else 0), and why; either unknown is no help either way (0.5).</summary>
