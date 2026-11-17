@@ -23,7 +23,7 @@ if helm show chart "$chart_repo/$name" --version "$version" > /dev/null 2>&1; th
   # helm v4 pulls only into a directory that exists
   mkdir -p "$work/pulled"
   digest=$(helm pull "$chart_repo/$name" --version "$version" -d "$work/pulled" 2>&1 | sed -n 's/^Digest: *//p')
-  test -n "$digest"
+  [[ -n "$digest" ]] || { echo "::error::No digest for $name $version" >&2; exit 1; }
   ref="${chart_repo#oci://}/$name@$digest"
   if verify "$ref"; then
     echo "$ref is signed by this workflow."
@@ -36,7 +36,7 @@ else
   helm package "$chart" --version "$version" -d dist
   helm push "dist/$name-$version.tgz" "$chart_repo" 2>&1 | tee "$work/push.txt"
   digest=$(sed -n 's/^Digest: *//p' "$work/push.txt")
-  test -n "$digest"
+  [[ -n "$digest" ]] || { echo "::error::No digest for $name $version" >&2; exit 1; }
   ref="${chart_repo#oci://}/$name@$digest"
   cosign sign --yes "$ref"
   verify "$ref"
