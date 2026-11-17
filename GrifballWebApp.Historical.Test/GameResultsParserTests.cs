@@ -13,6 +13,8 @@ public class GameResultsParserTests
 {
     private static readonly string[] BravoAlphaThenCharlie = ["fl20/Game Results#2", "fl20/Game Results#2", "fl20/Game Results#5"];
     private static readonly string[] ZedNotRead = ["fl20/Game History: results not read: Alpha v Charlie: FF Zed Win, no winner"];
+    private static readonly int[] SixFiveOne = [6, 5, 1];
+    private static readonly bool[] RegularThenPlayoffs = [false, true, true];
     private static readonly string[] TableSeries = ["fl20/Game Results#2", "fl20/Game Results#2", "fl20/Game Results#5", "fl20/Game Results#8"];
     private static readonly string[] TableKeys = ["fl20/Game Results#2", "fl20/Game Results#3", "fl20/Game Results#5", "fl20/Game Results#8"];
     private static readonly bool[] ThirdIsForfeit = [false, false, true, false];
@@ -316,6 +318,53 @@ public class GameResultsParserTests
             Sheet(HistoryHeader, ["Week 1", "A", "B", "5-0", "", "FF"]));
 
         Assert.That(games.Single().IsPlayoffs, Is.True);
+    }
+
+    [Test]
+    public void Table_ABracketRoundMarksThePlayoffs_AndADoubleForfeitHasNoWinner()
+    {
+        var warnings = new List<string>();
+        var games = Parse(new ResultsTab { Sheet = "Game Results" }, Sheet(
+            ["Winner", "", "Loser"],
+            ["Losers Round 1"],
+            ["Alpha", "Dbl FF", "Bravo"],
+            ["Round 2"],
+            ["Alpha", "5-1", "Bravo"]), warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(g => (g.IsPlayoffs, g.IsForfeit, g.Teams[0].Outcome, g.Teams[1].Outcome)), Is.EqualTo(new[]
+            {
+                (true, true, Outcomes.Lost, Outcomes.Lost), (false, false, Outcomes.Won, Outcomes.Lost),
+            }));
+            Assert.That(warnings, Is.Empty, "A round is no result naming one team");
+            Assert.That(games[0].Series, Is.Not.EqualTo(games[1].Series));
+        }
+    }
+
+    [Test]
+    public void Series_AScoreOfASeriesUpToFourWins_IsItsGames_FiveIsAGame()
+    {
+        var games = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series }, Sheet(["Alpha 4-2 Bravo", "Alpha over Bravo 4-1", "Alpha over Bravo 5-4"]));
+
+        Assert.That(games.GroupBy(g => g.Series).Select(g => g.Count()), Is.EqualTo(SixFiveOne));
+    }
+
+    [Test]
+    public void GameHistory_APlayoffsRow_EndsTheSeries_AndADoubleForfeitHasNoWinner()
+    {
+        var games = Parse(new ResultsTab { Sheet = "Game History", Layout = ResultsLayout.GameHistory }, Sheet(
+            HistoryHeader,
+            ["Week 1", "Alpha", "Bravo", "5-0", "", "FF"],
+            ["Playoffs", "Alpha", "Bravo", "5-0", "", "FF"],
+            ["", "Alpha", "Charlie", "", "", "Double Forfeit"]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(g => g.Series).Distinct().Count(), Is.EqualTo(3), "A regular-season and a playoff forfeit of the same teams are two series");
+            Assert.That(games.Select(g => g.IsPlayoffs), Is.EqualTo(RegularThenPlayoffs));
+            Assert.That((games[2].Teams[0].Outcome, games[2].Teams[1].Outcome, games[2].IsForfeit), Is.EqualTo((Outcomes.Lost, Outcomes.Lost, true)));
+        }
     }
 
     [TestCase("G&tC", "Galvin & the Chipmunks", true)]

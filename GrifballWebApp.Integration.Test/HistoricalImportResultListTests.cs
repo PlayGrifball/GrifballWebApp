@@ -158,4 +158,23 @@ public class HistoricalImportResultListTests
             Assert.That(series.Select(s => (s.Home, s.Away, s.Games)), Is.EqualTo(new[] { ((string?)"Alpha", (string?)null, 1), (null, null, 1) }));
         }
     }
+
+    [Test]
+    public async Task AnUndatedPlayoffSeries_ComesAfterTheDatedOnes_InTheBracket()
+    {
+        var forfeit = Result("p/2", "p/2", "Alpha", "Charlie", forfeit: true, playoffs: true);
+        var played = Result("p/1", "p/1", "Alpha", "Bravo", playoffs: true);
+        var dated = new RecordedGameInput
+        {
+            SeasonSourceId = played.SeasonSourceId, SourceKey = played.SourceKey, GameVersion = played.GameVersion, IsPlayoffs = true,
+            PlayedAt = new DateTime(2020, 11, 1, 20, 0, 0, DateTimeKind.Utc), Teams = played.Teams,
+        };
+
+        await _service.Import(Fall2020(forfeit, dated));
+
+        _context.ChangeTracker.Clear();
+        var rounds = await _context.SeasonMatches.AsNoTracking().Where(m => m.BracketMatch != null)
+            .Select(m => new { Away = m.AwayTeam!.TeamName, m.BracketMatch!.RoundNumber }).ToDictionaryAsync(m => m.Away, m => m.RoundNumber);
+        Assert.That((rounds["Bravo"], rounds["Charlie"]), Is.EqualTo((1, 2)), "Alpha played Bravo first: its forfeit to Charlie is the next round");
+    }
 }

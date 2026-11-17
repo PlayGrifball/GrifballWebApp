@@ -106,7 +106,7 @@ public class HistoricalArchiveResultsTests
                     Row("Week 6 - 3/8/19 - Our Lady Tuna (FF W) over Collateral Damage"),
                     Row("Week 1 - 1/28/19 - Our Lady Tuna over Collateral Damage (5-2) RECORDED https://xboxdvr.com/x"),
                     header,
-                    Row("Our Lady Tuna", "imShad (c)", 1, 1, 17.6, 0, 73, 1, 44, 2),
+                    Row("Our Lady Tunaa", "imShad (c)", 1, 1, 17.6, 0, 73, 1, 44, 2),
                     Row("Week 1 - 1/29/19 - Collateral Damage over Our Lady Tuna (5-3)"),
                     header,
                     Row("Our Lady Tuna", "imShad", 1, 0, 17.6, 0, 73, 1, 44, 2),
@@ -128,9 +128,9 @@ public class HistoricalArchiveResultsTests
                 [(1, "Collateral Damage", Outcomes.Won, null), (2, "Stat Padders United", Outcomes.Lost, null)],
                 [(1, "Our Lady Tuna", Outcomes.Won, null), (2, "Stat Padders United", Outcomes.Lost, null)],
                 [(1, "Our Lady Tuna", Outcomes.Won, null), (2, "Collateral Damage", Outcomes.Lost, null)],
-                [(1, "Our Lady Tuna", Outcomes.Won, 5), (2, "Collateral Damage", Outcomes.Lost, 2)],
+                [(1, "Our Lady Tunaa", Outcomes.Won, 5), (2, "Collateral Damage", Outcomes.Lost, 2)],
                 [(1, "Our Lady Tuna", Outcomes.Lost, 3), (2, "Collateral Damage", Outcomes.Won, 5)],
-            }), "A side its title spells another way takes the season's name; a partial copy's other side is the team the title names that it is not");
+            }), "A side only its title names, spelt another way, takes the season's name (a side with players keeps its label); a partial copy's other side is the team the title names that it is not");
             Assert.That(build.Warnings, Is.Empty);
         }
     }

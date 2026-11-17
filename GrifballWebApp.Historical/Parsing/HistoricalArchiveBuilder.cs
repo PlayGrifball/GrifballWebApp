@@ -309,7 +309,7 @@ public sealed partial class HistoricalArchiveBuilder
 
     /// <summary>A team name's letters and digits, lower case. Not HistoricalKeys.LooseKey: that drops a gamertag's
     /// "#1234" suffix, which in a team's name ("Team #2") is the name.</summary>
-    private static string TeamKey(string name) => new([.. name.ToLowerInvariant().Where(char.IsLetterOrDigit)]);
+    internal static string TeamKey(string name) => new([.. name.ToLowerInvariant().Where(char.IsLetterOrDigit)]);
 
     private static string Digits(string key) => new([.. key.Where(char.IsDigit)]);
 }

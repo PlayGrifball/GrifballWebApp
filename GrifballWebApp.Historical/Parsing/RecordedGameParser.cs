@@ -314,8 +314,8 @@ public static partial class RecordedGameParser
     {
         if (TitleTeams(title) is not { } named)
             return null;
-        var key = Key(side.Name ?? "");
-        string? other = key == Key(named.Winner) ? named.Loser : key == Key(named.Loser) ? named.Winner : null;
+        var key = HistoricalArchiveBuilder.TeamKey(side.Name ?? "");
+        string? other = key == HistoricalArchiveBuilder.TeamKey(named.Winner) ? named.Loser : key == HistoricalArchiveBuilder.TeamKey(named.Loser) ? named.Winner : null;
         if (other is null && !tied)
             other = side.Outcome == Outcomes.Won ? named.Loser : named.Winner;
         if (other is null)
@@ -359,8 +359,6 @@ public static partial class RecordedGameParser
         var link = LinkPattern().Match(title);
         return link.Success ? link.Value : null;
     }
-
-    private static string Key(string name) => new([.. name.ToLowerInvariant().Where(char.IsLetterOrDigit)]);
 
     private static string Cell(string[] row, int column) => column >= 0 && column < row.Length ? row[column] : "";
 

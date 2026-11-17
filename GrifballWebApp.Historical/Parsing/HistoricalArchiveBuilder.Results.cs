@@ -71,7 +71,8 @@ public sealed partial class HistoricalArchiveBuilder
     private List<ArchiveSeason> SeasonOf(ArchiveSeason entry)
         => _seasons.Where(s => string.Equals(s.SourceWorkbook, entry.SourceWorkbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == entry.SeasonName).ToList();
 
-    /// <summary>The per-game tabs' games name a side (a block's team, a title's) as their season does: as a result list's.</summary>
+    /// <summary>The per-game tabs' games name a side only their title gives (a forfeit's, a partial copy's other side) as their
+    /// season does: as a result list's.</summary>
     private void NameGameSides()
     {
         var bySeason = _seasons
@@ -84,7 +85,8 @@ public sealed partial class HistoricalArchiveBuilder
                 continue;
             if (!names.TryGetValue(game.SeasonSourceId, out var seasonNames))
                 names[game.SeasonSourceId] = seasonNames = SeasonTeamNames.Of(SeasonOf(entry), []);
-            foreach (var side in game.Teams.Where(t => t.Name is not null))
+            // A side with players is the team they are on: its name is only the sheet's label, kept as it is
+            foreach (var side in game.Teams.Where(t => t.Name is not null && game.Players.TrueForAll(p => p.Side != t.Side)))
                 side.Name = seasonNames.Resolve(side.Name!);
         }
     }
@@ -97,10 +99,10 @@ public sealed partial class HistoricalArchiveBuilder
     {
         private readonly List<string> _known;
         private readonly Dictionary<string, string> _aliases;
-        /// <summary>Each player's (and captain's) gamertag, with their team.</summary>
-        private readonly List<(string Gamertag, string Team)> _players;
+        /// <summary>Each player's (and captain's) gamertag and its words, normalized once, with their team.</summary>
+        private readonly List<(string Gamertag, List<string> Words, string Team)> _players;
 
-        private SeasonTeamNames(List<string> known, Dictionary<string, string> aliases, List<(string, string)> players)
+        private SeasonTeamNames(List<string> known, Dictionary<string, string> aliases, List<(string, List<string>, string)> players)
             => (_known, _aliases, _players) = (known, aliases, players);
 
         /// <summary>The season names no team: its result list is all it has.</summary>
@@ -113,6 +115,7 @@ public sealed partial class HistoricalArchiveBuilder
             var players = season.SelectMany(s => s.Teams).Where(t => !string.IsNullOrWhiteSpace(t.Captain)).Select(t => (t.Captain!.Trim(), t.TeamName))
                 .Concat(season.SelectMany(s => s.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName) && !string.IsNullOrWhiteSpace(p.TeamName))
                     .Select(p => (p.Gamertag.Trim(), p.TeamName!.Trim())))
+                .Select(p => (HistoricalKeys.Normalize(p.Item1), Words(p.Item1), p.Item2))
                 .ToList();
             return new SeasonTeamNames(known, new Dictionary<string, string>(aliases, StringComparer.OrdinalIgnoreCase), players);
         }
@@ -141,13 +144,13 @@ public sealed partial class HistoricalArchiveBuilder
             var key = HistoricalKeys.Normalize(name);
             if (key.Length < 3)
                 return null;
-            Func<string, bool>[] rules =
+            Func<(string Gamertag, List<string> Words, string Team), bool>[] rules =
             [
-                gamertag => HistoricalKeys.Normalize(gamertag) == key,
-                gamertag => Words(gamertag).Contains(key) || HistoricalKeys.Normalize(gamertag).StartsWith(key, StringComparison.Ordinal),
-                gamertag => key.Length >= 4 && HistoricalKeys.Normalize(gamertag).Contains(key, StringComparison.Ordinal),
+                p => p.Gamertag == key,
+                p => p.Words.Contains(key) || p.Gamertag.StartsWith(key, StringComparison.Ordinal),
+                p => key.Length >= 4 && p.Gamertag.Contains(key, StringComparison.Ordinal),
             ];
-            var teams = rules.Select(rule => _players.Where(p => rule(p.Gamertag)).Select(p => p.Team).Distinct(StringComparer.OrdinalIgnoreCase).ToList())
+            var teams = rules.Select(rule => _players.Where(rule).Select(p => p.Team).Distinct(StringComparer.OrdinalIgnoreCase).ToList())
                 .FirstOrDefault(found => found.Count > 0);
             return teams?.Count == 1 ? teams[0] : null;
         }

@@ -1312,7 +1312,9 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         // Each slot is the team's previous series, or a seed for its first (the bracket's rule: one or the other)
         var bracket = new PlayoffBracket(await _context.SeasonMatches.CountAsync(m => m.SeasonID == season.SeasonID && m.BracketMatch != null, ct));
-        foreach (var played in series.OrderBy(s => s[0].Start))
+        // In the order they were played; a series its source gives no date (a result list's, a forfeit) after the dated ones,
+        // in its list's order
+        foreach (var played in series.OrderBy(s => s[0].Start is null).ThenBy(s => s[0].Start))
         {
             var first = played[0];
             var (home, away) = (first.TeamA, first.TeamB);

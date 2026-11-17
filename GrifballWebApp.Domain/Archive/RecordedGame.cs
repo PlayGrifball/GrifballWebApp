@@ -254,6 +254,9 @@ public class RecordedGame : AuditableEntity
         Vod = facts.Vod;
         Host = facts.Host;
         IsForfeit = facts.IsForfeit;
+        // Nobody played a forfeit: a game that becomes one loses its players' lines
+        if (IsForfeit)
+            _participants.Clear();
         PlayedAt = facts.PlayedAt;
         IsPlayoffs = facts.IsPlayoffs;
     }

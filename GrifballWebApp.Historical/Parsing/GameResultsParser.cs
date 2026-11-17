@@ -88,6 +88,8 @@ public static partial class GameResultsParser
     private sealed record GameResult(string First, string Second, Outcomes FirstOutcome, int? FirstScore, int? SecondScore)
     {
         public bool IsForfeit { get; init; }
+        /// <summary>The second side's outcome when it isn't the first's other one (a double forfeit: both lost).</summary>
+        public Outcomes? SecondOutcome { get; init; }
         public string? Game { get; init; }
         public string? Map { get; init; }
         public string? Vod { get; init; }
@@ -96,7 +98,7 @@ public static partial class GameResultsParser
 
     private static void Add(ResultsParse parse, string key, string series, GameResult result)
     {
-        var second = result.FirstOutcome switch
+        var second = result.SecondOutcome ?? result.FirstOutcome switch
         {
             Outcomes.Won => Outcomes.Lost,
             Outcomes.Lost => Outcomes.Won,
@@ -171,9 +173,11 @@ public static partial class GameResultsParser
         }
         var score = Cell(row, columns.Result);
         var (high, low) = Score(score) is { } s ? (Math.Max(s.A, s.B), Math.Min(s.A, s.B)) : ((int?)null, (int?)null);
-        var result = new GameResult(winner, loser, high is not null && high == low ? Outcomes.Tie : Outcomes.Won, high, low)
+        var doubleForfeit = DoubleForfeitPattern().IsMatch(score.Trim());
+        var result = new GameResult(winner, loser, doubleForfeit ? Outcomes.Lost : high is not null && high == low ? Outcomes.Tie : Outcomes.Won, high, low)
         {
             IsForfeit = IsForfeitMark(score),
+            SecondOutcome = doubleForfeit ? Outcomes.Lost : null,
             Game = Text(Cell(row, columns.Game)),
             Map = Text(Cell(row, columns.Map)),
             Vod = Link(Cell(row, columns.Vod)),
@@ -215,6 +219,9 @@ public static partial class GameResultsParser
     /// names), the two numbers after the names, and its game scores in brackets.</summary>
     private sealed record SeriesEntry(string A, string B, bool Tied, int? ScoreA, int? ScoreB, List<string> Games)
     {
+        /// <summary>Its numbers are the series score whatever they are ("A 2-1 B"), not perhaps a game's.</summary>
+        public bool SeriesScore { get; init; }
+
         public static SeriesEntry? Of(string cell)
         {
             var over = OverPattern().Match(cell);
@@ -226,7 +233,7 @@ public static partial class GameResultsParser
             }
             var between = BetweenPattern().Match(cell);
             if (between.Success && TeamName(between.Groups["a"].Value) is { } first && TeamName(between.Groups["b"].Value) is { } second)
-                return new SeriesEntry(first, second, false, Number(between.Groups["sa"]), Number(between.Groups["sb"]), []);
+                return new SeriesEntry(first, second, false, Number(between.Groups["sa"]), Number(between.Groups["sb"]), []) { SeriesScore = true };
             return null;
         }
 
@@ -267,7 +274,7 @@ public static partial class GameResultsParser
     {
         if (entry.ScoreA is not int sa || entry.ScoreB is not int sb)
             return null;
-        if (Math.Max(sa, sb) >= 4)
+        if (!entry.SeriesScore && Math.Max(sa, sb) >= 5)
             return [new GameResult(entry.A, entry.B, Outcome(sa, sb), sa, sb)];
         return Enumerable.Range(0, sa + sb).Select(i => new GameResult(entry.A, entry.B, i < sa ? Outcomes.Won : Outcomes.Lost, null, null)).ToList();
     }
@@ -323,7 +330,11 @@ public static partial class GameResultsParser
             var row = parse.Sheet.Rows[r];
             var first = Cell(row, 0).Trim();
             if (first.Length > 0)
+            {
+                // A week or the playoffs: a new series
                 parse.Playoffs = parse.Tab.IsPlayoffs || HistoryPlayoffsPattern().IsMatch(first);
+                parse.EndSeries();
+            }
             // A Waypoint game is the Waypoint import's: a played game between the forfeits and unlinked games
             if (row.Any(c => WaypointMatchParser.MatchIds(c) is not { Count: 0 }))
                 parse.EndSeries();
@@ -340,7 +351,8 @@ public static partial class GameResultsParser
             return;
         var forfeit = row.Where((_, c) => c != columns.Home && c != columns.Away).Select(c => c.Trim()).FirstOrDefault(IsForfeitMark);
         var score = Score(Cell(row, columns.Score)) ?? (forfeit is null ? null : ScoreIn(forfeit));
-        if (HistoryOutcome(home, away, score, forfeit) is not { } outcome)
+        var doubleForfeit = forfeit is not null && DoubleForfeitPattern().IsMatch(forfeit);
+        if ((doubleForfeit ? Outcomes.Lost : HistoryOutcome(home, away, score, forfeit)) is not { } outcome)
         {
             if (forfeit is not null)
                 parse.Unread.Add($"{home} v {away}: {forfeit}, no winner");
@@ -349,6 +361,7 @@ public static partial class GameResultsParser
         Add(parse, parse.Key(where), parse.SeriesOf(home, away, where), new GameResult(home, away, outcome, score?.A, score?.B)
         {
             IsForfeit = forfeit is not null,
+            SecondOutcome = doubleForfeit ? Outcomes.Lost : null,
             Vod = Link(Cell(row, columns.Vod)),
         });
     }
@@ -403,11 +416,14 @@ public static partial class GameResultsParser
 
     /// <summary>A cell that is only a week or playoffs marker ("Week 7 (make-up)", "W5", "Fortnight 2", "Playoffs", "Semi Finals"),
     /// not a team with such a word in its name ("Final Boss").</summary>
-    [GeneratedRegex(@"^((week|weel|weekend|fortnight|w)\s*\d+\b.*|(playoffs?|grand\s+finals?|finals?|semi-?\s*finals?|semis|quarter-?\s*finals?|quarters|championship|bracket)(\s+(round|rd|game|week)\s*\d+)?)$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^((week|weel|weekend|fortnight|w)\s*\d+\b.*|((winners|losers|upper|lower)\s+)?(playoffs?|grand\s+finals?|finals?|semi-?\s*finals?|semis|quarter-?\s*finals?|quarters|championship|bracket|round|rd)(\s+((round|rd|game|week)\s*)?\d+)?)$", RegexOptions.IgnoreCase)]
     private static partial Regex PhasePattern();
 
-    [GeneratedRegex("playoff|final|semi|quarter|championship", RegexOptions.IgnoreCase)]
+    [GeneratedRegex("playoff|final|semi|quarter|championship|winners|losers|upper|lower|bracket", RegexOptions.IgnoreCase)]
     private static partial Regex PlayoffsPattern();
+
+    [GeneratedRegex(@"^(double\s+forfeit|double\s+ff|dbl\s+ff)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex DoubleForfeitPattern();
 
     [GeneratedRegex("playoff|final|semi|quarter|bracket", RegexOptions.IgnoreCase)]
     private static partial Regex HistoryPlayoffsPattern();

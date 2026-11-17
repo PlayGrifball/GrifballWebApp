@@ -87,15 +87,18 @@ public class SeasonMatch : AuditableEntity
         var match = Imported(seasonID, homeTeamID, awayTeamID, homeWins, awayWins, bestOf, scheduledTime, bracketMatch);
         if (homeTeamID is null || awayTeamID is null)
             return match;
-        (match.HomeTeamResult, match.AwayTeamResult) = forfeiter switch
-        {
-            Forfeiter.Home => (SeasonMatchResult.Forfeit, SeasonMatchResult.Won),
-            Forfeiter.Away => (SeasonMatchResult.Won, SeasonMatchResult.Forfeit),
-            Forfeiter.Both => (SeasonMatchResult.Forfeit, SeasonMatchResult.Forfeit),
-            _ => throw new ArgumentOutOfRangeException(nameof(forfeiter), forfeiter, null),
-        };
+        (match.HomeTeamResult, match.AwayTeamResult) = ForfeitResults(forfeiter);
         return match;
     }
+
+    /// <summary>Each side's result when <paramref name="forfeiter"/> forfeits: the other side wins, or both forfeit.</summary>
+    private static (SeasonMatchResult Home, SeasonMatchResult Away) ForfeitResults(Forfeiter forfeiter) => forfeiter switch
+    {
+        Forfeiter.Home => (SeasonMatchResult.Forfeit, SeasonMatchResult.Won),
+        Forfeiter.Away => (SeasonMatchResult.Won, SeasonMatchResult.Forfeit),
+        Forfeiter.Both => (SeasonMatchResult.Forfeit, SeasonMatchResult.Forfeit),
+        _ => throw new ArgumentOutOfRangeException(nameof(forfeiter), forfeiter, null),
+    };
 
     /// <summary>An imported side's result from the wins (<see cref="Imported"/>): more wins win, an even count is undecided.</summary>
     private static SeasonMatchResult? ImportedResult(int wins, int otherWins)
@@ -289,13 +292,7 @@ public class SeasonMatch : AuditableEntity
         if (IsGrandFinal)
             return ForfeitResult.GrandFinal;
 
-        (HomeTeamResult, AwayTeamResult) = forfeiter switch
-        {
-            Forfeiter.Home => (SeasonMatchResult.Forfeit, SeasonMatchResult.Won),
-            Forfeiter.Away => (SeasonMatchResult.Won, SeasonMatchResult.Forfeit),
-            Forfeiter.Both => (SeasonMatchResult.Forfeit, SeasonMatchResult.Forfeit),
-            _ => throw new ArgumentOutOfRangeException(nameof(forfeiter), forfeiter, null),
-        };
+        (HomeTeamResult, AwayTeamResult) = ForfeitResults(forfeiter);
         CloseRescheduleOnceDecided();
         return ForfeitResult.Forfeited;
     }

@@ -48,6 +48,17 @@ public class RecordedGameAggregateTests
     }
 
     [Test]
+    public void APlayedGameThatBecomesAForfeit_LosesItsPlayers()
+    {
+        var game = RecordedGame.Import("archive/1", Facts, 7);
+        game.SetPlayers([Line(100, 1)]);
+
+        game.Reimport(Facts with { IsForfeit = true }, 7);
+
+        Assert.That((game.IsForfeit, game.Participants.Count), Is.EqualTo((true, 0)));
+    }
+
+    [Test]
     public void AGameEnteredByHand_IsManual_WithAKeyOfItsOwn_AndNoSeason()
     {
         var game = RecordedGame.EnterByHand(Facts);
