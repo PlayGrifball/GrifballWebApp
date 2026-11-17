@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Historical.Sources;
 
 namespace GrifballWebApp.Historical.Parsing;
 
@@ -18,16 +19,18 @@ namespace GrifballWebApp.Historical.Parsing;
 /// </summary>
 public static partial class RosterParser
 {
-    public static Dictionary<string, string> Parse(SheetTable sheet)
+    /// <param name="sheet">The roster tab.</param>
+    /// <param name="config">The workbook's config, for the teams it names another way (<see cref="HistoricalSourceConfig.TeamNames"/>): a
+    /// placeholder never filled in ("Team Name") would otherwise be no team.</param>
+    public static Dictionary<string, string> Parse(SheetTable sheet, HistoricalSourceConfig? config = null)
     {
-        var teams = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (Table(sheet, teams))
-            return teams;
-        DraftSheet(sheet, teams);
-        return teams;
+        var teams = new Teams(config);
+        if (!Table(sheet, teams))
+            DraftSheet(sheet, teams);
+        return teams.ByPlayer;
     }
 
-    private static bool Table(SheetTable sheet, Dictionary<string, string> teams)
+    private static bool Table(SheetTable sheet, Teams teams)
     {
         for (var h = 0; h < Math.Min(sheet.Rows.Count, 5); h++)
         {
@@ -37,13 +40,13 @@ public static partial class RosterParser
             if (team < 0 || player < 0)
                 continue;
             for (var r = h + 1; r < sheet.Rows.Count; r++)
-                Add(teams, sheet.Cell(r, player), sheet.Cell(r, team));
+                teams.Add(sheet.Cell(r, player), sheet.Cell(r, team));
             return true;
         }
         return false;
     }
 
-    private static void DraftSheet(SheetTable sheet, Dictionary<string, string> teams)
+    private static void DraftSheet(SheetTable sheet, Teams teams)
     {
         // The columns of the block being read: its label's column and the team in each column after it (null till its captain names it)
         Dictionary<int, Dictionary<int, string?>>? blocks = null;
@@ -78,7 +81,7 @@ public static partial class RosterParser
     }
 
     /// <summary>A block's row of players (its label a player's, or the captains', which name a team still unnamed).</summary>
-    private static void AddBlockRow(Dictionary<string, string> teams, string[] row, int label, Dictionary<int, string?> columns)
+    private static void AddBlockRow(Teams teams, string[] row, int label, Dictionary<int, string?> columns)
     {
         if (label >= row.Length || !PlayerLabel().IsMatch(row[label]))
             return;
@@ -87,16 +90,24 @@ public static partial class RosterParser
         {
             if (columns[column] is null && captains && ArchiveCells.Gamertag(row[column]).Gamertag is { Length: > 0 } captain)
                 columns[column] = captain;
-            Add(teams, row[column], columns[column]);
+            teams.Add(row[column], columns[column]);
         }
     }
 
-    private static void Add(Dictionary<string, string> teams, string? gamertag, string? team)
+    /// <summary>Each player's team (by normalized gamertag), the first a roster gives them.</summary>
+    private sealed class Teams(HistoricalSourceConfig? config)
     {
-        var (clean, _, _) = ArchiveCells.Gamertag(gamertag);
-        if (clean.Length == 0 || string.IsNullOrWhiteSpace(team) || HistoricalKeys.IsExcludedTeamName(team))
-            return;
-        teams.TryAdd(HistoricalKeys.Normalize(clean), team.Trim());
+        public Dictionary<string, string> ByPlayer { get; } = new(StringComparer.Ordinal);
+
+        public void Add(string? gamertag, string? team)
+        {
+            var (clean, _, _) = ArchiveCells.Gamertag(gamertag);
+            if (clean.Length == 0 || string.IsNullOrWhiteSpace(team))
+                return;
+            team = config?.TeamName(team.Trim()) ?? team.Trim();
+            if (!HistoricalKeys.IsExcludedTeamName(team))
+                ByPlayer.TryAdd(HistoricalKeys.Normalize(clean), team);
+        }
     }
 
     [GeneratedRegex(@"^\s*captain\s*:?\s*$", RegexOptions.IgnoreCase)]

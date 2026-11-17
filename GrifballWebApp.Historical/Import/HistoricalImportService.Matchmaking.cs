@@ -239,13 +239,18 @@ public partial class HistoricalImportService
     private static List<RecordedTeamInput> RecordedSides(RecordedGameInput input)
         => input.Teams.GroupBy(t => t.Side).Select(g => g.First()).OrderBy(t => t.Side).ToList();
 
-    /// <summary>A recorded game's facts as the archive gives them: its map and gametype cut to what a row holds.</summary>
+    /// <summary>A recorded game's facts as the archive gives them: its map, gametype, VOD and host cut to what a row holds.</summary>
     private static RecordedGameFacts RecordedFacts(RecordedGameInput input, GameVersion gameVersion) => new(
         gameVersion.GameVesionID,
         Truncate(input.Map, RecordedGame.MapMaxLength),
         Truncate(input.Gametype, RecordedGame.GametypeMaxLength),
         input.PlayedAt,
-        input.IsPlayoffs);
+        input.IsPlayoffs)
+    {
+        Vod = Truncate(input.Vod, RecordedGame.VodMaxLength),
+        Host = Truncate(input.Host, RecordedGame.HostMaxLength),
+        IsForfeit = input.IsForfeit,
+    };
 
     /// <summary>A recorded game's sides (each with its season team, if any) and players, updated in place by the game:
     /// sides by number and players by user, so a re-run of the same archive changes nothing. A side whose result the

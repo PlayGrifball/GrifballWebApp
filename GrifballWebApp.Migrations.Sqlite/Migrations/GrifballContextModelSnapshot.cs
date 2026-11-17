@@ -696,6 +696,14 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<string>("Host")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<bool>("IsForfeit")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsPlayoffs")
                         .HasColumnType("INTEGER");
 
@@ -734,6 +742,11 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<string>("SourceKey")
                         .IsRequired()
                         .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Vod")
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
@@ -780,6 +793,16 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnName("Gametype")
                         .UseCollation("NOCASE");
 
+                    b.Property<string>("Host")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Host")
+                        .UseCollation("NOCASE");
+
+                    b.Property<bool?>("IsForfeit")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("IsForfeit");
+
                     b.Property<bool?>("IsPlayoffs")
                         .HasColumnType("INTEGER")
                         .HasColumnName("IsPlayoffs");
@@ -825,6 +848,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT")
                         .HasColumnName("SourceKey")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Vod")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Vod")
                         .UseCollation("NOCASE");
 
                     b.HasIndex("GameVersionID", "PeriodEnd");
