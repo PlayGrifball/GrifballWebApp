@@ -273,6 +273,32 @@ public class BracketParserTests
     }
 
     [Test]
+    public void Cells_AWinnersCellWithItsSeed_IsItsSide_AndWinsSayingOtherwiseAreLeftOut()
+    {
+        var sheet = Cells("Bracket",
+            ("A1", "Like Clockwork - seed 4"), ("A3", "Beer - Seed 1"), ("A2", "vs (2-1)"), ("B2", "Beer - Seed 1"),
+            ("C1", "Alpha"), ("C3", "Bravo"), ("D1", "1"), ("D3", "2"), ("E2", "Alpha"));
+        var tab = new BracketTab
+        {
+            Sheet = "Bracket",
+            SeedsInNames = true,
+            Slots =
+            [
+                new() { Round = 1, Home = "A1", Away = "A3", Score = "A2", Winner = "B2" },
+                new() { Round = 1, Home = "C1", Away = "C3", HomeScore = "D1", AwayScore = "D3", Winner = "E2" },
+            ],
+        };
+
+        var series = Parse(tab, sheet).Series.Select(s => (s.Home, s.HomeWins, s.AwayWins, s.Winner));
+
+        Assert.That(series, Is.EqualTo(new (string, int?, int?, SeasonMatchSide?)[]
+        {
+            ("Like Clockwork", 1, 2, SeasonMatchSide.Away),
+            ("Alpha", null, null, SeasonMatchSide.Home),
+        }), "The winner's cell is the sheet's word: 1-2 cells against it are a typo");
+    }
+
+    [Test]
     public void Cells_NoSheetNamed_IsNoBracket_Warned()
     {
         var bracket = BracketParser.Parse("wb", new BracketTab(), Workbook(), _warnings);

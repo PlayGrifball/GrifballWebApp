@@ -12,7 +12,8 @@ public sealed class SheetTable
     public bool Hidden { get; init; }
     public List<string[]> Rows { get; init; } = [];
     /// <summary>The sheet's own number (1 for its first row) of each of <see cref="Rows"/>, for a cell named by its
-    /// reference (<see cref="At"/>); null: the rows are the sheet's from its first, none skipped (a CSV, a test's sheet).</summary>
+    /// reference (<see cref="At"/>); null: the rows are numbered in order from 1 (a test's sheet; a CSV, whose empty lines aren't kept,
+    /// so a reference past one names the row below it: no reference names a CSV's cells).</summary>
     public List<int>? RowNumbers { get; init; }
 
     public string Cell(int row, int column) => row < Rows.Count && column < Rows[row].Length ? Rows[row][column] : "";

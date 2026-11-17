@@ -92,22 +92,25 @@ public static partial class BracketParser
                 AwaySeed = slot.AwaySeed is null ? awaySeed : Seed(sheet.At(slot.AwaySeed)),
                 BestOf = slot.BestOf,
             };
-            Score(draft, sheet, slot);
+            Score(draft, sheet, slot, tab.SeedsInNames);
             drafts.Add(draft);
         }
         return drafts;
     }
 
     /// <summary>The series' winner and wins from its cells.</summary>
-    private static void Score(Draft draft, SheetTable sheet, BracketSlotCells slot)
+    private static void Score(Draft draft, SheetTable sheet, BracketSlotCells slot, bool seedsInNames)
     {
-        if (slot.Winner is not null && Side(sheet.At(slot.Winner), false).Name is { } winner)
+        // The winner's cell carries a seed as its side's does ("Beer - Seed 1")
+        if (slot.Winner is not null && Side(sheet.At(slot.Winner), seedsInNames).Name is { } winner)
             draft.Winner = SideOf(draft, winner);
         if (slot.HomeScore is not null && slot.AwayScore is not null
             && ArchiveCells.Number(sheet.At(slot.HomeScore)) is decimal home && ArchiveCells.Number(sheet.At(slot.AwayScore)) is decimal away
             && home + away > 0)
         {
-            (draft.HomeWins, draft.AwayWins) = ((int)home, (int)away);
+            // Wins that say the other side won than the winner's cell (a cell typed wrong) are left out
+            if (draft.Winner is null || SideWithMore(home, away) is not { } more || more == draft.Winner)
+                (draft.HomeWins, draft.AwayWins) = ((int)home, (int)away);
             draft.Winner ??= SideWithMore(home, away);
             return;
         }
@@ -316,7 +319,7 @@ public static partial class BracketParser
     private static bool Same(string a, string b)
         => Key(a) == Key(b) || Key(StandingsParser.WithoutNote(a)) == Key(StandingsParser.WithoutNote(b));
 
-    private static string Key(string name) => new([.. name.ToLowerInvariant().Where(char.IsLetterOrDigit)]);
+    private static string Key(string name) => HistoricalArchiveBuilder.TeamKey(name);
 
     [GeneratedRegex(@"^(?<first>\d+)\s*-\s*(?<second>\d+)\s*(?<named>.*)$|^vs\.?\s*\(\s*(?<first>\d+)\s*-\s*(?<second>\d+)\s*\)\s*(?<named>)$", RegexOptions.IgnoreCase)]
     private static partial Regex ScorePattern();

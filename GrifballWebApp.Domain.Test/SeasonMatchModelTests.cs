@@ -89,6 +89,23 @@ public class SeasonMatchModelTests
     }
 
     [Test]
+    public void DetachSheetGame_TakesTheGameOut_KeepingTheSheetsResult_AndOnlyItsOwnGame()
+    {
+        var match = SeasonMatch.ImportedSlot(1, MatchBracketInfo.Seeded(Bracket.Winner, 1, 1, 1, 8), 10, 20, SeasonMatchSide.Home, 2, 0, 3);
+        var game = match.AddImportedGame(Guid.NewGuid(), null, 1);
+        var other = SeasonMatch.Seed(1, 10, 20).AddImportedGame(Guid.NewGuid(), null, 1);
+
+        match.DetachSheetGame(game);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(match.SeriesGames, Is.Empty);
+            Assert.That((match.Winner, match.HomeTeamScore, match.AwayTeamScore, match.BestOf), Is.EqualTo(((SeasonMatchSide?)SeasonMatchSide.Home, (int?)2, (int?)0, 3)));
+            Assert.That(() => match.DetachSheetGame(other), Throws.InstanceOf<InvalidOperationException>());
+        }
+    }
+
+    [Test]
     public void ImportedSlot_RefusesATeamAgainstItself_AWinnerWithFewerWins_AndNoSlot()
     {
         var slot = MatchBracketInfo.Seeded(Bracket.Winner, 1, 1, 1, 8);

@@ -9,14 +9,14 @@ namespace GrifballWebApp.Historical.Sources;
 public static class HistoricalBracketLayouts
 {
     private static BracketSlotCells Slot(Bracket bracket, int round, string home, string away, string? winner,
-        string? score = null, string? homeSeed = null, string? awaySeed = null, string? homeScore = null, string? awayScore = null)
-        => new() { Bracket = bracket, Round = round, Home = home, Away = away, Winner = winner, Score = score, HomeSeed = homeSeed, AwaySeed = awaySeed, HomeScore = homeScore, AwayScore = awayScore };
+        string? score = null, string? homeSeed = null, string? awaySeed = null, string? homeScore = null, string? awayScore = null, int? bestOf = null)
+        => new() { Bracket = bracket, Round = round, Home = home, Away = away, Winner = winner, Score = score, HomeSeed = homeSeed, AwaySeed = awaySeed, HomeScore = homeScore, AwayScore = awayScore, BestOf = bestOf };
 
-    private static BracketSlotCells Winners(int round, string home, string away, string? winner, string? score = null, string? homeSeed = null, string? awaySeed = null)
-        => Slot(Bracket.Winner, round, home, away, winner, score, homeSeed, awaySeed);
+    private static BracketSlotCells Winners(int round, string home, string away, string? winner, string? score = null, string? homeSeed = null, string? awaySeed = null, int? bestOf = null)
+        => Slot(Bracket.Winner, round, home, away, winner, score, homeSeed, awaySeed, bestOf: bestOf);
 
-    private static BracketSlotCells Losers(int round, string home, string away, string? winner, string? homeSeed = null)
-        => Slot(Bracket.Loser, round, home, away, winner, homeSeed: homeSeed);
+    private static BracketSlotCells Losers(int round, string home, string away, string? winner, string? homeSeed = null, int? bestOf = null)
+        => Slot(Bracket.Loser, round, home, away, winner, homeSeed: homeSeed, bestOf: bestOf);
 
     /// <summary>
     /// The Infinite seasons' Playoffs template (SL24, FL24, SL25), eight teams: seeds in B, teams in C, "vs (2-1)" (the
@@ -47,32 +47,32 @@ public static class HistoricalBracketLayouts
     /// <summary>H3 Action League 2022's PLAYOFFS: seeds ("1st") left of each team, each side's wins beside it, six teams.</summary>
     public static List<BracketSlotCells> H3Action() =>
     [
-        Slot(Bracket.Winner, 1, "D5", "D7", "H7", homeSeed: "C5", awaySeed: "C7", homeScore: "E5", awayScore: "E7"),
-        Slot(Bracket.Winner, 1, "D9", "D11", "H9", homeSeed: "C9", awaySeed: "C11", homeScore: "E9", awayScore: "E11"),
-        Slot(Bracket.Winner, 2, "H5", "H7", "J7", homeSeed: "G5", homeScore: "I5", awayScore: "I7"),
-        Slot(Bracket.Winner, 2, "H9", "H11", "J9", homeSeed: "C9", awaySeed: "G11", homeScore: "I9", awayScore: "I11"),
-        Winners(3, "J7", "J9", "L8", "J8"),
+        Slot(Bracket.Winner, 1, "D5", "D7", "H7", homeSeed: "C5", awaySeed: "C7", homeScore: "E5", awayScore: "E7", bestOf: 3),
+        Slot(Bracket.Winner, 1, "D9", "D11", "H9", homeSeed: "C9", awaySeed: "C11", homeScore: "E9", awayScore: "E11", bestOf: 3),
+        Slot(Bracket.Winner, 2, "H5", "H7", "J7", homeSeed: "G5", homeScore: "I5", awayScore: "I7", bestOf: 3),
+        Slot(Bracket.Winner, 2, "H9", "H11", "J9", homeSeed: "C9", awaySeed: "G11", homeScore: "I9", awayScore: "I11", bestOf: 3),
+        Winners(3, "J7", "J9", "L8", "J8", bestOf: 5),
     ];
 
     /// <summary>The 2022 H4 Bid Season's PLAYOFFS: "Team - seed N" cells, a play-in, three rounds; its final names no winner.</summary>
     public static List<BracketSlotCells> H4Bid() =>
     [
-        Winners(1, "A3", "A5", "B7", "A4"),
-        Winners(2, "B5", "B7", "C5", "B6"),
-        Winners(2, "B9", "B11", "C11", "B10"),
-        Winners(3, "C5", "C7", "D7", "C6"),
-        Winners(3, "C9", "C11", "D9", "C10"),
-        Winners(4, "D7", "D9", null, "D8"),
+        Winners(1, "A3", "A5", "B7", "A4", bestOf: 3),
+        Winners(2, "B5", "B7", "C5", "B6", bestOf: 3),
+        Winners(2, "B9", "B11", "C11", "B10", bestOf: 3),
+        Winners(3, "C5", "C7", "D7", "C6", bestOf: 3),
+        Winners(3, "C9", "C11", "D9", "C10", bestOf: 3),
+        Winners(4, "D7", "D9", null, "D8", bestOf: 3),
     ];
 
     /// <summary>GWL Spring League 2023's Playoff Bracket: "Rated R (4)" cells, the score under each pair naming its winner.</summary>
     public static List<BracketSlotCells> GwlSpring2023() =>
     [
-        Winners(1, "B19", "B23", "E21", "B21"),
-        Winners(1, "B27", "B31", "E29", "B29"),
-        Winners(2, "E13", "E21", "H17", "E15"),
-        Winners(2, "E29", "E37", "H33", "E31"),
-        Winners(3, "H17", "H33", "K25", "H25"),
+        Winners(1, "B19", "B23", "E21", "B21", bestOf: 5),
+        Winners(1, "B27", "B31", "E29", "B29", bestOf: 5),
+        Winners(2, "E13", "E21", "H17", "E15", bestOf: 5),
+        Winners(2, "E29", "E37", "H33", "E31", bestOf: 5),
+        Winners(3, "H17", "H33", "K25", "H25", bestOf: 7),
     ];
 
     /// <summary>Summer League 2021 (Pro)'s double-elimination Bracket: seeds in A, the losers' bracket from row 17; never
@@ -102,34 +102,34 @@ public static class HistoricalBracketLayouts
     /// in the losers'; the losers' team won the grand final (Match 8) and its reset (Match 9).</summary>
     public static List<BracketSlotCells> Summer2025Pro() =>
     [
-        Winners(1, "B19", "B23", "E21"),
-        Winners(1, "B27", "B31", "E29"),
-        Losers(1, "B45", "B49", "E47"),
-        Losers(1, "B53", "B57", "E55"),
-        Winners(2, "E21", "E29", "H25"),
-        Losers(2, "E47", "E55", "H51"),
-        Losers(3, "H51", "H57", "H31"),
-        Slot(Bracket.GrandFinal, 3, "H25", "H31", null),
-        Slot(Bracket.GrandFinalSuddenDeath, 4, "H25", "H31", "N30"),
+        Winners(1, "B19", "B23", "E21", bestOf: 3),
+        Winners(1, "B27", "B31", "E29", bestOf: 3),
+        Losers(1, "B45", "B49", "E47", bestOf: 3),
+        Losers(1, "B53", "B57", "E55", bestOf: 3),
+        Winners(2, "E21", "E29", "H25", bestOf: 3),
+        Losers(2, "E47", "E55", "H51", bestOf: 3),
+        Losers(3, "H51", "H57", "H31", bestOf: 3),
+        Slot(Bracket.GrandFinal, 3, "H25", "H31", null, bestOf: 5),
+        Slot(Bracket.GrandFinalSuddenDeath, 4, "H25", "H31", "N30", bestOf: 5),
     ];
 
     /// <summary>Summer League 2025 (Classic Legacy)'s double elimination: four teams in the winners' bracket, four starting in
     /// the losers'.</summary>
     public static List<BracketSlotCells> Summer2025Legacy() =>
     [
-        Winners(1, "B19", "B23", "E21"),
-        Winners(1, "B27", "B31", "E29"),
-        Losers(1, "B45", "B49", "E47"),
-        Losers(1, "B53", "B57", "E55"),
-        Winners(2, "E21", "E29", "H25"),
-        Losers(2, "E42", "E47", "H46"),
-        Losers(2, "E55", "E60", "H55"),
-        Losers(3, "H46", "H55", "K50"),
-        Losers(4, "K44", "K50", "H31"),
-        Slot(Bracket.GrandFinal, 3, "H25", "H31", "K27"),
+        Winners(1, "B19", "B23", "E21", bestOf: 3),
+        Winners(1, "B27", "B31", "E29", bestOf: 3),
+        Losers(1, "B45", "B49", "E47", bestOf: 3),
+        Losers(1, "B53", "B57", "E55", bestOf: 3),
+        Winners(2, "E21", "E29", "H25", bestOf: 3),
+        Losers(2, "E42", "E47", "H46", bestOf: 3),
+        Losers(2, "E55", "E60", "H55", bestOf: 3),
+        Losers(3, "H46", "H55", "K50", bestOf: 3),
+        Losers(4, "K44", "K50", "H31", bestOf: 3),
+        Slot(Bracket.GrandFinal, 3, "H25", "H31", "K27", bestOf: 5),
     ];
 
-    /// <summary>The Respawn and GWL tournaments' tabs per round: Round 1-3, Semifinals, then Finals (the grand final).</summary>
+    /// <summary>The Respawn series' tabs per round: Round 1-3, Semifinals, then Finals (the grand final).</summary>
     public static List<BracketRoundTab> RespawnRounds() =>
     [
         new() { Sheet = "Round 1", Round = 1 },

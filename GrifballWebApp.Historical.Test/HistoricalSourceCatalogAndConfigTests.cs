@@ -126,6 +126,14 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
         }
     }
 
+    private static readonly int?[] GwlSeriesLengths = [5, 5, 5, 5, 7];
+
+    [Test]
+    public void BracketLayouts_TakeEachSeriesLengthFromItsSheetsHeader()
+    {
+        Assert.That(HistoricalBracketLayouts.GwlSpring2023().Select(s => s.BestOf), Is.EqualTo(GwlSeriesLengths), "Quarter- and semi-finals Bo5, the championship Bo7");
+    }
+
     [Test]
     public void SheetNames_IgnoresNullEntries()
     {

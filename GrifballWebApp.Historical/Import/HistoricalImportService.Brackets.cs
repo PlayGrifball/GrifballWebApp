@@ -17,9 +17,28 @@ public partial class HistoricalImportService
     /// </summary>
     private async Task<List<SeasonMatch>?> ImportBracket(SeasonGroup group, Season season, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
+        _sheetSlots.Clear();
         var sheet = group.Entries.Select(e => e.Bracket).FirstOrDefault(b => b is { Series.Count: > 0 });
         if (sheet is null)
             return null;
+        var slots = await DrawBracket(group, season, sheet, teams, counts, ct);
+        _sheetSlots.UnionWith(slots.Select(m => m.SeasonMatchID));
+        return slots;
+    }
+
+    /// <summary>The season's slots of its bracket sheet, by ID, while a season is imported (<see cref="ImportBracket"/>):
+    /// their results are the sheet's, so a game that leaves one (<see cref="DetachSheetGame"/>) changes neither.</summary>
+    private readonly HashSet<int> _sheetSlots = [];
+
+    /// <summary>Takes a game a re-import no longer has out of a slot of the bracket sheet, which keeps its sheet result.</summary>
+    private void DetachSheetGame(SeasonMatch slot, SeriesGame game)
+    {
+        slot.DetachSheetGame(game);
+        _context.RemoveRange(game);
+    }
+
+    private async Task<List<SeasonMatch>> DrawBracket(SeasonGroup group, Season season, ArchiveBracket sheet, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
+    {
         var wanted = SheetBracket(group, season, sheet, teams, counts);
         var existing = await _context.SeasonMatches
             .Where(m => m.SeasonID == season.SeasonID && m.BracketMatch != null)
@@ -48,15 +67,18 @@ public partial class HistoricalImportService
     {
         var placed = new List<(ArchiveBracketSeries Series, MatchBracketInfo Slot, int? Home, int? Away)>();
         var matches = new List<SeasonMatch>();
-        var lastSeed = sheet.Series.SelectMany(s => new[] { s.HomeSeed, s.AwaySeed }).Concat(teams.ByName.Values.Select(t => t.ArchivedRank)).Max() ?? 0;
+        // The sheet's seeds are its own; a team it gives none takes its standings rank, unless the sheet gave that seed to another
+        var used = sheet.Series.SelectMany(s => new[] { s.HomeSeed, s.AwaySeed }).OfType<int>().ToHashSet();
+        var lastSeed = used.Concat(teams.ByName.Values.Select(t => t.ArchivedRank).OfType<int>()).DefaultIfEmpty().Max();
         int? SeedOf(MatchBracketInfo? from, int? seed, Team? team)
         {
             if (from is not null)
                 return null;
-            if ((seed ?? team?.ArchivedRank) is int known)
-                return known;
-            lastSeed++;
-            return lastSeed;
+            if (seed is not null)
+                return seed;
+            if (team?.ArchivedRank is int rank && used.Add(rank))
+                return rank;
+            return ++lastSeed;
         }
         var unknown = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var series in sheet.Series)
@@ -107,13 +129,32 @@ public partial class HistoricalImportService
 
     private static string SlotKey(MatchBracketInfo? slot) => slot is null ? "" : $"{slot.Bracket}{slot.RoundNumber}.{slot.MatchNumber}";
 
-    /// <summary>The sheet's slot a playoff series of these teams is: the first of theirs without games yet, else their last
-    /// (a series split over days); null without a bracket sheet, or when the sheet has none of theirs.</summary>
-    private static SeasonMatch? SheetSlotOf(List<SeasonMatch>? bracket, int? home, int? away)
+    /// <summary>
+    /// Puts a playoff series in the sheet's slots of its teams, in their order: each slot without games yet takes as many as
+    /// the sheet says were played in it (its wins; all of them when it doesn't say), the last of them the rest; with none left without games, their last
+    /// slot takes them (a series split over days). A grand final and its sudden death played in one evening are one series
+    /// of games here, split between the two slots. Returns false without a bracket sheet, or when no slot of it is theirs.
+    /// </summary>
+    private static bool InSheetSlots(List<SeasonMatch>? bracket, List<ImportedGame> played, int? home, int? away)
     {
         if (bracket is null || home is null || away is null)
-            return null;
+            return false;
         var theirs = bracket.Where(m => (m.HomeTeamID == home && m.AwayTeamID == away) || (m.HomeTeamID == away && m.AwayTeamID == home)).ToList();
-        return theirs.Find(m => m.SeriesGames.Count == 0) ?? theirs.LastOrDefault();
+        if (theirs.Count == 0)
+            return false;
+        var games = new Queue<ImportedGame>(played);
+        var empty = theirs.Where(m => m.SeriesGames.Count == 0).ToList();
+        foreach (var slot in empty)
+        {
+            // A slot whose wins the sheet doesn't give takes them all
+            var take = slot != empty[^1] && slot.HomeTeamScore is int homeWins && slot.AwayTeamScore is int awayWins ? Math.Min(games.Count, homeWins + awayWins) : games.Count;
+            for (var i = 0; i < take; i++)
+                AddGame(slot, games.Dequeue());
+        }
+        while (games.Count > 0)
+            AddGame(theirs[^1], games.Dequeue());
+        return true;
     }
+
+    private static void AddGame(SeasonMatch slot, ImportedGame game) => slot.AddImportedGame(game.MatchID, game.Recorded, slot.SeriesGames.Count + 1);
 }

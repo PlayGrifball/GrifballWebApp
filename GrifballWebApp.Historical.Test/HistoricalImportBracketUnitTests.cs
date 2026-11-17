@@ -24,6 +24,7 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     private static readonly DateTime CupPlayedAt = new(2016, 5, 1, 20, 0, 0, DateTimeKind.Utc);
 
     private static readonly int[] BestOfs = [3, 3, 1];
+    private static readonly int[] ThreeThenOne = [3, 1];
     private static readonly string[] OmegaIsNoTeam = [$"{CupKey}: the bracket names 1 team(s) that are none of the season's (Omega); their slots have no team there"];
     private static readonly int[] GamesInTheFirstSlot = [1, 0, 0];
 
@@ -51,16 +52,17 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
         Series(Bracket.Winner, 2, 3, "Alpha", "Gamma", SeasonMatchSide.Home),
     ];
 
-    private static ArchiveSeason Cup(List<ArchiveBracketSeries> bracket)
+    private static ArchiveSeason Cup(List<ArchiveBracketSeries> bracket, string game = "halo3")
     {
-        var season = Entry("MCC Cup 2016", "halo3", "AGLA", false,
+        var season = Entry("MCC Cup 2016", game, "AGLA", false,
             Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta"), Player("Gamma One", team: "Gamma"), Player("Delta One", team: "Delta"));
         season.Bracket = new ArchiveBracket { Series = bracket };
         return season;
     }
 
-    private static RecordedGameInput Game(string key, string home, string away, bool isPlayoffs = true) => new()
+    private static RecordedGameInput Game(string key, string home, string away, bool isPlayoffs = true, bool isScrim = false) => new()
     {
+        IsScrim = isScrim,
         SeasonSourceId = CupKey,
         SourceKey = key,
         GameVersion = "halo3",
@@ -205,6 +207,81 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
             Assert.That(report.Warnings, Has.Exactly(2).Contains("is in no slot of the bracket sheet"));
             Assert.That(await Slots(), Has.Count.EqualTo(5));
         }
+    }
+
+    [Test]
+    public async Task Import_ARecordedGameGoneFromASheetSlot_LeavesTheSlotAndItsSheetResult()
+    {
+        // The scrim keeps the season's recorded games in the archive (with none at all, earlier ones are left alone)
+        var scrim = Game("cup#2", "Beta", "Gamma", isPlayoffs: false, isScrim: true);
+        await _service.Import(Input(Cup(FourTeams()), [Game("cup#1", "Alpha", "Delta"), scrim]));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(Input(Cup(FourTeams()), [scrim]));
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.RecordedGamesRemoved, Is.EqualTo(1));
+            Assert.That(bracket, Has.Count.EqualTo(3), "The slot is the sheet's: it stays, and the final from it");
+            Assert.That(bracket[0].SeriesGames, Is.Empty);
+            Assert.That((bracket[0].Winner, bracket[0].HomeTeamScore, bracket[0].AwayTeamScore), Is.EqualTo(((SeasonMatchSide?)SeasonMatchSide.Home, (int?)2, (int?)0)));
+        }
+    }
+
+    [Test]
+    public async Task Import_AWaypointGameNoLongerListed_LeavesItsSheetSlot()
+    {
+        var matchId = Guid.NewGuid();
+        await AddMatch(Context, matchId, (1, "Alpha One", Outcomes.Won, 20, 5), (4, "Delta One", Outcomes.Lost, 10, 15));
+        var season = Cup(FourTeams(), "infinite");
+        HistoricalArchiveInput Listing(params Guid[] playoffs) => new()
+        {
+            Seasons = new UnifiedArchive { Seasons = [season] },
+            WaypointMatches = new() { [CupKey] = new WaypointSeasonMatches { Playoffs = [.. playoffs.Select(p => p.ToString())] } },
+        };
+        await _service.Import(Listing(matchId));
+        Context.ChangeTracker.Clear();
+        Assert.That((await Slots())[0].SeriesGames, Has.Count.EqualTo(1), "Linked to Alpha and Delta's slot");
+
+        var report = await _service.Import(Listing());
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonMatchesRemoved, Is.Zero);
+            Assert.That(bracket, Has.Count.EqualTo(3));
+            Assert.That(bracket[0].SeriesGames, Is.Empty);
+            Assert.That(bracket[0].Winner, Is.EqualTo(SeasonMatchSide.Home));
+        }
+    }
+
+    [Test]
+    public async Task Import_OneEveningsGamesOfTwoSlotsOfTheSameTeams_AreSplitByTheSheetsWins()
+    {
+        // A grand final and its sudden death: 2-1, then 1-0, four games in one evening
+        var sheet = Cup(
+        [
+            Series(Bracket.GrandFinal, 1, 1, "Alpha", "Beta", SeasonMatchSide.Away, 1, 2, 1, 2),
+            Series(Bracket.GrandFinalSuddenDeath, 2, 2, "Alpha", "Beta", SeasonMatchSide.Away, homeWins: 0, awayWins: 1),
+        ]);
+
+        await _service.Import(Input(sheet, [.. Enumerable.Range(1, 4).Select(i => Game($"cup#{i}", "Beta", "Alpha"))]));
+
+        Assert.That((await Slots()).Select(m => m.SeriesGames.Count), Is.EqualTo(ThreeThenOne));
+    }
+
+    [Test]
+    public async Task Import_AStandingsRankTheSheetGaveAnother_IsNotASecondSeed()
+    {
+        var season = Cup([Series(Bracket.Winner, 1, 1, "Alpha", "Beta", homeSeed: 3), Series(Bracket.Winner, 1, 2, "Gamma", "Delta", homeSeed: 1, awaySeed: 2)]);
+        season.Teams.Add(new ArchiveTeam { TeamName = "Beta", Rank = 3 });
+
+        await _service.Import(Input(season));
+
+        Assert.That((await Slots())[0].BracketMatch!.AwayTeamSeedNumber, Is.EqualTo(4), "Seed 3 is Alpha's");
     }
 
     [Test]

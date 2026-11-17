@@ -410,6 +410,14 @@ public class SeasonMatch : AuditableEntity
         return _seriesGames.Count > 0;
     }
 
+    /// <summary>Takes a game out of a slot of an archive bracket sheet (<see cref="ImportedSlot"/>) when a re-import no
+    /// longer has it there. The slot's score and result are the sheet's, not its games': they stay.</summary>
+    public void DetachSheetGame(SeriesGame game)
+    {
+        EnsureOwn(game);
+        _seriesGames.Remove(game);
+    }
+
     /// <summary>
     /// Takes all its games out, and their score: back to before any were reported. Only an undecided series (a result
     /// is taken back first, <see cref="Reopen"/>). Returns the games taken out, for the caller to delete.
