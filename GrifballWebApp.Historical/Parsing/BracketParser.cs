@@ -46,7 +46,7 @@ public static partial class BracketParser
         if (tab.RecordsSheet is { } recordsSheet)
         {
             if (workbook.Sheet(recordsSheet) is { } records)
-                DecideByPlayoffLosses(drafts, PlayoffLosses(records));
+                DecideByPlayoffLosses(drafts, PlayoffLosses(records, tab.Aliases));
             else
                 warnings.Add($"{sourceId}: no records sheet '{recordsSheet}'");
         }
@@ -297,9 +297,10 @@ public static partial class BracketParser
     }
 
     /// <summary>Each team's playoff losses from a tab of the teams' records (<see cref="BracketTab.RecordsSheet"/>): a record
-    /// cell under the team's name, the season's then the playoffs' in brackets ("16-2 (4-0)"). A tie breaker's game,
-    /// "(1-0*)", isn't the playoffs'; a record without brackets (no playoffs) or under no name is no one's.</summary>
-    private static List<(string Team, int Losses)> PlayoffLosses(SheetTable sheet)
+    /// cell under the team's name (as the bracket tab's aliases name it), the season's then the playoffs' in brackets
+    /// ("16-2 (4-0)"). A tie breaker's game, "(1-0*)", isn't the playoffs'. A record without brackets (no playoffs), with two
+    /// unmarked ones (which is the playoffs'?) or under no name is no one's.</summary>
+    private static List<(string Team, int Losses)> PlayoffLosses(SheetTable sheet, Dictionary<string, string> aliases)
     {
         var losses = new List<(string, int)>();
         for (var r = 1; r < sheet.Rows.Count; r++)
@@ -307,12 +308,13 @@ public static partial class BracketParser
             for (var c = 0; c < sheet.Rows[r].Length; c++)
             {
                 var cell = sheet.Rows[r][c].Trim();
-                var team = sheet.Cell(r - 1, c).Trim();
+                var name = sheet.Cell(r - 1, c).Trim();
+                var team = aliases.GetValueOrDefault(name) ?? name;
                 if (team.Length == 0 || !RecordWithPlayoffsPattern().IsMatch(cell))
                     continue;
                 var playoffs = PlayoffRecordPattern().Matches(cell);
-                if (playoffs.Count > 0)
-                    losses.Add((team, int.Parse(playoffs[^1].Groups["losses"].Value, CultureInfo.InvariantCulture)));
+                if (playoffs.Count == 1)
+                    losses.Add((team, int.Parse(playoffs[0].Groups["losses"].Value, CultureInfo.InvariantCulture)));
             }
         }
         return losses;

@@ -140,7 +140,7 @@ public class ArchiveSeasonTests
     public async Task H3Action2022_HasTheSummerLeague2022Title_OnJunkyardDogs()
     {
         await using var context = Archive.NewContext();
-        var titles = await context.Set<GrifballWebApp.Domain.League.PlayerChampionship>().AsNoTracking()
+        var titles = await context.Set<PlayerChampionship>().AsNoTracking()
             .Where(c => c.Season.HistoricalSourceID != null && (c.Season.SeasonName == "2022 H3 Action League" || c.Season.SeasonName == "Summer League 2022"))
             .Select(c => new { c.Season.SeasonName, c.Team.TeamName })
             .ToListAsync();
