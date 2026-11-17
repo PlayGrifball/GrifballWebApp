@@ -104,11 +104,11 @@ public sealed class HistoricalArchiveBuilder
     private void AddSeasonTabs(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
         foreach (var tab in config.Rosters)
-            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
+            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet, config) : null));
         foreach (var tab in config.Standings)
-            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
+            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? Named(StandingsParser.Parse(standingsSheet, tab), config) : null));
         foreach (var tab in config.Drafts)
-            _drafts.Add((id, tab, workbook.Sheet(tab.Sheet) is { } draftSheet ? DraftParser.Parse(draftSheet, tab) : null));
+            _drafts.Add((id, tab, workbook.Sheet(tab.Sheet) is { } draftSheet ? DraftParser.Parse(draftSheet, tab, config) : null));
         foreach (var tab in config.Awards)
             _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
         foreach (var tab in config.Brackets)
@@ -252,6 +252,11 @@ public sealed class HistoricalArchiveBuilder
                 _affected.UnionWith(entries.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
         }
     }
+
+    /// <summary>A standings tab's teams under the names the workbook's config gives them (<see cref="HistoricalSourceConfig.TeamNames"/>),
+    /// without a placeholder it doesn't name ("Team Name"): no team, and never a real one a letter away.</summary>
+    private static List<ArchiveTeam>? Named(List<ArchiveTeam>? teams, HistoricalSourceConfig config)
+        => teams?.Select(t => t with { TeamName = config.TeamName(t.TeamName) }).Where(t => !HistoricalKeys.IsExcludedTeamName(t.TeamName)).ToList();
 
     /// <summary>Each standings tab's teams go on its season's regular-season entry (the first, or its <see cref="StandingsTab.Tab"/>),
     /// where the import reads a team's record and placing.</summary>

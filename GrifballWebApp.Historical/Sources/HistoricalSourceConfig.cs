@@ -43,6 +43,19 @@ public class HistoricalSourceConfig
     public List<DraftTab> Drafts { get; init; } = [];
     /// <summary>Tabs of a season's awards (MVPs, named season awards, records): AwardsParser.</summary>
     public List<AwardsTab> Awards { get; init; } = [];
+    /// <summary>Teams this workbook's rosters and standings name another way, by the name they give: a placeholder never
+    /// filled in (H3 Action 2022's "Team Name", RDG NHL's team) that would otherwise read as no team.</summary>
+    public Dictionary<string, string> TeamNames { get; init; } = [];
+
+    /// <summary>The archive's name of a team this workbook calls <paramref name="name"/>: its <see cref="TeamNames"/> entry in
+    /// any case and spacing ("TEAM  NAME"), else the name itself.</summary>
+    public string TeamName(string name)
+    {
+        var key = SingleSpaced(name);
+        return TeamNames.FirstOrDefault(n => string.Equals(SingleSpaced(n.Key), key, StringComparison.OrdinalIgnoreCase)).Value ?? name;
+    }
+
+    private static string SingleSpaced(string name) => string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
