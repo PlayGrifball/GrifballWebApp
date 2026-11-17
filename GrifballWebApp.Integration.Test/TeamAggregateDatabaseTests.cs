@@ -205,14 +205,16 @@ public class TeamAggregateMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_TeamAggregate"))) - 1]);
 
-        var season = await _context.AddSeason();
+        // Teams as that model had them: no placing
+        await using var old = BeforeTeamArchivedPlacingContext.On(_context);
+        var season = await old.AddSeason();
         // As the old model's public setters could leave them
         var winsOnly = Team.Seed(teamName: "Wins only", seasonID: season.SeasonID, recordedWins: 5);
         var lossesOnly = Team.Seed(teamName: "Losses only", seasonID: season.SeasonID, recordedLosses: 4);
         var whole = Team.Seed(teamName: "Whole", seasonID: season.SeasonID, recordedWins: 3, recordedLosses: 2);
         var none = Team.Seed(teamName: "None", seasonID: season.SeasonID);
-        _context.Teams.AddRange(winsOnly, lossesOnly, whole, none);
-        await _context.SaveChangesAsync();
+        old.Teams.AddRange(winsOnly, lossesOnly, whole, none);
+        await old.SaveChangesAsync();
 
         await migrator.MigrateAsync();
 

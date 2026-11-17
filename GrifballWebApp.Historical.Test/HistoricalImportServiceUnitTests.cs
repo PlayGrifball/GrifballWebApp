@@ -160,6 +160,71 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     }
 
     [Test]
+    public async Task Import_AStandingsRowOfLossesOnly_IsARecordOfNoWins()
+    {
+        // A sheet that leaves the Wins cell blank for a team that won nothing
+        var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Benchy", team: "Hens", wins: 1, losses: 1));
+        entry.Teams.Add(new ArchiveTeam { TeamName = "Hens", Losses = 10 });
+
+        await _service.Import(Input(entry));
+
+        Context.ChangeTracker.Clear();
+        var team = await Context.Teams.AsNoTracking().SingleAsync();
+        Assert.That((team.RecordedWins, team.RecordedLosses), Is.EqualTo(((int?)0, (int?)10)), "The standings', not the player's line");
+    }
+
+    [Test]
+    public async Task Import_ASeasonOfOneCombinedStatsTab_TakesItsStandingsRecords()
+    {
+        // SL24 DA: one tab of the regular season and the playoffs together, its standings on that entry. A player's line
+        // there is no regular-season record; the standings' are.
+        var combined = Entry("Spring League 2024", "halo3", "AGLA", false, Player("Silva", team: "Rooster", wins: 20, losses: 2));
+        var season = new ArchiveSeason
+        {
+            SeasonName = combined.SeasonName, GameVersion = combined.GameVersion, League = combined.League, Division = combined.Division,
+            SourceWorkbook = combined.SourceWorkbook, SourceSheet = combined.SourceSheet, IsCombined = true, Players = combined.Players,
+            Teams = [new ArchiveTeam { TeamName = "Rooster", Rank = 1, Wins = 17, Losses = 5 }],
+        };
+
+        await _service.Import(Input(season));
+
+        Context.ChangeTracker.Clear();
+        var team = await Context.Teams.AsNoTracking().SingleAsync();
+        Assert.That((team.RecordedWins, team.RecordedLosses, team.ArchivedRank), Is.EqualTo(((int?)17, (int?)5, (int?)1)));
+    }
+
+    [Test]
+    public async Task Import_KeepsTheStandingsRankAndFinish_OnTheirTeams_AndClearsThemWhenTheSheetDropsThem()
+    {
+        static ArchiveSeason Season(params ArchiveTeam[] teams)
+        {
+            var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Benchy", team: "Hens"), Player("Lone", team: "Unplaced"), Player("Late", team: "Finished"));
+            entry.Teams.AddRange(teams);
+            return entry;
+        }
+
+        await _service.Import(Input(Season(
+            new ArchiveTeam { TeamName = "Rooster", Rank = 1, Finish = 1, Wins = 9, Losses = 1 },
+            new ArchiveTeam { TeamName = "hens ", Rank = 2, Finish = 3, Wins = 2, Losses = 8 },
+            new ArchiveTeam { TeamName = "Finished", Finish = 5 })));
+        Context.ChangeTracker.Clear();
+        var placed = await Context.Teams.AsNoTracking().OrderBy(t => t.TeamName).Select(t => new { t.TeamName, t.ArchivedRank, t.ArchivedFinish }).ToListAsync();
+
+        await _service.Import(Input(Season(new ArchiveTeam { TeamName = "Rooster", Wins = 9, Losses = 1 })));
+        Context.ChangeTracker.Clear();
+        var dropped = await Context.Teams.AsNoTracking().SingleAsync(t => t.TeamName == "Rooster");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(placed.Select(t => (t.TeamName, t.ArchivedRank, t.ArchivedFinish)), Is.EqualTo(new[]
+            {
+                ("Finished", (int?)null, (int?)5), ("Hens", 2, 3), ("Rooster", 1, 1), ("Unplaced", null, null),
+            }), "The standings' placing (either half), by the team's name whatever its case and spacing; none for a team they don't name");
+            Assert.That((dropped.ArchivedRank, dropped.ArchivedFinish), Is.EqualTo(((int?)null, (int?)null)), "The sheet gives it none now");
+        }
+    }
+
+    [Test]
     public async Task Import_ExcludesHeaderAndSubstituteLabels_FromCreatingTeams()
     {
         var input = Input(Entry("Fall League 2020 (PC)", "reach", "AGLA", false,

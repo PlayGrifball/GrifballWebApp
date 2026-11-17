@@ -111,7 +111,7 @@ test('a season page reached by an in-app link renders the data it loads', async 
           results: [winterListed],
         })),
     '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', winterSummary)),
-    '/api/seasons/3/standings': route => json(route, typed('getTeamStandings', [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1, recordFromSource: false }])),
+    '/api/seasons/3/standings': route => json(route, typed('getTeamStandings', [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1, recordFromSource: false, finish: null }])),
     '/api/seasons/3/matches/unscheduled': route => json(route, typed('getUnscheduledMatches', [
               { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', homeTeam: 'Home Cap', awayTeam: 'Away Cap', complete: false },
             ])),

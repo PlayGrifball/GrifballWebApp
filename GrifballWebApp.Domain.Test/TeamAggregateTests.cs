@@ -270,6 +270,29 @@ public class TeamAggregateTests
     }
 
     [Test]
+    public void RecordArchivedPlacing_KeepsTheRankAndTheFinish_AndBothNull_Neither()
+    {
+        var team = Team.Imported(7, "Relentless");
+
+        team.RecordArchivedPlacing(rank: 2, finish: 1);
+        Assert.That((team.ArchivedRank, team.ArchivedFinish), Is.EqualTo(((int?)2, (int?)1)));
+        team.RecordArchivedPlacing(rank: 5, finish: null);
+        Assert.That((team.ArchivedRank, team.ArchivedFinish), Is.EqualTo(((int?)5, (int?)null)), "A sheet may give one without the other");
+        team.RecordArchivedPlacing(null, null);
+        Assert.That((team.ArchivedRank, team.ArchivedFinish), Is.EqualTo(((int?)null, (int?)null)));
+    }
+
+    [TestCase(0, null)]
+    [TestCase(null, 0)]
+    [TestCase(-1, 3)]
+    public void RecordArchivedPlacing_RefusesAPlaceBelowFirst(int? rank, int? finish)
+    {
+        var team = Team.Imported(7, "Relentless");
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => team.RecordArchivedPlacing(rank, finish));
+    }
+
+    [Test]
     public void CaptainedBy_TheQuery_AgreesWithIsCaptainedBy()
     {
         var teams = new[] { DraftedTeam(), Team.Imported(7, "No captain") };

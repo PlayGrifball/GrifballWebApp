@@ -64,6 +64,37 @@ describe('TeamStandingsComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Records from the source spreadsheet');
   });
 
+  it("shows each team's final place from the source spreadsheet, and none for a team it doesn't place", async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/seasons/2/standings').flush([
+      { teamID: 10, teamName: 'Defiance', wins: 14, losses: 6, recordFromSource: true, finish: 3 },
+      { teamID: 11, teamName: 'Monstars', wins: 15, losses: 5, recordFromSource: true, finish: 1 },
+      { teamID: 12, teamName: 'Hypest', wins: 13, losses: 7, recordFromSource: true, finish: 22 },
+      { teamID: 13, teamName: 'Unplaced', wins: 2, losses: 18, recordFromSource: true, finish: null },
+    ]);
+    await fixture.whenStable();
+
+    expect(rows()).toEqual([
+      ['1', 'Defiance', '14', '6', '3rd'],
+      ['2', 'Monstars', '15', '5', '1st'],
+      ['3', 'Hypest', '13', '7', '22nd'],
+      ['4', 'Unplaced', '2', '18', ''],
+    ]);
+    expect((fixture.nativeElement as HTMLElement).querySelector('th.standings__finish')?.textContent?.trim()).toBe('Finish');
+  });
+
+  it('has no finish column when no team has a final place', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1, finish: null }]);
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).querySelector('th.standings__finish')).toBeNull();
+  });
+
+  it('names places as ordinals', () => {
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(TeamStandingsComponent.ordinal))
+      .toEqual(['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '23rd', '101st', '111th']);
+  });
+
   it('has no note for records from matches', async () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);

@@ -10,13 +10,19 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   environment needs no setup). Each entry says what the import reads from it (season stats tabs, database tables of stats
   with a season column (`StatsTable`: the grifball.info backup, split by season, division and phase, its season IDs named
   in its entry since the workbook has no names), Waypoint game lists, per-game carnage tabs, the champions record, the
-  Late League players list). Dead sources are listed, never downloaded.
+  Late League players list, the team standings). Dead sources are listed, never downloaded.
 - **Snapshots** (`Event.HistoricalSourceSnapshots`): a refresh downloads each enabled source (Google Sheets as their
   xlsx export, a tab's CSV when the export is refused; pages at their URL; Wayback captures at their permanent URL)
   and keeps the content only when its SHA-256 changed. The import reads each source's latest snapshot, so a sheet that
   went private or was deleted still imports from its last one. Snapshots are in the database, so they ride its backups.
 - **Parsing** (`GrifballWebApp.Historical/Parsing`): the xlsx is read with ExcelDataReader into text cells and parsed into the same
   `HistoricalArchiveInput` the compiled JSON used to be; `HistoricalImportService` stays the only importer.
+- **Standings** (`StandingsParser`, a source's `Standings` tabs): a season's team standings in any of its sheets' layouts (a team per
+  row under headers, a team per column beside labels, or a list of "Team (captain) (W-L)" cells), its columns found by their
+  headers: each team's record, its rank (seed: Rank, Seed, Standing, or the table's order) and its final place (Place
+  Finished, Playoffs, Playoff Ending). A standings name a few letters off the stats' team takes the stats' name. A team
+  keeps them as `Team.ArchivedRank` and `ArchivedFinish`; the season page orders its standings by the sheet's ranks (one
+  table's) and shows each team's finish.
 - **Jobs**: everything runs in the worker role through the historical import job queue (one job at a time):
   refresh, preview (a dry run: each season's transaction rolled back) and import.
 - **Schedule** (`HistoricalRefreshJob`, a Quartz job, daily by default): a scheduled refresh queues a guarded import of

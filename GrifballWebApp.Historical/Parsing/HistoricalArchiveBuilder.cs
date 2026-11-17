@@ -41,6 +41,8 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule, List<string> Unparsed)? Games)> _waypoint = [];
     /// <summary>Rosters of seasons whose stats are in another source, applied once every season is known.</summary>
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
+    /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
+    private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
     private bool _everySeason;
     private bool _playersChanged;
@@ -84,6 +86,8 @@ public sealed class HistoricalArchiveBuilder
         AddWaypoint(id, config, workbook);
         foreach (var tab in config.Rosters)
             _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
+        foreach (var tab in config.Standings)
+            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
         AddGames(id, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
@@ -162,6 +166,7 @@ public sealed class HistoricalArchiveBuilder
     {
         var waypoint = WaypointBySeason();
         FillTeamsFromRosters();
+        AddStandings();
 
         var input = new HistoricalArchiveInput
         {
@@ -225,4 +230,74 @@ public sealed class HistoricalArchiveBuilder
                 _affected.UnionWith(entries.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
         }
     }
+
+    /// <summary>Each standings tab's teams go on its season's regular-season entry (the first, or its <see cref="StandingsTab.Tab"/>),
+    /// where the import reads a team's record and placing.</summary>
+    private void AddStandings()
+    {
+        foreach (var (sourceId, tab, teams) in _standings)
+        {
+            var workbook = tab.Season ?? sourceId;
+            var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase)
+                && (tab.Tab is null || string.Equals(s.SourceSheet, tab.Tab, StringComparison.OrdinalIgnoreCase)));
+            if (teams is null || regular is null)
+            {
+                _warnings.Add($"{sourceId}: standings '{tab.Sheet}' not read ({(teams is null ? "no such sheet, or no table" : $"no season from {workbook}")})");
+                continue;
+            }
+            var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
+            // The season's names of its teams: its stats', and an earlier standings tab's (two tabs of a season spell a team
+            // alike, the stats naming none)
+            var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(regular.Teams.Select(t => t.TeamName))
+                .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            // A captain is one of the season's players: a nickname ("Team (Snipez)") would be a placeholder player
+            var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
+                .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
+            var named = teams.Select(t => t with
+            {
+                TeamName = KnownName(t.TeamName, known),
+                Captain = t.Captain is { } captain ? players.GetValueOrDefault(HistoricalKeys.Normalize(captain)) : null,
+            }).ToList();
+            // The stats' placeholder of a captain's team ("OREOTHECAT's Team") is the team the standings name with that captain,
+            // or name after them: it takes the team's name as the season has it
+            foreach (var (team, given) in named.Zip(teams))
+            {
+                var placeholders = new[] { given.Captain, given.TeamName, team.TeamName }.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => $"{c!.Trim()}'s Team").ToList();
+                foreach (var player in season.SelectMany(s => s.Players).Where(p => placeholders.Contains(p.TeamName?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)))
+                    player.TeamName = team.TeamName;
+            }
+            regular.Teams.AddRange(named);
+            if (_changedSourceIds?.Contains(sourceId) != false)
+                _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+        }
+    }
+
+    /// <summary>
+    /// The season's name of a standings team the standings spell another way: the same letters and digits ("like
+    /// clockwork!"), or a few letters off (one, two from 8 letters, three from 15) with the same digits when exactly one
+    /// of the known teams is that close ("Chemical Inbalance", never "Team 10" for "Team 1"), or the same but for a note
+    /// in brackets ("Puffy Grifbussy (WINNER)"). A team no one else names keeps its own name.
+    /// </summary>
+    private static string KnownName(string name, List<string> known) => Closest(name, known) ?? name;
+
+    private static string? Closest(string name, List<string> known)
+    {
+        var key = TeamKey(name);
+        if (known.FirstOrDefault(t => TeamKey(t) == key) is { } same)
+            return same;
+        // The same name but for a note in brackets on either ("Puffy Grifbussy" and "Puffy Grifbussy (WINNER)")
+        var bare = TeamKey(StandingsParser.WithoutNote(name));
+        if (known.FirstOrDefault(t => TeamKey(StandingsParser.WithoutNote(t)) == bare) is { } noted)
+            return noted;
+        var digits = Digits(key);
+        var allowed = key.Length >= 15 ? 3 : key.Length >= 8 ? 2 : 1;
+        var close = known.Where(t => Digits(TeamKey(t)) == digits && DuplicateSuggestionService.Distance(key, TeamKey(t), allowed) is not null).ToList();
+        return close.Count == 1 ? close[0] : null;
+    }
+
+    /// <summary>A team name's letters and digits, lower case. Not HistoricalKeys.LooseKey: that drops a gamertag's
+    /// "#1234" suffix, which in a team's name ("Team #2") is the name.</summary>
+    private static string TeamKey(string name) => new([.. name.ToLowerInvariant().Where(char.IsLetterOrDigit)]);
+
+    private static string Digits(string key) => new([.. key.Where(char.IsDigit)]);
 }

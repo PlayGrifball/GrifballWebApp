@@ -27,6 +27,14 @@ public class HistoricalArchiveParsingTests
     private static readonly string[] expected8 = ["wl19/Game Results: 1 games with only one side left out"];
     private static readonly string[] expected9 = ["Bears", "Bears", "Bears", "Beer", "Beer"];
     private static readonly string[] expected10 = ["stats/Stats"];
+    private static readonly string[] StatsAndPlayoffStats = ["stats/Stats", "stats/Playoff Stats"];
+    private static readonly (string, string?)[] PlaceholderTeamsRenamed = [("A", "THE WINNERS TEAM"), ("B", "THE WINNERS TEAM"), ("C", "Mystery Heroes"), ("D", "Trespa5s"), ("E", null), ("A", "THE WINNERS TEAM")];
+    private static readonly string[] BravoThenAlpha = ["Bravo", "Alpha"];
+    private static readonly (string, string?)[] CaptainOnlyIfAPlayer = [("Alpha", "Ace"), ("Bravo", null)];
+    private static readonly string[] TeamOneAndTen = ["Team 1", "Team 10"];
+    private static readonly string[] TeamAlfaTwice = ["Team Alfa", "Team Alfa"];
+    private static readonly string[] MysteryHeroesThenTheWinners = ["Mystery Heroes", "THE WINNERS TEAM", "Trespa5s"];
+    private static readonly string[] StatsNamesOfStandingsTeams = ["Chemical Imbalance", "Like Clockwork", "Bravo", "Alpah Team", "Puffy Grifbussy", "Buff Oily Men (& Women)", "SML08 All Stars + Kazink", "(TBD)"];
     private static readonly string[] expected11 = ["gwl: no sheet 'Missing'"];
     private static readonly string[] expected12 = ["Silly Kids", "Never Last"];
     private static readonly string[] expected13 = ["Galvann", "SubPlayer", "SubPlayer2"];
@@ -762,6 +770,186 @@ public class HistoricalArchiveParsingTests
             Assert.That(build.Seasons, Is.EquivalentTo(expected10), "The roster's season is the changed source's");
             Assert.That(build.Warnings, Does.Contain("draft: roster 'Missing' not read (no such sheet)"));
             Assert.That(build.Warnings, Does.Contain("draft: roster 'Draft' not read (no season from nothing)"));
+        }
+    }
+
+    [Test]
+    public void StandingsInItsOwnAndAnotherSource_GoOnTheirSeasonsRegularSeason()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Summer League 2025", Game = "infinite" },
+                    Tabs = [new() { Name = "Stats" }, new() { Name = "Playoff Stats", IsPlayoffs = true }],
+                    Standings = [new() { Sheet = "Standings", Ranked = true }],
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 4, 10)]),
+                    ("Playoff Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 2, 3)]),
+                    ("Standings", [Row("Team", "Wins", "Losses"), Row("Alpha", 9, 1), Row("Bravo", 1, 9)]))),
+            Source("chart", new HistoricalSourceConfig
+                {
+                    Standings = [new() { Sheet = "Team Chart", Season = "stats", Layout = StandingsLayout.Columns, Anchor = "Team Name:" },
+                        new() { Sheet = "Missing", Season = "stats" }, new() { Sheet = "Team Chart", Season = "nothing", Layout = StandingsLayout.Columns }],
+                },
+                Workbook(("Team Chart", [Row("Playoff Ending", "1st", "2nd"), Row("Team Name:", "Alpha", "Bravo")]))),
+        ];
+
+        var build = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "chart" });
+
+        var regular = build.Input.Seasons.Seasons.Single(s => !s.IsPlayoffs);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(regular.Teams.Select(t => (t.TeamName, t.Rank, t.Finish, t.Wins, t.Losses)), Is.EqualTo(new (string, int?, int?, int?, int?)[]
+            {
+                ("Alpha", 1, null, 9, 1), ("Bravo", 2, null, 1, 9), ("Alpha", null, 1, null, null), ("Bravo", null, 2, null, null),
+            }));
+            Assert.That(build.Input.Seasons.Seasons.Single(s => s.IsPlayoffs).Teams, Is.Empty);
+            Assert.That(build.Seasons, Is.EquivalentTo(StatsAndPlayoffStats), "The standings' season is the changed source's");
+            Assert.That(build.Warnings, Does.Contain("chart: standings 'Missing' not read (no such sheet, or no table)"));
+            Assert.That(build.Warnings, Does.Contain("chart: standings 'Team Chart' not read (no season from nothing)"));
+        }
+    }
+
+    [Test]
+    public void AStandingsTeamSpeltAlmostAsTheStatsTeam_TakesTheStatsName()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Fall League 2024", Game = "infinite" },
+                    Tabs = [new() { Name = "Stats" }],
+                    Standings = [new() { Sheet = "Standings", Ranked = true }],
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Chemical Imbalance", 4, 10), Row("B", "Like Clockwork", 4, 1), Row("C", "Alpha", 4, 1),
+                        Row("D", "Puffy Grifbussy", 4, 1), Row("E", "Buff Oily Men (& Women)", 4, 1), Row("F", "SML08 All Stars + Kazink", 4, 1)]),
+                    ("Standings", [Row("Team", "Wins", "Losses"), Row("Chemical Inbalance", 15, 3), Row("like  clockwork!", 14, 4), Row("Bravo", 1, 9), Row("Alpah Team", 1, 9),
+                        Row("Puffy Grifbussy (WINNER)", 9, 1), Row("Buff Oily Men (& Women)", 5, 5), Row("SML08 All Stars and Kazink", 4, 6), Row("(TBD)", 0, 0)]))),
+        ];
+
+        var teams = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons.Single().Teams.Select(t => t.TeamName);
+
+        Assert.That(teams, Is.EqualTo(StatsNamesOfStandingsTeams),
+            "A few letters off, the same letters, or the name without a note in brackets is the stats' team; a team no stats name, or one further off, keeps its own name");
+    }
+
+    private static HistoricalSourceContent StandingsSeason(object?[][] stats, params (string Sheet, StandingsTab Tab, object?[][] Rows)[] standings)
+        => Source("s", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Winter League 2025", Game = "infinite" },
+                Tabs = [new() { Name = "Stats" }],
+                Standings = [.. standings.Select(s => s.Tab)],
+            },
+            Workbook([("Stats", stats), .. standings.Select(s => (s.Sheet, s.Rows))]));
+
+    [Test]
+    public void AStandingsCaptain_IsKept_OnlyWhenTheSeasonsStatsHaveThatPlayer()
+    {
+        // "Team (captain)" gives a nickname as often as a gamertag: a nickname would make a placeholder player. A gamertag
+        // is the stats' spelling of it
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("Ace", "Alpha", 4, 1), Row("Bee", "Bravo", 4, 1)],
+            ("Standings", new StandingsTab { Sheet = "Standings", CaptainInName = true }, [Row("Team", "Wins", "Losses"), Row("Alpha (ace)", 9, 1), Row("Bravo (Beezy)", 1, 9)]));
+
+        var teams = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams;
+
+        Assert.That(teams.Select(t => (t.TeamName, t.Captain)), Is.EqualTo(CaptainOnlyIfAPlayer));
+    }
+
+    [Test]
+    public void AStandingsTeamWhoseNumberDiffers_IsNoStatsTeamALetterAway()
+    {
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("A", "Team 1", 4, 1)],
+            ("Standings", new StandingsTab { Sheet = "Standings" }, [Row("Team", "Wins", "Losses"), Row("Team 1", 9, 1), Row("Team 10", 1, 9)]));
+
+        var teams = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams;
+
+        Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(TeamOneAndTen));
+    }
+
+    [Test]
+    public void TwoStandingsTabsOfASeason_SpellingATeamTwoWays_GiveItOneName()
+    {
+        // The stats name no team: the second tab takes the first tab's name
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("A", null, 4, 1)],
+            ("Draft Sheet", new StandingsTab { Sheet = "Draft Sheet", Layout = StandingsLayout.Columns, Anchor = "Team Name:" }, [Row("Season Standings", 1), Row("Team Name:", "Team Alfa")]),
+            ("Standings", new StandingsTab { Sheet = "Standings" }, [Row("Team", "Wins", "Losses"), Row("Team Alpha", 9, 1)]));
+
+        var teams = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams;
+
+        Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(TeamAlfaTwice));
+    }
+
+    [Test]
+    public void ATeamWithAndWithoutANote_InTwoTabs_IsOneTeam_AndItsCaptainsPlaceholderTakesThatName()
+    {
+        // SL24: the standings "Puffy Grifbussy (WINNER)" with its captain X, the draft sheet "Puffy Grifbussy", the stats "X's Team"
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("X", "X's Team", 4, 1)],
+            ("Standings", new StandingsTab { Sheet = "Standings" }, [Row("Team", "Captain", "Wins", "Losses"), Row("Puffy Grifbussy (WINNER)", "X", 9, 1)]),
+            ("Draft Sheet", new StandingsTab { Sheet = "Draft Sheet", Layout = StandingsLayout.Columns, Anchor = "Team Name:" }, [Row("Season Standings", 3), Row("Team Name:", "Puffy Grifbussy")]));
+
+        var season = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.Teams.Select(t => t.TeamName).Distinct().Count(), Is.EqualTo(1), "One team, whichever tab comes first");
+            Assert.That(season.Players.Single().TeamName, Is.EqualTo(season.Teams[0].TeamName), "The placeholder is that team");
+        }
+    }
+
+    [Test]
+    public void StandingsOfOneOfAWorkbooksSeasons_GoOnThatSeason_ByItsTab()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("sml21", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Summer League 2021", Game = "halo3" },
+                    Tabs = [new() { Name = "Pro Stats", CustomSeason = "Summer League 2021 (Pro)" }, new() { Name = "Ammy Stats", CustomSeason = "Summer League 2021 (Amateur)" }],
+                    Standings = [new() { Sheet = "Ammy Standings", Tab = "Ammy Stats", Ranked = true }],
+                },
+                Workbook(("Pro Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 4, 1)]),
+                    ("Ammy Stats", [Row("Player", "Team", "Games", "Kills"), Row("B", "Bravo", 4, 1)]),
+                    ("Ammy Standings", [Row("Team", "Wins", "Losses"), Row("Bravo", 7, 1), Row("Alpha", 1, 7)]))),
+        ];
+
+        var build = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "sml21" });
+
+        var seasons = build.Input.Seasons.Seasons.ToDictionary(s => s.SourceSheet!, s => s.Teams.Select(t => t.TeamName).ToList());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons["Ammy Stats"], Is.EqualTo(BravoThenAlpha), "Its own season's, Alpha the Amateur standings' own name (the Pro's Alpha is another season's)");
+            Assert.That(seasons["Pro Stats"], Is.Empty);
+        }
+    }
+
+    [Test]
+    public void TheStatsCaptainsPlaceholderTeam_TakesTheStandingsNameOfThatCaptainsTeam()
+    {
+        // WL23: the stats name a team by its captain, the standings by its name and captain, or by its captain alone
+        List<HistoricalSourceContent> sources =
+        [
+            Source("stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Winter League 2023", Game = "infinite" },
+                    Tabs = [new() { Name = "Stats" }, new() { Name = "Playoff Stats", IsPlayoffs = true }],
+                    Standings = [new() { Sheet = "Standings", Anchor = "Team Standings", Ranked = true, CaptainInName = true }],
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "OREOTHECAT's Team", 4, 10), Row("B", "oreothecat's team", 4, 1), Row("C", "Mystery Heroes", 4, 1), Row("D", "Trespa5s's Team", 4, 1), Row("E", null, 4, 1)]),
+                    ("Playoff Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "OREOTHECAT's Team", 1, 1)]),
+                    ("Standings", [Row("Team Standings", "Wins", "Loss"), Row("Mystery Heroes (Holy Morals)", 16, 4), Row("THE WINNERS TEAM (OREOTHECAT)", 0, 12), Row("Trespa5s", 2, 16)]))),
+        ];
+
+        var seasons = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons.SelectMany(s => s.Players).Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(PlaceholderTeamsRenamed));
+            Assert.That(seasons.Single(s => !s.IsPlayoffs).Teams.Select(t => t.TeamName), Is.EqualTo(MysteryHeroesThenTheWinners));
         }
     }
 

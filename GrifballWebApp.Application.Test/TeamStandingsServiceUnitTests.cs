@@ -11,6 +11,10 @@ internal sealed class TeamStandingsServiceUnitTests : ApplicationDbContextTests
 {
     private const int SeasonID = 1;
     private static readonly string[] ExpectedStandingsOrder = { "A", "B", "C" };
+    private static readonly (string, int?)[] SheetOrderWithFinishes = [("Defiance", 3), ("Monstars", 1), ("Unranked", null)];
+    private static readonly string[] RecordsOrderOfDivisions = ["West Winner", "East Winner", "East Second"];
+    private static readonly string[] RecordsOrderOfAFewRanked = ["Best", "Middle", "Seeded Fifth"];
+    private static readonly string[] TournamentByFinish = ["Champion", "Runner-up", "Unplaced"];
     private TeamStandingsService _service = null!;
 
     [SetUp]
@@ -148,5 +152,71 @@ internal sealed class TeamStandingsServiceUnitTests : ApplicationDbContextTests
             Assert.That(record.Losses, Is.EqualTo(1));
             Assert.That(record.RecordFromSource, Is.True);
         }
+    }
+
+    private async Task<Team> ArchivedTeam(string name, int wins, int losses, int? rank, int? finish)
+    {
+        var team = Team.Seed(seasonID: SeasonID, teamName: name, recordedWins: wins, recordedLosses: losses);
+        team.RecordArchivedPlacing(rank, finish);
+        Context.Teams.Add(team);
+        await Context.SaveChangesAsync();
+        return team;
+    }
+
+    [Test]
+    public async Task GetTeamStandings_TheSheetsRanks_OrderTheTeams_AndEachHasItsFinish()
+    {
+        await SeedSeason();
+        // The sheet ranks a team on its tiebreaker above one with more wins, and one it doesn't rank goes last
+        await ArchivedTeam("Monstars", 15, 5, rank: 2, finish: 1);
+        await ArchivedTeam("Defiance", 14, 6, rank: 1, finish: 3);
+        await ArchivedTeam("Unranked", 16, 4, rank: null, finish: null);
+
+        var result = await _service.GetTeamStandings(SeasonID);
+
+        Assert.That(result.Select(r => (r.TeamName, r.Finish)), Is.EqualTo(SheetOrderWithFinishes));
+    }
+
+    [Test]
+    public async Task GetTeamStandings_RanksOfSeveralDivisions_KeepTheRecordsOrder()
+    {
+        await SeedSeason();
+        // Each division's table ranks from 1st: the season's order is the records'
+        await ArchivedTeam("East Winner", 12, 2, rank: 1, finish: null);
+        await ArchivedTeam("West Winner", 13, 1, rank: 1, finish: null);
+        await ArchivedTeam("East Second", 8, 6, rank: 2, finish: null);
+
+        var result = await _service.GetTeamStandings(SeasonID);
+
+        Assert.That(result.Select(r => r.TeamName), Is.EqualTo(RecordsOrderOfDivisions));
+    }
+
+    [Test]
+    public async Task GetTeamStandings_AFewRankedTeams_KeepTheRecordsOrder()
+    {
+        await SeedSeason();
+        // One team of three has the sheet's rank: it doesn't lead the season for it
+        await ArchivedTeam("Seeded Fifth", 2, 8, rank: 5, finish: null);
+        await ArchivedTeam("Best", 9, 1, rank: null, finish: null);
+        await ArchivedTeam("Middle", 5, 5, rank: null, finish: null);
+
+        var result = await _service.GetTeamStandings(SeasonID);
+
+        Assert.That(result.Select(r => r.TeamName), Is.EqualTo(RecordsOrderOfAFewRanked));
+    }
+
+    [Test]
+    public async Task GetTeamStandings_ATournament_IsInTheOrderItFinished_NotItsSeeds()
+    {
+        // Respawn's TeamInfo: each team's seed going into the bracket ("Seed #") and where it finished
+        Context.Seasons.Add(Season.Seed(seasonName: "Respawn Fall Series 2", seasonID: SeasonID, format: SeasonFormat.Tournament));
+        await Context.SaveChangesAsync();
+        await ArchivedTeam("Runner-up", 3, 2, rank: 1, finish: 2);
+        await ArchivedTeam("Unplaced", 0, 2, rank: 2, finish: null);
+        await ArchivedTeam("Champion", 6, 1, rank: 3, finish: 1);
+
+        var result = await _service.GetTeamStandings(SeasonID);
+
+        Assert.That(result.Select(r => r.TeamName), Is.EqualTo(TournamentByFinish));
     }
 }

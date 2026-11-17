@@ -16874,6 +16874,7 @@
       },
       "TeamStandingDto": {
         "required": [
+          "finish",
           "losses",
           "recordFromSource",
           "teamID",
@@ -16900,6 +16901,12 @@
           "recordFromSource": {
             "type": "boolean",
             "description": "The record is the source spreadsheet's: the season's matches are not in the app."
+          },
+          "finish": {
+            "type": "integer",
+            "description": "The team's final place (1 for the champion) as the source spreadsheet gives it; null when it gives none.",
+            "format": "int32",
+            "nullable": true
           }
         },
         "additionalProperties": false

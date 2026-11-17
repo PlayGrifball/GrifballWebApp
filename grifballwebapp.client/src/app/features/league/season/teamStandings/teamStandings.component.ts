@@ -25,8 +25,19 @@ export class TeamStandingsComponent {
   /** The standings have loaded (or failed to, or there is no season). */
   readonly loaded = this.store.loaded;
   readonly fromSource = computed(() => this.teamStandings().some(t => t.recordFromSource));
+  /** The source spreadsheet gives a team's final place (the playoffs' result): the table has a Finish column. */
+  readonly hasFinish = computed(() => this.teamStandings().some(t => t.finish != null));
 
-  displayedColumns: string[] = ['rank', 'teamName', 'wins', 'losses'];
+  readonly displayedColumns = computed(() => ['rank', 'teamName', 'wins', 'losses', ...(this.hasFinish() ? ['finish'] : [])]);
+
+  /** A place as an ordinal: 1st, 2nd, 3rd, 11th, 22nd. */
+  static ordinal(place: number): string {
+    const tens = place % 100;
+    const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][place % 10] ?? 'th';
+    return `${place}${suffix}`;
+  }
+
+  readonly ordinal = TeamStandingsComponent.ordinal;
 
   constructor() {
     this.store.seasonID.use(this.seasonID);
