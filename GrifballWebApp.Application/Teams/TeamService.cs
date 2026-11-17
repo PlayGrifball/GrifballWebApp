@@ -283,6 +283,8 @@ public class TeamService
         return await _context.Teams
                         .Include(t => t.Captain)
                         .Where(t => t.SeasonID == seasonId)
+                        // A team with no captain (removed) has no one to pick for it
+                        .Where(t => t.CaptainID != null)
                         .OrderBy(t => t.TeamPlayers.Count)
                         .ThenBy(t => t.Captain.DraftCaptainOrder)
                         .FirstOrDefaultAsync(ct);
