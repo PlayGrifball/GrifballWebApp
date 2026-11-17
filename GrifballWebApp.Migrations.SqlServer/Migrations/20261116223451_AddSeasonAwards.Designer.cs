@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261116223210_AddMatchmakingLadderRanks")]
-    partial class AddMatchmakingLadderRanks
+    [Migration("20261116223451_AddSeasonAwards")]
+    partial class AddSeasonAwards
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1611,102 +1611,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             }));
                 });
 
-            modelBuilder.Entity("GrifballWebApp.Domain.LateLeague.MatchmakingLadderRank", b =>
-                {
-                    b.Property<int>("MatchmakingLadderRankID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MatchmakingLadderRankID"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("CreatedByID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Division")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("Gamertag")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("League")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int?>("LeaguePoints")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Losses")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MatchmakingSeasonID")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Mmr")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ModifiedByID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodEnd");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodStart");
-
-                    b.Property<int?>("Position")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Rank")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Streak")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserID")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Wins")
-                        .HasColumnType("int");
-
-                    b.HasKey("MatchmakingLadderRankID");
-
-                    b.HasIndex("UserID");
-
-                    b.HasIndex("MatchmakingSeasonID", "UserID")
-                        .IsUnique();
-
-                    b.ToTable("LadderRanks", "Matchmaking", t =>
-                        {
-                            t.HasCheckConstraint("CK_Matchmaking_LadderRanks_PositionFromOne", "Position IS NULL OR Position >= 1");
-
-                            t.HasCheckConstraint("CK_Matchmaking_LadderRanks_RecordNotNegative", "(Wins IS NULL OR Wins >= 0) AND (Losses IS NULL OR Losses >= 0)");
-                        });
-
-                    b.ToTable(tb => tb.IsTemporal(ttb =>
-                            {
-                                ttb.UseHistoryTable("LadderRanksHistory", "Matchmaking");
-                                ttb
-                                    .HasPeriodStart("PeriodStart")
-                                    .HasColumnName("PeriodStart");
-                                ttb
-                                    .HasPeriodEnd("PeriodEnd")
-                                    .HasColumnName("PeriodEnd");
-                            }));
-                });
-
             modelBuilder.Entity("GrifballWebApp.Domain.LateLeague.MatchmakingPlayerStat", b =>
                 {
                     b.Property<int>("MatchmakingPlayerStatID")
@@ -2684,6 +2588,88 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
                                 ttb.UseHistoryTable("SeasonAvailabilityHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonAward", b =>
+                {
+                    b.Property<int>("SeasonAwardID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeasonAwardID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("WinnerName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("SeasonAwardID");
+
+                    b.HasIndex("TeamID");
+
+                    b.HasIndex("UserID");
+
+                    b.HasIndex("SeasonID", "Name", "WinnerName")
+                        .IsUnique();
+
+                    b.ToTable("SeasonAwards", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_SeasonAwards_PlayerOrTeam", "UserID IS NOT NULL OR TeamID IS NOT NULL");
+                        });
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("SeasonAwardsHistory", "Event");
                                 ttb
                                     .HasPeriodStart("PeriodStart")
                                     .HasColumnName("PeriodStart");
@@ -5251,25 +5237,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("MatchedPlayer");
                 });
 
-            modelBuilder.Entity("GrifballWebApp.Domain.LateLeague.MatchmakingLadderRank", b =>
-                {
-                    b.HasOne("GrifballWebApp.Domain.LateLeague.MatchmakingSeason", "MatchmakingSeason")
-                        .WithMany("LadderRanks")
-                        .HasForeignKey("MatchmakingSeasonID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GrifballWebApp.Domain.Players.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("MatchmakingSeason");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("GrifballWebApp.Domain.LateLeague.MatchmakingPlayerStat", b =>
                 {
                     b.HasOne("GrifballWebApp.Domain.Shared.GameVersion", "GameVersion")
@@ -5489,6 +5456,31 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("AvailabilityOption");
 
                     b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonAward", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.League.Season", "Season")
+                        .WithMany("Awards")
+                        .HasForeignKey("SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Domain.League.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamID")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("GrifballWebApp.Domain.Players.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Season");
+
+                    b.Navigation("Team");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonMatch", b =>
@@ -5897,8 +5889,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Domain.LateLeague.MatchmakingSeason", b =>
                 {
-                    b.Navigation("LadderRanks");
-
                     b.Navigation("MatchedMatches");
 
                     b.Navigation("PlayerStats");
@@ -5918,6 +5908,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.Season", b =>
                 {
+                    b.Navigation("Awards");
+
                     b.Navigation("PlayerChampionships");
 
                     b.Navigation("SeasonAvailability");

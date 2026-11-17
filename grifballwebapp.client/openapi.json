@@ -10876,6 +10876,9 @@
       },
       "HistoricalImportReport": {
         "required": [
+          "awardsInserted",
+          "awardsRemoved",
+          "awardsUpdated",
           "championshipsInserted",
           "championshipsRemoved",
           "championshipsUpdated",
@@ -10886,9 +10889,6 @@
           "errors",
           "gamesLinked",
           "importJobID",
-          "ladderRanksInserted",
-          "ladderRanksRemoved",
-          "ladderRanksUpdated",
           "manualReplacedByWaypoint",
           "matchmakingSeasonsCreated",
           "matchmakingSeasonsUpdated",
@@ -10965,19 +10965,6 @@
             "type": "integer",
             "format": "int32"
           },
-          "ladderRanksInserted": {
-            "type": "integer",
-            "description": "Late League ladder rows (a player's place on a matchmaking season's ladder) added, updated and removed (no longer\n            on the ladder).",
-            "format": "int32"
-          },
-          "ladderRanksUpdated": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "ladderRanksRemoved": {
-            "type": "integer",
-            "format": "int32"
-          },
           "seasonMatchesCreated": {
             "type": "integer",
             "description": "Season matches made from Waypoint games, and the games linked to them.",
@@ -11014,6 +11001,19 @@
             "format": "int32"
           },
           "championshipsUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awardsInserted": {
+            "type": "integer",
+            "description": "Season awards added, changed and removed (the archive no longer gives them, or their team went).",
+            "format": "int32"
+          },
+          "awardsUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awardsRemoved": {
             "type": "integer",
             "format": "int32"
           },
@@ -11151,8 +11151,8 @@
       },
       "HistoricalSeasonRemoval": {
         "required": [
-          "ladderBefore",
-          "ladderRemoved",
+          "awardsBefore",
+          "awardsRemoved",
           "removesAnything",
           "seasonKey",
           "seasonName",
@@ -11198,12 +11198,12 @@
             "type": "integer",
             "format": "int32"
           },
-          "ladderBefore": {
+          "awardsBefore": {
             "type": "integer",
-            "description": "A Late League season's ladder rows (MatchmakingLadderRank), measured apart from its stat rows.",
+            "description": "The season's awards (SeasonAward rows): not kept on a review, which has the other counts.",
             "format": "int32"
           },
-          "ladderRemoved": {
+          "awardsRemoved": {
             "type": "integer",
             "format": "int32"
           },
@@ -12445,76 +12445,6 @@
         "additionalProperties": false,
         "description": "brackets-model's MatchGame extends MatchResults (status, opponent1, opponent2), like Match."
       },
-      "MatchmakingLadderRankDto": {
-        "required": [
-          "division",
-          "gamertag",
-          "league",
-          "leaguePoints",
-          "losses",
-          "mmr",
-          "position",
-          "rank",
-          "streak",
-          "userID",
-          "wins"
-        ],
-        "type": "object",
-        "properties": {
-          "userID": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "gamertag": {
-            "type": "string"
-          },
-          "position": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "division": {
-            "type": "string",
-            "nullable": true
-          },
-          "league": {
-            "type": "string",
-            "nullable": true
-          },
-          "rank": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "leaguePoints": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "streak": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "mmr": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "wins": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "losses": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false,
-        "description": "A player's place on a matchmaking season's ladder (GrifballWebApp.Domain.LateLeague.MatchmakingLadderRank), as its sheet gives it."
-      },
       "MatchmakingPlayerStatDto": {
         "required": [
           "assists",
@@ -12659,7 +12589,6 @@
       },
       "MatchmakingSeasonDetailDto": {
         "required": [
-          "ladder",
           "players",
           "season"
         ],
@@ -12678,13 +12607,6 @@
             "items": {
               "$ref": "#/components/schemas/MatchmakingPlayerStatDto"
             }
-          },
-          "ladder": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MatchmakingLadderRankDto"
-            },
-            "description": "The season's ladder (its ranked standings), top first; empty when the archive has none."
           }
         },
         "additionalProperties": false
@@ -12698,7 +12620,6 @@
           "gameVersionSlug",
           "historicalSourceUrl",
           "isHistorical",
-          "ladderCount",
           "matchmakingSeasonID",
           "name",
           "playerCount",
@@ -12740,11 +12661,6 @@
           },
           "playerCount": {
             "type": "integer",
-            "format": "int32"
-          },
-          "ladderCount": {
-            "type": "integer",
-            "description": "How many players its ladder ranks (GrifballWebApp.Domain.LateLeague.MatchmakingLadderRank).",
             "format": "int32"
           },
           "isHistorical": {
@@ -14928,6 +14844,65 @@
         },
         "additionalProperties": false
       },
+      "SeasonAwardDto": {
+        "required": [
+          "name",
+          "winners"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "winners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonAwardWinnerDto"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "An award of the season and who won it: one winner, or several (a Best Duo, a top 5 in its order)."
+      },
+      "SeasonAwardWinnerDto": {
+        "required": [
+          "name",
+          "teamID",
+          "teamName",
+          "userID",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "userID": {
+            "type": "integer",
+            "description": "The player; null for a team's award.",
+            "format": "int32",
+            "nullable": true
+          },
+          "teamID": {
+            "type": "integer",
+            "description": "The team that won it, or the player's team when the source names it.",
+            "format": "int32",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "The winner as the source names them: the gamertag used, or the team's name."
+          },
+          "teamName": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "type": "string",
+            "description": "What the award is worth: a record's value, a ranked list's place.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A winner of a season's award: a player, a team (no player), or a player of a team."
+      },
       "SeasonChampionDto": {
         "required": [
           "roster",
@@ -15748,6 +15723,7 @@
       },
       "SeasonSummaryDto": {
         "required": [
+          "awards",
           "bracketMatchCount",
           "champions",
           "division",
@@ -15866,6 +15842,13 @@
             "items": {
               "$ref": "#/components/schemas/SeasonChampionDto"
             }
+          },
+          "awards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonAwardDto"
+            },
+            "description": "The season's awards (its MVP, named awards, records), in its source's order."
           }
         },
         "additionalProperties": false,

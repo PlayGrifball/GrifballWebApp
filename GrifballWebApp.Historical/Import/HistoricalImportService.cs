@@ -47,7 +47,7 @@ public class HistoricalImportRunOptions
 /// <summary>When an automatic import stops a season for review (HistoricalImport:Guardrail).</summary>
 public class HistoricalGuardrailOptions
 {
-    /// <summary>More than this share of the season's stat rows or teams removed.</summary>
+    /// <summary>More than this share of the season's stat rows, teams or awards removed.</summary>
     public decimal MaxRemovedFraction { get; set; } = 0.2m;
     /// <summary>Any championship (a title or a title's player) removed.</summary>
     public bool StopOnAnyChampionshipRemoved { get; set; } = true;
@@ -55,7 +55,8 @@ public class HistoricalGuardrailOptions
     public bool Exceeded(HistoricalSeasonRemoval removal)
         => TooMany(removal.StatsRemoved, removal.StatsBefore) || TooMany(removal.TeamsRemoved, removal.TeamsBefore)
            || (StopOnAnyChampionshipRemoved ? removal.TitlesRemoved > 0 : TooMany(removal.TitlesRemoved, removal.TitlesBefore))
-           || TooMany(removal.LadderRemoved, removal.LadderBefore);
+           || TooMany(removal.LadderRemoved, removal.LadderBefore)
+           || TooMany(removal.AwardsRemoved, removal.AwardsBefore);
 
     private bool TooMany(int removed, int before) => removed > 0 && before > 0 && (decimal)removed / before > MaxRemovedFraction;
 }
@@ -74,12 +75,17 @@ public class HistoricalSeasonRemoval
     /// <summary>A Late League season's ladder rows (MatchmakingLadderRank), measured apart from its stat rows.</summary>
     public int LadderBefore { get; set; }
     public int LadderRemoved { get; set; }
+    /// <summary>The season's awards (SeasonAward rows): not kept on a review, which has the other counts.</summary>
+    public int AwardsBefore { get; set; }
+    public int AwardsRemoved { get; set; }
     /// <summary>Rolled back by the guardrail: left as it was until a sysadmin approves it.</summary>
     public bool Stopped { get; set; }
 
-    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0 || LadderRemoved > 0;
+    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0 || AwardsRemoved > 0 || LadderRemoved > 0;
 
+    // What it removes of what it had; its awards and ladder rows only when it had any
     public string Summary => $"{StatsRemoved} of {StatsBefore} stat rows, {TeamsRemoved} of {TeamsBefore} teams, {TitlesRemoved} of {TitlesBefore} titles"
+        + (AwardsBefore > 0 ? $", {AwardsRemoved} of {AwardsBefore} awards" : "")
         + (LadderBefore > 0 ? $", {LadderRemoved} of {LadderBefore} ladder rows" : "");
 }
 
@@ -131,6 +137,10 @@ public class HistoricalImportReport
     public int ManualReplacedByWaypoint { get; set; }
     public int ChampionshipsInserted { get; set; }
     public int ChampionshipsUpdated { get; set; }
+    /// <summary>Season awards added, changed and removed (the archive no longer gives them, or their team went).</summary>
+    public int AwardsInserted { get; set; }
+    public int AwardsUpdated { get; set; }
+    public int AwardsRemoved { get; set; }
     public int DummyUsersCreated { get; set; }
     public int WaypointMatchesPulled { get; set; }
     /// <summary>Roster matches suggested for a sysadmin to decide (GamertagClaims).</summary>
@@ -695,6 +705,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             await LinkSeries(season, games, counts, ct);
             var tiers = await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
             await RemoveTitlesNoLongerThere(season, tiers, counts, ct);
+            await ImportAwards(group, season, resolver, teams, counts, ct);
             await SyncRosters(teams, ct);
             foreach (var gamertag in resolver.Ambiguous.Distinct(StringComparer.OrdinalIgnoreCase))
                 Warn(counts, $"{group.SourceId}: {gamertag} is in more than one Xbox account's gamertag history for the season; left to its placeholder");
@@ -702,6 +713,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             await _context.SaveChangesAsync(ct);
             counts.DummyUsersCreated = resolver.DummiesCreated;
             (removal.StatsRemoved, removal.TeamsRemoved, removal.TitlesRemoved) = (counts.StatsRemoved, counts.TeamsRemoved, counts.ChampionshipsRemoved);
+            removal.AwardsRemoved = counts.AwardsRemoved;
             removal.Stopped = !options.DryRun && options.Guardrail?.Exceeded(removal) == true;
             if (options.DryRun || removal.Stopped)
             {
@@ -745,6 +757,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         removal.StatsBefore = await _context.PlayerSeasonStats.CountAsync(s => s.SeasonID == seasonId, ct);
         removal.TeamsBefore = await _context.Teams.CountAsync(t => t.SeasonID == seasonId, ct);
         removal.TitlesBefore = await _context.Seasons.Championships().CountAsync(c => c.SeasonID == seasonId, ct);
+        removal.AwardsBefore = await _context.Seasons.Awards().CountAsync(a => a.SeasonID == seasonId, ct);
         return removal;
     }
 
@@ -779,15 +792,15 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         // Only a season of a league comes here: Late League is a matchmaking season (ImportMatchmakingSeason)
         var league = group.League!;
-        // With its titles: the import records and removes them through the season
-        var season = await _context.Seasons.WithChampionships().FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
+        // With its titles and awards: the import records and removes them through the season
+        var season = await _context.Seasons.WithChampionships().WithAwards().FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
         if (season is null)
         {
             // A season of the same name the import made before is adopted: a title-only placeholder from the champions record,
             // or one from another tab of the same workbook (its config now reads a different tab)
             var champions = ChampionsWorkbook(null) + "/";
             var workbook = group.SourceId[..(group.SourceId.IndexOf('/') + 1)];
-            var existingPlaceholder = await _context.Seasons.WithChampionships().Where(Season.ImportedFromArchive).FirstOrDefaultAsync(s =>
+            var existingPlaceholder = await _context.Seasons.WithChampionships().WithAwards().Where(Season.ImportedFromArchive).FirstOrDefaultAsync(s =>
                 s.LeagueID == league.LeagueID
                 && s.SeasonName == group.SeasonName
                 && (s.HistoricalSourceID.StartsWith(champions) || (workbook.Length > 0 && s.HistoricalSourceID.StartsWith(workbook))), ct);
@@ -848,6 +861,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         foreach (var game in await _context.RecordedGames.Where(g => g.Teams.Any(t => t.TeamID != null && ids.Contains(t.TeamID.Value))).Include(g => g.Teams).ToListAsync(ct))
             game.UnlinkTeams(ids);
         season.RemoveArchivedTitlesOf(ids);
+        counts.AwardsRemoved += season.RemoveArchivedAwardsOf(ids);
         _context.SeasonMatches.RemoveRange(await _context.SeasonMatches
             .Where(m => (m.HomeTeamID != null && ids.Contains(m.HomeTeamID.Value)) || (m.AwayTeamID != null && ids.Contains(m.AwayTeamID.Value)))
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct));
@@ -1771,6 +1785,34 @@ public partial class HistoricalImportService : IHistoricalImportService
         return tiers;
     }
 
+    /// <summary>
+    /// The season's awards (<see cref="Season.RecordArchivedAwards"/>), in its sheets' order: a player's goes to the player
+    /// (and the team the sheet names, one of the season's), a team's to the team. A team's award whose team the season
+    /// doesn't have is left out. A season the archive gives no awards keeps none.
+    /// </summary>
+    private async Task ImportAwards(SeasonGroup group, Season season, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
+    {
+        var winners = new List<SeasonAwardWinner>();
+        foreach (var award in group.Entries.SelectMany(e => e.Awards))
+        {
+            if (award.IsTeam)
+            {
+                if (teams.Find(award.Winner) is { } team)
+                    winners.Add(new SeasonAwardWinner(award.Name, team.TeamName, null, team, award.Value));
+                else
+                    Skip(counts, $"{group.SourceId} award {award.Name}: no team {award.Winner} in the season");
+                continue;
+            }
+            var userId = (await resolver.Resolve(award.Winner, null, ct)).UserId;
+            winners.Add(new SeasonAwardWinner(award.Name, HistoricalKeys.CleanGamertag(award.Winner), userId, teams.Find(award.Team), award.Value));
+        }
+        // Saved with the season's rosters next
+        var changes = season.RecordArchivedAwards(winners);
+        counts.AwardsInserted += changes.Inserted;
+        counts.AwardsUpdated += changes.Updated;
+        counts.AwardsRemoved += changes.Removed;
+    }
+
     private static string Phase(bool playoffs) => playoffs ? "playoffs" : "regular season";
     private static int Int(decimal? value) => value is null ? 0 : (int)Math.Round(value.Value);
     private static int? IntOrNull(decimal? value) => value is null ? null : (int)Math.Round(value.Value);
@@ -1815,6 +1857,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         report.ManualReplacedByWaypoint += season.ManualReplacedByWaypoint;
         report.ChampionshipsInserted += season.ChampionshipsInserted;
         report.ChampionshipsUpdated += season.ChampionshipsUpdated;
+        report.AwardsInserted += season.AwardsInserted;
+        report.AwardsUpdated += season.AwardsUpdated;
+        report.AwardsRemoved += season.AwardsRemoved;
         report.DummyUsersCreated += season.DummyUsersCreated;
         report.SuggestionsCreated += season.SuggestionsCreated;
         report.MissingMatches.AddRange(season.MissingMatches);

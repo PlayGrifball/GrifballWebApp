@@ -77,6 +77,22 @@ public class ArchiveSeason
     /// <summary>A Late League season's ladder (its ranked standings), in its order: each player's place, league, rank, LP,
     /// streak and MMR, and their finish where the workbook's past finishes give one.</summary>
     public List<GrifballWebApp.Domain.LateLeague.LadderStanding> Ladder { get; init; } = [];
+    /// <summary>The season's awards (its MVP, named awards, records), in its sheets' order: a row per winner.</summary>
+    public List<ArchiveAward> Awards { get; init; } = [];
+}
+
+/// <summary>A winner of a season's award (AwardsParser). A record: a copy for a season's player (`with`) keeps every other value.</summary>
+public record ArchiveAward
+{
+    public required string Name { get; init; }
+    /// <summary>The winner's gamertag, or a team's name when <see cref="IsTeam"/>.</summary>
+    public required string Winner { get; init; }
+    /// <summary>A team's award: <see cref="Winner"/> is the team.</summary>
+    public bool IsTeam { get; init; }
+    /// <summary>The player's team, when the sheet names it.</summary>
+    public string? Team { get; init; }
+    /// <summary>What it is worth: a record's value, a ranked list's place.</summary>
+    public string? Value { get; init; }
 }
 
 /// <summary>A team of a season's standings. A record: a copy under another name (`with`) keeps every other value.</summary>
@@ -103,9 +119,9 @@ public class ArchivePlayer
     public string? TradeNote { get; init; }
     public string? RoleNote { get; init; }
     public int StintIndex { get; init; } = 1;
-    public decimal? GamesPlayed { get; init; }
-    public decimal? Wins { get; init; }
-    public decimal? Losses { get; init; }
+    public decimal? GamesPlayed { get; set; }
+    public decimal? Wins { get; set; }
+    public decimal? Losses { get; set; }
     public decimal? WinPercent { get; init; }
     public decimal? Goals { get; init; }
     public decimal? Kills { get; init; }

@@ -145,6 +145,7 @@ public class GrifballContext :
             .HasFilter(Database.IsNpgsql() ? "\"HistoricalSourceID\" IS NOT NULL" : "[HistoricalSourceID] IS NOT NULL");
         builder.ApplyConfiguration(new PlayerSeasonStatConfiguration());
         builder.ApplyConfiguration(new PlayerChampionshipConfiguration());
+        builder.ApplyConfiguration(new SeasonAwardConfiguration());
         builder.ApplyConfiguration(new XboxGamertagHistoryConfiguration());
         builder.ApplyConfiguration(new GamertagClaimConfiguration());
         // Claims about an Xbox account are one per kind, account and gamertag; claims about a user (a user's own, a Discord

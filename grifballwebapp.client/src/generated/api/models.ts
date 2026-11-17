@@ -163,6 +163,8 @@ export type { ScheduleRecommendationDto } from './models/schedule-recommendation
 export type { ScheduleRecommendationMatchDto } from './models/schedule-recommendation-match-dto';
 export type { ScheduleRecommendationPageDto } from './models/schedule-recommendation-page-dto';
 export type { SeasonAvailabilityDto } from './models/season-availability-dto';
+export type { SeasonAwardDto } from './models/season-award-dto';
+export type { SeasonAwardWinnerDto } from './models/season-award-winner-dto';
 export type { SeasonChampionDto } from './models/season-champion-dto';
 export type { SeasonDto } from './models/season-dto';
 export type { SeasonFormat } from './models/season-format';
