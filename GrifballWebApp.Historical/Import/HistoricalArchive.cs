@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Historical.Import;
 
@@ -79,6 +80,35 @@ public class ArchiveSeason
     public List<ArchiveTeam> Teams { get; init; } = [];
     /// <summary>The season's awards (its MVP, named awards, records), in its sheets' order: a row per winner.</summary>
     public List<ArchiveAward> Awards { get; init; } = [];
+    /// <summary>The season's playoff bracket, when a sheet draws one (BracketParser): the import takes it over rebuilding
+    /// one from the order its playoff games were played in.</summary>
+    public ArchiveBracket? Bracket { get; set; }
+}
+
+/// <summary>A season's playoff bracket from its sheet: its series in the order they were played.</summary>
+public class ArchiveBracket
+{
+    public List<ArchiveBracketSeries> Series { get; init; } = [];
+}
+
+/// <summary>
+/// A series of a bracket sheet: its slot (bracket, round, its number in its bracket as the app numbers them: the
+/// winners' bracket and grand final on from 1, the losers' bracket from 1 again), its teams as the season names them,
+/// the seeds the sheet gives them, the wins it gives each and its winner, each null where the sheet says nothing.
+/// </summary>
+public record ArchiveBracketSeries
+{
+    public Bracket Bracket { get; init; }
+    public int Round { get; init; }
+    public int Number { get; init; }
+    public required string Home { get; init; }
+    public required string Away { get; init; }
+    public int? HomeSeed { get; init; }
+    public int? AwaySeed { get; init; }
+    public int? HomeWins { get; init; }
+    public int? AwayWins { get; init; }
+    public SeasonMatchSide? Winner { get; init; }
+    public int? BestOf { get; init; }
 }
 
 /// <summary>A winner of a season's award (AwardsParser). A record: a copy for a season's player (`with`) keeps every other value.</summary>

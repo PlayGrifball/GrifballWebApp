@@ -696,6 +696,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             // off the sheet or under a corrected gamertag, a tier's title gone, Waypoint games no longer listed) goes
             var teams = await UpsertTeams(group, season, counts, ct);
             await RemoveTeamsNoLongerThere(season, teams, counts, ct);
+            // Before the games are gathered: a bracket drawn again lets go of its games, to be linked to the new one
+            var bracket = await ImportBracket(group, season, teams, counts, ct);
             if (group.Waypoint is not null)
                 await RemoveSeriesNoLongerListed(group, season, counts, ct);
             var waypoint = await ImportWaypointPlayers(group, season, resolver, teams, counts, ct);
@@ -711,7 +713,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             }
             if (group.RecordedGames is not null)
                 games.AddRange(await ImportRecordedGames(group, season, gameVersions, resolver, teams, games, counts, ct));
-            await LinkSeries(season, games, counts, ct);
+            await LinkSeries(group, season, games, bracket, counts, ct);
             if (group.Forfeits is not null)
                 await ImportForfeits(group, season, teams, counts, ct);
             var tiers = await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
@@ -1282,7 +1284,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         return players;
     }
 
-    /// <summary>The season's series with a game its Waypoint list no longer has go: their games stop being its stats.</summary>
+    /// <summary>The season's series with a game its Waypoint list no longer has go: their games stop being its stats. A slot of
+    /// the bracket sheet stays (the sheet draws it), only the games go.</summary>
     private async Task RemoveSeriesNoLongerListed(SeasonGroup group, Season season, HistoricalImportReport counts, CancellationToken ct)
     {
         var listed = WaypointIds(group, null).Keys.ToList();
@@ -1290,6 +1293,10 @@ public partial class HistoricalImportService : IHistoricalImportService
             .Where(m => m.SeasonID == season.SeasonID && m.SeriesGames.Any(l => l.MatchID != null && !listed.Contains(l.MatchID.Value)))
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch)
             .ToListAsync(ct);
+        foreach (var slot in gone.Where(m => _sheetSlots.Contains(m.SeasonMatchID)))
+            foreach (var game in slot.SeriesGames.Where(l => l.MatchID != null && !listed.Contains(l.MatchID.Value)).ToList())
+                DetachSheetGame(slot, game);
+        gone.RemoveAll(m => _sheetSlots.Contains(m.SeasonMatchID));
         _context.SeasonMatches.RemoveRange(gone);
         await _context.SaveChangesAsync(ct);
         counts.SeasonMatchesRemoved += gone.Count;
@@ -1354,10 +1361,11 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// <summary>
     /// The season's games not in a series yet (Waypoint and recorded alike) become its season matches, as reported games
     /// are in the app: the games of the same two teams within <see cref="SeriesGap"/> of each other are one series, its
-    /// score their wins. Playoff series are bracket matches, in rounds by the order the teams played them (the archive has
-    /// no bracket).
+    /// score their wins. A playoff series of a season with a bracket sheet goes in the sheet's slot of its teams
+    /// (<see cref="InSheetSlots"/>), whose result is the sheet's; otherwise (no bracket sheet, or none of its slots is
+    /// theirs) playoff series are bracket matches in rounds by the order the teams played them.
     /// </summary>
-    private async Task LinkSeries(Season season, List<ImportedGame> games, HistoricalImportReport counts, CancellationToken ct)
+    private async Task LinkSeries(SeasonGroup group, Season season, List<ImportedGame> games, List<SeasonMatch>? sheetBracket, HistoricalImportReport counts, CancellationToken ct)
     {
         if (games.Count == 0)
             return;
@@ -1369,6 +1377,13 @@ public partial class HistoricalImportService : IHistoricalImportService
         {
             var first = played[0];
             var (home, away) = (first.TeamA, first.TeamB);
+            if (first.Playoffs && InSheetSlots(sheetBracket, played, home, away))
+            {
+                counts.GamesLinked += played.Count;
+                continue;
+            }
+            if (first.Playoffs && sheetBracket is not null)
+                Warn(counts, $"{group.SourceId}: a playoff series ({played.Count} game(s) from {first.Start:yyyy-MM-dd}) is in no slot of the bracket sheet; added to the bracket as played");
             var (homeWins, awayWins) = Wins(played, home, away);
             var info = first.Playoffs ? bracket.Next(home, away) : null;
             // More wins win; an even count is a draw, undecided
@@ -1625,6 +1640,12 @@ public partial class HistoricalImportService : IHistoricalImportService
         var seriesGame = game.SeriesGame!;
         var match = await _context.SeasonMatches.Include(m => m.SeriesGames).Include(m => m.BracketMatch)
             .FirstAsync(m => m.SeasonMatchID == seriesGame.SeasonMatchID, ct);
+        if (_sheetSlots.Contains(match.SeasonMatchID))
+        {
+            DetachSheetGame(match, seriesGame);
+            await _context.SaveChangesAsync(ct);
+            return;
+        }
         var (homeWon, awayWon) = WinsIn(game, match);
         if (!_context.RemoveImportedSeriesGame(match, seriesGame, homeWon, awayWon))
             _context.SeasonMatches.Remove(match);
