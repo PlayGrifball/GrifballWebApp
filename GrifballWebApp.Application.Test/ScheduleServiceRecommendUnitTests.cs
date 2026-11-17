@@ -1,6 +1,7 @@
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
@@ -79,6 +80,41 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
         var run = await service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 3, TimeBudget = TimeSpan.FromMinutes(1) });
 
         Assert.That(logger.Collector.GetSnapshot().Select(r => (r.Level, r.Message)), Has.Member((LogLevel.Information, $"GA Termination Reached after {run.Generations} generations")));
+    }
+
+    [Test]
+    public async Task Recommend_LeavesADecidedMatch_AndOneWithAReschedule_WhereTheyAre()
+    {
+        var regular = await SeedSeason();
+        var decided = await Context.SeasonMatches.FindAsync(regular[0]);
+        decided!.WonBy(SeasonMatchSide.Home);
+        Context.Users.Add(User.Seed(userName: "asker", id: 77));
+        await Context.SaveChangesAsync();
+        Context.Add(MatchReschedule.Request(regular[1], null, new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc), "Away", 77, new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc)));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var run = await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 2, TimeBudget = null });
+
+        Assert.That(run.Genes.Select(g => g.SeasonMatchID), Is.EquivalentTo(regular.Skip(2)), "A result is in; a reschedule is waiting for its decision");
+    }
+
+    [Test]
+    public async Task Recommend_ASeasonUnderWay_PlacesNothingInThePast_NorRunningPastItsEnd()
+    {
+        var regular = await SeedSeason();
+        // Three weeks into a season of 6 July to 3 August
+        var now = new DateTime(2026, 7, 27, 12, 0, 0, DateTimeKind.Utc);
+        var service = new ScheduleService(Context, Substitute.For<ILogger<ScheduleService>>(), new Microsoft.Extensions.Time.Testing.FakeTimeProvider(now));
+
+        var run = await service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 5, TimeBudget = null });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(run.Genes.Select(g => ScheduleService.ToUtc(g.ScheduledTime)), Has.All.GreaterThanOrEqualTo(now));
+            Assert.That(run.Genes.Select(g => ScheduleService.ToUtc(g.ScheduledTime) + GrifballWebApp.Application.Scheduling.ScheduleChecker.LengthOf(1)),
+                Has.All.LessThanOrEqualTo(new DateTime(2026, 8, 3, 0, 0, 0, DateTimeKind.Utc)));
+        }
     }
 
     [Test]
