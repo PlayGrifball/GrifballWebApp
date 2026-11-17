@@ -44,10 +44,12 @@ public class ArchiveSeasonTests
     public async Task H3Action2022_EveryTeamHasItsDraftPicks_RdgNhlsTeamNameColumnToo()
     {
         await using var context = Archive.NewContext();
-        var picks = await context.Teams.AsNoTracking()
+        // Teams with their players, then the picks in memory: SQLite has no APPLY for a projection of both
+        var teams = await context.Teams.AsNoTracking()
             .Where(t => t.Season.HistoricalSourceID != null && t.Season.SeasonName == "2022 H3 Action League")
-            .SelectMany(t => t.TeamPlayers.Where(p => p.DraftRound != null).Select(p => new { t.TeamName, p.User.DisplayName, p.DraftRound }))
+            .Include(t => t.TeamPlayers).ThenInclude(p => p.User)
             .ToListAsync();
+        var picks = teams.SelectMany(t => t.TeamPlayers.Where(p => p.DraftRound != null).Select(p => new { t.TeamName, p.User.DisplayName, p.DraftRound })).ToList();
         if (picks.Count == 0)
             Assert.Ignore("2022 H3 Action League isn't in this copy of the archive, or has no draft");
 
