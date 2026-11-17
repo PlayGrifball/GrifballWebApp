@@ -18,6 +18,9 @@ public class ArchiveSeasonTests
         ("LIKE CLOCKWORK", 14, 6), ("RDG NHL", 12, 8), ("sPeCiAl ReAsOnS", 7, 13), ("THE BOYS SZN 3", 4, 16), ("The Smurfs", 14, 6), ("ZEG", 6, 14),
     ];
 
+    /// <summary>RDG NHL's first three picks on the Teams tab's draft board (column I, "Team Name"), as the stats spell them.</summary>
+    private static readonly (string Gamertag, int? Round)[] RdgNhlPicks = [("DlGITAL PAIN", 1), ("MysticalNovice", 2), ("Myst the Cold", 3)];
+
     [Test]
     public async Task H3Action2022_StandingsCoverAllElevenTeams_TheTeamNameSlotToo()
     {
@@ -34,6 +37,25 @@ public class ArchiveSeasonTests
             Assert.That(teams.OrderBy(t => t.TeamName, StringComparer.Ordinal).Select(t => (t.TeamName, t.RecordedWins, t.RecordedLosses)),
                 Is.EqualTo(H3ActionRecords.OrderBy(t => t.Team, StringComparer.Ordinal)), "Each team's record from the Teams tab");
             Assert.That(teams.Where(t => !t.HasCaptain).Select(t => t.TeamName), Is.Empty, "The Teams tab names every team's captain");
+        }
+    }
+
+    [Test]
+    public async Task H3Action2022_EveryTeamHasItsDraftPicks_RdgNhlsTeamNameColumnToo()
+    {
+        await using var context = Archive.NewContext();
+        var picks = await context.TeamPlayers.AsNoTracking()
+            .Where(p => p.Team.Season.HistoricalSourceID != null && p.Team.Season.SeasonName == "2022 H3 Action League" && p.DraftRound != null)
+            .Select(p => new { p.Team.TeamName, p.User.DisplayName, p.DraftRound })
+            .ToListAsync();
+        if (picks.Count == 0)
+            Assert.Ignore("2022 H3 Action League isn't in this copy of the archive, or has no draft");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(picks.Select(p => p.TeamName).Distinct().Count(), Is.EqualTo(11), "Each of the 11 teams' picks from the Teams tab's board");
+            Assert.That(picks.Where(p => p.TeamName == "RDG NHL").Select(p => (p.DisplayName!.ToUpperInvariant(), p.DraftRound)),
+                Is.SupersetOf(RdgNhlPicks.Select(p => (p.Gamertag.ToUpperInvariant(), p.Round))), "Its board column says \"Team Name\"");
         }
     }
 }
