@@ -874,6 +874,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("Goals")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("Grabs")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("HammerKills")
                         .HasColumnType("integer");
 
@@ -967,6 +970,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("Goals")
                         .HasColumnType("integer")
                         .HasColumnName("Goals");
+
+                    b.Property<int?>("Grabs")
+                        .HasColumnType("integer")
+                        .HasColumnName("Grabs");
 
                     b.Property<int?>("HammerKills")
                         .HasColumnType("integer")

@@ -873,6 +873,9 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("Goals")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("Grabs")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("HammerKills")
                         .HasColumnType("INTEGER");
 
@@ -973,6 +976,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("Goals")
                         .HasColumnType("INTEGER")
                         .HasColumnName("Goals");
+
+                    b.Property<int?>("Grabs")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Grabs");
 
                     b.Property<int?>("HammerKills")
                         .HasColumnType("INTEGER")
