@@ -75,10 +75,12 @@ public static partial class BracketParser
             return null;
         }
         var drafts = new List<Draft>();
+        // An alias before the placeholders: a team never named ("Team Name", H3 Action 2022's RDG NHL) is a team
+        string Aliased(string cell) => tab.Aliases.GetValueOrDefault(cell.Trim()) ?? cell;
         foreach (var slot in tab.Slots)
         {
-            var (home, homeSeed) = Side(sheet.At(slot.Home), tab.SeedsInNames);
-            var (away, awaySeed) = Side(sheet.At(slot.Away), tab.SeedsInNames);
+            var (home, homeSeed) = Side(Aliased(sheet.At(slot.Home)), tab.SeedsInNames);
+            var (away, awaySeed) = Side(Aliased(sheet.At(slot.Away)), tab.SeedsInNames);
             // A BYE, or a series not played (yet)
             if (home is null || away is null)
                 continue;
