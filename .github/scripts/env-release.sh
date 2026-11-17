@@ -21,13 +21,14 @@ backend=${2:?} frontend=${3:?}
 repo=${GITHUB_REPOSITORY:?}
 
 # A re-run: this run's release published (nothing to do), or left a draft (made again)
+mine=$(gh api "repos/$repo/releases" --paginate \
+  --jq ".[] | select((.body // \"\") | contains(\"([run]($RUN_URL))\")) | \"\(.id) \(.draft) \(.tag_name)\"")
 while read -r id draft tag; do
   [[ -n "$id" ]] || continue
   if [[ "$draft" = false ]]; then echo "This run already released $tag; nothing to do."; exit 0; fi
   echo "Deleting this run's unfinished draft release ($tag) to make it again."
   gh api "repos/$repo/releases/$id" -X DELETE
-done <<< "$(gh api "repos/$repo/releases" --paginate \
-  --jq ".[] | select((.body // \"\") | contains(\"([run]($RUN_URL))\")) | \"\(.id) \(.draft) \(.tag_name)\"")"
+done <<< "$mine"
 
 # The commit an image was built from: its revision label (given by env-deploy.sh's outputs, or read here)
 revision() { "$(dirname "$0")/image-revision.sh" "$1"; }
