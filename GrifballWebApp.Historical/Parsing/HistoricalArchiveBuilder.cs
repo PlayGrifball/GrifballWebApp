@@ -268,13 +268,19 @@ public sealed class HistoricalArchiveBuilder
             }
             // The season's names of its teams: its stats', and an earlier standings tab's (two tabs of a season spell a team
             // alike, the stats naming none)
-            // A captain is one of the season's players: a nickname ("Team (Snipez)") would be a placeholder player
+            // A captain or roster player is one of the season's players (SeasonPlayer: as written, as the stats write it, or
+            // without the nickname after it): a nickname ("Team (Snipez)") or a typo would be a placeholder player. A season
+            // with no player lines (its league kept no stats) has only its standings' names: a roster's names are gamertags
             var (known, _) = Spellings(season, regular);
             var players = PlayersOf(season);
+            string? PlayerOf(string name) => players.Count == 0
+                ? StandingsParser.Gamertag(name)
+                : SeasonPlayer(name, players) ?? SeasonPlayer(StandingsParser.Gamertag(name), players);
             var named = teams.Select(t => t with
             {
                 TeamName = KnownName(t.TeamName, known),
-                Captain = SeasonPlayer(t.Captain, players),
+                Captain = t.Captain is { } captain ? PlayerOf(captain) : null,
+                Roster = [.. t.Roster.Select(PlayerOf).OfType<string>()],
             }).ToList();
             // The stats' placeholder of a captain's team ("OREOTHECAT's Team") is the team the standings name with that captain,
             // or name after them: it takes the team's name as the season has it
