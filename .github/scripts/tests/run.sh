@@ -638,7 +638,7 @@ posted() { grep -A1 -F "api repos/o/r/git/$1 -X POST --input" "$work/deploycalls
 images_file() { posted trees | jq -r '.tree[] | select(.path == "charts/grifballwebapp/promoted-images.yaml") | .content'; }
 if deploy staging && [[ "$(posted trees | jq -r '.base_tree, (.tree | length), .tree[0].mode')" = "$(printf 'tree0\n1\n100644')" ]] \
   && [[ "$(images_file)" = "$(printf '%s\n' \
-    '# The images promote-to-staging deployed with this chart (env-deploy.sh), by digest.' \
+    '# The images deployed to staging with this chart (env-deploy.sh), by digest.' \
     'backend:' '  image:' '    repository: ghcr.io/playgrifball/grifballwebappserver' '    tag: staging@sha256:aaa' \
     'frontend:' '  image:' '    repository: ghcr.io/playgrifball/grifballwebappclient' '    tag: staging@sha256:bbb')" ]]
 then ok "env-deploy: the chart at the images' commit, with promoted-images.yaml naming them by digest"
