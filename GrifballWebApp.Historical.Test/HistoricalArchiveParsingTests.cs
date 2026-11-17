@@ -923,6 +923,31 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void ABracketTeamTheTemplatesPlaceholderNames_TakesItsAlias()
+    {
+        // H3 Action 2022: the schedule's PLAYOFFS seeds RDG NHL's never-named team as "Team Name", a template's placeholder elsewhere
+        List<HistoricalSourceContent> sources =
+        [
+            Source("stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "2022 H3 Action League", Game = "halo3" },
+                    Tabs = [new() { Name = "Stats" }],
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 4, 10), Row("R", "RDG NHL", 4, 1)]))),
+            Source("schedule", new HistoricalSourceConfig
+                {
+                    Brackets = [new() { Sheet = "PLAYOFFS", Season = "stats", Slots = [new() { Round = 1, Home = "C3", Away = "C5", Score = "C4", Winner = "E4", HomeSeed = "B3", AwaySeed = "B5" }],
+                        Aliases = new() { ["Team Name"] = "RDG NHL" } }],
+                },
+                Workbook(("PLAYOFFS", [Row(), Row(), Row(null, "3rd", "Alpha"), Row(null, null, "vs (2-0)", null, "Alpha"), Row(null, "6th", "Team Name")]))),
+        ];
+
+        var series = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons.Single().Bracket!.Series.Single();
+
+        Assert.That((series.Home, series.Away), Is.EqualTo(("Alpha", "RDG NHL")));
+    }
+
+    [Test]
     public void ABracketInItsSeasonsOwnWorkbook_GoesOnItsTab_AndRoundTabsOfNoSeasonAreWarned()
     {
         List<HistoricalSourceContent> sources =

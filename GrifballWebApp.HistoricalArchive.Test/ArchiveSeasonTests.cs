@@ -58,4 +58,24 @@ public class ArchiveSeasonTests
                 Is.SupersetOf(RdgNhlPicks.Select(p => (p.Gamertag.ToUpperInvariant(), p.Round))), "Its board column says \"Team Name\"");
         }
     }
+
+    [Test]
+    public async Task H3Action2022_BracketsSixthSeed_IsRdgNhlsTeamName_AndEveryPlayoffSeriesHasItsSlot()
+    {
+        await using var context = Archive.NewContext();
+        var series = await context.SeasonMatches.AsNoTracking()
+            .Where(m => m.Season.HistoricalSourceID != null && m.Season.SeasonName == "2022 H3 Action League" && m.BracketMatch != null)
+            .Select(m => new { Home = m.HomeTeam!.TeamName, Away = m.AwayTeam!.TeamName })
+            .ToListAsync();
+        if (series.Count == 0)
+            Assert.Ignore("2022 H3 Action League isn't in this copy of the archive, or has no bracket");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(series.Select(s => (s.Home.ToUpperInvariant(), s.Away.ToUpperInvariant())), Has.Some.EqualTo(("ALPHA", "RDG NHL")),
+                "The PLAYOFFS' 6th seed, \"Team Name\", against Alpha");
+            Assert.That(series.Where(s => s.Home == "THE BOYS SZN 3" || s.Away == "THE BOYS SZN 3"), Is.Empty, "THE BOYS SZN 3 didn't make the playoffs");
+            Assert.That(Archive.Report.Warnings.Where(w => w.StartsWith("2022-h3-action", StringComparison.Ordinal) && w.Contains("in no slot", StringComparison.Ordinal)), Is.Empty);
+        }
+    }
 }
