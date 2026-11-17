@@ -108,7 +108,7 @@ public static partial class BracketParser
             && home + away > 0)
         {
             (draft.HomeWins, draft.AwayWins) = ((int)home, (int)away);
-            draft.Winner ??= home > away ? SeasonMatchSide.Home : away > home ? SeasonMatchSide.Away : (SeasonMatchSide?)null;
+            draft.Winner ??= SideWithMore(home, away);
             return;
         }
         if (slot.Score is null || ScorePattern().Match(sheet.At(slot.Score)) is not { Success: true } score)
@@ -146,32 +146,49 @@ public static partial class BracketParser
         if (header < 0)
             return [];
         var columns = sheet.Rows[header].Select(ArchiveCells.HeaderKey).ToList();
-        var (seedColumn, teamColumn, winsColumn) = (columns.IndexOf("seed"), columns.IndexOf("teamname"), columns.IndexOf("wins"));
         var drafts = new List<Draft>();
-        var section = (Bracket: round.Bracket, Round: round.Round);
-        var blocks = new List<(string Team, int? Seed, int Rows, decimal Wins)>();
-        string? team = null;
-        for (var r = header + 1; r <= sheet.Rows.Count; r++)
-        {
-            var first = r < sheet.Rows.Count ? sheet.Cell(r, 0).Trim() : "";
-            if (r == sheet.Rows.Count || first.StartsWith("Losers Bracket", StringComparison.OrdinalIgnoreCase))
-            {
-                drafts.AddRange(Pair(sourceId, sheet.Name, section, blocks, warnings));
-                blocks.Clear();
-                team = null;
-                if (r < sheet.Rows.Count)
-                    section = (Bracket.Loser, RoundPattern().Match(first) is { Success: true } m ? int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) : round.Round);
-                continue;
-            }
-            // A row without its team's name is the team above's
-            team = NonEmpty(sheet.Cell(r, teamColumn)) ?? team;
-            if (team is not null)
-                AddRow(blocks, team, seedColumn < 0 ? null : Seed(sheet.Cell(r, seedColumn)), winsColumn < 0 ? 0 : ArchiveCells.Number(sheet.Cell(r, winsColumn)) ?? 0);
-        }
+        foreach (var (section, rows) in Sections(sheet.Rows.Skip(header + 1), round))
+            drafts.AddRange(Pair(sourceId, sheet.Name, section, Runs(Blocks(rows, columns)), warnings));
         return drafts;
     }
 
-    private static string? NonEmpty(string cell) => cell.Trim() is { Length: > 0 } text ? text : null;
+    /// <summary>A round tab's rows by section: the tab's own bracket first, then each losers' round its header starts.</summary>
+    private static List<((Bracket Bracket, int Round) Section, List<string[]> Rows)> Sections(IEnumerable<string[]> rows, BracketRoundTab round)
+    {
+        var sections = new List<((Bracket Bracket, int Round) Section, List<string[]> Rows)> { ((round.Bracket, round.Round), []) };
+        foreach (var row in rows)
+        {
+            var first = row.Length > 0 ? row[0].Trim() : "";
+            if (first.StartsWith("Losers Bracket", StringComparison.OrdinalIgnoreCase))
+                sections.Add(((Bracket.Loser, LosersRound(first) ?? round.Round), []));
+            else
+                sections[^1].Rows.Add(row);
+        }
+        return sections;
+    }
+
+    private static int? LosersRound(string header)
+        => RoundPattern().Match(header) is { Success: true } m ? int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) : null;
+
+    /// <summary>A section's runs of rows of one team: its seed (its first row's) and its wins. A row without its team's name
+    /// is the team above's; rows before any team are nobody's.</summary>
+    private static List<(string Team, int? Seed, int Rows, decimal Wins)> Blocks(List<string[]> rows, List<string> columns)
+    {
+        var (seedColumn, teamColumn, winsColumn) = (columns.IndexOf("seed"), columns.IndexOf("teamname"), columns.IndexOf("wins"));
+        var blocks = new List<(string Team, int? Seed, int Rows, decimal Wins)>();
+        string? team = null;
+        foreach (var row in rows)
+        {
+            team = NonEmpty(Cell(row, teamColumn)) ?? team;
+            if (team is not null)
+                AddRow(blocks, team, Seed(Cell(row, seedColumn)), ArchiveCells.Number(Cell(row, winsColumn)) ?? 0);
+        }
+        return blocks;
+    }
+
+    private static string Cell(string[] row, int column) => column >= 0 && column < row.Length ? row[column] : "";
+
+    private static string? NonEmpty(string cell) => string.IsNullOrWhiteSpace(cell) ? null : cell.Trim();
 
     /// <summary>A player's row: one more of its team's run of rows, or the start of the next run.</summary>
     private static void AddRow(List<(string Team, int? Seed, int Rows, decimal Wins)> blocks, string team, int? seed, decimal wins)
@@ -182,9 +199,9 @@ public static partial class BracketParser
             blocks.Add((team, seed, 1, wins));
     }
 
-    /// <summary>A section's games: its teams' runs of rows, two by two. A run inside another team's rows (a player listed
-    /// under another team in the middle of a game's) is that team's.</summary>
-    private static IEnumerable<Draft> Pair(string sourceId, string sheet, (Bracket Bracket, int Round) section, List<(string Team, int? Seed, int Rows, decimal Wins)> blocks, List<string> warnings)
+    /// <summary>The teams' runs: a run inside another team's rows (a player listed under another team in the middle of a
+    /// game's, <see cref="IsStray"/>) is that team's.</summary>
+    private static List<(string Team, int? Seed, int Rows, decimal Wins)> Runs(List<(string Team, int? Seed, int Rows, decimal Wins)> blocks)
     {
         var runs = new List<(string Team, int? Seed, int Rows, decimal Wins)>();
         for (var i = 0; i < blocks.Count; i++)
@@ -197,30 +214,44 @@ public static partial class BracketParser
             }
             runs.Add(blocks[i]);
         }
+        return runs;
+    }
+
+    /// <summary>A section's games: its runs two by two, a game each. A grand final's second game of its teams is its sudden death.</summary>
+    private static List<Draft> Pair(string sourceId, string sheet, (Bracket Bracket, int Round) section, List<(string Team, int? Seed, int Rows, decimal Wins)> runs, List<string> warnings)
+    {
         if (runs.Count % 2 == 1)
             warnings.Add($"{sourceId}: bracket round '{sheet}' has a team without an opponent ({runs[^1].Team}); left out");
+        var games = new List<Draft>();
         for (var i = 0; i + 1 < runs.Count; i += 2)
         {
             var (home, away) = (runs[i], runs[i + 1]);
-            SeasonMatchSide? winner = home.Wins > 0 && away.Wins <= 0 ? SeasonMatchSide.Home : away.Wins > 0 && home.Wins <= 0 ? SeasonMatchSide.Away : (SeasonMatchSide?)null;
-            // A grand final's second game of its teams is its sudden death
-            var bracket = section.Bracket is Bracket.GrandFinal && i > 0 ? Bracket.GrandFinalSuddenDeath : section.Bracket;
-            yield return new Draft
+            var winner = SideWithMore(home.Wins, away.Wins);
+            var suddenDeath = section.Bracket is Bracket.GrandFinal && i > 0;
+            games.Add(new Draft
             {
-                Bracket = bracket,
-                Round = bracket is Bracket.GrandFinalSuddenDeath ? section.Round + 1 : section.Round,
+                Bracket = suddenDeath ? Bracket.GrandFinalSuddenDeath : section.Bracket,
+                Round = suddenDeath ? section.Round + 1 : section.Round,
                 Home = home.Team,
                 Away = away.Team,
                 HomeSeed = home.Seed,
                 AwaySeed = away.Seed,
                 // One game
-                HomeWins = winner is null ? (int?)null : winner is SeasonMatchSide.Home ? 1 : 0,
-                AwayWins = winner is null ? (int?)null : winner is SeasonMatchSide.Away ? 1 : 0,
+                HomeWins = GameWon(winner, SeasonMatchSide.Home),
+                AwayWins = GameWon(winner, SeasonMatchSide.Away),
                 Winner = winner,
                 BestOf = 1,
-            };
+            });
         }
+        return games;
     }
+
+    /// <summary>The side with more wins; null for even wins.</summary>
+    private static SeasonMatchSide? SideWithMore(decimal home, decimal away)
+        => home == away ? null : home > away ? SeasonMatchSide.Home : SeasonMatchSide.Away;
+
+    /// <summary>A side's wins of a game: 1 for its winner, 0 for its loser, none without one.</summary>
+    private static int? GameWon(SeasonMatchSide? winner, SeasonMatchSide side) => winner is null ? null : winner == side ? 1 : 0;
 
     /// <summary>A single row between two runs of the same team's, which together are no more than a team's four: a player
     /// listed under another team in the middle of that team's game (two games of the same teams are two runs of four).</summary>

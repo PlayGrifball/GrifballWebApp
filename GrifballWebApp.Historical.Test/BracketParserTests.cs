@@ -239,7 +239,10 @@ public class BracketParserTests
             // A score naming nobody
             ("F1", "Golf"), ("F3", "Hotel"), ("F2", "2-1"),
             // A score of nothing
-            ("G1", "India"), ("G3", "Juliet"), ("G2", "vs (0-0)"));
+            ("G1", "India"), ("G3", "Juliet"), ("G2", "vs (0-0)"),
+            // More wins for the away side in their own cells; none at all and no score cell
+            ("H1", "Kilo"), ("H3", "Lima"), ("I1", "0"), ("I3", "2"),
+            ("J1", "Mike"), ("J3", "November"), ("K1", "0"), ("K3", "0"));
         var tab = new BracketTab
         {
             Sheet = "Bracket",
@@ -250,6 +253,8 @@ public class BracketParserTests
                 new() { Round = 1, Home = "D1", Away = "D3", Score = "D2", HomeScore = "E1", AwayScore = "E3", Winner = "D4", BestOf = 3 },
                 new() { Round = 1, Home = "F1", Away = "F3", Score = "F2" },
                 new() { Round = 1, Home = "G1", Away = "G3", Score = "G2" },
+                new() { Round = 1, Home = "H1", Away = "H3", HomeScore = "I1", AwayScore = "I3" },
+                new() { Round = 1, Home = "J1", Away = "J3", HomeScore = "K1", AwayScore = "K3" },
             ],
         };
 
@@ -262,6 +267,8 @@ public class BracketParserTests
             ("Echo", 2, 0, SeasonMatchSide.Home, 3),
             ("Golf", null, null, null, null),
             ("India", null, null, null, null),
+            ("Kilo", 0, 2, SeasonMatchSide.Away, null),
+            ("Mike", null, null, null, null),
         }), "Echo's winner cell wins over its score's name; 1-1 and 0-0 decide nothing");
     }
 
