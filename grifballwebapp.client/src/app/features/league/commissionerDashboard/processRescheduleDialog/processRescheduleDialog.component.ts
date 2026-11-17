@@ -38,10 +38,24 @@ export class ProcessRescheduleDialogComponent {
   readonly processing = this.store.processing;
   /** Why the server refused the decision; shown in the dialog, which stays open to try again. */
   readonly error = this.store.error;
+  /** What is wrong with the requested time (null: none requested, or not checked); refused: it can't be approved. */
+  readonly conflicts = this.store.conflicts;
+  readonly refused = this.store.refused;
+  /** The best other times for the match. */
+  readonly alternatives = this.store.alternatives;
+
+  constructor() {
+    this.store.loadSchedule(this.reschedule.seasonMatchID, this.reschedule.newScheduledTime);
+  }
 
   formatDateTime(dateStr?: string | null): string {
     if (!dateStr) return 'Not scheduled';
     return new Date(dateStr).toLocaleString();
+  }
+
+  /** How many warnings a time has, for a list of times: nothing when none. */
+  warnings(count: number): string {
+    return count === 0 ? '' : ` (${count} warning${count > 1 ? 's' : ''})`;
   }
 
   processReschedule(): void {
