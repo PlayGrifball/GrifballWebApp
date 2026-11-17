@@ -11151,6 +11151,8 @@
       },
       "HistoricalSeasonRemoval": {
         "required": [
+          "ladderBefore",
+          "ladderRemoved",
           "removesAnything",
           "seasonKey",
           "seasonName",
@@ -11193,6 +11195,15 @@
             "format": "int32"
           },
           "titlesRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ladderBefore": {
+            "type": "integer",
+            "description": "A Late League season's ladder rows (MatchmakingLadderRank), measured apart from its stat rows.",
+            "format": "int32"
+          },
+          "ladderRemoved": {
             "type": "integer",
             "format": "int32"
           },

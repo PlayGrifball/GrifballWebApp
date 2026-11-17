@@ -86,7 +86,7 @@ internal sealed class HistoricalImportLadderUnitTests : ApplicationDbContextTest
     }
 
     [Test]
-    public async Task Import_APlayerOffTheLadder_LosesTheRow_CountedWithTheStatRowsForTheGuardrail()
+    public async Task Import_APlayerOffTheLadder_LosesTheRow_MeasuredByTheGuardrail()
     {
         await _service.Import(Input(Ladder(Rank("Regresser", 1), Rank("ASpence501", 2))));
         Context.ChangeTracker.Clear();
@@ -99,10 +99,10 @@ internal sealed class HistoricalImportLadderUnitTests : ApplicationDbContextTest
         var removal = report.SeasonRemovals.Single();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(stopped.Warnings, Has.Some.EqualTo($"{LadderKey}: stopped for review, it would remove 1 of 2 stat rows, 0 of 0 teams, 0 of 0 titles"));
+            Assert.That(stopped.Warnings, Has.Some.EqualTo($"{LadderKey}: stopped for review, it would remove 0 of 0 stat rows, 0 of 0 teams, 0 of 0 titles, 1 of 2 ladder rows"));
             Assert.That(stoppedCount, Is.EqualTo(2), "Rolled back");
             Assert.That(report.LadderRanksRemoved, Is.EqualTo(1));
-            Assert.That((removal.StatsBefore, removal.StatsRemoved), Is.EqualTo((2, 1)));
+            Assert.That((removal.StatsBefore, removal.StatsRemoved, removal.LadderBefore, removal.LadderRemoved), Is.EqualTo((0, 0, 2, 1)));
             Assert.That(await Context.MatchmakingLadderRanks.Select(r => r.Gamertag).ToListAsync(), Is.EqualTo(RegresserOnly));
         }
     }
@@ -130,6 +130,60 @@ internal sealed class HistoricalImportLadderUnitTests : ApplicationDbContextTest
             Assert.That((report.MatchmakingSeasonsCreated, report.StatsInserted, report.LadderRanksInserted), Is.EqualTo((1, 1, 2)));
             Assert.That(await Context.MatchmakingLadderRanks.Select(r => r.UserID).ToListAsync(),
                 Does.Contain(await Context.MatchmakingPlayerStats.Select(s => s.UserID).SingleAsync()), "One player, the same user in both");
+        }
+    }
+
+    [Test]
+    public async Task Import_Again_AfterTheLadderRowWasMovedToAnAccount_KeepsItOnTheAccount()
+    {
+        await _service.Import(Input(Ladder(Rank("Regresser", 1))));
+        Context.ChangeTracker.Clear();
+        // A commissioner's merge: the placeholder's row moves to the account, and the placeholder goes
+        var account = GrifballWebApp.Domain.Players.User.Register("regresser-account");
+        Context.Users.Add(account);
+        await Context.SaveChangesAsync();
+        var row = await Context.MatchmakingLadderRanks.SingleAsync();
+        var placeholder = await Context.Users.SingleAsync(u => u.Id == row.UserID);
+        row.ReassignUser(placeholder.Id, account.Id);
+        Context.Users.Remove(placeholder);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var again = await _service.Import(Input(Ladder(Rank("Regresser", 1))));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((again.LadderRanksUpdated, again.LadderRanksRemoved, again.DummyUsersCreated), Is.EqualTo((1, 0, 0)));
+            Assert.That(await Context.MatchmakingLadderRanks.Select(r => r.UserID).SingleAsync(), Is.EqualTo(account.Id));
+        }
+    }
+
+    [Test]
+    public async Task Run_TheGuardrail_MeasuresTheLadderApartFromTheStats()
+    {
+        // 8 stat rows and 2 ladder rows: losing the ladder is all of it, not 2 of 10 rows
+        var season = new ArchiveSeason
+        {
+            SeasonName = "Late League Season 8 (Halo 3)", GameVersion = "halo3", League = "Late League",
+            SourceWorkbook = "late-league-aspence-main", SourceSheet = "S8Halo 3 Stats",
+            Players = [.. Enumerable.Range(1, 8).Select(i => Player($"P{i}"))],
+            Ladder = [Rank("P1", 1), Rank("P2", 2)],
+        };
+        await _service.Import(Input(season));
+        Context.ChangeTracker.Clear();
+
+        var withoutLadder = new ArchiveSeason
+        {
+            SeasonName = season.SeasonName, GameVersion = "halo3", League = "Late League", SourceWorkbook = season.SourceWorkbook, SourceSheet = season.SourceSheet,
+            Players = season.Players,
+        };
+        var report = await _service.Run(Input(withoutLadder), new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions { MaxRemovedFraction = 0.5m } });
+
+        var removal = report.SeasonRemovals.Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((removal.StatsBefore, removal.StatsRemoved, removal.LadderBefore, removal.LadderRemoved, removal.Stopped), Is.EqualTo((8, 0, 2, 2, true)));
+            Assert.That(removal.Summary, Does.EndWith(", 2 of 2 ladder rows"));
         }
     }
 }

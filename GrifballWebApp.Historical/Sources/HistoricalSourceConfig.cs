@@ -37,7 +37,7 @@ public class HistoricalSourceConfig
     /// <summary>Tabs of a Late League season's ladder (its ranked standings): each player's division, league, rank, LP,
     /// streak and MMR (LadderParser), which go on the season's ladder.</summary>
     public List<LadderTab> Ladders { get; init; } = [];
-    /// <summary>The tab of each player's finishes in past seasons (Late League's "Past Seasons", FinishesParser): League,
+    /// <summary>The tab of each player's finishes in past seasons (Late League's "Past Seasons", LadderParser.ParseFinishes): League,
     /// Rank and Pos columns under each season's heading, each season's going on the ladder whose <see cref="LadderTab.Finishes"/>
     /// is that heading.</summary>
     public string? FinishesSheet { get; init; }

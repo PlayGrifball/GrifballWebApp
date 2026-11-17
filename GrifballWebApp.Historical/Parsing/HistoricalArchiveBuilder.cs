@@ -338,13 +338,13 @@ public sealed class HistoricalArchiveBuilder
                 _seasons.Add(entry);
             }
             entry.Ladder.AddRange(WithFinishes(read.Players, read.Finishes ?? []));
-            if (_changedSourceIds?.Contains(read.SourceId) != false)
+            if (read.Changed)
                 _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
         }
     }
 
     /// <summary>The ladder's players with their finishes (matched by gamertag, <see cref="HistoricalKeys.Normalize"/>), then
-    /// the players only the finishes list.</summary>
+    /// the players only the finishes list. With finishes, a player's place is theirs alone.</summary>
     private static List<LadderStanding> WithFinishes(List<LadderStanding> players, List<LadderStanding> finishes)
     {
         var byGamertag = finishes.GroupBy(f => HistoricalKeys.Normalize(f.Gamertag)).ToDictionary(g => g.Key, g => g.First());
@@ -352,10 +352,11 @@ public sealed class HistoricalArchiveBuilder
         var ladder = players.Select(p =>
         {
             var key = HistoricalKeys.Normalize(p.Gamertag);
+            // The finishes are the places: one they don't list has none (its order in the tab would repeat one of theirs)
             if (!byGamertag.TryGetValue(key, out var finish))
-                return p;
+                return byGamertag.Count == 0 ? p : p with { Position = null };
             matched.Add(key);
-            return p with { Position = finish.Position ?? p.Position, League = p.League ?? finish.League, Rank = p.Rank ?? finish.Rank };
+            return p with { Position = finish.Position, League = p.League ?? finish.League, Rank = p.Rank ?? finish.Rank };
         }).ToList();
         ladder.AddRange(byGamertag.Values.Where(f => !matched.Contains(HistoricalKeys.Normalize(f.Gamertag))));
         return ladder;

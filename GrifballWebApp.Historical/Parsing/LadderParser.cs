@@ -74,8 +74,8 @@ public static partial class LadderParser
     /// <summary>
     /// The finishes tab (Late League's "Past Seasons"): a season heading over each group of League, Rank and Pos columns, a
     /// row per player below with the gamertag in the first column. Each heading's players who finished that season (a
-    /// league, rank or place), by heading (trimmed, any case), their place the sheet's Pos; null when the tab has no Pos
-    /// column under a heading.
+    /// league, rank or place), by heading (trimmed, any case), their place the sheet's Pos. A heading with no Pos column
+    /// under it is left out; null when the tab has no Pos column at all.
     /// </summary>
     public static Dictionary<string, List<LadderStanding>>? ParseFinishes(SheetTable sheet)
     {
@@ -108,7 +108,9 @@ public static partial class LadderParser
             var end = i + 1 < starts.Count ? starts[i + 1] : labels.Length;
             int Column(string key) => Enumerable.Range(from, Math.Max(Math.Min(end, labels.Length) - from, 0))
                 .Where(k => ArchiveCells.HeaderKey(labels[k]) == key).DefaultIfEmpty(-1).First();
-            groups.TryAdd(headings[from].Trim(), (Column("league"), Column("rank"), Column("pos")));
+            // A heading without a place is no finish: its ladder keeps its own order
+            if (Column("pos") is var pos and >= 0)
+                groups.TryAdd(headings[from].Trim(), (Column("league"), Column("rank"), pos));
         }
         return groups;
     }
@@ -125,8 +127,12 @@ public static partial class LadderParser
         return new LadderStanding { Gamertag = gamertag, Position = place is >= 1 ? place : null, League = league, Rank = rank };
     }
 
-    /// <summary>A gamertag: not empty, and not the bot's unnamed sign-up ("LateLeague#4522").</summary>
-    public static bool IsPlayer(string gamertag) => gamertag.Length > 0 && !BotSignupRegex().IsMatch(gamertag);
+    /// <summary>A gamertag: not empty, not the bot's unnamed sign-up ("LateLeague#4522"), not a header repeated
+    /// ("Gamertag", "Players", "`") and not a totals row ("Total", "Totals").</summary>
+    public static bool IsPlayer(string gamertag)
+        => gamertag.Length > 0 && !BotSignupRegex().IsMatch(gamertag) && !NotAPlayer.Contains(ArchiveCells.HeaderKey(gamertag).TrimEnd(':'));
+
+    private static readonly HashSet<string> NotAPlayer = new(StringComparer.Ordinal) { "gamertag", "gamertags", "player", "players", "`", "total", "totals" };
 
     /// <summary>"(2) Bronze" is division 2 of league Bronze; anything else is the league as written.</summary>
     private static (string? Division, string? League) League(string text)

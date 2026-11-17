@@ -22,6 +22,7 @@ public class LadderParserTests
     private static readonly string[] LadderSeasonKeys = ["ll/S7 Stats", "ll/S2 Ladder"];
     private static readonly string[] LadderSheetNames = ["S8 Halo 3", "past seasons"];
     private static readonly string[] OnlyB = ["B"];
+    private static readonly string[] OnlySeason3 = ["Season 3: Halo 5"];
 
     [Test]
     public void Parse_TheBotsLadder_ReadsEachPlayerInOrder_WithoutSkillAndTheBotsSignups()
@@ -129,6 +130,24 @@ public class LadderParserTests
     }
 
     [Test]
+    public void Parse_ARepeatedHeaderOrATotalsRow_IsNoPlayer()
+    {
+        var sheet = Sheet(["Gamertag", "League"], ["A", "Gold"], ["Total", "12"], ["Gamertag", "League"], ["B", "Silver"]);
+
+        Assert.That(LadderParser.Parse(sheet, Tab)!.Select(r => (r.Gamertag, r.Position)), Is.EqualTo(new[] { ("A", (int?)1), ("B", (int?)2) }));
+    }
+
+    [Test]
+    public void ParseFinishes_AHeadingWithoutAPosColumn_IsLeftOut()
+    {
+        var sheet = Sheet(["Gamertag:", "Season 2: Halo 3", "", "Season 3: Halo 5", ""], ["", "League", "Rank", "League", "Pos"], ["A", "Gold", "3", "Silver", "4"]);
+
+        var finishes = LadderParser.ParseFinishes(sheet)!;
+
+        Assert.That(finishes.Keys, Is.EqualTo(OnlySeason3));
+    }
+
+    [Test]
     public void Parse_ANumberPastAWholeNumbersRange_IsNone()
     {
         var ladder = LadderParser.Parse(Sheet(["Gamertag", "League", "MMR"], ["A", "Gold", "99999999999"]), Tab)!;
@@ -140,6 +159,12 @@ public class LadderParserTests
     [TestCase("LateLeague#9807", false)]
     [TestCase("lateleague#1", false)]
     [TestCase("LateLeague", true)]
+    [TestCase("Gamertag:", false)]
+    [TestCase("Players", false)]
+    [TestCase("`", false)]
+    [TestCase("Total", false)]
+    [TestCase("TOTALS", false)]
+    [TestCase("Totalitarian", true)]
     [TestCase("Galvann", true)]
     public void IsPlayer_IsAGamertag_NotTheBotsSignup(string gamertag, bool expected)
         => Assert.That(LadderParser.IsPlayer(gamertag), Is.EqualTo(expected));
@@ -185,8 +210,8 @@ public class LadderParserTests
                 Is.EqualTo(("ll", "S2 Ladder", "halo3", "Late League", "LateLeague", "Open", (int?)2019, 0)), "A season of its own, keyed by the ladder");
             Assert.That(s2.Ladder.Select(r => (r.Gamertag, r.Position, r.League, r.Rank)), Is.EqualTo(new (string, int?, string?, int?)[]
             {
-                ("Regresser", 1, "Diamond", 3), ("i robot9000", 2, "Gold", 3), ("Blootzy", 3, "Gold", 3),
-            }), "A finish gives its place; a player only the finishes list is added");
+                ("Regresser", null, "Diamond", 3), ("i robot9000", 2, "Gold", 3), ("Blootzy", 3, "Gold", 3),
+            }), "The finishes give the places (none for a player they don't list, no two alike); a player only they list is added");
             Assert.That(build.Seasons, Is.EquivalentTo(LadderSeasonKeys));
             Assert.That(build.Warnings, Does.Contain("ll: no past finishes under 'Nobody's' for ladder 'Missing'"));
             Assert.That(build.Warnings, Does.Contain("ll: ladder 'Missing' not read (no such sheet, or no League header)"));
@@ -215,7 +240,7 @@ public class LadderParserTests
     }
 
     [Test]
-    public void Build_ALadderOfAnotherWorkbooksOrAPlayoffsSeason_GetsASeasonOfItsOwn_AndAFinishWithoutAPlaceKeepsTheTabs()
+    public void Build_ALadderOfAnotherWorkbooksOrAPlayoffsSeason_GetsASeasonOfItsOwn_AndAFinishWithoutAPlaceGivesNone()
     {
         var config = new HistoricalSourceConfig
         {
@@ -239,7 +264,7 @@ public class LadderParserTests
         var own = build.Input.Seasons.Seasons.Single(s => s.SourceSheet == "S7 Ladder");
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(own.Ladder, Is.EqualTo(new[] { new LadderStanding { Gamertag = "A", Position = 1, League = "Masters", Mmr = 850 } }));
+            Assert.That(own.Ladder, Is.EqualTo(new[] { new LadderStanding { Gamertag = "A", League = "Masters", Mmr = 850 } }));
             Assert.That(build.Input.Seasons.Seasons.Single(s => s.SourceWorkbook == "other").Ladder.Select(r => r.Gamertag), Is.EqualTo(OnlyB),
                 "No finishes tab: the ladder alone");
         }

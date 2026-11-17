@@ -6,6 +6,12 @@
  * What importing a season removes of what it had: stat rows, teams, titles (championship rows).
  */
 export interface HistoricalSeasonRemoval {
+
+  /**
+   * A Late League season's ladder rows (MatchmakingLadderRank), measured apart from its stat rows.
+   */
+  ladderBefore: number;
+  ladderRemoved: number;
   removesAnything: boolean;
   seasonKey: string;
   seasonName: string | null;

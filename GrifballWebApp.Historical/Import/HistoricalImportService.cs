@@ -54,7 +54,8 @@ public class HistoricalGuardrailOptions
 
     public bool Exceeded(HistoricalSeasonRemoval removal)
         => TooMany(removal.StatsRemoved, removal.StatsBefore) || TooMany(removal.TeamsRemoved, removal.TeamsBefore)
-           || (StopOnAnyChampionshipRemoved ? removal.TitlesRemoved > 0 : TooMany(removal.TitlesRemoved, removal.TitlesBefore));
+           || (StopOnAnyChampionshipRemoved ? removal.TitlesRemoved > 0 : TooMany(removal.TitlesRemoved, removal.TitlesBefore))
+           || TooMany(removal.LadderRemoved, removal.LadderBefore);
 
     private bool TooMany(int removed, int before) => removed > 0 && before > 0 && (decimal)removed / before > MaxRemovedFraction;
 }
@@ -70,12 +71,16 @@ public class HistoricalSeasonRemoval
     public int TeamsRemoved { get; set; }
     public int TitlesBefore { get; set; }
     public int TitlesRemoved { get; set; }
+    /// <summary>A Late League season's ladder rows (MatchmakingLadderRank), measured apart from its stat rows.</summary>
+    public int LadderBefore { get; set; }
+    public int LadderRemoved { get; set; }
     /// <summary>Rolled back by the guardrail: left as it was until a sysadmin approves it.</summary>
     public bool Stopped { get; set; }
 
-    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0;
+    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0 || LadderRemoved > 0;
 
-    public string Summary => $"{StatsRemoved} of {StatsBefore} stat rows, {TeamsRemoved} of {TeamsBefore} teams, {TitlesRemoved} of {TitlesBefore} titles";
+    public string Summary => $"{StatsRemoved} of {StatsBefore} stat rows, {TeamsRemoved} of {TeamsBefore} teams, {TitlesRemoved} of {TitlesBefore} titles"
+        + (LadderBefore > 0 ? $", {LadderRemoved} of {LadderBefore} ladder rows" : "");
 }
 
 public record HistoricalImportProgress(string Stage, int SeasonsDone, int SeasonsTotal);

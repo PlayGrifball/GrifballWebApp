@@ -17,16 +17,16 @@ public partial class HistoricalImportService
     /// key. Its players' sheet totals are its <see cref="MatchmakingPlayerStat"/> rows (by player), their places on its ladder its
     /// <see cref="MatchmakingLadderRank"/> rows, and each of its recorded games is a finished <see cref="MatchedMatch"/> of its
     /// two sides, as the queue's matches are: no teams, playoffs or champion. What this run doesn't bring back (a row, a game)
-    /// goes. One transaction, under the dry run and the guardrail like a season's (its stat and ladder rows are what removals
-    /// are measured by).
+    /// goes. One transaction, under the dry run and the guardrail like a season's (its stat rows and, apart, its ladder rows are
+    /// what removals are measured by).
     /// </summary>
     private async Task ImportMatchmakingSeason(SeasonGroup group, List<GameVersion> gameVersions, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
     {
         var counts = new HistoricalImportReport();
         var removal = new HistoricalSeasonRemoval { SeasonKey = group.SourceId, SeasonName = group.SeasonName };
-        // Its ladder rows count with its stat rows: a ladder the sheet lost is stopped for review like its stats
-        removal.StatsBefore = await _context.MatchmakingPlayerStats.CountAsync(s => s.MatchmakingSeason.HistoricalSourceID == group.SourceId, ct)
-            + await _context.MatchmakingLadderRanks.CountAsync(r => r.MatchmakingSeason.HistoricalSourceID == group.SourceId, ct);
+        removal.StatsBefore = await _context.MatchmakingPlayerStats.CountAsync(s => s.MatchmakingSeason.HistoricalSourceID == group.SourceId, ct);
+        // Its ladder is measured on its own: a ladder the sheet lost is stopped for review however many stat rows there are
+        removal.LadderBefore = await _context.MatchmakingLadderRanks.CountAsync(r => r.MatchmakingSeason.HistoricalSourceID == group.SourceId, ct);
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         try
         {
@@ -41,7 +41,8 @@ public partial class HistoricalImportService
 
             await _context.SaveChangesAsync(ct);
             counts.DummyUsersCreated = resolver.DummiesCreated;
-            removal.StatsRemoved = counts.StatsRemoved + counts.LadderRanksRemoved;
+            removal.StatsRemoved = counts.StatsRemoved;
+            removal.LadderRemoved = counts.LadderRanksRemoved;
             removal.Stopped = !options.DryRun && options.Guardrail?.Exceeded(removal) == true;
             if (options.DryRun || removal.Stopped)
             {
