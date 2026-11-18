@@ -64,8 +64,7 @@ export class GamertagClaimsStore {
   }), []);
   readonly duplicateRows = this.duplicates.value;
   readonly duplicatesLoaded = this.duplicates.hasValue;
-  /** The first look for duplicates (a live reload keeps them shown). */
-  readonly duplicatesLoading = computed(() => this.duplicates.status() === 'loading');
+  readonly duplicatesLoading = this.duplicates.isLoading;
 
   constructor() {
     // A claim made or decided: the claims again; a merge or a dismissal: the duplicates shown again, in place

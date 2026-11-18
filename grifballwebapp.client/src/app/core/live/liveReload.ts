@@ -36,6 +36,7 @@ export function liveData<T>(topics: () => readonly string[], apply: (data: T) =>
     clearTimeout(timer);
     if (message.data !== undefined && apply(message.data as T))
       return;
+    // eslint-disable-next-line sonarjs/pseudo-random -- only spreads the pages' reads over time: nothing depends on it being unpredictable
     timer = setTimeout(reload, LIVE_RELOAD_MS + Math.random() * LIVE_SPREAD_MS);
   };
   let stop: (() => void) | undefined;
@@ -60,7 +61,7 @@ export function provideLive(): EnvironmentProviders {
         return;
       const live = inject(LiveService);
       const router = inject(Router);
-      live.connect();
+      void live.connect();
       router.events.pipe(filter(event => event instanceof NavigationEnd))
         .subscribe(event => live.viewing(event.urlAfterRedirects));
     }),

@@ -26,7 +26,8 @@ class FakeLiveHub {
   completion(message: { type: number, target?: string, invocationId?: string }): string | null {
     if (message.type !== 1 || message.invocationId === undefined)
       return null;
-    const result = message.target === 'Watch' ? [] : message.target === 'Viewing' ? SNAPSHOT : undefined;
+    const results: Record<string, unknown> = { Watch: [], Viewing: SNAPSHOT };
+    const result = message.target === undefined ? undefined : results[message.target];
     return JSON.stringify({ type: 3, invocationId: message.invocationId, result }) + RS;
   }
 
@@ -227,7 +228,7 @@ describe('LiveService over the SignalR wire protocol', () => {
   });
 
   it('negotiates, then opens the WebSocket by its connection token and completes the JSON handshake', async () => {
-    service.connect();
+    void service.connect();
     await waitFor(() => hub.latest?.handshaken ?? false, 'the connection');
 
     expect(hub.httpRequests.map(r => [r.method, new URL(r.url!, location.href).pathname])).toEqual([['POST', '/hub/LiveHub/negotiate']]);
@@ -242,7 +243,7 @@ describe('LiveService over the SignalR wire protocol', () => {
 
   it('watches the topics watched before it connected, says the page, and takes who is on the site', async () => {
     service.watch(['season:5', 'queue:me'], () => undefined);
-    service.connect();
+    void service.connect();
 
     await waitFor(() => service.presence() !== null, 'the page said');
 
@@ -255,7 +256,7 @@ describe('LiveService over the SignalR wire protocol', () => {
     service.watch(['season:5'], () => changed.push('season'));
     service.watch(['queue'], () => changed.push('queue'));
     service.watch([LiveTopics.myQueue], () => changed.push('mine'));
-    service.connect();
+    void service.connect();
     await waitFor(() => service.presence() !== null, 'the connection');
 
     hub.invoke('Changed', 'season:5');
@@ -269,7 +270,7 @@ describe('LiveService over the SignalR wire protocol', () => {
     const got: unknown[] = [];
     service.watch(['queue'], message => got.push(message));
     service.watch(['queue'], message => got.push(message));
-    service.connect();
+    void service.connect();
     await waitFor(() => service.presence() !== null, 'the connection');
 
     hub.invoke('Snapshot', 'queue', '{"count":2}');
@@ -280,7 +281,7 @@ describe('LiveService over the SignalR wire protocol', () => {
   });
 
   it('stops watching a topic its last watcher left', async () => {
-    service.connect();
+    void service.connect();
     await waitFor(() => service.presence() !== null, 'the connection');
 
     const first = service.watch(['season:5'], () => undefined);
@@ -293,7 +294,7 @@ describe('LiveService over the SignalR wire protocol', () => {
   });
 
   it('takes who is on the site whenever the hub sends it', async () => {
-    service.connect();
+    void service.connect();
     await waitFor(() => service.presence() !== null, 'the connection');
 
     hub.invoke('Presence', { ...SNAPSHOT, online: 3 });
@@ -310,7 +311,7 @@ describe('LiveService where WebSockets don\'t get through', () => {
     const { hub, service } = fake;
     const changed: string[] = [];
     service.watch(['seasons'], () => changed.push('seasons'));
-    service.connect();
+    void service.connect();
 
     // The negotiate, then the connect poll by the connection's token: no WebSocket at all.
     await waitFor(() => hub.httpRequests.some(r => r.method === 'GET'), 'a poll');

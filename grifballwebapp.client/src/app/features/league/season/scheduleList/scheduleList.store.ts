@@ -68,12 +68,13 @@ export class ScheduleListStore {
   constructor() {
     // A match made, moved, played or rescheduled: both lists as they are now come with it
     liveData<SeasonLiveDto>(() => seasonTopics(this.seasonID()), season => {
-      if (season.seasonID !== this.seasonID())
-        return true;
-      this._unscheduledMatches.set(season.unscheduled);
-      this._scheduledMatches.set(scheduleWeeks(season.scheduled.map(parseScheduledMatch)));
-      this.unscheduledLoaded.set(true);
-      this.scheduledLoaded.set(true);
+      // Another season's (the page moved on): nothing to show here
+      if (season.seasonID === this.seasonID()) {
+        this._unscheduledMatches.set(season.unscheduled);
+        this._scheduledMatches.set(scheduleWeeks(season.scheduled.map(parseScheduledMatch)));
+        this.unscheduledLoaded.set(true);
+        this.scheduledLoaded.set(true);
+      }
       return true;
     }, () => this.reload());
   }

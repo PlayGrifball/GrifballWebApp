@@ -1,14 +1,9 @@
-import { Injectable, Injector, inject, runInInjectionContext, signal } from '@angular/core';
+import { Injectable, Injector, inject, signal } from '@angular/core';
 import type { PresenceSnapshot } from '@api/models';
-import { HubConnection, HubConnectionState } from '@microsoft/signalr';
-import { getHubProxyFactory, getReceiverRegister } from '@signalr/TypedSignalR.Client';
 import type { ILiveHubServer } from '@signalr/TypedSignalR.Client/GrifballWebApp.Server.Live';
-import { hubLifecycle } from '../signalr/hubLifecycle';
+import type { LiveConnection } from './liveConnection';
 import { AppLog } from '../telemetry/appLog';
 import { LiveTopics } from './liveTopics';
-
-/** The site's live hub (LiveHub): what changed, and who is on the site. */
-export const LIVE_HUB_URL = 'hub/LiveHub';
 
 /**
  * What a watcher is told: `topic` changed, with its data when it is one of the topics many watch (`data`, the server's
@@ -34,8 +29,8 @@ export class LiveService {
   private readonly log = inject(AppLog);
   private readonly injector = inject(Injector);
 
-  private connection?: HubConnection;
-  private hub?: ILiveHubServer;
+  private connection?: LiveConnection;
+  private connecting = false;
   /** It came up once already: a later connection (a reconnect, a sign-in or out) may have missed changes. */
   private connectedBefore = false;
 
@@ -50,20 +45,20 @@ export class LiveService {
   /** Who is on the site, as the hub last said (null until it has). */
   readonly presence = this._presence.asReadonly();
 
-  /** Starts the connection: once, in the browser's app (provideLive). */
-  connect(): void {
-    if (this.connection)
+  /**
+   * Starts the connection: once, in the browser's app (provideLive). The SignalR client comes in its own chunk
+   * (liveConnection), loaded now: the first page's download doesn't carry it.
+   */
+  async connect(): Promise<void> {
+    if (this.connecting)
       return;
-    this.connection = runInInjectionContext(this.injector, () => hubLifecycle(LIVE_HUB_URL, {
-      name: 'Live hub',
-      connected: () => void this.connected(),
-    }));
-    this.hub = getHubProxyFactory('ILiveHubServer').createHubProxy(this.connection);
-    getReceiverRegister('ILiveHubClient').register(this.connection, {
+    this.connecting = true;
+    const { openLiveConnection } = await import('./liveConnection');
+    this.connection = openLiveConnection(this.injector, {
       changed: topic => Promise.resolve(this.changed({ topic })),
       snapshot: (topic, data) => Promise.resolve(this.snapshot(topic, data)),
       presence: snapshot => Promise.resolve(this._presence.set(snapshot)),
-    });
+    }, () => void this.connected());
   }
 
   /**
@@ -130,7 +125,7 @@ export class LiveService {
     try {
       parsed = JSON.parse(data);
     } catch (error) {
-      this.log.warn(`Live hub: 's data did not parse`, error);
+      this.log.warn(`Live hub: ${topic}'s data did not parse`, error);
     }
     this.changed(parsed === undefined ? { topic } : { topic, data: parsed });
   }
@@ -153,10 +148,10 @@ export class LiveService {
 
   /** A call on the hub while it is connected (it is made again on connecting); a failure is logged, not thrown. */
   private async send(call: (hub: ILiveHubServer) => Promise<unknown>, needed: boolean): Promise<void> {
-    if (!needed || !this.hub || this.connection?.state !== HubConnectionState.Connected)
+    if (!needed || !this.connection?.connected)
       return;
     try {
-      await call(this.hub);
+      await call(this.connection.hub);
     } catch (error) {
       this.log.warn('Live hub: a call failed', error);
     }

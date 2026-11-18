@@ -595,7 +595,7 @@ describe('TeamBuilderComponent', () => {
         // That load does not watch again: no loop
         fixture.detectChanges();
         expect(loads()).toBe(before + 1);
-        expect(live.watching.length).toBe(1);
+        expect(live.watching).toHaveSize(1);
       });
 
       it('loads again on every later change', () => {
