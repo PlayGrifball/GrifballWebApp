@@ -21,6 +21,8 @@ namespace GrifballWebApp.Server.Test;
 public class LiveHubUnitTests : SqliteGrifballContextFixture
 {
     private static readonly DateTime Now = DateTime.UtcNow;
+    private static readonly string[] PublicConnection = ["conn:Public"];
+    private static readonly string[] StaffConnection = ["conn:Staff"];
 
     private readonly IHubContext<LiveHub, ILiveHubClient> _hubContext = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
 
@@ -64,8 +66,8 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(refused, Is.EqualTo(new[] { LiveTopics.Season(hidden.SeasonID), LiveTopics.StaffUsers }));
-            Assert.That(Watching(LiveTopics.Seasons), Is.EqualTo(new[] { "conn:Public" }));
-            Assert.That(Watching(LiveTopics.Season(shown.SeasonID)), Is.EqualTo(new[] { "conn:Public" }));
+            Assert.That(Watching(LiveTopics.Seasons), Is.EqualTo(PublicConnection));
+            Assert.That(Watching(LiveTopics.Season(shown.SeasonID)), Is.EqualTo(PublicConnection));
             Assert.That(Watching(LiveTopics.Season(hidden.SeasonID)), Is.Empty);
         }
     }
@@ -81,7 +83,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(refused, Is.Empty);
-            Assert.That(Watching(LiveTopics.Draft(hidden.SeasonID)), Is.EqualTo(new[] { "conn:Staff" }));
+            Assert.That(Watching(LiveTopics.Draft(hidden.SeasonID)), Is.EqualTo(StaffConnection));
         }
     }
 
