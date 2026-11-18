@@ -6,6 +6,7 @@ using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Live;
+using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Identity;
@@ -31,6 +32,7 @@ public class HubSessionTests
 {
     private const string Password = "Hub-Session-Password-1";
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(20);
+    private static readonly string[] CommissionerRole = ["Commissioner"];
 
     private string _connectionString = null!;
     private WebApplicationFactory<ServerProgram> _factory = null!;
@@ -195,6 +197,18 @@ public class HubSessionTests
 
         await RemoveRoleBehindTheAppsBack(id, "Commissioner");
 
+        // What the call's check compares: the roles the connection was made with, and the user's now
+        var connected = _factory.Services.GetRequiredService<HubConnections>().SignedIn().Single(c => c.User.UserId == id).User;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+            var now = await users.GetRolesAsync((await users.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture)))!);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(connected.Roles, Is.EqualTo(CommissionerRole), "connected as a commissioner");
+                Assert.That(now, Is.Empty, "the role is gone");
+            }
+        }
         Assert.That(async () => await connection.InvokeAsync<List<string>>(nameof(ILiveHubServer.Watch), new List<string>()), Throws.Exception);
         Assert.That(await ClosesSoon(closed), Is.True);
     }
