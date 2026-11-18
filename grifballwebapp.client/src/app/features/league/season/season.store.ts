@@ -1,8 +1,3 @@
-      // Another season's (the page moved on): nothing to show; none: read it
-      if (season.seasonID !== this.shownSeasonID())
-        return true;
-      if (!season.summary)
-        return false;
 import { effect, inject, Injectable, signal, untracked } from '@angular/core';
 import type { SeasonLiveDto, SeasonsLiveDto, SeasonSummaryDto } from '@api/models';
 import { HomeService } from '@api/services/home.service';

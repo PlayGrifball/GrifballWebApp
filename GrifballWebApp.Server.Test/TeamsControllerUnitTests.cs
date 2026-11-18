@@ -17,8 +17,8 @@ public class TeamsControllerUnitTests
 
     public TeamsControllerUnitTests()
     {
-        // Refused before the service reaches the database, the draft channel or the locks
-        _controller = new TeamsController(new TeamService(null!, null!, null!));
+        // Refused before the service reaches the database or the locks
+        _controller = new TeamsController(new TeamService(null!, null!));
     }
 
     [TestCase(null)]
