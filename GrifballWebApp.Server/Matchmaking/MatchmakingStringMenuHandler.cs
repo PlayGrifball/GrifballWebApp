@@ -99,7 +99,7 @@ public class MatchmakingStringMenuHandler
         {
             await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
-                Content = $"{them.ToDisplayName()} has been kicked",
+                Content = $"{them!.ToDisplayName()} has been kicked",
             }));
             await _displayQueueService.UpdateThreadMessage(match, _context, _discordClient);
             return;

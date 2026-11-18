@@ -115,7 +115,7 @@ public sealed class LiveRelayListener(LiveDelivery delivery, ILogger<LiveRelayLi
         {
             try
             {
-                await delivery.Deliver(LiveUpdates.Parse(message.Message));
+                await delivery.Deliver(LiveUpdates.Parse(message.Message), CancellationToken.None);
             }
             catch (Exception ex)
             {
