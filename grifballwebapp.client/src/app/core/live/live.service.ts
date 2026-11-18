@@ -1,4 +1,4 @@
-import { Injectable, Injector, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, Injector, inject, signal } from '@angular/core';
 import type { PresenceSnapshot } from '@api/models';
 import type { ILiveHubServer } from '@signalr/TypedSignalR.Client/GrifballWebApp.Server.Live';
 import type { LiveConnection } from './liveConnection';
@@ -28,6 +28,12 @@ type Listener = (message: LiveMessage) => void;
 export class LiveService {
   private readonly log = inject(AppLog);
   private readonly injector = inject(Injector);
+  /** The app is gone (a test's, or the page torn down): a connection loaded meanwhile is never opened. */
+  private destroyed = false;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.destroyed = true);
+  }
 
   private connection?: LiveConnection;
   private connecting = false;
@@ -54,6 +60,8 @@ export class LiveService {
       return;
     this.connecting = true;
     const { openLiveConnection } = await import('./liveConnection');
+    if (this.destroyed)
+      return;
     this.connection = openLiveConnection(this.injector, {
       changed: topic => Promise.resolve(this.changed({ topic })),
       snapshot: (topic, data) => Promise.resolve(this.snapshot(topic, data)),

@@ -11,7 +11,7 @@ import { PageMetaTitleStrategy } from './shared/pageMeta';
 import { provideRowEnterAnimation } from './shared/rowEnterAnimation';
 import { provideSnackBarDefaults } from './shared/snackBarDefaults';
 import { provideBrowserTelemetry, tracingInterceptor } from './core/telemetry/browserTracing';
-import { provideLive } from './core/live/liveReload';
+import { provideLive } from './core/live/provideLive';
 
 /** The app's providers, in the browser and (with app.config.server.ts on top) on the server. */
 export const appConfig: ApplicationConfig = {

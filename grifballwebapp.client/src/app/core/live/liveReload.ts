@@ -1,7 +1,4 @@
-import { DestroyRef, EnvironmentProviders, PLATFORM_ID, effect, inject, makeEnvironmentProviders, provideEnvironmentInitializer, untracked } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
-import { NavigationEnd, Router } from '@angular/router';
-import { filter } from 'rxjs';
+import { DestroyRef, effect, inject, untracked } from '@angular/core';
 import { LiveMessage, LiveService } from './live.service';
 
 /** How long a page waits after a change before it loads again: a burst of changes (a draft's picks) is one load. */
@@ -53,17 +50,3 @@ export function liveData<T>(topics: () => readonly string[], apply: (data: T) =>
   });
 }
 
-/** The live connection, in the browser: started with the app, and told each page the tab shows (who is on the site). */
-export function provideLive(): EnvironmentProviders {
-  return makeEnvironmentProviders([
-    provideEnvironmentInitializer(() => {
-      if (!isPlatformBrowser(inject(PLATFORM_ID)))
-        return;
-      const live = inject(LiveService);
-      const router = inject(Router);
-      void live.connect();
-      router.events.pipe(filter(event => event instanceof NavigationEnd))
-        .subscribe(event => live.viewing(event.urlAfterRedirects));
-    }),
-  ]);
-}

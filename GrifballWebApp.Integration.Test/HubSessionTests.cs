@@ -163,7 +163,7 @@ public class HubSessionTests
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<GrifballContext>();
         var roleId = await db.Roles.Where(r => r.Name == role).Select(r => r.Id).SingleAsync();
-        await db.UserRoles.Where(r => r.UserId == userId && r.RoleId == roleId).ExecuteDeleteAsync();
+        Assert.That(await db.UserRoles.Where(r => r.UserId == userId && r.RoleId == roleId).ExecuteDeleteAsync(), Is.EqualTo(1), "the role was the user's, and is gone");
     }
 
     [Test]

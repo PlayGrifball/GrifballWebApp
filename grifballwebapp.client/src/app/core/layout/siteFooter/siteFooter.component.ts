@@ -9,7 +9,9 @@ import { WhosOnlineComponent } from './whosOnline.component';
   imports: [DatePipe, WhosOnlineComponent],
   template: `
     <footer class="site-footer">
-      <app-whos-online />
+      @defer (on idle) {
+        <app-whos-online />
+      }
       <a class="site-footer__build" href="https://github.com/PlayGrifball/GrifballWebApp">
         BUILD {{commitDate() | date:'short'}} {{commitHash()}}
       </a>
