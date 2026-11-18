@@ -24,6 +24,13 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     private static readonly DateTime Now = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly string[] NoRoles = [];
     private static readonly string[] Commissioner = [SiteRoles.Commissioner];
+    private static readonly string[] PlayerRole = [SiteRoles.Player];
+    private static readonly string[] ADraftPick = ["season:5", "draft:5", "player:7"];
+    private static readonly string[] AResult = ["seasons", "season:5", "seasonmatch:11"];
+    private static readonly string[] ASpot = ["queue", "queue:me@7"];
+    private static readonly string[] HandlersInOrder = ["failing", "own", "every", "failing", "own", "every"];
+    private static readonly string[] MembersByName = ["amy", "Zed"];
+    private static readonly string[] ATeam = ["season:5", "draft:5"];
     private FakeTimeProvider _time = null!;
 
     [SetUp]
@@ -50,7 +57,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     {
         var team = Team.Seed("Reds", seasonID: 5, teamID: 3);
 
-        Assert.That(Topics(new TeamRosterChanged(team, [7])), Is.EquivalentTo(new[] { "season:5", "draft:5", "player:7" }));
+        Assert.That(Topics(new TeamRosterChanged(team, [7])), Is.EquivalentTo(ADraftPick));
     }
 
     [Test]
@@ -59,7 +66,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         var match = SeasonMatch.Seed(5, 1, 2);
         match.SeasonMatchID = 11;
 
-        Assert.That(Topics(new SeasonMatchResultChanged(match)), Is.EquivalentTo(new[] { "seasons", "season:5", "seasonmatch:11" }));
+        Assert.That(Topics(new SeasonMatchResultChanged(match)), Is.EquivalentTo(AResult));
     }
 
     [Test]
@@ -69,8 +76,8 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(Topics(new PlayerQueued(spot)), Is.EquivalentTo(new[] { "queue", "queue:me@7" }));
-            Assert.That(Topics(new PlayerLeftQueue(spot)), Is.EquivalentTo(new[] { "queue", "queue:me@7" }));
+            Assert.That(Topics(new PlayerQueued(spot)), Is.EquivalentTo(ASpot));
+            Assert.That(Topics(new PlayerLeftQueue(spot)), Is.EquivalentTo(ASpot));
         }
     }
 
@@ -94,7 +101,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await Access().MayWatch(topic, NoRoles), Is.False);
-            Assert.That(await Access().MayWatch(topic, [SiteRoles.Player]), Is.False);
+            Assert.That(await Access().MayWatch(topic, PlayerRole), Is.False);
             Assert.That(await Access().MayWatch(topic, Commissioner), Is.True);
         }
     }
@@ -169,7 +176,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(log, Is.EqualTo(new[] { "failing", "own", "every", "failing", "own", "every" }));
+            Assert.That(log, Is.EqualTo(HandlersInOrder));
             Assert.That(logger.Collector.GetSnapshot().Count(r => r.Level == LogLevel.Error), Is.EqualTo(2));
         }
     }
@@ -193,7 +200,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         {
             Assert.That((snapshot.Online, snapshot.Members, snapshot.Guests), Is.EqualTo((6, 2, 4)));
             Assert.That(snapshot.Pages.Select(p => (p.Path, p.Guests, p.Members.Count)), Is.EqualTo(new[] { ("/", 3, 0), ("/leaderboards", 1, 1), ("/seasons", 0, 2) }));
-            Assert.That(snapshot.Pages[2].Members.Select(m => m.Name), Is.EqualTo(new[] { "amy", "Zed" }));
+            Assert.That(snapshot.Pages[2].Members.Select(m => m.Name), Is.EqualTo(MembersByName));
             Assert.That((PresenceSnapshot.Of([]).Online, PresenceSnapshot.Of([]).Pages.Count), Is.EqualTo((0, 0)));
         }
     }
@@ -206,6 +213,6 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
 
         await new LiveUpdatesHandler(live, Context).Handle(new TeamRenamed(team), CancellationToken.None);
 
-        live.Received(1).Publish(Arg.Is<IEnumerable<LiveChange>>(c => c.Select(x => x.Topic).SequenceEqual(new[] { "season:5", "draft:5" })));
+        live.Received(1).Publish(Arg.Is<IEnumerable<LiveChange>>(c => c.Select(x => x.Topic).SequenceEqual(ATeam)));
     }
 }

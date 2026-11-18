@@ -15,6 +15,9 @@ namespace GrifballWebApp.Domain.Test;
 public class DomainEventsTests
 {
     private static readonly DateTime Open = new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly int[][] OnlyThree = [[3]];
+    private static readonly int[] CaptainAndPick = [1, 4];
+    private static readonly int[] FourPlayers = [1, 2, 3, 4];
 
     private static IReadOnlyList<IDomainEvent> Events(object aggregate) => ((IHasDomainEvents)aggregate).DomainEvents;
 
@@ -80,8 +83,8 @@ public class DomainEventsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(again, Is.EqualTo(TeamRosterResult.AlreadyOnTeam));
-            Assert.That(Events(reds).OfType<TeamRosterChanged>().Select(e => e.UserIDs), Is.EqualTo(new[] { new[] { 3 } }));
-            Assert.That(Events(blues).OfType<TeamRosterChanged>().Select(e => e.UserIDs), Is.EqualTo(new[] { new[] { 3 } }));
+            Assert.That(Events(reds).OfType<TeamRosterChanged>().Select(e => e.UserIDs), Is.EqualTo(OnlyThree));
+            Assert.That(Events(blues).OfType<TeamRosterChanged>().Select(e => e.UserIDs), Is.EqualTo(OnlyThree));
         }
     }
 
@@ -96,7 +99,7 @@ public class DomainEventsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Events(team)[0], Is.EqualTo(new TeamFormed(team)));
-            Assert.That(Events(team).OfType<TeamDisbanded>().Single().UserIDs, Is.EquivalentTo(new[] { 1, 4 }));
+            Assert.That(Events(team).OfType<TeamDisbanded>().Single().UserIDs, Is.EquivalentTo(CaptainAndPick));
         }
     }
 
@@ -163,8 +166,8 @@ public class DomainEventsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(Events(match).OfType<LateLeagueMatchStarted>().Single().UserIDs, Is.EquivalentTo(new[] { 1, 2, 3, 4 }));
-            Assert.That(Events(match).OfType<LateLeagueMatchEnded>().Single().UserIDs, Is.EquivalentTo(new[] { 1, 2, 3, 4 }));
+            Assert.That(Events(match).OfType<LateLeagueMatchStarted>().Single().UserIDs, Is.EquivalentTo(FourPlayers));
+            Assert.That(Events(match).OfType<LateLeagueMatchEnded>().Single().UserIDs, Is.EquivalentTo(FourPlayers));
         }
     }
 

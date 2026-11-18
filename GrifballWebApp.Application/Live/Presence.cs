@@ -1,3 +1,5 @@
+using Tapper;
+
 namespace GrifballWebApp.Application.Live;
 
 /// <summary>
@@ -5,6 +7,7 @@ namespace GrifballWebApp.Application.Live;
 /// and guests, a tab each), and the pages they are on, the busiest first, with the members on each by name. A page is its
 /// route; a staff page, or the page of a season not announced yet, is the staff area alone (<see cref="StaffArea"/>).
 /// </summary>
+[TranspilationSource]
 public sealed record PresenceSnapshot(int Online, int Members, int Guests, IReadOnlyList<PresencePage> Pages)
 {
     /// <summary>The page every staff page is shown as.</summary>
@@ -34,9 +37,11 @@ public sealed record PresenceSnapshot(int Online, int Members, int Guests, IRead
 }
 
 /// <summary>A page and who is on it: the members by name, and how many guests.</summary>
+[TranspilationSource]
 public sealed record PresencePage(string Path, int Guests, IReadOnlyList<PresenceMember> Members);
 
 /// <summary>A member on a page: the name the site shows for them (never their login name; null when they have none).</summary>
+[TranspilationSource]
 public sealed record PresenceMember(int UserID, string? Name);
 
 /// <summary>An open tab: its connection, its user (null: signed out) with their shown name, and the page it shows.</summary>
