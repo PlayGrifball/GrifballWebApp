@@ -37,7 +37,7 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher) :
     {
         Saved();
         if (eventData.Context!.Database.CurrentTransaction is null)
-            DispatchAsync().GetAwaiter().GetResult();
+            DispatchInBackground();
         return result;
     }
 
@@ -81,6 +81,12 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher) :
         _saving = [];
     }
 
+    /// <summary>
+    /// A save made synchronously: its events are sent without waiting for their handlers, rather than blocking on them. The
+    /// dispatcher logs a handler's failure itself, and the save is made either way.
+    /// </summary>
+    private void DispatchInBackground() => _ = DispatchAsync();
+
     private Task DispatchAsync()
     {
         if (_pending.Count == 0)
@@ -91,8 +97,7 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher) :
         return dispatcher.Dispatch(events, CancellationToken.None);
     }
 
-    public void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData)
-        => DispatchAsync().GetAwaiter().GetResult();
+    public void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData) => DispatchInBackground();
 
     public Task TransactionCommittedAsync(DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
         => DispatchAsync();
