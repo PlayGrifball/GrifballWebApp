@@ -22,7 +22,7 @@ namespace GrifballWebApp.Server.Test;
 
 /// <summary>
 /// The Late League queue's buttons (join, leave, vote for the winner) and the season signup button past their gamertag
-/// guard: on a temp-file SQLite GrifballContext; the queue's store and notifier substituted, the display's refresh
+/// guard: on a temp-file SQLite GrifballContext; the queue's store substituted, the display's refresh
 /// publishing to a substituted IPublisher.
 /// </summary>
 [TestFixture]
@@ -47,10 +47,9 @@ public class MatchmakingAndSignupButtonsActionsUnitTests : SqliteGrifballContext
     {
         _services = new ServiceCollection().AddSingleton<IPublisher>(_publisher).BuildServiceProvider();
         var discord = Substitute.For<IDiscordRestClient>();
-        var notifier = Substitute.For<IQueueNotifier>();
         var display = new QueueService(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = 1 }), _queue, discord, Db,
-            Substitute.For<IDataPullService>(), Substitute.For<IOutbox>(), notifier);
-        return new MatchmakingButtonHandler(new QueueMembership(_queue, Db, notifier), _services.GetRequiredService<IServiceScopeFactory>(), Db, discord, display,
+            Substitute.For<IDataPullService>(), Substitute.For<IOutbox>());
+        return new MatchmakingButtonHandler(new QueueMembership(_queue, Db), _services.GetRequiredService<IServiceScopeFactory>(), Db, discord, display,
             new RecordingLogger<MatchmakingButtonHandler>());
     }
 

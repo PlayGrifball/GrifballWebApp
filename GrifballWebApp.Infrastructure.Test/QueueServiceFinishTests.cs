@@ -62,7 +62,7 @@ public class QueueServiceFinishTests : SqliteContextFixture
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(StartedAt.AddHours(1)));
 
     private QueueService Service() => new(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = QueueChannel, MatchPlayers = 2 }),
-        new QueueRepository(Context), _discord, Context, _dataPull, new ContextOutbox(Context), Substitute.For<IQueueNotifier>(), _time);
+        new QueueRepository(Context), _discord, Context, _dataPull, new ContextOutbox(Context), _time);
 
     private async Task<User> SeedUser()
     {

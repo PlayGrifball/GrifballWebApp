@@ -135,7 +135,7 @@ public class TeamAggregateDatabaseTests
         var season = await _context.AddSeason();
         var noTeam = await _context.AddUser("noTeam");
         var p1 = await _context.AddUser("p1");
-        var service = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, Substitute.For<IOutbox>()), new ContextDatabaseLocks(_context));
+        var service = new TeamService(_context, new OutboxDraftChannel(_context, Substitute.For<IOutbox>()), new ContextDatabaseLocks(_context));
 
         var moved = await Assert.ThrowsAsync<TeamServiceException>(() =>
             service.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = noTeam.Id, NewCaptainID = noTeam.Id, PersonID = p1.Id, RoundNumber = 1 }));
@@ -151,7 +151,7 @@ public class TeamAggregateDatabaseTests
         var cap = await _context.AddUser("cap");
         var p1 = await _context.AddUser("p1");
         await _context.AddTeam(season, "A", cap, 1, p1);
-        var service = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, Substitute.For<IOutbox>()), new ContextDatabaseLocks(_context));
+        var service = new TeamService(_context, new OutboxDraftChannel(_context, Substitute.For<IOutbox>()), new ContextDatabaseLocks(_context));
 
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             service.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = cap.Id, NewCaptainID = cap.Id, PersonID = p1.Id, RoundNumber = 3 }));

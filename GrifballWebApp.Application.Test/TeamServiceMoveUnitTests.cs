@@ -2,7 +2,6 @@ using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Teams;
-using GrifballWebApp.Application.Teams.Handlers;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -27,7 +26,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
     private const int PickB1 = 5;
     private const int CommissionerID = 9;
     private const int CommissionerRoleID = 2; // RoleConfiguration's HasData
-    private const string Connection = "conn-1";
     private static readonly int[] OnlyPickA2 = [PickA2];
     private static readonly int[] OnlyPickA1 = [PickA1];
     private static readonly int[] PickA2ThenA1 = [PickA2, PickA1];
@@ -36,16 +34,14 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
     private static readonly int[] PickA1ThenA2 = [PickA1, PickA2];
     private static readonly int?[] RoundsOneTwo = [1, 2];
 
-    private IPublisher _publisher = null!;
     private IDraftChannel _draftChannel = null!;
     private TeamService _service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _publisher = Substitute.For<IPublisher>();
         _draftChannel = Substitute.For<IDraftChannel>();
-        _service = new TeamService(Context, _publisher, _draftChannel, Substitute.For<IDatabaseLocks>());
+        _service = new TeamService(Context, _draftChannel, Substitute.For<IDatabaseLocks>());
     }
 
     /// <summary>A season, users 1-5 signed up (team names as given), and commissioner 9.</summary>
@@ -80,7 +76,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
         await _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = SeasonID, CaptainID = CaptainA, PersonID = PickA2 }, CommissionerID);
         await _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = SeasonID, CaptainID = CaptainB, PersonID = PickB1 }, CommissionerID);
         _draftChannel.ClearReceivedCalls();
-        _publisher.ClearReceivedCalls();
     }
 
     /// <summary>The picks (not the captain) of the team <paramref name="captainID"/> captains, by draft round, read fresh.</summary>
@@ -98,7 +93,7 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
         await SeedDraft();
         var dto = new RemovePlayerFromTeamRequestDto { SeasonID = SeasonID, CaptainID = CaptainA, PersonID = PickA1 };
 
-        await _service.RemovePlayerFromTeam(dto, Connection);
+        await _service.RemovePlayerFromTeam(dto);
 
         var picks = await PicksOf(CaptainA);
         using (Assert.EnterMultipleScope())
@@ -107,7 +102,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
             Assert.That(picks.Single().DraftRound, Is.EqualTo(1));
         }
         await _draftChannel.Received(1).PlayerRemovedAsync(_service, dto, Arg.Any<CancellationToken>());
-        await _publisher.Received(1).Publish(Arg.Is<Notification<RemovePlayerFromTeamRequestDto>>(n => n.ConnectionId == Connection && n.Value == dto), CancellationToken.None);
     }
 
     [TestCase(CaptainA, PickB1)]
@@ -130,7 +124,7 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
         await SeedDraft();
         var dto = new MovePlayerToTeamRequestDto { SeasonID = SeasonID, PreviousCaptainID = CaptainA, NewCaptainID = CaptainA, PersonID = PickA2, RoundNumber = 1 };
 
-        await _service.MovePlayerToTeam(dto, Connection);
+        await _service.MovePlayerToTeam(dto);
 
         var picks = await PicksOf(CaptainA);
         using (Assert.EnterMultipleScope())
@@ -139,7 +133,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
             Assert.That(picks.Select(p => p.DraftRound), Is.EqualTo(RoundsOneTwo));
         }
         await _draftChannel.Received(1).PlayerMovedAsync(_service, dto, Arg.Any<CancellationToken>());
-        await _publisher.Received(1).Publish(Arg.Is<Notification<MovePlayerToTeamRequestDto>>(n => n.ConnectionId == Connection && n.Value == dto), CancellationToken.None);
     }
 
     [Test]
@@ -189,10 +182,9 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
     {
         await SeedSignups();
         await AddCaptains();
-        _publisher.ClearReceivedCalls();
         var dto = new CaptainPlacementDto { SeasonID = SeasonID, PersonID = CaptainB, OrderNumber = 1 };
 
-        var name = await _service.AddCaptain(dto, resortOnly: true, signalRConnectionID: Connection);
+        var name = await _service.AddCaptain(dto, resortOnly: true);
 
         Context.ChangeTracker.Clear();
         var captains = await Context.Teams.Rosters().Where(tp => tp.DraftCaptainOrder != null).OrderBy(tp => tp.DraftCaptainOrder).ToListAsync();
@@ -202,7 +194,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
             Assert.That(captains.Select(c => c.UserID), Is.EqualTo(CaptainBThenA));
             Assert.That(captains.Select(c => c.DraftCaptainOrder), Is.EqualTo(RoundsOneTwo));
         }
-        await _publisher.Received(1).Publish(Arg.Is<Notification<CaptainPlacementDto>>(n => n.ConnectionId == Connection && n.Value == dto), CancellationToken.None);
     }
 
     [Test]

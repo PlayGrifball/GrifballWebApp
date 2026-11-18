@@ -306,9 +306,9 @@ EOF
   done
   echo "grif-discord runs the Discord gateway (Discord refuses the test token); the API pods don't. Both workers are ready."
 
-  # Each API pod's TeamsHub subscribes to the backplane when it starts.
+  # Each API pod's LiveHub subscribes to the backplane when it starts.
   hub_subscribers() {
-    kubectl -n "$ns" exec deploy/grif-redis -- valkey-cli PUBSUB NUMSUB "GrifballWebAppGrifballWebApp.Server.Teams.TeamsHub:all" | tail -1
+    kubectl -n "$ns" exec deploy/grif-redis -- valkey-cli PUBSUB NUMSUB "GrifballWebAppGrifballWebApp.Server.Live.LiveHub:all" | tail -1
   }
   two_subscribers() { [[ "$(hub_subscribers)" = 2 ]]; }
   wait_for 120 two_subscribers || fail "the backplane has $(hub_subscribers) hub subscribers, not 2"

@@ -22,10 +22,8 @@ public class MatchmakingStringMenuHandler
     private readonly GrifballContext _context;
     private readonly IDiscordRestClient _discordClient;
     private readonly QueueService _displayQueueService;
-    private readonly IQueueNotifier _notifier;
-    public MatchmakingStringMenuHandler(GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService, IQueueNotifier notifier)
+    public MatchmakingStringMenuHandler(GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService)
     {
-        _notifier = notifier;
         _context = context;
         _discordClient = discordClient;
         _displayQueueService = displayQueueService;
@@ -99,8 +97,6 @@ public class MatchmakingStringMenuHandler
 
         if (result is KickVoteResult.Kicked)
         {
-            // Out of the match: their home page offers the queue again
-            _ = _notifier.SendStatusChanged([them!.UserID]);
             await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
                 Content = $"{them.ToDisplayName()} has been kicked",

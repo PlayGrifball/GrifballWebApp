@@ -4,6 +4,7 @@ using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Calendar;
 using GrifballWebApp.Application.Championships;
 using GrifballWebApp.Application.Chat;
+using GrifballWebApp.Application.DomainEvents;
 using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.Grades;
 using GrifballWebApp.Application.Historical;
@@ -64,7 +65,7 @@ public static class ApplicationServiceCollectionExtensions
         // Its changes waiting for an answer: in memory unless Infrastructure's Redis (scaled out) is registered
         services.TryAddSingleton<IChatWaiting, MemoryChatWaiting>();
         services.AddTransient<IQueueRepository, QueueRepository>();
-        // Joining and leaving, from Discord or the site; the queue's size goes to its watchers (IQueueNotifier)
+        // Joining and leaving, from Discord or the site; the pages hear of it from the spot's domain events
         services.AddTransient<QueueMembership>();
 
         // The historical archive's players (its import is GrifballWebApp.Historical's AddHistoricalImport)
@@ -118,6 +119,11 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<IUserMergeService, UserMergeService>();
         services.AddScoped<IDiscordAccountLinkService, DiscordAccountLinkService>();
         services.AddTransient<RescheduleService>();
+        // The domain events' handlers here (the live updates), run once their save is committed. The pages are told through
+        // ILiveUpdates: the web host's hub, else nobody; who may watch what is LiveTopicAccess's call
+        services.TryAddSingleton<Live.ILiveUpdates, Live.NoLiveUpdates>();
+        services.AddTransient<Live.LiveTopicAccess>();
+        services.AddDomainEvents(typeof(ApplicationServiceCollectionExtensions).Assembly);
         return services;
     }
 }

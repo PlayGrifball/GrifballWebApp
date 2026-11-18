@@ -44,7 +44,7 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
     [SetUp]
     public void SetUp()
     {
-        _teams = new TeamService((IApplicationDbContext)Context, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
+        _teams = new TeamService((IApplicationDbContext)Context, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
         _outbox = new ContextOutbox(Context);
         var me = Substitute.For<IDiscordCurrentUser>();
         me.Id.Returns(BotId);

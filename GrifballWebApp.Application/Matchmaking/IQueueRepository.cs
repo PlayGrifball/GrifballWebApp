@@ -119,6 +119,7 @@ public class QueueRepository : IQueueRepository
         {
             return false;
         }
+        isInQueue.Leave();
         _context.QueuedPlayer.Remove(isInQueue);
         await _context.SaveChangesAsync(ct);
         return true;

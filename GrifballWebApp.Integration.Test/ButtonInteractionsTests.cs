@@ -35,7 +35,6 @@ public class ButtonInteractionsTests
     private ILogger<QueueService> _logger;
     private IDataPullService _dataPullService;
     private IDiscordButtonInteractionContext _discordContext;
-    private IQueueNotifier _notifier;
 
     [SetUp]
     public async Task SetUp()
@@ -50,10 +49,9 @@ public class ButtonInteractionsTests
         _discordOptions.Value.Returns(new DiscordOptions { QueueChannel = 123456 });
         _logger = Substitute.For<ILogger<QueueService>>();
         _dataPullService = Substitute.For<IDataPullService>();
-        _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
-        _notifier = Substitute.For<IQueueNotifier>();
+        _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context));
         _handlerLogger = new RecordingLogger<MatchmakingButtonHandler>();
-        _handler = new MatchmakingButtonHandler(new QueueMembership(_queueRepository, _context, _notifier), new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger);
+        _handler = new MatchmakingButtonHandler(new QueueMembership(_queueRepository, _context), new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger);
 
         _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
     }
@@ -128,8 +126,6 @@ public class ButtonInteractionsTests
 
         // Assert
         await _queueRepository.Received(1).AddPlayerToQueue(Arg.Is<QueuedPlayer>(x => x.UserID == user.Id), Arg.Any<CancellationToken>());
-        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { user.Id })));
-        await _notifier.Received(1).Send(Arg.Any<int>());
         await _discordContext.AssertSendResponse("You have joined the Late League queue! 🎉");
     }
 
@@ -171,7 +167,6 @@ public class ButtonInteractionsTests
 
         // Assert
         await _queueRepository.Received(1).RemovePlayerToQueue(user.Id);
-        await _notifier.Received(1).Send(Arg.Any<int>());
         await _discordContext.AssertSendResponse("You have left the Late League queue");
     }
 
@@ -187,7 +182,6 @@ public class ButtonInteractionsTests
         await _handler.JoinQueue(_discordContext);
 
         await _queueRepository.DidNotReceive().AddPlayerToQueue(Arg.Any<QueuedPlayer>(), Arg.Any<CancellationToken>());
-        await _notifier.DidNotReceive().Send(Arg.Any<int>());
         await _publisher.DidNotReceive().Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>());
         await _discordContext.AssertSendResponse("You are already in a Late League match!");
     }

@@ -40,7 +40,6 @@ public class QueueService
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
     private readonly IOutbox _outbox;
-    private readonly IQueueNotifier _notifier;
     private readonly TimeProvider _time;
 
     /// <param name="time">The clock a match goes stale by (two hours undecided), and the queue lock's waits between tries go by; the system's unless given.</param>
@@ -51,7 +50,6 @@ public class QueueService
         GrifballContext context,
         IDataPullService dataPullService,
         IOutbox outbox,
-        IQueueNotifier notifier,
         TimeProvider? time = null)
     {
         _time = time ?? TimeProvider.System;
@@ -65,20 +63,17 @@ public class QueueService
         _context = context;
         _dataPullService = dataPullService;
         _outbox = outbox;
-        _notifier = notifier;
     }
 
     public async Task Go(CancellationToken ct)
     {
-        // Players whose own place changed this tick (matched, dropped from the queue, their match over), once saved
-        var changed = new HashSet<int>();
+        // The pages hear of what a tick changes from its domain events once committed: spots taken off the queue
+        // (PlayerLeftQueue), matches made and ended (LateLeagueMatchStarted, LateLeagueMatchEnded)
         await using (await _context.Database.AcquireLockAsync(LockName, _time, ct))
-        try
         {
             QueuedPlayer[] queuePlayers;
             MatchedMatch[] activeMatches;
             List<MatchedMatch> createdMatches;
-            QueuedPlayer[] dropped;
 
             // The queue clean up, the new matches and their announcements (queued on the outbox, which sends them to
             // Discord once committed) are committed together: a failure rolls all of them back.
@@ -88,7 +83,6 @@ public class QueueService
                 activeMatches = await _queueRepository.GetActiveMatches(ct);
 
                 queuePlayers = await RemoveActivePlayersFromQueue(queued, activeMatches, ct);
-                dropped = queued.Except(queuePlayers).ToArray();
 
                 createdMatches = await CreateMatches(queuePlayers, ct);
                 foreach (var match in createdMatches)
@@ -102,8 +96,6 @@ public class QueueService
 
             var matchedUserIds = createdMatches.SelectMany(PlayersOf).Select(x => x.UserID).ToHashSet();
             var stillQueued = queuePlayers.Where(x => matchedUserIds.Contains(x.UserID) is false).ToArray();
-            changed.UnionWith(matchedUserIds);
-            changed.UnionWith(dropped.Select(x => x.UserID));
 
             // Not through the outbox: the message is rebuilt from the database on every tick, so a failed update is
             // made good by the next one.
@@ -118,39 +110,8 @@ public class QueueService
 
             // A match is announced once it has its vote message: until then its players can't vote.
             var finishing = activeMatches.Where(x => x.Status == MatchedMatchStatus.Active && x.VoteMessageID is not null).ToArray();
-            try
-            {
-                await FinishMatches(finishing, ct);
-            }
-            finally
-            {
-                // Ended (won, lost or canceled): its players may queue again
-                changed.UnionWith(finishing.Where(x => x.Status is not MatchedMatchStatus.Active).SelectMany(PlayersOf).Select(x => x.UserID));
-            }
+            await FinishMatches(finishing, ct);
         }
-        finally
-        {
-            // Still under the lock, so the size sent is this tick's, not one another worker is changing
-            await NotifyWatchers(changed, ct);
-        }
-    }
-
-    /// <summary>
-    /// The home page's queue panel, on every tick whatever happened in it: the true size (what was sent before may have
-    /// failed, or arrived out of order, from another process), and a nudge to the players whose place changed. Never
-    /// throws: the tick's own failure, if any, is the one that matters.
-    /// </summary>
-    private async Task NotifyWatchers(IReadOnlyCollection<int> changed, CancellationToken ct)
-    {
-        try
-        {
-            await _notifier.Send(await _queueRepository.Count(ct));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to read the matchmaking queue's size for the home page");
-        }
-        await _notifier.SendStatusChanged(changed);
     }
 
     private static IEnumerable<MatchedPlayer> PlayersOf(MatchedMatch match) => match.HomeTeam.Players.Concat(match.AwayTeam.Players);
@@ -276,6 +237,8 @@ public class QueueService
             return created;
 
         // Matched out of the queue
+        foreach (var spot in groupedPlayers.SelectMany(x => x))
+            spot.Leave();
         _context.QueuedPlayer.RemoveRange(groupedPlayers.SelectMany(x => x));
 
         // Create match for each group
@@ -305,6 +268,8 @@ public class QueueService
         if (playersToRemove.Length == 0)
             return queuePlayers;
 
+        foreach (var spot in playersToRemove)
+            spot.Leave();
         _context.QueuedPlayer.RemoveRange(playersToRemove);
         await _context.SaveChangesAsync(ct);
         return queuePlayers.Except(playersToRemove).ToArray();

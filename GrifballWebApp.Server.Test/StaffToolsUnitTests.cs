@@ -74,7 +74,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         new RescheduleService(Db, Substitute.For<IOutbox>()),
         new SeasonMatchService(Db, _dataPull, Substitute.For<IBracketService>(), new ChampionshipService(Db)),
         new MatchPlannerService(Db), _brackets,
-        new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), Recommendations(), _runs);
+        new TeamService(Db, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), Recommendations(), _runs);
 
     private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull, new MatchDetailsService(Db), _jobs);
 

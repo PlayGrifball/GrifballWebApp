@@ -59,7 +59,7 @@ public class QueueServiceTests
         });
 
         // Initialize the service
-        _service = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
+        _service = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context));
 
         // Seed ranks
         await new RankSeeder(_context, new TestReader()).SeedRanks();
@@ -239,40 +239,5 @@ public class QueueServiceTests
 
         // And it let go of the lock once done
         await (await otherProcess.Database.AcquireLockAsync(QueueService.LockName).WaitAsync(TimeSpan.FromSeconds(30))).DisposeAsync();
-    }
-}
-
-[TestFixture]
-[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
-[Parallelizable(ParallelScope.All)]
-public class QueueServiceCountTests
-{
-    private GrifballContext _context;
-
-    [SetUp]
-    public async Task Setup() => _context = await TestDatabase.NewGrifballContext();
-
-    [TearDown]
-    public async Task TearDown() => await _context.DropDatabaseAndDispose();
-
-    private QueueService Service(IQueueNotifier notifier) => new(Substitute.For<ILogger<QueueService>>(),
-        Options.Create(new DiscordOptions { QueueChannel = 1, MatchPlayers = 8 }), new QueueRepository(_context),
-        Substitute.For<IDiscordRestClient>(), _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context), notifier);
-
-    [Test]
-    public async Task Go_TellsTheQueueWatchers_ItsSize()
-    {
-        using (var transaction = await _context.Database.BeginTransactionAsync())
-        {
-            await _context.DisableContraints("[Auth].[Users]");
-            _context.QueuedPlayer.Add(QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 9), DateTime.UtcNow));
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
-        }
-        var notifier = Substitute.For<IQueueNotifier>();
-
-        await Service(notifier).Go(CancellationToken.None);
-
-        await notifier.Received(1).Send(1);
     }
 }

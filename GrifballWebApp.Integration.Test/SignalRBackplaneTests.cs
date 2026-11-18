@@ -1,7 +1,7 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Infrastructure.Redis;
-using GrifballWebApp.Server.Teams;
+using GrifballWebApp.Server.Live;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,11 +68,11 @@ public class SignalRBackplaneTests
             ["ConnectionStrings:Redis"] = _connectionString,
             ["SignalR:RedisChannelPrefix"] = "grif-backplane-test",
         });
-        var hub = sender.GetRequiredService<IHubContext<TeamsHub, ITeamsHubClient>>();
-        await hub.Clients.All.LockCaptains(7);
+        var hub = sender.GetRequiredService<IHubContext<LiveHub, ILiveHubClient>>();
+        await hub.Clients.All.Changed("seasons");
 
         var channel = await received.Task.WaitAsync(TimeSpan.FromSeconds(30));
-        Assert.That(channel, Is.EqualTo($"grif-backplane-test{typeof(TeamsHub).FullName}:all"));
+        Assert.That(channel, Is.EqualTo($"grif-backplane-test{typeof(LiveHub).FullName}:all"));
     }
 
     [Test]

@@ -13,13 +13,12 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class TeamsControllerUnitTests
 {
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
     private readonly TeamsController _controller;
 
     public TeamsControllerUnitTests()
     {
         // Refused before the service reaches the database, the draft channel or the locks
-        _controller = new TeamsController(new TeamService(null!, _publisher, null!, null!));
+        _controller = new TeamsController(new TeamService(null!, null!, null!));
     }
 
     [TestCase(null)]
@@ -28,22 +27,21 @@ public class TeamsControllerUnitTests
     {
         _controller.WithUser(claim);
 
-        var result = await _controller.AddPlayerToTeam(1, new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 }, null, CancellationToken.None);
+        var result = await _controller.AddPlayerToTeam(1, new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 }, CancellationToken.None);
 
         result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized, "You must be logged in to add a player to a team");
-        Assert.That(_publisher.ReceivedCalls(), Is.Empty);
     }
 
 }
 
 /// <summary>TeamsControllerTests' unit tests on a real GrifballContext (temp-file SQLite, #402), where TeamService needs
-/// nothing more than IPublisher/IDraftChannel substituted.</summary>
+/// nothing more than IDraftChannel substituted.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class TeamsControllerDatabaseUnitTests : SqliteGrifballContextFixture
 {
-    private TeamsController Controller() => new(new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), null!));
+    private TeamsController Controller() => new(new TeamService(Db, Substitute.For<IDraftChannel>(), null!));
 
     [Test]
     public async Task GetTeams_ReturnsNone_ForASeasonWithNoTeams()
@@ -67,7 +65,7 @@ public class TeamsControllerDatabaseUnitTests : SqliteGrifballContextFixture
         var season = await AddSeason("Winter");
         var controller = Controller();
 
-        await controller.LockCaptains(season.SeasonID, null, CancellationToken.None);
+        await controller.LockCaptains(season.SeasonID, CancellationToken.None);
 
         Assert.That(await controller.AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.True);
     }
@@ -77,9 +75,9 @@ public class TeamsControllerDatabaseUnitTests : SqliteGrifballContextFixture
     {
         var season = await AddSeason("Winter");
         var controller = Controller();
-        await controller.LockCaptains(season.SeasonID, null, CancellationToken.None);
+        await controller.LockCaptains(season.SeasonID, CancellationToken.None);
 
-        await controller.UnlockCaptains(season.SeasonID, null, CancellationToken.None);
+        await controller.UnlockCaptains(season.SeasonID, CancellationToken.None);
 
         Assert.That(await controller.AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.False);
     }

@@ -220,7 +220,7 @@ public sealed class HubSessionFilter(HubConnections connections) : IHubFilter
 /// <summary>
 /// Ends users' hub connections (<see cref="IUserSessions"/>, called once a change to their sign-in or roles is committed): this
 /// process's at once, and, scaled out (<c>ConnectionStrings:Redis</c>), every other process's through Redis
-/// (<see cref="HubUserSessionsListener"/>). Their pushes stop with them: a connection that only listens (TeamsHub's staff group)
+/// (<see cref="HubUserSessionsListener"/>). Their pushes stop with them: a connection that only listens (LiveHub's watchers of a hidden season)
 /// is closed too, and connects again as the user is now.
 /// </summary>
 public sealed class HubUserSessions(HubConnections connections, ILogger<HubUserSessions> logger, AppRedis? redis = null) : IUserSessions

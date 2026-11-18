@@ -179,7 +179,7 @@ public class HubSessionsUnitTests
     [Test]
     public async Task Invoke_RolesChangedSinceItConnected_IsRefused_AndTheConnectionClosed_EvenForAMethodAnyoneMayCall()
     {
-        // Its groups were the old roles' (TeamsHub's staff group): it connects again as the user is now
+        // Its groups were the old roles' (LiveHub's watched topics): it connects again as the user is now
         var connection = Connection();
         await Connect(connection);
         _validator.Now = Player;

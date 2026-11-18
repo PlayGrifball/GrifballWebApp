@@ -4,8 +4,6 @@ using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.Extensions;
-using GrifballWebApp.Application.Notifications;
-using GrifballWebApp.Application.Teams.Handlers;
 using GrifballWebApp.Application.Queries;
 
 namespace GrifballWebApp.Application.Teams;
@@ -13,15 +11,13 @@ namespace GrifballWebApp.Application.Teams;
 public class TeamService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IPublisher _publisher;
     private readonly IDraftChannel _draftChannel;
     private readonly IDatabaseLocks _locks;
 
-    public TeamService(IApplicationDbContext context, IPublisher publisher, IDraftChannel draftChannel, IDatabaseLocks locks)
+    public TeamService(IApplicationDbContext context, IDraftChannel draftChannel, IDatabaseLocks locks)
     {
         _draftChannel = draftChannel;
         _locks = locks;
-        _publisher = publisher;
         _context = context;
     }
 
@@ -79,7 +75,7 @@ public class TeamService
     }
 
     /// <returns>The new team's name when adding a captain (the signup's team name, or "&lt;name&gt;'s Team"); null for a resort.</returns>
-    public async Task<string?> AddCaptain(CaptainPlacementDto dto, bool resortOnly, string? signalRConnectionID = null, CancellationToken ct = default)
+    public async Task<string?> AddCaptain(CaptainPlacementDto dto, bool resortOnly, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await LockSeasonDraft(dto.SeasonID, ct);
@@ -142,26 +138,11 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        if (resortOnly)
-        {
-            _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto), CancellationToken.None);
-            return null;
-        }
-
-        _ = _publisher.Publish(Notification.Create(signalRConnectionID, new CaptainAddedDto()
-        {
-            SeasonID = dto.SeasonID,
-            PersonID = dto.PersonID,
-            TeamID = team.TeamID,
-            CaptainName = await PersonName(dto.PersonID, ct),
-            TeamName = team.TeamName,
-            OrderNumber = dto.OrderNumber,
-        }), CancellationToken.None);
-        // The broadcast skips the sender's connection, so the sender gets the name here.
-        return team.TeamName;
+        // The pages watching the draft hear of it once committed (TeamFormed, TeamCaptainChanged: LiveUpdatesHandler)
+        return resortOnly ? null : team.TeamName;
     }
 
-    public async Task RemoveCaptain(RemoveCaptainDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
+    public async Task RemoveCaptain(RemoveCaptainDto dto, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await LockSeasonDraft(dto.SeasonID, ct);
@@ -180,6 +161,7 @@ public class TeamService
         await _context.Teams.WithRoster().Where(t => t.TeamID == team.TeamID).LoadAsync(ct);
         team.RemovePlayer(dto.PersonID);
         await _context.SaveChangesAsync(ct);
+        team.Disband();
         _context.Teams.Remove(team);
 
         foreach (var (index, item) in captainedTeams.Select((item, index) => (index, item)))
@@ -190,10 +172,9 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto), CancellationToken.None);
     }
 
-    public async Task RemovePlayerFromTeam(RemovePlayerFromTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
+    public async Task RemovePlayerFromTeam(RemovePlayerFromTeamRequestDto dto, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await LockSeasonDraft(dto.SeasonID, ct);
@@ -209,10 +190,9 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto), CancellationToken.None);
     }
 
-    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, int requestorId, string? signalRConnectionID = null, CancellationToken ct = default)
+    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, int requestorId, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         // One pick at a time per season: without it two picks of one player (or two picks in one turn) both pass the
@@ -265,7 +245,6 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto), CancellationToken.None);
     }
 
     /// <summary>The id of the team <paramref name="captainID"/> captains in the season; 0 when none.</summary>
@@ -288,7 +267,7 @@ public class TeamService
                         .FirstOrDefaultAsync(ct);
     }
 
-    public async Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
+    public async Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await LockSeasonDraft(dto.SeasonID, ct);
@@ -323,7 +302,6 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto), CancellationToken.None);
     }
 
     /// <summary>
@@ -376,7 +354,7 @@ public class TeamService
             .ToListAsync(ct);
     }
 
-    public async Task LockCaptains(int seasonID, bool @lock, string? signalRConnectionID = null, CancellationToken ct = default)
+    public async Task LockCaptains(int seasonID, bool @lock, CancellationToken ct = default)
     {
         var season = await _context.Seasons
             .Where(s => s.SeasonID == seasonID)
@@ -394,7 +372,6 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _ = _publisher.Publish(new LockChanged(@lock, seasonID, signalRConnectionID), CancellationToken.None);
     }
 
     public async Task<bool> AreCaptainsLocked(int seasonID, CancellationToken ct = default)

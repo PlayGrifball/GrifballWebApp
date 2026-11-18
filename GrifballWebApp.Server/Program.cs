@@ -14,6 +14,7 @@ using GrifballWebApp.Server.Commands;
 using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Identity;
+using GrifballWebApp.Server.Live;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Mcp;
 using GrifballWebApp.Server.Preview;
@@ -166,6 +167,22 @@ public class Program
             builder.Services.AddHostedService<HubSessionSweep>();
         }
 
+        // The pages are told what changed once it is committed (the domain events' LiveUpdatesHandler), from every role: its
+        // messages reach every API pod's browsers through the backplane. Who is on the site is the API role's, where the tabs
+        // are: each pod's own, with every other's through Redis when scaled out.
+        builder.Services.AddSingleton<LiveUpdates>();
+        builder.Services.AddSingleton<GrifballWebApp.Application.Live.ILiveUpdates>(provider => provider.GetRequiredService<LiveUpdates>());
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<LiveUpdates>());
+        if (role.ServesApi)
+        {
+            builder.Services.AddScoped<PresencePages>();
+            builder.Services.AddSingleton<IPresenceStore>(provider => provider.GetService<AppRedis>() is { } redis
+                ? ActivatorUtilities.CreateInstance<RedisPresenceStore>(provider, redis)
+                : new MemoryPresenceStore());
+            builder.Services.AddSingleton<PresenceTracker>();
+            builder.Services.AddHostedService(provider => provider.GetRequiredService<PresenceTracker>());
+        }
+
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
         builder.Services.AddMemoryCache();
@@ -247,13 +264,12 @@ public class Program
     }
 
     /// <summary>
-    /// Discord: its settings and outbox (Infrastructure), the queue's watchers (QueueHub), and the gateway with its
+    /// Discord: its settings and outbox (Infrastructure), and the gateway with its
     /// commands, components and message handler on the discord process, or only its REST client elsewhere.
     /// </summary>
     private static void AddDiscord(WebApplicationBuilder builder, AppRole role, bool discordOff)
     {
         builder.Services.AddDiscordInfrastructure(builder.Configuration, discordOff);
-        builder.Services.AddSingleton<IQueueNotifier, QueueNotifier>();
 
         if (!discordOff && role.RunsDiscord)
         {
@@ -287,7 +303,7 @@ public class Program
 
         builder.Services.AddSingleton<IDiscordRestClient, DiscordRestClient>();
 
-        // The notifications' handlers are the web host's (SignalR, the queue's Discord message)
+        // The notifications' handlers are the web host's (the queue's Discord message)
         builder.Services.AddNotifications(typeof(Program).Assembly);
     }
 
@@ -454,9 +470,8 @@ public class Program
             // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.
             app.Use(BrowserAuth.RefuseForeignHubRequests);
 
-            app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
-            // Anonymous and read-only: the matchmaking queue's size, for the home page
-            app.MapHub<QueueHub>("QueueHub", options => { options.CloseOnAuthenticationExpiration = true; });
+            // The site's live updates and who is on it, signed in or out (LiveHub)
+            app.MapHub<LiveHub>(LiveHub.Path, options => { options.CloseOnAuthenticationExpiration = true; });
             // The site's chat, signed in or out: the Discord bot's, its replies streamed (GrifChat)
             app.MapHub<ChatHub>(ChatHub.Path, options => { options.CloseOnAuthenticationExpiration = true; });
 

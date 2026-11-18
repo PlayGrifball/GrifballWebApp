@@ -17,17 +17,14 @@ namespace GrifballWebApp.Integration.Test;
 public class QueueMembershipTests
 {
     private GrifballContext _context;
-    private IQueueNotifier _notifier;
     private QueueMembership _membership;
     private static readonly int[] expected = new[] { 1, 2 };
-    private static readonly int[] second = new[] { 7 };
 
     [SetUp]
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _notifier = Substitute.For<IQueueNotifier>();
-        _membership = new QueueMembership(new QueueRepository(_context), _context, _notifier);
+        _membership = new QueueMembership(new QueueRepository(_context), _context);
     }
 
     [TearDown]
@@ -42,7 +39,7 @@ public class QueueMembershipTests
     }
 
     [Test]
-    public async Task Join_AddsThePlayer_AndSendsTheQueueSize()
+    public async Task Join_AddsThePlayer()
     {
         await AddUser(1);
         await AddUser(2);
@@ -55,29 +52,6 @@ public class QueueMembershipTests
             Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).OrderBy(x => x).ToListAsync(), Is.EqualTo(expected));
             Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(2));
         }
-        var sent = _notifier.ReceivedCalls()
-            .Where(c => c.GetMethodInfo().Name == nameof(IQueueNotifier.Send))
-            .Select(c => (int)c.GetArguments()[0]!);
-        Assert.That(sent, Is.EqualTo(expected));
-    }
-
-    [Test]
-    public async Task JoinAndLeave_DoNotWaitForTheSend()
-    {
-        // A backplane that never answers: a Discord button must still be answered within 3 seconds
-        _notifier.Send(Arg.Any<int>()).Returns(new TaskCompletionSource().Task);
-        await AddUser(1);
-
-        var join = _membership.Join(1);
-        Assert.That(await Task.WhenAny(join, Task.Delay(TimeSpan.FromSeconds(30))), Is.SameAs(join));
-        var leave = _membership.Leave(1);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(await Task.WhenAny(leave, Task.Delay(TimeSpan.FromSeconds(30))), Is.SameAs(leave));
-
-            Assert.That((await join).Result, Is.EqualTo(QueueJoinResult.Joined));
-            Assert.That(await leave, Is.EqualTo((QueueLeaveResult.Left, 0)));
-        }
     }
 
     [Test]
@@ -88,21 +62,7 @@ public class QueueMembershipTests
         queue.PlayerState(1, Arg.Any<CancellationToken>()).Returns(new QueuePlayerState(1, HasGamertag: true, InQueue: false, InMatch: false, QueueCount: 0));
         queue.AddPlayerToQueue(Arg.Is<QueuedPlayer>(x => x.UserID == 1), Arg.Any<CancellationToken>()).Returns(false);
 
-        Assert.That((await new QueueMembership(queue, _context, _notifier).Join(1)).Result, Is.EqualTo(QueueJoinResult.AlreadyInQueue));
-        await _notifier.DidNotReceiveWithAnyArgs().Send(default);
-        await _notifier.DidNotReceiveWithAnyArgs().SendStatusChanged(default!);
-    }
-
-    [Test]
-    public async Task JoinAndLeave_TellThePlayerTheirStatusChanged()
-    {
-        // Their page may be open elsewhere: it loads their status again
-        await AddUser(7);
-
-        await _membership.Join(7);
-        await _membership.Leave(7);
-
-        await _notifier.Received(2).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(second)));
+        Assert.That((await new QueueMembership(queue, _context).Join(1)).Result, Is.EqualTo(QueueJoinResult.AlreadyInQueue));
     }
 
     [Test]
@@ -134,7 +94,6 @@ public class QueueMembershipTests
 
             Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
         }
-        await _notifier.DidNotReceiveWithAnyArgs().Send(default);
     }
 
     [Test]
@@ -142,14 +101,12 @@ public class QueueMembershipTests
     {
         await AddUser(1);
         await _membership.Join(1);
-        _notifier.ClearReceivedCalls();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That((await _membership.Join(1)).Result, Is.EqualTo(QueueJoinResult.AlreadyInQueue));
             Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(1));
         }
-        await _notifier.DidNotReceiveWithAnyArgs().Send(default);
     }
 
     [Test]
@@ -158,14 +115,14 @@ public class QueueMembershipTests
         var queue = Substitute.For<IQueueRepository>();
         queue.PlayerState(1, Arg.Any<CancellationToken>()).Returns(new QueuePlayerState(1, HasGamertag: true, InQueue: false, InMatch: true, QueueCount: 0));
 
-        var (result, _) = await new QueueMembership(queue, _context, _notifier).Join(1);
+        var (result, _) = await new QueueMembership(queue, _context).Join(1);
 
         Assert.That(result, Is.EqualTo(QueueJoinResult.InMatch));
         await queue.DidNotReceiveWithAnyArgs().AddPlayerToQueue(default!, default);
     }
 
     [Test]
-    public async Task Leave_RemovesThePlayer_AndSendsTheQueueSize()
+    public async Task Leave_RemovesThePlayer()
     {
         await AddUser(1);
         await _membership.Join(1);
@@ -176,7 +133,6 @@ public class QueueMembershipTests
 
             Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
         }
-        await _notifier.Received(1).Send(0);
     }
 
     [Test]
@@ -189,7 +145,6 @@ public class QueueMembershipTests
             Assert.That((await _membership.Leave(1)).Result, Is.EqualTo(QueueLeaveResult.NotInQueue));
             Assert.That((await _membership.Leave(404)).Result, Is.EqualTo(QueueLeaveResult.NotInQueue));
         }
-        await _notifier.DidNotReceiveWithAnyArgs().Send(default);
     }
 
     [Test]
@@ -236,7 +191,7 @@ public class QueueControllerTests
     {
         var repository = new QueueRepository(_context);
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings ?? new()).Build();
-        return new QueueController(new QueueMembership(repository, _context, Substitute.For<IQueueNotifier>()), repository, configuration);
+        return new QueueController(new QueueMembership(repository, _context), repository, configuration);
     }
 
     /// <summary>A preview without Discord: the matchmaking tick does not run.</summary>

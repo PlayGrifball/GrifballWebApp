@@ -34,7 +34,7 @@ public class UpdateDisplayHandlerTests
         discordClient.GetMessagesAsync(Arg.Any<ulong>(), Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>())
             .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
         var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), Options.Create(new DiscordOptions { QueueChannel = 55 }),
-            new QueueRepository(_context), discordClient, _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
+            new QueueRepository(_context), discordClient, _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context));
 
         await new UpdateDisplayHandler(queueService).Handle(new UpdateDisplayNotification(), CancellationToken.None);
 
