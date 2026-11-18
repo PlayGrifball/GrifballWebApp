@@ -14,7 +14,7 @@ namespace GrifballWebApp.Domain.Players;
 /// What it records never changes after that.
 /// </remarks>
 [AggregateRoot]
-public class UserMerge
+public class UserMerge : RaisesDomainEvents
 {
     /// <summary>The longest reason kept; a longer one is cut.</summary>
     public const int ReasonMaxLength = 200;
@@ -44,7 +44,7 @@ public class UserMerge
         ArgumentOutOfRangeException.ThrowIfNegative(rowsMoved);
         ArgumentOutOfRangeException.ThrowIfNegative(rowsRemoved);
         ArgumentOutOfRangeException.ThrowIfNegative(rowsAdded);
-        return new()
+        var merge = new UserMerge
         {
             MergedAt = mergedAt,
             Trigger = trigger,
@@ -59,6 +59,8 @@ public class UserMerge
             RowsRemoved = rowsRemoved,
             RowsAdded = rowsAdded,
         };
+        merge.Raise(new UserMergeChanged(merge));
+        return merge;
     }
 
     // Nothing outside the record sets what it records: only Record, Undo and EF (which uses the private setters). The key
@@ -119,6 +121,7 @@ public class UserMerge
         UndoneAt = undoneAt;
         UndoneByUserID = undoneByUserID;
         UndoNote = Cut(string.IsNullOrWhiteSpace(note) ? null : note.Trim(), UndoNoteMaxLength);
+        Raise(new UserMergeChanged(this));
         return UserMergeUndo.Undone;
     }
 

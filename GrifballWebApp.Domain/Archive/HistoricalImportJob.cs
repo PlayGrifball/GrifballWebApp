@@ -42,6 +42,7 @@ public class HistoricalImportJob : AuditableEntity
         Payload = payload;
         Status = HistoricalImportJobStatus.Queued;
         Stage = QueuedStage;
+        Raise(new HistoricalImportJobChanged(this));
     }
 
     /// <summary>An import of an uploaded archive (HistoricalArchiveInput as JSON), by hand.</summary>
@@ -133,6 +134,7 @@ public class HistoricalImportJob : AuditableEntity
         var review = new HistoricalSeasonReview(this, seasonKey, seasonName,
             stopped ? HistoricalSeasonReviewStatus.NeedsReview : HistoricalSeasonReviewStatus.Preview, removals);
         _reviews.Add(review);
+        Raise(new HistoricalImportJobChanged(this));
         return review;
     }
 
@@ -148,6 +150,7 @@ public class HistoricalImportJob : AuditableEntity
             return (HistoricalSeasonReviewDecision.NotFound, null);
         if (!review.Decide(approve, decidedAt))
             return (HistoricalSeasonReviewDecision.NotAwaitingReview, null);
+        Raise(new HistoricalImportJobChanged(this));
         return (HistoricalSeasonReviewDecision.Decided, approve ? ImportSnapshots(SnapshotIDs, review.SeasonKey) : null);
     }
 

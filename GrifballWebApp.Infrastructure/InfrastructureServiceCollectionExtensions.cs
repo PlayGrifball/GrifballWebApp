@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.DomainEvents;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Historical.Vods;
@@ -47,13 +48,17 @@ public static class InfrastructureServiceCollectionExtensions
         // A change to a user's sign-in or roles ends their live sessions: the web host's, else none
         services.TryAddSingleton<IUserSessions, NoUserSessions>();
         services.AddScoped<UserSessionsInterceptor>();
+        // The aggregates' domain events, to their handlers once a save is committed (none registered: nothing happens)
+        services.TryAddSingleton<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.AddScoped<DomainEventsInterceptor>();
 
         services.AddDbContext<GrifballContext>((provider, options) =>
         {
             options.UseGrifballDatabase(provider.GetRequiredService<IConfiguration>())
                 .AddInterceptors(provider.GetRequiredService<AuditInterceptor>(),
                     provider.GetRequiredService<OutboxSignalInterceptor>(),
-                    provider.GetRequiredService<UserSessionsInterceptor>());
+                    provider.GetRequiredService<UserSessionsInterceptor>(),
+                    provider.GetRequiredService<DomainEventsInterceptor>());
         });
 
         // Its own IDbContextFactory<GrifballContext>: the default one conflicts with the scoped context

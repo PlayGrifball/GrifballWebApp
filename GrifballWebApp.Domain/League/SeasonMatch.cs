@@ -34,35 +34,35 @@ public class SeasonMatch : AuditableEntity
     {
         if (homeTeamID == awayTeamID)
             throw new ArgumentException($"Team {homeTeamID} can't play itself", nameof(awayTeamID));
-        return new()
+        return Created(new()
         {
             SeasonID = seasonID,
             HomeTeamID = homeTeamID,
             AwayTeamID = awayTeamID,
             BestOf = bestOf,
             ScheduledTime = scheduledTime,
-        };
+        });
     }
 
     /// <summary>
     /// A bracket slot: its teams come later, seeded or sent on by the matches before it. A first-round side whose seed is
     /// past the bracket's teams is a BYE from the start (<paramref name="homeBye"/>, <paramref name="awayBye"/>).
     /// </summary>
-    public static SeasonMatch InBracket(int seasonID, MatchBracketInfo bracketMatch, int bestOf, bool homeBye = false, bool awayBye = false) => new()
+    public static SeasonMatch InBracket(int seasonID, MatchBracketInfo bracketMatch, int bestOf, bool homeBye = false, bool awayBye = false) => Created(new()
     {
         SeasonID = seasonID,
         BracketMatch = bracketMatch,
         BestOf = bestOf,
         HomeTeamResult = homeBye ? SeasonMatchResult.Bye : null,
         AwayTeamResult = awayBye ? SeasonMatchResult.Bye : null,
-    };
+    });
 
     /// <summary>
     /// A series of the historical archive, already played: its teams (null for a side the import could not tell), the
     /// games each won, and the result they give: more wins win, an even count is a draw and stays undecided. Its games
     /// come after (<see cref="AddImportedGame"/>), and its bracket slot, for a playoff series.
     /// </summary>
-    public static SeasonMatch Imported(int seasonID, int? homeTeamID, int? awayTeamID, int homeWins, int awayWins, int bestOf, DateTime? scheduledTime, MatchBracketInfo? bracketMatch) => new()
+    public static SeasonMatch Imported(int seasonID, int? homeTeamID, int? awayTeamID, int homeWins, int awayWins, int bestOf, DateTime? scheduledTime, MatchBracketInfo? bracketMatch) => Created(new()
     {
         SeasonID = seasonID,
         HomeTeamID = homeTeamID,
@@ -74,7 +74,7 @@ public class SeasonMatch : AuditableEntity
         BestOf = bestOf,
         ScheduledTime = scheduledTime,
         BracketMatch = bracketMatch,
-    };
+    });
 
     /// <summary>
     /// A series of the historical archive that was forfeited, not played: as <see cref="Imported"/> (its forfeit games
@@ -115,7 +115,7 @@ public class SeasonMatch : AuditableEntity
         if (winner is not null && byWins is not null && winner != byWins)
             throw new ArgumentException($"The {winner} side can't win with fewer wins ({homeWins}-{awayWins})", nameof(winner));
         winner ??= byWins;
-        return new()
+        return Created(new()
         {
             SeasonID = seasonID,
             HomeTeamID = homeTeamID,
@@ -126,7 +126,7 @@ public class SeasonMatch : AuditableEntity
             AwayTeamResult = SlotResult(winner, SeasonMatchSide.Away),
             BestOf = bestOf,
             BracketMatch = slot,
-        };
+        });
     }
 
     /// <summary>A side's result in an imported slot (<see cref="ImportedSlot"/>): Won or Loss by its winner, none without one.</summary>
@@ -220,15 +220,30 @@ public class SeasonMatch : AuditableEntity
     internal void AddReschedule(MatchReschedule reschedule) => _reschedules.Add(reschedule);
 
     /// <summary>
-    /// Once decided, a match keeps its time, so its pending reschedule request has nothing left to approve: it is closed
-    /// (<see cref="MatchReschedule.CloseBecauseDecided"/>, #297). Every transition that decides the match calls this; its
+    /// Its result changed (<see cref="SeasonMatchResultChanged"/>). Once decided, a match keeps its time, so its pending
+    /// reschedule request has nothing left to approve: it is closed
+    /// (<see cref="MatchReschedule.CloseBecauseDecided"/>, #297). Every transition of its result calls this; its
     /// requests must be loaded (<see cref="Reschedules"/>) for a pending one to be found.
     /// </summary>
-    private void CloseRescheduleOnceDecided()
+    private void ResultChanged()
     {
+        Raise(new SeasonMatchResultChanged(this));
         if (IsDecided)
             PendingReschedule?.CloseBecauseDecided(DateTime.UtcNow);
     }
+
+    /// <summary>A match that began (the factories), with the event that says so.</summary>
+    private static SeasonMatch Created(SeasonMatch match)
+    {
+        match.Raise(new SeasonMatchCreated(match));
+        return match;
+    }
+
+    /// <summary>
+    /// The match is about to be removed (its bracket is rebuilt, the import no longer has it): the event that says so. The
+    /// caller removes it.
+    /// </summary>
+    public void Cancel() => Raise(new SeasonMatchCanceled(this));
 
     /// <summary>A match with no result on either side yet: neither decided nor a BYE's (for queries; <see cref="IsDecided"/>
     /// for a loaded match).</summary>
@@ -299,7 +314,11 @@ public class SeasonMatch : AuditableEntity
     public static SeasonMatchSide Other(SeasonMatchSide side) => side is SeasonMatchSide.Home ? SeasonMatchSide.Away : SeasonMatchSide.Home;
 
     /// <summary>Moves it to another time, or (null) back to unscheduled.</summary>
-    public void ScheduleAt(DateTime? time) => ScheduledTime = time;
+    public void ScheduleAt(DateTime? time)
+    {
+        ScheduledTime = time;
+        Raise(new SeasonMatchScheduled(this));
+    }
 
     /// <summary>
     /// Scores the series from its games' wins, and decides it when a side has the wins it needs (more than half of
@@ -325,7 +344,7 @@ public class SeasonMatch : AuditableEntity
             (HomeTeamResult, AwayTeamResult) = (SeasonMatchResult.Won, SeasonMatchResult.Loss);
         else if (awayWins >= winsRequired)
             (HomeTeamResult, AwayTeamResult) = (SeasonMatchResult.Loss, SeasonMatchResult.Won);
-        CloseRescheduleOnceDecided();
+        ResultChanged();
         return IsDecided;
     }
 
@@ -344,7 +363,7 @@ public class SeasonMatch : AuditableEntity
             return ForfeitResult.GrandFinal;
 
         (HomeTeamResult, AwayTeamResult) = ForfeitResults(forfeiter);
-        CloseRescheduleOnceDecided();
+        ResultChanged();
         return ForfeitResult.Forfeited;
     }
 
@@ -376,6 +395,7 @@ public class SeasonMatch : AuditableEntity
             throw new InvalidOperationException($"Season match {SeasonMatchID} has a BYE: its result is the bracket's");
         HomeTeamResult = null;
         AwayTeamResult = null;
+        Raise(new SeasonMatchResultChanged(this));
     }
 
     /// <summary>
@@ -404,6 +424,7 @@ public class SeasonMatch : AuditableEntity
     private SeriesGame Add(SeriesGame game)
     {
         _seriesGames.Add(game);
+        Raise(new SeriesGamesChanged(this));
         return game;
     }
 
@@ -412,6 +433,7 @@ public class SeasonMatch : AuditableEntity
     {
         EnsureOwn(game);
         game.GameNumber = gameNumber;
+        Raise(new SeriesGamesChanged(this));
     }
 
     /// <summary>Takes a game out of the series (unreported); the series is scored again after. Only an undecided series:
@@ -422,6 +444,7 @@ public class SeasonMatch : AuditableEntity
         if (IsDecided)
             throw new InvalidOperationException($"Season match {SeasonMatchID} is decided ({DecidedBy}): reopen it before changing its games");
         _seriesGames.Remove(game);
+        Raise(new SeriesGamesChanged(this));
     }
 
     /// <summary>
@@ -436,13 +459,14 @@ public class SeasonMatch : AuditableEntity
     {
         EnsureOwn(game);
         _seriesGames.Remove(game);
+        Raise(new SeriesGamesChanged(this));
         var homeWins = Math.Max(0, (HomeTeamScore ?? 0) - (homeWon ? 1 : 0));
         var awayWins = Math.Max(0, (AwayTeamScore ?? 0) - (awayWon ? 1 : 0));
         (HomeTeamScore, AwayTeamScore) = (homeWins, awayWins);
         if (DecidedBy is null or SeasonMatchDecision.Games)
             (HomeTeamResult, AwayTeamResult) = (ImportedResult(homeWins, awayWins), ImportedResult(awayWins, homeWins));
         BestOf = ImportedBestOf(_seriesGames.Count, homeWins, awayWins);
-        CloseRescheduleOnceDecided();
+        ResultChanged();
         return _seriesGames.Count > 0;
     }
 
@@ -452,6 +476,7 @@ public class SeasonMatch : AuditableEntity
     {
         EnsureOwn(game);
         _seriesGames.Remove(game);
+        Raise(new SeriesGamesChanged(this));
     }
 
     /// <summary>
@@ -466,6 +491,7 @@ public class SeasonMatch : AuditableEntity
         _seriesGames.Clear();
         HomeTeamScore = null;
         AwayTeamScore = null;
+        Raise(new SeriesGamesChanged(this));
         return games;
     }
 
@@ -491,6 +517,7 @@ public class SeasonMatch : AuditableEntity
             HomeTeamID = teamID;
         else
             AwayTeamID = teamID;
+        Raise(new SeasonMatchTeamsChanged(this));
         return true;
     }
 
@@ -511,7 +538,7 @@ public class SeasonMatch : AuditableEntity
             HomeTeamResult = SeasonMatchResult.Bye;
         else
             AwayTeamResult = SeasonMatchResult.Bye;
-        CloseRescheduleOnceDecided();
+        ResultChanged();
         return true;
     }
 
@@ -533,7 +560,7 @@ public class SeasonMatch : AuditableEntity
             HomeTeamResult = SeasonMatchResult.Won;
         else
             AwayTeamResult = SeasonMatchResult.Won;
-        CloseRescheduleOnceDecided();
+        ResultChanged();
         return true;
     }
 
@@ -561,6 +588,8 @@ public class SeasonMatch : AuditableEntity
             if (HomeTeamResult is SeasonMatchResult.Won)
                 HomeTeamResult = null;
         }
+        Raise(new SeasonMatchTeamsChanged(this));
+        Raise(new SeasonMatchResultChanged(this));
     }
 }
 

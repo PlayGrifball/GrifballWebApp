@@ -38,7 +38,7 @@ public class Vod : AuditableEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(youTubeVideoID);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(channelID);
-        return new()
+        var vod = new Vod
         {
             YouTubeVideoID = youTubeVideoID,
             Title = Truncate(title.Trim(), TitleMaxLength),
@@ -49,6 +49,8 @@ public class Vod : AuditableEntity
             ChannelID = channelID,
             MatchStatus = VodMatchStatus.NeedsReview,
         };
+        vod.Raise(new VodChanged(vod));
+        return vod;
     }
 
     /// <summary>
@@ -147,6 +149,8 @@ public class Vod : AuditableEntity
             DurationSeconds = durationSeconds;
             changed = true;
         }
+        if (changed)
+            Raise(new VodChanged(this));
         return changed;
     }
 
@@ -171,6 +175,7 @@ public class Vod : AuditableEntity
         SeasonMatchID = seasonMatchID;
         MatchNote = Truncate(note, MatchNoteMaxLength);
         SetTeams(teamIDs);
+        Raise(new VodChanged(this));
     }
 
     /// <summary>
@@ -184,10 +189,15 @@ public class Vod : AuditableEntity
         SeasonMatchID = seasonMatchID;
         MatchStatus = VodMatchStatus.Confirmed;
         SetTeams(teamIDs);
+        Raise(new VodChanged(this));
     }
 
     /// <summary>Hidden for good: not a VOD of anything (or not wanted), and never suggested again. Its links stay as they were.</summary>
-    public void Dismiss() => MatchStatus = VodMatchStatus.Dismissed;
+    public void Dismiss()
+    {
+        MatchStatus = VodMatchStatus.Dismissed;
+        Raise(new VodChanged(this));
+    }
 
     /// <summary>Its team links become <paramref name="teamIDs"/>: a link gone is removed (EF deletes the orphan), a new one added.</summary>
     private void SetTeams(IReadOnlyCollection<int> teamIDs)

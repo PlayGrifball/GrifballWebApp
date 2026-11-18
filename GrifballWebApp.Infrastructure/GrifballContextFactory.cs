@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Infrastructure.Services;
+﻿using GrifballWebApp.Application.DomainEvents;
+using GrifballWebApp.Infrastructure.Services;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -27,7 +28,8 @@ public class GrifballContextFactory : IDbContextFactory<GrifballContext>
         var options = new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(_serviceProvider.GetRequiredService<IConfiguration>())
             .AddInterceptors(ActivatorUtilities.CreateInstance<AuditInterceptor>(_serviceProvider, currentUserService),
-                new UserSessionsInterceptor(_serviceProvider.GetService<GrifballWebApp.Application.Identity.IUserSessions>() ?? new NoUserSessions()))
+                new UserSessionsInterceptor(_serviceProvider.GetService<GrifballWebApp.Application.Identity.IUserSessions>() ?? new NoUserSessions()),
+                new DomainEventsInterceptor(_serviceProvider.GetService<IDomainEventDispatcher>() ?? new NoDomainEventHandlers()))
             .Options;
         return new GrifballContext(options);
     }

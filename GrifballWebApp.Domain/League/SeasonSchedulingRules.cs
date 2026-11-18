@@ -9,7 +9,7 @@ namespace GrifballWebApp.Domain.League;
 /// (<see cref="Change"/>). Its own row a season.
 /// </summary>
 [AggregateRoot]
-public class SeasonSchedulingRules
+public class SeasonSchedulingRules : RaisesDomainEvents
 {
     /// <summary>The defaults: four players make a slot; one match a team a night, two a week; no cap on concurrent matches.</summary>
     public const int DefaultMinPlayersAvailable = 4, DefaultMaxMatchesPerTeamPerNight = 1, DefaultMaxMatchesPerTeamPerWeek = 2;
@@ -52,5 +52,6 @@ public class SeasonSchedulingRules
         MaxMatchesPerTeamPerNight = maxMatchesPerTeamPerNight;
         MaxMatchesPerTeamPerWeek = maxMatchesPerTeamPerWeek;
         MaxConcurrentMatches = maxConcurrentMatches;
+        Raise(new SchedulingRulesChanged(this));
     }
 }

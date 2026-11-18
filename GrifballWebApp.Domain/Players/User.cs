@@ -25,7 +25,7 @@ namespace GrifballWebApp.Domain.Players;
 /// (CK_Auth_Users_LateLeagueRecord).
 /// </summary>
 [AggregateRoot]
-public class User : IdentityUser<int>, IAuditStamp
+public class User : IdentityUser<int>, IAuditStamp, IHasDomainEvents
 {
     public const int DisplayNameMaxLength = 30;
     /// <summary>A new player's Late League MMR.</summary>
@@ -56,7 +56,7 @@ public class User : IdentityUser<int>, IAuditStamp
         if (PlaceholderGamertagOf(userName) is null)
             throw new ArgumentException($"An import placeholder's user name begins {ImportPlaceholderPrefix}", nameof(userName));
         ArgumentException.ThrowIfNullOrWhiteSpace(gamertag);
-        return new User
+        var user = new User
         {
             UserName = userName,
             NormalizedUserName = userName.ToUpperInvariant(),
@@ -64,6 +64,8 @@ public class User : IdentityUser<int>, IAuditStamp
             IsDummyUser = true,
             XboxUserID = xboxUserID,
         };
+        user.Changed();
+        return user;
     }
 
     /// <summary>
@@ -205,6 +207,14 @@ public class User : IdentityUser<int>, IAuditStamp
     DateTime IAuditStamp.CreatedAt { get => CreatedAt; set => CreatedAt = value; }
     DateTime IAuditStamp.ModifiedAt { get => ModifiedAt; set => ModifiedAt = value; }
 
+    // Its domain events (IHasDomainEvents), kept here: its base class is Identity's, not RaisesDomainEvents
+    private readonly List<IDomainEvent> _raised = [];
+    IReadOnlyList<IDomainEvent> IHasDomainEvents.DomainEvents => _raised;
+    void IHasDomainEvents.ClearDomainEvents() => _raised.Clear();
+
+    /// <summary>Something the site shows of the user changed (<see cref="UserChanged"/>).</summary>
+    private void Changed() => _raised.Add(new UserChanged(this));
+
     /// <summary>
     /// Tied to the Xbox account: the user plays as it, and its gamertag is the name the app shows
     /// (<see cref="XboxTie.Tied"/>); the same account again changes nothing (<see cref="XboxTie.AlreadyTied"/>). Refused,
@@ -233,6 +243,7 @@ public class User : IdentityUser<int>, IAuditStamp
         if (XboxUserID is not null)
             return XboxTie.TiedToOther;
         XboxUserID = xboxUserID;
+        Changed();
         return XboxTie.Tied;
     }
 
@@ -242,13 +253,22 @@ public class User : IdentityUser<int>, IAuditStamp
     {
         XboxUserID = null;
         XboxUser = null;
+        Changed();
     }
 
     /// <summary>A dummy user made a real one (a sysadmin's call): no longer a placeholder a sign-up takes over.</summary>
-    public void BecomeRealUser() => IsDummyUser = false;
+    public void BecomeRealUser()
+    {
+        IsDummyUser = false;
+        Changed();
+    }
 
     /// <summary>Marked a dummy user (a sysadmin's call): an account nobody plays as, which a real one may take over.</summary>
-    public void BecomeDummy() => IsDummyUser = true;
+    public void BecomeDummy()
+    {
+        IsDummyUser = true;
+        Changed();
+    }
 
     /// <summary>The name the app shows when it has no gamertag or Discord name for the user (null for none). At most
     /// <see cref="DisplayNameMaxLength"/> characters.</summary>
@@ -257,6 +277,7 @@ public class User : IdentityUser<int>, IAuditStamp
         if (displayName?.Length > DisplayNameMaxLength)
             throw new ArgumentException($"A display name is at most {DisplayNameMaxLength} characters", nameof(displayName));
         DisplayName = displayName;
+        Changed();
     }
 
     /// <summary>
@@ -271,6 +292,7 @@ public class User : IdentityUser<int>, IAuditStamp
         if (DiscordUserID is not null)
             return DiscordLinking.LinkedToOther;
         DiscordUserID = discordUserID;
+        Changed();
         return DiscordLinking.Linked;
     }
 
@@ -289,6 +311,7 @@ public class User : IdentityUser<int>, IAuditStamp
     {
         DiscordUserID = null;
         DiscordUser = null;
+        Changed();
     }
 
     /// <summary>
@@ -312,6 +335,7 @@ public class User : IdentityUser<int>, IAuditStamp
             return RegionChoice.Unchanged;
         RegionID = regionID;
         RegionSource = source;
+        Changed();
         return RegionChoice.Set;
     }
 
@@ -328,6 +352,7 @@ public class User : IdentityUser<int>, IAuditStamp
         var bonus = WinStreak >= rules.WinThreshold ? Math.Min(rules.MaxBonus, (WinStreak - rules.WinThreshold + 1) * rules.BonusPerWin) : 0;
         var gained = rules.Gain + bonus;
         MMR += gained;
+        Changed();
         return gained;
     }
 
@@ -344,6 +369,7 @@ public class User : IdentityUser<int>, IAuditStamp
         var penalty = LossStreak >= rules.LossThreshold ? Math.Min(rules.MaxPenalty, (LossStreak - rules.LossThreshold + 1) * rules.PenaltyPerLoss) : 0;
         var lost = Math.Min(MMR, rules.Loss + penalty);
         MMR -= lost;
+        Changed();
         return lost;
     }
 
@@ -357,6 +383,8 @@ public class User : IdentityUser<int>, IAuditStamp
         // The keys alone, as EF fixes the navigations up from them (either user's may be loaded)
         from.XboxUserID = null;
         XboxUserID = xboxUserID;
+        Changed();
+        from.Changed();
     }
 
     /// <summary>A merge: the source's Discord account becomes this user's, in place of any it had, and the source is
@@ -368,6 +396,8 @@ public class User : IdentityUser<int>, IAuditStamp
             return;
         from.DiscordUserID = null;
         DiscordUserID = discordUserID;
+        Changed();
+        from.Changed();
     }
 
     /// <summary>
@@ -393,6 +423,8 @@ public class User : IdentityUser<int>, IAuditStamp
         from.Losses = 0;
         from.WinStreak = 0;
         from.LossStreak = 0;
+        Changed();
+        from.Changed();
     }
 
     /// <summary>

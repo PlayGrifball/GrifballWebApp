@@ -13,7 +13,7 @@ namespace GrifballWebApp.Domain.Players;
 /// itself). Begins through <see cref="Dismiss"/>, and never changes after.
 /// </remarks>
 [AggregateRoot]
-public class DuplicateDismissal
+public class DuplicateDismissal : RaisesDomainEvents
 {
     /// <summary>For EF. A dismissal begins through <see cref="Dismiss"/>.</summary>
     private DuplicateDismissal() { }
@@ -28,13 +28,15 @@ public class DuplicateDismissal
         if (CheckPair(userId, otherUserId) != DuplicatePair.Ok)
             throw new ArgumentException("A user is no duplicate of itself", nameof(otherUserId));
         var (low, high) = InOrder(userId, otherUserId);
-        return new()
+        var dismissal = new DuplicateDismissal
         {
             LowUserID = low,
             HighUserID = high,
             DismissedAt = dismissedAt,
             DismissedByUserID = dismissedByUserId,
         };
+        dismissal.Raise(new DuplicateDismissed(dismissal));
+        return dismissal;
     }
 
     // Nothing outside the dismissal sets its fields: only Dismiss, and EF (which uses the private setters)

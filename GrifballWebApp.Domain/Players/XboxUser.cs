@@ -22,7 +22,9 @@ public class XboxUser : AuditableEntity
     public static XboxUser FromXbox(long xboxUserID, string gamertag)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gamertag);
-        return new() { XboxUserID = xboxUserID, Gamertag = gamertag };
+        var account = new XboxUser { XboxUserID = xboxUserID, Gamertag = gamertag };
+        account.Raise(new XboxUserChanged(account));
+        return account;
     }
 
     // The XUID is Xbox's (never generated); internal so tests may give one. Nothing outside the account sets its gamertag,
@@ -94,6 +96,7 @@ public class XboxUser : AuditableEntity
             _ = RecordPastGamertag(Gamertag, since, at, GamertagHistorySource.RenameDetected);
         }
         Gamertag = gamertag;
+        Raise(new XboxUserChanged(this));
     }
 
     /// <summary>
@@ -118,6 +121,7 @@ public class XboxUser : AuditableEntity
         else
             row.Widen(firstSeen, lastSeen);
         row.Annotate(note);
+        Raise(new XboxUserChanged(this));
         return RecordPastGamertagResult.Recorded;
     }
 
@@ -131,6 +135,7 @@ public class XboxUser : AuditableEntity
         if (!row.IsRemovable)
             return RemovePastGamertagResult.NotManual;
         _pastGamertags.Remove(row);
+        Raise(new XboxUserChanged(this));
         return RemovePastGamertagResult.Removed;
     }
 }
