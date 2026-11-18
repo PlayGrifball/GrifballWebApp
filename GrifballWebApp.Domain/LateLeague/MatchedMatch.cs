@@ -32,7 +32,7 @@ public class MatchedMatch : AuditableEntity
 
     /// <summary>An archive game of the historical import, already played: reported, its result <paramref name="game"/>, in
     /// its matchmaking season. Its players come after (<see cref="SetArchivedRoster"/>).</summary>
-    public static MatchedMatch Archive(RecordedGame game, int matchmakingSeasonID, DateTime startedAt) => Started(new()
+    public static MatchedMatch Archive(RecordedGame game, int matchmakingSeasonID, DateTime startedAt) => Imported(new()
     {
         HomeTeam = new MatchedTeam([]),
         AwayTeam = new MatchedTeam([]),
@@ -97,6 +97,7 @@ public class MatchedMatch : AuditableEntity
     {
         End(MatchedMatchStatus.Reported);
         MatchID = matchID;
+        Raise(new LateLeagueMatchDecided(this, UserIDsStillIn()));
     }
 
     /// <summary>Ends the match with the winner its players voted for, no match on record.</summary>
@@ -104,6 +105,7 @@ public class MatchedMatch : AuditableEntity
     {
         End(MatchedMatchStatus.VoteDecided);
         WinnerSide = winner;
+        Raise(new LateLeagueMatchDecided(this, UserIDsStillIn()));
     }
 
     /// <summary>The players a vote-decided match counts a win for: the voted winner's side, those still in it (a kicked player
@@ -316,12 +318,24 @@ public class MatchedMatch : AuditableEntity
     private static bool Is(MatchedPlayer? player, int playerID, MatchedPlayer other) => player == other || (playerID != 0 && playerID == other.Id);
 
     /// <summary>Calls the match off: nobody won.</summary>
-    public void Cancel() => End(MatchedMatchStatus.Canceled);
+    /// <param name="unannounced">Its announcement on Discord was given up on: its cancellation says so.</param>
+    public void Cancel(bool unannounced = false)
+    {
+        End(MatchedMatchStatus.Canceled);
+        Raise(new LateLeagueMatchCanceled(this, UserIDsStillIn(), unannounced));
+    }
 
-    /// <summary>A match that began (<see cref="Start(MatchedTeam, MatchedTeam, DateTime?)"/>, <see cref="Archive"/>), with the event that says so.</summary>
+    /// <summary>A match the queue made (<see cref="Start(MatchedTeam, MatchedTeam, DateTime?)"/>), with the event that says so.</summary>
     private static MatchedMatch Started(MatchedMatch match)
     {
         match.Raise(new LateLeagueMatchStarted(match, match.Players.Select(p => p.UserID).ToList()));
+        return match;
+    }
+
+    /// <summary>An archive game's match (<see cref="Archive"/>): imported, not made by the queue, so nobody is matched.</summary>
+    private static MatchedMatch Imported(MatchedMatch match)
+    {
+        match.Raise(new LateLeagueMatchChanged(match));
         return match;
     }
 
@@ -334,6 +348,5 @@ public class MatchedMatch : AuditableEntity
         if (Status is not MatchedMatchStatus.Active)
             throw new InvalidOperationException($"Match {Id} has already ended ({Status})");
         Status = status;
-        Raise(new LateLeagueMatchEnded(this, UserIDsStillIn()));
     }
 }

@@ -20,17 +20,17 @@ namespace GrifballWebApp.Server.Test;
 /// <summary>
 /// The draft through TeamsController (as a commissioner) and the captains' Discord pick menu (DraftStringMenuHandler),
 /// over the real TeamService on a temp-file SQLite GrifballContext: captains Alpha and Bravo and player Player1 signed
-/// up for the season; the draft channel and the season lock (SQLite needs none) substituted.
+/// up for the season; the season lock (SQLite needs none) substituted.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class TeamsDraftUnitTests : SqliteGrifballContextFixture
 {
-    private readonly IDraftChannel _draftChannel = Substitute.For<IDraftChannel>();
+    private readonly IDatabaseLocks _locks = Substitute.For<IDatabaseLocks>();
     private readonly RecordingLogger<DraftStringMenuHandler> _logger = new();
 
-    private TeamService Teams() => new(Db, _draftChannel, Substitute.For<IDatabaseLocks>());
+    private TeamService Teams() => new(Db, _locks);
 
     private sealed record Draft(Season Season, User Alpha, User Bravo, User Player, TeamsController Controller);
 
@@ -137,9 +137,6 @@ public class TeamsDraftUnitTests : SqliteGrifballContextFixture
             Assert.That(onBravos, Is.EqualTo(draft.Bravo.Id));
             Assert.That(await PickedBy(draft.Player), Is.Null);
         }
-        await _draftChannel.Received(1).PlayerAddedAsync(Arg.Any<TeamService>(), Arg.Is<AddPlayerToTeamRequestDto>(x => x.SeasonID == season && x.PersonID == draft.Player.Id), Arg.Any<CancellationToken>());
-        await _draftChannel.Received(1).PlayerMovedAsync(Arg.Any<TeamService>(), Arg.Is<MovePlayerToTeamRequestDto>(x => x.SeasonID == season), Arg.Any<CancellationToken>());
-        await _draftChannel.Received(1).PlayerRemovedAsync(Arg.Any<TeamService>(), Arg.Is<RemovePlayerFromTeamRequestDto>(x => x.SeasonID == season), Arg.Any<CancellationToken>());
     }
 
     /// <summary>What the pick menu's deferred reply was edited to.</summary>
@@ -192,7 +189,7 @@ public class TeamsDraftUnitTests : SqliteGrifballContextFixture
     public async Task DraftPick_AnUnexpectedFailure_IsLogged_AndTheCaptainToldToTryAgain()
     {
         var draft = await AlphasPick();
-        _draftChannel.PlayerAddedAsync(Arg.Any<TeamService>(), Arg.Any<AddPlayerToTeamRequestDto>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("outbox down"));
+        _locks.LockSeasonRowAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("database down"));
         var context = StringMenuContext(1, draft.Player.Id.ToString());
 
         await new DraftStringMenuHandler(Db, Teams(), _logger).DraftPick(context, draft.Season.SeasonID, draft.Alpha.Id);
@@ -201,9 +198,9 @@ public class TeamsDraftUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Edited(context), Is.EqualTo("Hey <@1>, something bad happened. Please try again and contact sysadmin if problem persists"));
-            Assert.That((entry.Level, entry.Exception?.Message), Is.EqualTo((LogLevel.Error, (string?)"outbox down")));
+            Assert.That((entry.Level, entry.Exception?.Message), Is.EqualTo((LogLevel.Error, (string?)"database down")));
             Assert.That(entry.Message, Is.EqualTo($"DraftPick failed for Discord user 1, season {draft.Season.SeasonID}, captain {draft.Alpha.Id}"));
-            Assert.That(await PickedBy(draft.Player), Is.Null, "Rolled back");
+            Assert.That(await PickedBy(draft.Player), Is.Null, "Nothing picked");
         }
     }
 }

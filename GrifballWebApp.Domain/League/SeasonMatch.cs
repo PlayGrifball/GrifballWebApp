@@ -220,14 +220,14 @@ public class SeasonMatch : AuditableEntity
     internal void AddReschedule(MatchReschedule reschedule) => _reschedules.Add(reschedule);
 
     /// <summary>
-    /// Its result changed (<see cref="SeasonMatchResultChanged"/>). Once decided, a match keeps its time, so its pending
-    /// reschedule request has nothing left to approve: it is closed
-    /// (<see cref="MatchReschedule.CloseBecauseDecided"/>, #297). Every transition of its result calls this; its
-    /// requests must be loaded (<see cref="Reschedules"/>) for a pending one to be found.
+    /// Its result changed (<see cref="SeasonMatchDecided"/>, else <see cref="SeasonMatchResultChanged"/>). Once decided, a
+    /// match keeps its time, so its pending reschedule request has nothing left to approve: it is closed
+    /// (<see cref="MatchReschedule.CloseBecauseDecided"/>, #297). Every transition of its result calls this; its requests
+    /// must be loaded (<see cref="Reschedules"/>) for a pending one to be found.
     /// </summary>
     private void ResultChanged()
     {
-        Raise(new SeasonMatchResultChanged(this));
+        Raise(DecidedBy is { } decidedBy ? new SeasonMatchDecided(this, decidedBy) : new SeasonMatchResultChanged(this));
         if (IsDecided)
             PendingReschedule?.CloseBecauseDecided(DateTime.UtcNow);
     }
@@ -395,7 +395,7 @@ public class SeasonMatch : AuditableEntity
             throw new InvalidOperationException($"Season match {SeasonMatchID} has a BYE: its result is the bracket's");
         HomeTeamResult = null;
         AwayTeamResult = null;
-        Raise(new SeasonMatchResultChanged(this));
+        Raise(new SeasonMatchReopened(this));
     }
 
     /// <summary>

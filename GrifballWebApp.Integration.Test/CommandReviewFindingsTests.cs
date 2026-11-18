@@ -61,7 +61,7 @@ public class CommandReviewFindingsTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
         _urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
         _seasons = new SeasonService(_context, new SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
         _lookups = new CommandLookups(_context, _seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
@@ -80,7 +80,7 @@ public class CommandReviewFindingsTests
     private AdminCommandsHandler Admin() => new(new DiscordCaller(_context), _lookups, new RescheduleService(_context, new ContextOutbox(_context)),
         new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(new RescheduleService(_context, new ContextOutbox(_context)), new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context)),
         new SeasonMatchService(_context, Substitute.For<IDataPullService>(), _brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), _brackets,
-        new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)),
+        new TeamService(_context, new ContextDatabaseLocks(_context)),
         new ScheduleRecommendations(_context, TimeProvider.System), runs: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context)),
         Substitute.For<IDataPullService>(), _urls);
 

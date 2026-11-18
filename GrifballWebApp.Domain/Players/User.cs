@@ -352,7 +352,7 @@ public class User : IdentityUser<int>, IAuditStamp, IHasDomainEvents
         var bonus = WinStreak >= rules.WinThreshold ? Math.Min(rules.MaxBonus, (WinStreak - rules.WinThreshold + 1) * rules.BonusPerWin) : 0;
         var gained = rules.Gain + bonus;
         MMR += gained;
-        Changed();
+        _raised.Add(new LateLeagueGameRecorded(this, Won: true, MmrBefore: MMR - gained));
         return gained;
     }
 
@@ -369,7 +369,7 @@ public class User : IdentityUser<int>, IAuditStamp, IHasDomainEvents
         var penalty = LossStreak >= rules.LossThreshold ? Math.Min(rules.MaxPenalty, (LossStreak - rules.LossThreshold + 1) * rules.PenaltyPerLoss) : 0;
         var lost = Math.Min(MMR, rules.Loss + penalty);
         MMR -= lost;
-        Changed();
+        _raised.Add(new LateLeagueGameRecorded(this, Won: false, MmrBefore: MMR + lost));
         return lost;
     }
 

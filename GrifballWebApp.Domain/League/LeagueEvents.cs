@@ -45,10 +45,23 @@ public sealed record TeamRenamed(Team Team) : IDomainEvent;
 public sealed record TeamCaptainChanged(Team Team) : IDomainEvent;
 
 /// <summary>
-/// The team's roster changed for <paramref name="UserIDs"/>: a player added (the draft's pick, the import, a merge), taken
-/// off, or a pick moved to another round or traded to another team (each team raises its own).
+/// The team's roster changed for <paramref name="UserIDs"/> outside the draft: a player put on it (the import's roster) or
+/// taken off it, or a merge. The draft's own moves are <see cref="PlayerDrafted"/>, <see cref="PlayerUndrafted"/> and
+/// <see cref="PickMoved"/>.
 /// </summary>
 public sealed record TeamRosterChanged(Team Team, IReadOnlyCollection<int> UserIDs) : IDomainEvent;
+
+/// <summary>The draft picked <paramref name="UserID"/> for the team, in <paramref name="Round"/>, its captain's pick.</summary>
+public sealed record PlayerDrafted(Team Team, int UserID, int Round, int? CaptainUserID) : IDomainEvent;
+
+/// <summary>The draft took <paramref name="UserID"/>'s pick off the team: back in the player pool.</summary>
+public sealed record PlayerUndrafted(Team Team, int UserID, int? CaptainUserID) : IDomainEvent;
+
+/// <summary>
+/// The draft moved <paramref name="UserID"/>'s pick to <paramref name="Round"/>: within its team (<paramref name="From"/> is
+/// <paramref name="To"/>), or traded to another team of the season.
+/// </summary>
+public sealed record PickMoved(Team From, Team To, int UserID, int Round, int? FromCaptainUserID, int? ToCaptainUserID) : IDomainEvent;
 
 /// <summary>The team's own timeslots changed, or were cleared (its roster's again).</summary>
 public sealed record TeamTimeslotsChanged(Team Team) : IDomainEvent;
@@ -68,7 +81,13 @@ public sealed record SeasonMatchScheduled(SeasonMatch Match) : IDomainEvent;
 /// <summary>Who plays the match changed: a team or a BYE placed on a side, or a side emptied.</summary>
 public sealed record SeasonMatchTeamsChanged(SeasonMatch Match) : IDomainEvent;
 
-/// <summary>The match's score or result changed: decided by its games, forfeited, a BYE's win, or taken back.</summary>
+/// <summary>The match was decided (or decided again, by an import): by its games, a forfeit, or a BYE.</summary>
+public sealed record SeasonMatchDecided(SeasonMatch Match, SeasonMatchDecision DecidedBy) : IDomainEvent;
+
+/// <summary>The match's result was taken back: undecided again.</summary>
+public sealed record SeasonMatchReopened(SeasonMatch Match) : IDomainEvent;
+
+/// <summary>The match's score or result changed without deciding it: games scored, a side emptied, a BYE placed.</summary>
 public sealed record SeasonMatchResultChanged(SeasonMatch Match) : IDomainEvent;
 
 /// <summary>The games of the series changed: one reported, renumbered or taken out, or all of them cleared.</summary>

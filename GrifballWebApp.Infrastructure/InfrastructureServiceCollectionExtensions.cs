@@ -48,8 +48,10 @@ public static class InfrastructureServiceCollectionExtensions
         // A change to a user's sign-in or roles ends their live sessions: the web host's, else none
         services.TryAddSingleton<IUserSessions, NoUserSessions>();
         services.AddScoped<UserSessionsInterceptor>();
-        // The aggregates' domain events, to their handlers once a save is committed (none registered: nothing happens)
+        // The aggregates' domain events, to their handlers: in the change's transaction before it commits, and after (none
+        // registered: nothing happens)
         services.TryAddSingleton<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.TryAddSingleton<IBeforeCommitDispatcher, BeforeCommitDispatcher>();
         services.AddScoped<DomainEventsInterceptor>();
 
         services.AddDbContext<GrifballContext>((provider, options) =>
@@ -169,7 +171,9 @@ public static class InfrastructureServiceCollectionExtensions
             moreJobs?.Invoke(jobs);
         });
 
-        services.AddTransient<IDraftChannel, OutboxDraftChannel>();
+        // The Discord posts of the draft and of Late League's matches: their domain events' handlers, queued on the outbox in the
+        // change's own transaction (DraftDiscordPosts, LateLeagueDiscordPosts)
+        services.AddDomainEvents(typeof(InfrastructureServiceCollectionExtensions).Assembly);
         services.AddTransient<IDatabaseLocks, ContextDatabaseLocks>();
         services.AddTransient<ExcelService>();
         services.AddDatabaseBackups(configuration);

@@ -82,13 +82,19 @@ public sealed class DomainEventDispatcher(IServiceScopeFactory scopes, ILogger<D
 
 public static class DomainEventServiceCollectionExtensions
 {
-    /// <summary>The dispatcher, and every concrete domain event handler in <paramref name="assembly"/> (scoped).</summary>
+    private static readonly Type[] HandlerTypes = [typeof(IDomainEventHandler<>), typeof(IBeforeCommitHandler<>)];
+
+    /// <summary>
+    /// The dispatchers, and every concrete domain event handler in <paramref name="assembly"/>, after the commit's and
+    /// before it (scoped: a before-commit handler runs in the change's scope, with its context).
+    /// </summary>
     public static IServiceCollection AddDomainEvents(this IServiceCollection services, Assembly assembly)
     {
         services.TryAddSingleton<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.TryAddSingleton<IBeforeCommitDispatcher, BeforeCommitDispatcher>();
         foreach (var type in assembly.GetTypes().Where(t => t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }))
         {
-            foreach (var handler in type.GetInterfaces().Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDomainEventHandler<>)))
+            foreach (var handler in type.GetInterfaces().Where(i => i.IsGenericType && HandlerTypes.Contains(i.GetGenericTypeDefinition())))
                 services.AddScoped(handler, type);
         }
         return services;

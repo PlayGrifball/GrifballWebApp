@@ -17,16 +17,14 @@ internal sealed class TeamServiceDraftUnitTests : ApplicationDbContextTests
 {
     private const int SeasonID = 1;
 
-    private IDraftChannel _draftChannel = null!;
     private IDatabaseLocks _locks = null!;
     private TeamService _service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _draftChannel = Substitute.For<IDraftChannel>();
         _locks = Substitute.For<IDatabaseLocks>();
-        _service = new TeamService(Context, _draftChannel, _locks);
+        _service = new TeamService(Context, _locks);
     }
 
     private async Task SeedSeason() => await SeedSeasonUser(99);

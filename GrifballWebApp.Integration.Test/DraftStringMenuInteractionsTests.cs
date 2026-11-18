@@ -39,7 +39,7 @@ public class DraftStringMenuInteractionsTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
         _rest = FakeRestRequestHandler.CreateClient(out _handler);
         _logger = new RecordingLogger<DraftStringMenuHandler>();
     }
@@ -88,7 +88,7 @@ public class DraftStringMenuInteractionsTests
         // User exists with this discord id but has no Xbox account linked
         var user = await _context.AddUser("nogt", "No GT", discordName: "nogt");
         var discordId = (ulong)user.DiscordUserID!.Value;
-        var (handler, discordContext) = CreateHandler(new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)), "1", discordId);
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, new ContextDatabaseLocks(_context)), "1", discordId);
 
         await handler.DraftPick(discordContext, 1, 2); // includes the app's 5s temp-response delay
 
@@ -108,7 +108,7 @@ public class DraftStringMenuInteractionsTests
     {
         var (season, captain, player) = await SeedDraft();
         await _context.AddSignup(season, player);
-        var (handler, discordContext) = CreateHandler(new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)), player.Id.ToString());
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, new ContextDatabaseLocks(_context)), player.Id.ToString());
 
         await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 
@@ -126,7 +126,7 @@ public class DraftStringMenuInteractionsTests
     public async Task DraftPick_Should_ReportTeamServiceErrors()
     {
         var (season, captain, player) = await SeedDraft(); // player not signed up
-        var (handler, discordContext) = CreateHandler(new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)), player.Id.ToString());
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, new ContextDatabaseLocks(_context)), player.Id.ToString());
 
         await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 
@@ -144,7 +144,7 @@ public class DraftStringMenuInteractionsTests
         await _context.AddSignup(season, player);
         var broken = _context.NewContextLike();
         await broken.DisposeAsync();
-        var (handler, discordContext) = CreateHandler(new TeamService(broken, new OutboxDraftChannel(broken, new ContextOutbox(broken)), new ContextDatabaseLocks(broken)), player.Id.ToString());
+        var (handler, discordContext) = CreateHandler(new TeamService(broken, new ContextDatabaseLocks(broken)), player.Id.ToString());
 
         await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 

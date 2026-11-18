@@ -22,8 +22,8 @@ public class TeamServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await TestDatabase.NewGrifballContext();
-        _service = new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
+        _service = new TeamService(_context, new ContextDatabaseLocks(_context));
     }
 
     [TearDown]

@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.DomainEvents;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Infrastructure;
@@ -107,6 +108,7 @@ public class InfrastructureServiceCollectionExtensionsTests
             // AddGrifballDatabase's context needs an OutboxSignalInterceptor too; production adds it with AddDiscordOutbox.
             services.AddSingleton<GrifballWebApp.Infrastructure.Outbox.OutboxSignal>();
             services.AddScoped<GrifballWebApp.Infrastructure.Outbox.OutboxSignalInterceptor>();
+            services.AddLogging();
             services.AddGrifballDatabase();
             using var provider = services.BuildServiceProvider();
             using var scope = provider.CreateScope();
@@ -166,7 +168,8 @@ public class InfrastructureServiceCollectionExtensionsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(services.Any(d => d.ServiceType == typeof(IDataPullService)), Is.True);
-            Assert.That(services.Any(d => d.ServiceType == typeof(IDraftChannel)), Is.True);
+            Assert.That(services.Any(d => d.ServiceType == typeof(IBeforeCommitHandler<GrifballWebApp.Domain.League.PlayerDrafted>) && d.ImplementationType == typeof(GrifballWebApp.Infrastructure.Teams.DraftDiscordPosts)), Is.True);
+            Assert.That(services.Any(d => d.ServiceType == typeof(IBeforeCommitHandler<GrifballWebApp.Domain.LateLeague.LateLeagueMatchStarted>) && d.ImplementationType == typeof(LateLeagueDiscordPosts)), Is.True);
             Assert.That(services.Any(d => d.ServiceType == typeof(IDatabaseLocks)), Is.True);
             Assert.That(services.Any(d => d.ServiceType == typeof(ExcelService)), Is.True);
             Assert.That(services.Any(d => d.ImplementationType == (preview ? typeof(PreviewSmokeXboxUsers) : typeof(GetsertXboxUserService)) && d.ServiceType == typeof(IGetsertXboxUserService)), Is.True,

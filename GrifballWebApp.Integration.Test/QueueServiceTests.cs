@@ -34,7 +34,7 @@ public class QueueServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await TestDatabase.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
 
         // Substitute dependencies
         _logger = Substitute.For<ILogger<QueueService>>();

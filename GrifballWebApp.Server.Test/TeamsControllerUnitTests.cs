@@ -35,13 +35,13 @@ public class TeamsControllerUnitTests
 }
 
 /// <summary>TeamsControllerTests' unit tests on a real GrifballContext (temp-file SQLite, #402), where TeamService needs
-/// nothing more than IDraftChannel substituted.</summary>
+/// nothing substituted.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class TeamsControllerDatabaseUnitTests : SqliteGrifballContextFixture
 {
-    private TeamsController Controller() => new(new TeamService(Db, Substitute.For<IDraftChannel>(), null!));
+    private TeamsController Controller() => new(new TeamService(Db, null!));
 
     [Test]
     public async Task GetTeams_ReturnsNone_ForASeasonWithNoTeams()

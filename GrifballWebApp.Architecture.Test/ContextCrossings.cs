@@ -58,7 +58,7 @@ internal static class ContextCrossings
         ["Players"] = new()
         {
             ["Halo"] = ["MatchParticipant"],
-            ["LateLeague"] = ["MatchedPlayer", "QueuedPlayer"],
+            ["LateLeague"] = ["LateLeagueGameRecorded", "MatchedPlayer", "QueuedPlayer"],
             ["League"] = ["SeasonSignup", "TeamPlayer"],
             ["Shared"] = ["AggregatePartAttribute", "AggregateRootAttribute",
                 "AuditableEntity", "DiscordMessage", "GameVersion", "IAuditable", "IAuditStamp", "IDomainEvent", "IHasDomainEvents",

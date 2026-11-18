@@ -55,6 +55,9 @@ public static class LiveChanges
         TeamRenamed e => OfTeam(e.Team, []),
         TeamCaptainChanged e => OfTeam(e.Team, []),
         TeamRosterChanged e => OfTeam(e.Team, e.UserIDs),
+        PlayerDrafted e => OfTeam(e.Team, [e.UserID]),
+        PlayerUndrafted e => OfTeam(e.Team, [e.UserID]),
+        PickMoved e => OfTeam(e.From, [e.UserID]),
         TeamTimeslotsChanged e => All(T.Season(e.Team.SeasonID)),
         TeamArchiveRecorded e => All(T.Season(e.Team.SeasonID)),
 
@@ -64,6 +67,8 @@ public static class LiveChanges
         SeasonMatchScheduled e => OfMatch(e.Match),
         SeasonMatchTeamsChanged e => OfMatch(e.Match),
         SeasonMatchResultChanged e => OfMatch(e.Match),
+        SeasonMatchDecided e => OfMatch(e.Match),
+        SeasonMatchReopened e => OfMatch(e.Match),
         SeriesGamesChanged e => OfMatch(e.Match),
 
         // Its signups: the staff's pages, the draft's pool, the player's own
@@ -82,7 +87,9 @@ public static class LiveChanges
         PlayerQueued e => All(T.Queue).Append(new LiveChange(T.MyQueue, e.Spot.UserID)),
         PlayerLeftQueue e => All(T.Queue).Append(new LiveChange(T.MyQueue, e.Spot.UserID)),
         LateLeagueMatchStarted e => All(T.Queue, T.LateLeague).Concat(e.UserIDs.Select(u => new LiveChange(T.MyQueue, u))),
-        LateLeagueMatchEnded e => All(T.Queue, T.LateLeague).Concat(e.UserIDs.Select(u => new LiveChange(T.MyQueue, u))),
+        LateLeagueMatchDecided e => All(T.Queue, T.LateLeague).Concat(e.UserIDs.Select(u => new LiveChange(T.MyQueue, u))),
+        LateLeagueMatchCanceled e => All(T.Queue, T.LateLeague).Concat(e.UserIDs.Select(u => new LiveChange(T.MyQueue, u))),
+        LateLeagueGameRecorded e => All(T.Player(e.User.Id)),
         LateLeaguePlayerKicked e => All(T.LateLeague).Append(new LiveChange(T.MyQueue, e.UserID)),
         LateLeagueMatchChanged => All(T.LateLeague),
         MatchmakingSeasonChanged => All(T.LateLeague),

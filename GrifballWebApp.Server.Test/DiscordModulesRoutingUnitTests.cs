@@ -163,7 +163,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
         brackets.GetBracketsAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new BracketDto { WinnerRounds = [], LoserRounds = [] });
         var dataPull = Substitute.For<IDataPullService>();
         var seasonMatches = new SeasonMatchService(Db, dataPull, brackets, new ChampionshipService(Db));
-        var teams = new TeamService(Db, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
+        var teams = new TeamService(Db, Substitute.For<IDatabaseLocks>());
         var reschedules = new RescheduleService(Db, Substitute.For<IOutbox>());
         var signups = new SignupsService(Db, _time);
         var vods = new VodService(Db, null!, MsOptions.Create(new YouTubeOptions()), null!);

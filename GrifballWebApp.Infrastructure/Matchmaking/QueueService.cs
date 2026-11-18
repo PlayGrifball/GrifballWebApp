@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
-using System.Text;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.HaloInfinite;
@@ -84,9 +83,8 @@ public class QueueService
 
                 queuePlayers = await RemoveActivePlayersFromQueue(queued, activeMatches, ct);
 
+                // Each match made is announced on Discord: its LateLeagueMatchStarted's post, queued as this commits
                 createdMatches = await CreateMatches(queuePlayers, ct);
-                foreach (var match in createdMatches)
-                    await _outbox.EnqueueAnnouncementAsync(match.Id, mayBePosted: false, ct);
 
                 await AnnounceMatchesWithoutAnnouncement(activeMatches, ct);
 
@@ -205,9 +203,8 @@ public class QueueService
                 ?? throw new Exception("No losing team");
             var winners = winningTeam.MatchParticipants.Select(x => x.XboxUser.User!);
             var losers = losingTeam.MatchParticipants.Select(x => x.XboxUser.User!);
-            var winnerId = winningTeam.TeamID;
 
-            await HandleWinnersAndLosers(_discordOptions, _context, match, matchFound.Duration, winners, losers, winnerId, ct);
+            await HandleWinnersAndLosers(_discordOptions, _context, winners, losers, ct);
         }
         else if (voteResult is WinnerVote.Home or WinnerVote.Away)
         {
@@ -216,14 +213,12 @@ public class QueueService
             // Kicked players didn't play the match out: they neither win nor lose it (as the stats count it)
             var winners = match.VoteWinners().Select(x => x.User);
             var losers = match.VoteLosers().Select(x => x.User);
-            var winnerId = voteResult == WinnerVote.Home ? 0 : 1;
-            await HandleWinnersAndLosers(_discordOptions, _context, match, null, winners, losers, winnerId, ct);
+            await HandleWinnersAndLosers(_discordOptions, _context, winners, losers, ct);
         }
         else if (voteResult is WinnerVote.Cancel || _time.GetUtcNow().UtcDateTime - match.StartedAt > TimeSpan.FromHours(2))
         {
-            // Cancel the match: its post and thread close are queued with it.
+            // Cancel the match: its post and thread close are queued with it (LateLeagueMatchCanceled's, as it saves)
             match.Cancel();
-            await _outbox.EnqueueCanceledAsync(match.Id, unannounced: false, ct);
             await _context.SaveChangesAsync(ct); // No method calls save changes so do so here
         }
     }
@@ -313,30 +308,21 @@ public class QueueService
         }
     }
 
-    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Domain.Players.User> winners, IEnumerable<Domain.Players.User> losers, int winnerId, CancellationToken ct)
+    /// <summary>
+    /// The players' MMR, by the result, saved with it: the end post and its thread close are LateLeagueMatchDecided's (with each
+    /// player's LateLeagueGameRecorded), queued as it saves.
+    /// </summary>
+    private static async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, IEnumerable<Domain.Players.User> winners, IEnumerable<Domain.Players.User> losers, CancellationToken ct)
     {
-        // Adjust player MMR
-        var oldMMR = new Dictionary<long, int>();
-
         var o = discordOptions.Value;
         var rules = new LateLeagueRules(o.KFactor, o.WinThreshold, o.BonusPerWin, o.MaxBonus, o.LossThreshold, o.PenaltyPerLoss, o.MaxPenalty);
 
         foreach (var player in winners)
-        {
-            oldMMR.TryAdd(player.Id, player.MMR);
             player.RecordLateLeagueWin(rules);
-        }
 
         foreach (var player in losers)
-        {
-            oldMMR.TryAdd(player.Id, player.MMR);
             player.RecordLateLeagueLoss(rules);
-        }
 
-        // The end post is worked out now (the MMR changes can't be later) and queued, with its thread close, in the same
-        // save as the result.
-        await _outbox.EnqueueEndedAsync(new MatchEndedPayload(match.Id, winnerId, duration?.ToString() ?? "Unknown",
-            GetMMRChanges(oldMMR, match, MatchedSide.Home), GetMMRChanges(oldMMR, match, MatchedSide.Away)), ct);
         await context.SaveChangesAsync(ct);
 
         // TODO: Requeue players?
@@ -409,45 +395,6 @@ public class QueueService
                 x.Embeds = message.Embeds ?? [];
             });
         }
-    }
-
-    private static string GetMMRChanges(Dictionary<long, int> oldMMR, MatchedMatch match, MatchedSide side)
-    {
-        var sb = new StringBuilder();
-        var players = match.PlayersStillIn(side).ToList(); // Kicked players' MMR is not changed
-        foreach(var (player, index) in players.Select((player, index) => (player, index)))
-        {
-            sb.Append(player.User.DiscordUser?.DiscordUsername ?? player.User.XboxUser?.Gamertag);
-            sb.Append(": ");
-            var found = oldMMR.TryGetValue(player.UserID, out var oldMmr);
-            int? OLDMMR = found ? oldMmr : null;
-            if (OLDMMR is not null)
-                sb.Append(OLDMMR);
-            else
-                sb.Append("UNK");
-
-            sb.Append(" -> ");
-
-            sb.Append(player.User.MMR);
-
-            sb.Append(" (");
-            if (OLDMMR is null)
-            {
-                sb.Append("UNK");
-            }
-            else
-            {
-                var change = player.User.MMR - OLDMMR.Value;
-                if (change > 0)
-                    sb.Append('+');
-                sb.Append(change);
-            }
-            sb.Append(')');
-
-            if (index != players.Count - 1)
-                sb.AppendLine();
-        }
-        return sb.Length == 0 ? "No players" : sb.ToString(); // An empty embed field value is rejected by Discord
     }
 
     private static string FormatDuration(DateTime date)

@@ -84,10 +84,20 @@ the events are each context's `*Events.cs`, records in the past tense carrying t
 refuses raises nothing. An aggregate about to be removed says so first (`Team.Disband`, `SeasonMatch.Cancel`,
 `SeasonSignup.Withdraw`, `QueuedPlayer.Leave`): the service calls it, then removes it.
 
-- **Sent once committed.** `DomainEventsInterceptor` (Infrastructure, on every context) collects the saved aggregates'
-  events and hands them to `IDomainEventDispatcher` after the save, or after the transaction commits; a rolled back one,
-  or a failed save, sends nothing. Their handlers (`IDomainEventHandler<TEvent>`, or of `IDomainEvent` for every event)
-  run in a scope of their own, and a handler's failure is logged, never the save's.
+- **Two phases.** `DomainEventsInterceptor` (Infrastructure, on every context) collects the saved aggregates' events:
+  - **Before the commit** (`IBeforeCommitHandler<TEvent>`): inside the change's transaction, after all its saves and as
+    it commits, in the context's own scope, so a handler reads the change as saved and what it adds (an outbox message)
+    commits with it, or not at all. A plain save whose events have such handlers gets a transaction of its own. A
+    handler's failure fails the change. The Discord posts are these: the draft's (`DraftDiscordPosts`: a pick, a pick
+    taken back or moved, the captains locked) and Late League's (`LateLeagueDiscordPosts`: a match made, decided with
+    its players' MMR, called off).
+  - **After it** (`IDomainEventHandler<TEvent>`, or of `IDomainEvent` for every event): once the save or its
+    transaction is committed, nothing for a rolled back one or a failed save, in a scope of their own; a handler's
+    failure is logged, never the save's. The live updates are these.
+- **Specific events.** An event says what happened, as specific as someone may want to hear it: `PlayerDrafted` (who,
+  which round, whose pick), `PickMoved`, `SeasonMatchDecided` (and how: games, forfeit, BYE), `SeasonMatchReopened`,
+  `LateLeagueMatchDecided`, `LateLeagueGameRecorded` (a player's MMR before and after), with general ones (`TeamRosterChanged`,
+  `SeasonEdited`) for the rest.
 - **Bulk statements raise nothing** (`ExecuteUpdate`, `ExecuteDelete`): they bypass the aggregates. Use them where no
   page needs to hear of it at once (the import jobs' progress, which the page polls).
 - **Live updates** are one handler, `LiveUpdatesHandler` (Application/Live): `LiveChanges.Of` maps each event to the

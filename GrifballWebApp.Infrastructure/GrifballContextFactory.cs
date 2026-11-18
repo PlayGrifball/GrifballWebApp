@@ -29,7 +29,8 @@ public class GrifballContextFactory : IDbContextFactory<GrifballContext>
             .UseGrifballDatabase(_serviceProvider.GetRequiredService<IConfiguration>())
             .AddInterceptors(ActivatorUtilities.CreateInstance<AuditInterceptor>(_serviceProvider, currentUserService),
                 new UserSessionsInterceptor(_serviceProvider.GetService<GrifballWebApp.Application.Identity.IUserSessions>() ?? new NoUserSessions()),
-                new DomainEventsInterceptor(_serviceProvider.GetService<IDomainEventDispatcher>() ?? new NoDomainEventHandlers()))
+                new DomainEventsInterceptor(_serviceProvider.GetService<IDomainEventDispatcher>() ?? new NoDomainEventHandlers(),
+                    _serviceProvider.GetService<IBeforeCommitDispatcher>()))
             .Options;
         return new GrifballContext(options);
     }

@@ -234,7 +234,7 @@ public class Team : AuditableEntity
             return TeamRosterResult.AlreadyOnTeam;
         var round = Picks.Select(p => p.DraftRound).Max() + 1 ?? 1;
         _teamPlayers.Add(TeamPlayer.On(this, userID, draftRound: round));
-        Raise(new TeamRosterChanged(this, [userID]));
+        Raise(new PlayerDrafted(this, userID, round, CaptainPlayer?.UserID));
         return TeamRosterResult.Done;
     }
 
@@ -269,7 +269,7 @@ public class Team : AuditableEntity
         picks.Remove(player);
         _teamPlayers.Remove(player);
         Renumber(picks);
-        Raise(new TeamRosterChanged(this, [userID]));
+        Raise(new PlayerUndrafted(this, userID, CaptainPlayer?.UserID));
         return TeamRosterResult.Done;
     }
 
@@ -288,7 +288,7 @@ public class Team : AuditableEntity
         picks.Remove(player);
         picks.Insert(round - 1, player);
         Renumber(picks);
-        Raise(new TeamRosterChanged(this, [userID]));
+        Raise(new PickMoved(this, this, userID, round, CaptainPlayer?.UserID, CaptainPlayer?.UserID));
         return TeamRosterResult.Done;
     }
 
@@ -319,8 +319,7 @@ public class Team : AuditableEntity
         to._teamPlayers.Add(player);
         theirs.Insert(round - 1, player);
         Renumber(theirs);
-        Raise(new TeamRosterChanged(this, [userID]));
-        to.Raise(new TeamRosterChanged(to, [userID]));
+        Raise(new PickMoved(this, to, userID, round, CaptainPlayer?.UserID, to.CaptainPlayer?.UserID));
         return TeamRosterResult.Done;
     }
 

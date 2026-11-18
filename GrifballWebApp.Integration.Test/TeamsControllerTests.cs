@@ -29,8 +29,8 @@ public class TeamsControllerTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
-        _controller = new TeamsController(new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)));
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
+        _controller = new TeamsController(new TeamService(_context, new ContextDatabaseLocks(_context)));
         SetUser(null);
     }
 
@@ -118,9 +118,9 @@ public class TeamsControllerTests
         var season = await _context.AddSeason();
 
         await _controller.LockCaptains(season.SeasonID, CancellationToken.None);
-        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.True);
+        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.True);
 
         await _controller.UnlockCaptains(season.SeasonID, CancellationToken.None);
-        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.False);
+        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.False);
     }
 }

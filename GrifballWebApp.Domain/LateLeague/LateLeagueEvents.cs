@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Domain.LateLeague;
@@ -11,11 +12,17 @@ public sealed record PlayerQueued(QueuedPlayer Spot) : IDomainEvent;
 /// <summary>A player's spot is about to go (<see cref="QueuedPlayer.Leave"/>): they left, were matched, or were dropped.</summary>
 public sealed record PlayerLeftQueue(QueuedPlayer Spot) : IDomainEvent;
 
-/// <summary>A match began: made by the queue of these players, or an archive game imported.</summary>
+/// <summary>The queue made a match of these players: it is announced on Discord.</summary>
 public sealed record LateLeagueMatchStarted(MatchedMatch Match, IReadOnlyCollection<int> UserIDs) : IDomainEvent;
 
-/// <summary>The match ended (reported, decided by vote, canceled): its players may queue again.</summary>
-public sealed record LateLeagueMatchEnded(MatchedMatch Match, IReadOnlyCollection<int> UserIDs) : IDomainEvent;
+/// <summary>
+/// The match was decided (reported as a Halo match, or by its players' vote), these players still in it: they may queue
+/// again, and its result is posted (with what it did to their MMR: <see cref="LateLeagueGameRecorded"/>).
+/// </summary>
+public sealed record LateLeagueMatchDecided(MatchedMatch Match, IReadOnlyCollection<int> UserIDs) : IDomainEvent;
+
+/// <summary>The match was called off, nobody winning: its players may queue again. <paramref name="Unannounced"/>: it never could be announced.</summary>
+public sealed record LateLeagueMatchCanceled(MatchedMatch Match, IReadOnlyCollection<int> UserIDs, bool Unannounced) : IDomainEvent;
 
 /// <summary>The players' vote kicked <paramref name="UserID"/> out of the match.</summary>
 public sealed record LateLeaguePlayerKicked(MatchedMatch Match, int UserID) : IDomainEvent;
@@ -25,6 +32,9 @@ public sealed record LateLeagueMatchChanged(MatchedMatch Match) : IDomainEvent;
 
 /// <summary>A Late League season of the archive was imported, or changed as the archive has it now.</summary>
 public sealed record MatchmakingSeasonChanged(MatchmakingSeason Season) : IDomainEvent;
+
+/// <summary>A Late League game was recorded for the user: a win or a loss, and their MMR from <paramref name="MmrBefore"/> to theirs now.</summary>
+public sealed record LateLeagueGameRecorded(User User, bool Won, int MmrBefore) : IDomainEvent;
 
 /// <summary>A player's Late League season stats from a sheet were recorded or restated.</summary>
 public sealed record MatchmakingPlayerStatsChanged(MatchmakingPlayerStat Stat) : IDomainEvent;

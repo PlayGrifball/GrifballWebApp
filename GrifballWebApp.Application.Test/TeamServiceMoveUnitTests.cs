@@ -34,14 +34,12 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
     private static readonly int[] PickA1ThenA2 = [PickA1, PickA2];
     private static readonly int?[] RoundsOneTwo = [1, 2];
 
-    private IDraftChannel _draftChannel = null!;
     private TeamService _service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _draftChannel = Substitute.For<IDraftChannel>();
-        _service = new TeamService(Context, _draftChannel, Substitute.For<IDatabaseLocks>());
+        _service = new TeamService(Context, Substitute.For<IDatabaseLocks>());
     }
 
     /// <summary>A season, users 1-5 signed up (team names as given), and commissioner 9.</summary>
@@ -75,7 +73,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
         await _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = SeasonID, CaptainID = CaptainA, PersonID = PickA1 }, CommissionerID);
         await _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = SeasonID, CaptainID = CaptainA, PersonID = PickA2 }, CommissionerID);
         await _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = SeasonID, CaptainID = CaptainB, PersonID = PickB1 }, CommissionerID);
-        _draftChannel.ClearReceivedCalls();
     }
 
     /// <summary>The picks (not the captain) of the team <paramref name="captainID"/> captains, by draft round, read fresh.</summary>
@@ -101,7 +98,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
             Assert.That(picks.Select(p => p.UserID), Is.EqualTo(OnlyPickA2));
             Assert.That(picks.Single().DraftRound, Is.EqualTo(1));
         }
-        await _draftChannel.Received(1).PlayerRemovedAsync(_service, dto, Arg.Any<CancellationToken>());
     }
 
     [TestCase(CaptainA, PickB1)]
@@ -115,7 +111,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() => _service.RemovePlayerFromTeam(dto));
 
         Assert.That(ex!.Message, Is.EqualTo("Player is not on this team"));
-        await _draftChannel.DidNotReceive().PlayerRemovedAsync(Arg.Any<TeamService>(), Arg.Any<RemovePlayerFromTeamRequestDto>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -132,7 +127,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
             Assert.That(picks.Select(p => p.UserID), Is.EqualTo(PickA2ThenA1));
             Assert.That(picks.Select(p => p.DraftRound), Is.EqualTo(RoundsOneTwo));
         }
-        await _draftChannel.Received(1).PlayerMovedAsync(_service, dto, Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -151,7 +145,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
             Assert.That(picksB.Select(p => p.UserID), Is.EqualTo(PickA2ThenB1));
             Assert.That(picksB.Select(p => p.DraftRound), Is.EqualTo(RoundsOneTwo));
         }
-        await _draftChannel.Received(1).PlayerMovedAsync(_service, dto, Arg.Any<CancellationToken>());
     }
 
     [TestCase(CaptainA, CaptainB, PickB1, 1, "Player was not on that team")]
@@ -174,7 +167,6 @@ internal sealed class TeamServiceMoveUnitTests : ApplicationDbContextTests
             Assert.That(ex!.Message, Is.EqualTo(message));
             Assert.That(picksA.Select(p => p.UserID), Is.EqualTo(PickA1ThenA2));
         }
-        await _draftChannel.DidNotReceive().PlayerMovedAsync(Arg.Any<TeamService>(), Arg.Any<MovePlayerToTeamRequestDto>(), Arg.Any<CancellationToken>());
     }
 
     [Test]

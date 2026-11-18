@@ -1,6 +1,8 @@
 using GrifballWebApp.Application.DomainEvents;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Outbox;
+using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +18,9 @@ namespace GrifballWebApp.Infrastructure.Test;
 [Parallelizable(ParallelScope.All)]
 public class DomainEventsInterceptorTests : SqliteContextFixture
 {
+    private static readonly string[] OwnTransactionPost = ["\"own-transaction\""];
+    private static readonly string[] TwoPosts = ["\"first-of-two\"", "\"second-of-two\""];
+
     private readonly RecordingDispatcher _dispatcher = new();
     private ServiceProvider? _provider;
     private AsyncServiceScope? _scope;
@@ -31,10 +36,20 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
         }
     }
 
+    /// <summary>A before-commit handler: queues an outbox message for each user changed.</summary>
+    private sealed class QueueAPost(IOutbox outbox) : IBeforeCommitHandler<UserChanged>
+    {
+        public Task Handle(UserChanged domainEvent, IReadOnlyList<IDomainEvent> commit, CancellationToken cancellationToken)
+            => outbox.EnqueueAsync("test.post", domainEvent.User.UserName, null, cancellationToken);
+    }
+
     protected override GrifballContext CreateContext()
     {
         var services = new ServiceCollection();
         services.AddSingleton<IDomainEventDispatcher>(_dispatcher);
+        services.AddSingleton<IBeforeCommitDispatcher>(provider => new BeforeCommitDispatcher(provider.GetRequiredService<IServiceProviderIsService>()));
+        services.AddScoped<IOutbox>(provider => new ContextOutbox(provider.GetRequiredService<GrifballContext>()));
+        services.AddScoped<IBeforeCommitHandler<UserChanged>, QueueAPost>();
         services.AddScoped<DomainEventsInterceptor>();
         services.AddDbContext<GrifballContext>((provider, options) => options
             .UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString)
@@ -113,5 +128,56 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
         await Context.SaveChangesAsync();
 
         Assert.That(_dispatcher.Dispatched, Is.Empty);
+    }
+
+    /// <summary>The test posts committed, as another connection reads them.</summary>
+    private async Task<string[]> Posts()
+    {
+        await using var fresh = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString).Options);
+        return await fresh.Outbox.Where(m => m.Kind == "test.post").Select(m => m.Payload).ToArrayAsync();
+    }
+
+    [Test]
+    public async Task ASaveOutsideATransaction_ItsBeforeCommitHandlersPost_InATransactionOfItsOwn_ThenItsEventsGoOut()
+    {
+        Context.Users.Add(User.Register("own-transaction"));
+
+        await Context.SaveChangesAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Posts(), Is.EqualTo(OwnTransactionPost));
+            Assert.That(Context.Database.CurrentTransaction, Is.Null, "committed");
+            Assert.That(_dispatcher.Dispatched, Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task InATransaction_TheBeforeCommitHandlersRun_AsItCommits_ForEverySave_AndPostWithIt()
+    {
+        await using (var transaction = await Context.Database.BeginTransactionAsync())
+        {
+            Context.Users.Add(User.Register("first-of-two"));
+            await Context.SaveChangesAsync();
+            Context.Users.Add(User.Register("second-of-two"));
+            await Context.SaveChangesAsync();
+            Assert.That(await Context.Outbox.CountAsync(m => m.Kind == "test.post"), Is.Zero, "not before the commit");
+            await transaction.CommitAsync();
+        }
+
+        Assert.That(await Posts(), Is.EquivalentTo(TwoPosts));
+    }
+
+    [Test]
+    public async Task ARolledBackTransaction_PostsNothing()
+    {
+        await using (var transaction = await Context.Database.BeginTransactionAsync())
+        {
+            Context.Users.Add(User.Register("never-posted"));
+            await Context.SaveChangesAsync();
+            await transaction.RollbackAsync();
+        }
+
+        Assert.That(await Posts(), Is.Empty);
     }
 }

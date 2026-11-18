@@ -24,8 +24,8 @@ public class TeamServiceLockAndRaceTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
-        _service = new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
+        _service = new TeamService(_context, new ContextDatabaseLocks(_context));
     }
 
     [TearDown]
@@ -89,7 +89,7 @@ public class TeamServiceLockAndRaceTests
         var contexts = Enumerable.Range(0, 6).Select(_ => _context.NewContextLike()).ToList();
         var results = await Task.WhenAll(contexts.Select(async (ctx, i) =>
         {
-            var service = new TeamService(ctx, new OutboxDraftChannel(ctx, new ContextOutbox(ctx)), new ContextDatabaseLocks(ctx));
+            var service = new TeamService(ctx, new ContextDatabaseLocks(ctx));
             try
             {
                 await service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = i % 2 == 0 ? capA.Id : capB.Id, PersonID = player.Id }, commish.Id);

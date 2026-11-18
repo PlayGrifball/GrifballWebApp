@@ -28,8 +28,8 @@ public class TeamServiceDraftTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
-        _service = new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
+        _service = new TeamService(_context, new ContextDatabaseLocks(_context));
     }
 
     [TearDown]
@@ -424,7 +424,7 @@ public class TeamServiceDraftTests
         Assert.That(players.Single(tp => tp.UserID == p.Id).DraftRound, Is.EqualTo(1));
 
         // Team A now has more members, so B is on deck
-        var fresh = new TeamService(_context.NewContextLike(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
+        var fresh = new TeamService(_context.NewContextLike(), Substitute.For<IDatabaseLocks>());
         var onDeck = await fresh.OnDeck(season.SeasonID, CancellationToken.None);
         Assert.That(onDeck!.Captain.UserID, Is.EqualTo(capB.Id));
     }
@@ -586,9 +586,9 @@ public class TeamServiceDraftTests
         Assert.That(await _service.AreCaptainsLocked(season.SeasonID), Is.False);
 
         await _service.LockCaptains(season.SeasonID, true);
-        Assert.That(await new TeamService(_context.NewContextLike(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()).AreCaptainsLocked(season.SeasonID), Is.True);
+        Assert.That(await new TeamService(_context.NewContextLike(), Substitute.For<IDatabaseLocks>()).AreCaptainsLocked(season.SeasonID), Is.True);
 
         await _service.LockCaptains(season.SeasonID, false);
-        Assert.That(await new TeamService(_context.NewContextLike(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()).AreCaptainsLocked(season.SeasonID), Is.False);
+        Assert.That(await new TeamService(_context.NewContextLike(), Substitute.For<IDatabaseLocks>()).AreCaptainsLocked(season.SeasonID), Is.False);
     }
 }

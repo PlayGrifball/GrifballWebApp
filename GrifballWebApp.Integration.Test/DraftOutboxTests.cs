@@ -44,10 +44,10 @@ public class DraftOutboxTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
         var rest = FakeRestRequestHandler.CreateClient(out _handler);
         _outbox = new OutboxTestDriver(_context, new DiscordRestClient(rest), new DiscordOptions { DraftChannel = DraftChannel });
-        _teams = new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
+        _teams = new TeamService(_context, new ContextDatabaseLocks(_context));
 
         _season = await _context.AddSeason();
         _cap = await _context.AddUser("cap", "Cap Display");

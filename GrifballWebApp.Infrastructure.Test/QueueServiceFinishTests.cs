@@ -61,6 +61,11 @@ public class QueueServiceFinishTests : SqliteContextFixture
     /// <summary>The clock QueueService goes by: an hour into the matches, well short of the two hours that make one stale.</summary>
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(StartedAt.AddHours(1)));
 
+    /// <summary>With the app's domain events: the matches' Discord posts are queued as their changes commit.</summary>
+    protected override GrifballContext CreateContext() =>
+        new(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString)
+            .AddInterceptors(AppDomainEvents.Interceptor(() => Context)).Options);
+
     private QueueService Service() => new(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = QueueChannel, MatchPlayers = 2 }),
         new QueueRepository(Context), _discord, Context, _dataPull, new ContextOutbox(Context), _time);
 
@@ -77,6 +82,7 @@ public class QueueServiceFinishTests : SqliteContextFixture
     private async Task<MatchedMatch> SeedMatch(User home, User away, WinnerVote? homeVote = null, WinnerVote? awayVote = null)
     {
         var match = MatchedMatch.Start([home.Id], [away.Id], StartedAt);
+        ((IHasDomainEvents)match).ClearDomainEvents(); // Announced before this test
         match.AttachThread(ThreadId);
         match.PostVoteMessage(VoteMessageId);
         Context.MatchedMatches.Add(match);

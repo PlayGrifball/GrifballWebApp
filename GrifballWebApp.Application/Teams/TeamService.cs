@@ -11,12 +11,10 @@ namespace GrifballWebApp.Application.Teams;
 public class TeamService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IDraftChannel _draftChannel;
     private readonly IDatabaseLocks _locks;
 
-    public TeamService(IApplicationDbContext context, IDraftChannel draftChannel, IDatabaseLocks locks)
+    public TeamService(IApplicationDbContext context, IDatabaseLocks locks)
     {
-        _draftChannel = draftChannel;
         _locks = locks;
         _context = context;
     }
@@ -171,7 +169,6 @@ public class TeamService
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-
     }
 
     public async Task RemovePlayerFromTeam(RemovePlayerFromTeamRequestDto dto, CancellationToken ct = default)
@@ -184,12 +181,9 @@ public class TeamService
         if (team?.Undraft(dto.PersonID) is not TeamRosterResult.Done)
             throw new TeamServiceException("Player is not on this team");
 
-        await _context.SaveChangesAsync(ct);
-        // The draft channel is told with the change: the outbox sends it once committed.
-        await _draftChannel.PlayerRemovedAsync(this, dto, ct);
+        // The draft channel hears of it in the same transaction (the event's DraftDiscordPosts, before it commits)
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-
     }
 
     public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, int requestorId, CancellationToken ct = default)
@@ -239,12 +233,9 @@ public class TeamService
         // Always added at the end, or round 1 (a player on a team of the season was refused above)
         team.Draft(dto.PersonID);
 
-        await _context.SaveChangesAsync(ct);
-        // The draft channel is told with the change: the outbox sends it once committed.
-        await _draftChannel.PlayerAddedAsync(this, dto, ct);
+        // The draft channel hears of it in the same transaction (the event's DraftDiscordPosts, before it commits)
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-
     }
 
     /// <summary>The id of the team <paramref name="captainID"/> captains in the season; 0 when none.</summary>
@@ -296,12 +287,9 @@ public class TeamService
         if (result is not TeamRosterResult.Done)
             throw new TeamServiceException("Player is not on that team");
 
-        await _context.SaveChangesAsync(ct);
-        // The draft channel is told with the change: the outbox sends it once committed.
-        await _draftChannel.PlayerMovedAsync(this, dto, ct);
+        // The draft channel hears of it in the same transaction (the event's DraftDiscordPosts, before it commits)
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-
     }
 
     /// <summary>
@@ -366,12 +354,9 @@ public class TeamService
         season.LockCaptains(@lock);
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-        await _context.SaveChangesAsync(ct);
-        // The draft channel is told with the change: the outbox sends it once committed.
-        await _draftChannel.LockChangedAsync(this, seasonID, @lock, ct);
+        // The draft channel hears of it in the same transaction (the event's DraftDiscordPosts, before it commits)
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-
     }
 
     public async Task<bool> AreCaptainsLocked(int seasonID, CancellationToken ct = default)

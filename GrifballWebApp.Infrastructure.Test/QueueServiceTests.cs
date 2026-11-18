@@ -52,6 +52,11 @@ public class QueueServiceTests : SqliteContextFixture
         _options = new DiscordOptions { QueueChannel = QueueChannel, MatchPlayers = 2 };
     }
 
+    /// <summary>With the app's domain events: the matches' Discord posts are queued as their changes commit.</summary>
+    protected override GrifballContext CreateContext() =>
+        new(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString)
+            .AddInterceptors(AppDomainEvents.Interceptor(() => Context)).Options);
+
     private QueueService Service(IQueueRepository? repository = null, IDataPullService? dataPullService = null) => new(
         NullLogger<QueueService>.Instance, Options.Create(_options), repository ?? new QueueRepository(Context), _discord, Context,
         dataPullService ?? Substitute.For<IDataPullService>(), new ContextOutbox(Context));
@@ -79,6 +84,7 @@ public class QueueServiceTests : SqliteContextFixture
     private async Task<MatchedMatch> SeedActiveMatch(IEnumerable<User> home, IEnumerable<User> away, ulong? threadId = null)
     {
         var match = MatchedMatch.Start(home.Select(u => u.Id), away.Select(u => u.Id));
+        ((IHasDomainEvents)match).ClearDomainEvents(); // Made before this test: announced or not as the test sets it up
         if (threadId is { } thread)
         {
             match.AttachThread(thread);

@@ -15,7 +15,6 @@ namespace GrifballWebApp.Domain.Test;
 public class DomainEventsTests
 {
     private static readonly DateTime Open = new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly int[][] OnlyThree = [[3]];
     private static readonly int[] CaptainAndPick = [1, 4];
     private static readonly int[] FourPlayers = [1, 2, 3, 4];
 
@@ -69,22 +68,29 @@ public class DomainEventsTests
     }
 
     [Test]
-    public void Team_RaisesItsRosterChanges_WithWhoMoved_ATradeOnBothTeams()
+    public void Team_RaisesTheDraftsMoves_WhoAndWhere_ARefusedPickNothing()
     {
         var reds = Team.Drafted(5, "Reds", 1, 1);
+        reds.SetCaptain(1);
         var blues = Team.Drafted(5, "Blues", 2, 2);
-        reds.Draft(3);
+        blues.SetCaptain(2);
         Clear(reds);
         Clear(blues);
 
+        reds.Draft(3);
         var again = reds.Draft(3);
         reds.TradePick(3, blues, 1);
+        blues.Undraft(3);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(again, Is.EqualTo(TeamRosterResult.AlreadyOnTeam));
-            Assert.That(Events(reds).OfType<TeamRosterChanged>().Select(e => e.UserIDs), Is.EqualTo(OnlyThree));
-            Assert.That(Events(blues).OfType<TeamRosterChanged>().Select(e => e.UserIDs), Is.EqualTo(OnlyThree));
+            Assert.That(Events(reds), Is.EqualTo(new IDomainEvent[]
+            {
+                new PlayerDrafted(reds, 3, Round: 1, CaptainUserID: 1),
+                new PickMoved(reds, blues, 3, Round: 1, FromCaptainUserID: 1, ToCaptainUserID: 2),
+            }));
+            Assert.That(Events(blues), Is.EqualTo(new IDomainEvent[] { new PlayerUndrafted(blues, 3, CaptainUserID: 2) }));
         }
     }
 
@@ -104,7 +110,7 @@ public class DomainEventsTests
     }
 
     [Test]
-    public void SeasonMatch_RaisesItsSchedule_Result_AndCancellation()
+    public void SeasonMatch_RaisesItsSchedule_ItsDecision_ItsReopening_AScoreThatDecidesNothing_AndItsCancellation()
     {
         var match = SeasonMatch.Between(5, 1, 2, bestOf: 3);
         var created = Events(match).ToList();
@@ -112,6 +118,8 @@ public class DomainEventsTests
 
         match.ScheduleAt(Open);
         match.DecideByGames(2, 0);
+        match.Reopen();
+        match.DecideByGames(1, 0);
         match.Cancel();
 
         using (Assert.EnterMultipleScope())
@@ -119,7 +127,8 @@ public class DomainEventsTests
             Assert.That(created, Is.EqualTo(new IDomainEvent[] { new SeasonMatchCreated(match) }));
             Assert.That(Events(match), Is.EqualTo(new IDomainEvent[]
             {
-                new SeasonMatchScheduled(match), new SeasonMatchResultChanged(match), new SeasonMatchCanceled(match),
+                new SeasonMatchScheduled(match), new SeasonMatchDecided(match, SeasonMatchDecision.Games), new SeasonMatchReopened(match),
+            new SeasonMatchResultChanged(match), new SeasonMatchCanceled(match),
             }));
         }
     }
@@ -162,12 +171,12 @@ public class DomainEventsTests
     {
         var match = MatchedMatch.Start([1, 2], [3, 4], Open);
 
-        match.Cancel();
+        match.Cancel(unannounced: true);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Events(match).OfType<LateLeagueMatchStarted>().Single().UserIDs, Is.EquivalentTo(FourPlayers));
-            Assert.That(Events(match).OfType<LateLeagueMatchEnded>().Single().UserIDs, Is.EquivalentTo(FourPlayers));
+            Assert.That(Events(match).OfType<LateLeagueMatchCanceled>().Single() is { Unannounced: true } canceled && canceled.UserIDs.Order().SequenceEqual(FourPlayers), Is.True);
         }
     }
 

@@ -31,9 +31,9 @@ public class DiscordOnDeckMessagesTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
         var rest = FakeRestRequestHandler.CreateClient(out _handler);
-        _teams = new TeamService(_context, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
+        _teams = new TeamService(_context, new ContextDatabaseLocks(_context));
         _outbox = new OutboxTestDriver(_context, new DiscordInterface.Generated.DiscordRestClient(rest), new DiscordOptions { DraftChannel = DraftChannel });
     }
 

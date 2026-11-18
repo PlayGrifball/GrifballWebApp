@@ -50,7 +50,7 @@ public class QueueServiceBranchTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
         _logger = new RecordingLogger<QueueService>();
         _dataPullService = Substitute.For<IDataPullService>();
         _discordClient = Substitute.For<IDiscordRestClient>();
@@ -125,6 +125,7 @@ public class QueueServiceBranchTests
             home.Select(u => u.Id),
             away.Select(u => u.Id),
             startedAt ?? DateTime.UtcNow).Announced(threadId, threadId is null ? null : 4242);
+        ((IHasDomainEvents)match).ClearDomainEvents(); // Made before this test: announced or not as the test sets it up
         _context.MatchedMatches.Add(match);
         await _context.SaveChangesAsync();
         return match;
