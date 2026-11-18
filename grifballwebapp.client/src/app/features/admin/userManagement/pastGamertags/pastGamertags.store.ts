@@ -8,6 +8,8 @@ import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { problemText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
 import { resourceView } from '@shared/resourceView';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** Which account to look up: by its XUID, or a user's ID. */
 export interface PastGamertagsQuery {
@@ -30,7 +32,8 @@ export class PastGamertagsStore {
     stream: ({ params }) => this.api.getPastGamertags(params).pipe(nullWhenNotFound()),
   }), null);
 
-  readonly loading = this.past.isLoading;
+  /** The first load of an account (a live reload keeps it shown). */
+  readonly loading = computed(() => this.past.status() === 'loading');
   readonly failed = this.past.failed;
   /** The account (none while loading, or if it could not be loaded). */
   readonly account = this.past.value;
@@ -44,6 +47,11 @@ export class PastGamertagsStore {
   readonly adding = this._adding.asReadonly();
   private readonly _addError = signal<string | null>(null);
   readonly addError = this._addError.asReadonly();
+
+  constructor() {
+    // An account's gamertags changed (a rename seen, a row added or removed): the account shown again, in place
+    liveReload(() => this.query.value() ? [LiveTopics.staffUsers] : [], () => this.past.reload());
+  }
 
   /** Removes a manually-added row, then looks the account up again; a refusal is said in a snackbar. */
   remove(historyID: number): void {

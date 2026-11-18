@@ -11,6 +11,7 @@ import { PageMetaTitleStrategy } from './shared/pageMeta';
 import { provideRowEnterAnimation } from './shared/rowEnterAnimation';
 import { provideSnackBarDefaults } from './shared/snackBarDefaults';
 import { provideBrowserTelemetry, tracingInterceptor } from './core/telemetry/browserTracing';
+import { provideLive } from './core/live/liveReload';
 
 /** The app's providers, in the browser and (with app.config.server.ts on top) on the server. */
 export const appConfig: ApplicationConfig = {
@@ -31,6 +32,8 @@ export const appConfig: ApplicationConfig = {
       //,withPreloading(PreloadAllModules)
       //,withDebugTracing()
     ),
+    // The live updates and who is on the site, in the browser (core/live): the pages reload what changed
+    provideLive(),
     // Each page's title, description, link-preview tags and canonical URL (shared/pageMeta.ts)
     { provide: TitleStrategy, useClass: PageMetaTitleStrategy },
     // Takes over the page the server rendered rather than drawing it again, reuses the API answers

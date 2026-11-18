@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import type { ScheduleRecommendationMatchDto, ScheduleRecommendationPageDto, UnscheduledMatchDto } from '@api/models';
+import type { ScheduleRecommendationMatchDto, ScheduleRecommendationPageDto, SeasonLiveDto, UnscheduledMatchDto } from '@api/models';
 import { MatchPlannerService } from '@api/services/match-planner.service';
 import { SchedulerService } from '@api/services/scheduler.service';
 import { toApiDate } from '@shared/apiDates';
@@ -11,6 +11,8 @@ import { DateTime } from 'luxon';
 import { map, Subscription, switchMap, takeWhile, timer } from 'rxjs';
 import { parseScheduledMatch } from './scheduledMatchDto';
 import { scheduleWeeks, WeekDto } from './weekDto';
+import { liveData } from '@core/live/liveReload';
+import { seasonTopics } from '@core/live/liveTopics';
 
 /** How often a queued or running schedule recommendation is looked at again. */
 export const RECOMMEND_POLL_MS = 3000;
@@ -62,6 +64,19 @@ export class ScheduleListStore {
   readonly applicable = computed(() => this.recommendation()?.latest?.matches.filter(m => !m.decided).length ?? 0);
   readonly conflicts = computed(() => this.recommendation()?.latest?.matches.filter(m => conflictText(m) !== '').length ?? 0);
   private recommendationWatch?: Subscription;
+
+  constructor() {
+    // A match made, moved, played or rescheduled: both lists as they are now come with it
+    liveData<SeasonLiveDto>(() => seasonTopics(this.seasonID()), season => {
+      if (season.seasonID !== this.seasonID())
+        return true;
+      this._unscheduledMatches.set(season.unscheduled);
+      this._scheduledMatches.set(scheduleWeeks(season.scheduled.map(parseScheduledMatch)));
+      this.unscheduledLoaded.set(true);
+      this.scheduledLoaded.set(true);
+      return true;
+    }, () => this.reload());
+  }
 
   /** Shows a season's schedule (0: none). Nothing of the previous season's stays, nor its recommendation. */
   show(seasonID: number): void {

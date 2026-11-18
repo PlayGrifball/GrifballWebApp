@@ -4,7 +4,7 @@ describe('backendPath', () => {
   it('passes /api and /hub on without their prefix', () => {
     expect(backendPath('/api', '/api/seasons?x=1')).toBe('/seasons?x=1');
     expect(backendPath('/api', '/api')).toBe('/');
-    expect(backendPath('/hub', '/hub/TeamsHub/negotiate')).toBe('/TeamsHub/negotiate');
+    expect(backendPath('/hub', '/hub/LiveHub/negotiate')).toBe('/LiveHub/negotiate');
   });
 
   it('passes the Discord callback on as it is', () => {
@@ -16,9 +16,9 @@ describe('backendPath', () => {
     expect(backendPath('/signalr-dev', '/signalr-dev/index.html')).toBe('/signalr-dev/index.html');
     expect(backendPath('/signalr-dev', '/signalr-dev/spec.json')).toBe('/signalr-dev/spec.json');
     expect(backendPath('/signalr-dev', '/signalr-dev/_next/static/chunks/main.js')).toBe('/signalr-dev/_next/static/chunks/main.js');
-    expect(backendPath('/signalr-dev', '/signalr-dev/TeamsHub')).toBe('/TeamsHub');
-    expect(backendPath('/signalr-dev', '/signalr-dev/TeamsHub/negotiate?negotiateVersion=1')).toBe('/TeamsHub/negotiate?negotiateVersion=1');
-    expect(backendPath('/signalr-dev', '/signalr-dev/QueueHub?id=abc')).toBe('/QueueHub?id=abc');
+    expect(backendPath('/signalr-dev', '/signalr-dev/LiveHub')).toBe('/LiveHub');
+    expect(backendPath('/signalr-dev', '/signalr-dev/LiveHub/negotiate?negotiateVersion=1')).toBe('/LiveHub/negotiate?negotiateVersion=1');
+    expect(backendPath('/signalr-dev', '/signalr-dev/ChatHub?id=abc')).toBe('/ChatHub?id=abc');
     expect(backendPath('/signalr-dev', '/signalr-dev/Hubris.html')).toBe('/signalr-dev/Hubris.html');
   });
 

@@ -1,18 +1,18 @@
-// A minimal SignalR server for the hubs the pages listen on (/hub/TeamsHub, /hub/QueueHub and /hub/ChatHub, see
-// HUBS), for e2e/serve.mjs: the production server (src/server.ts) proxies /hub to the backend
-// (including the WebSocket upgrade), and without an answer there the team builder page
-// (/season/:id/draft) and the home page log a failed connection to the console on every load, which
-// fails Lighthouse's best-practices errors-in-console audit.
+// A minimal SignalR server for the hubs the pages use (/hub/LiveHub and /hub/ChatHub, see HUBS), for
+// e2e/serve.mjs: the production server (src/server.ts) proxies /hub to the backend (including the
+// WebSocket upgrade), and without an answer there every page (the live hub is the app's, one a tab)
+// logs a failed connection to the console on every load, which fails Lighthouse's best-practices
+// errors-in-console audit.
 //
-// The page only *listens* on the hub (SignalRService.addCaptain and friends): its own changes are
-// plain API calls, not hub invocations (teamBuilder.component.ts never calls hubConnection.invoke
-// or .send). The client negotiates first (core/signalr/hubLifecycle.ts), so this answers the negotiate offering
-// WebSockets, then accepts the WebSocket, completes the JSON Hub Protocol handshake and keeps the
-// connection alive with pings; nothing a Lighthouse run does needs a real
-// invocation answered. e2e/zoneless.spec.ts's SignalR test mocks the same hub at the Playwright
-// page.route/routeWebSocket level (for a test that pushes a change down it); the two can't share
-// code (this one speaks raw HTTP upgrade + WebSocket frames for a real socket, that one intercepts
-// in the browser), but they share the record separator below.
+// The pages' own changes are plain API calls; on the live hub the tab only says what it watches and
+// which page it shows (LiveService: Watch, Unwatch and Viewing), and waits for those answers, so
+// liveHubReplies answers them (no topic refused; a site of one guest). The client negotiates first
+// (core/signalr/hubLifecycle.ts), so this answers the negotiate offering WebSockets, then accepts the
+// WebSocket, completes the JSON Hub Protocol handshake and keeps the connection alive with pings.
+// e2e/zoneless.spec.ts's live test mocks the same hub at the Playwright page.route/routeWebSocket
+// level (for a test that pushes a change down it); the two can't share the transport (this one
+// speaks raw HTTP upgrade + WebSocket frames for a real socket, that one intercepts in the browser),
+// but they share the record separator, the negotiate and the invocation answers below.
 import { createHash, randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type { Socket } from 'node:net';
@@ -24,9 +24,40 @@ const WEBSOCKET_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 // SignalR's default server timeout is 30s without a message; ping well inside that.
 const PING_INTERVAL_MS = 10_000;
 
-/** The hubs answered here: the Teams hub, and the queue hub the home page's queue panel listens on
- * (LateLeagueQueueComponent: it too only listens, and without an answer it logs a failed connection). */
-const HUBS = new Set(['/TeamsHub', '/QueueHub', '/ChatHub']);
+/** The hubs answered here: the live hub (every page's live updates, LiveService) and the chat hub. */
+const HUBS = new Set(['/LiveHub', '/ChatHub']);
+
+/** Who is on the site, as Viewing answers it: one guest, on the home page. */
+export const PRESENCE = { online: 1, members: 0, guests: 1, pages: [{ path: '/', guests: 1, members: [] }] };
+
+/**
+ * The answers to what the client sent (`text`: one or more JSON Hub Protocol messages, each ending in RS): a
+ * completion for each live hub invocation the client waits on (Watch: no topic refused; Unwatch; Viewing: PRESENCE),
+ * each ending in RS. Anything else (pings, the chat hub's calls) gets none.
+ */
+export function liveHubReplies(text: string): string[] {
+  const replies: string[] = [];
+  for (const raw of text.split(RS)) {
+    if (!raw.trim())
+      continue;
+    let message: { type?: number, invocationId?: string, target?: string };
+    try {
+      message = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    if (message.type !== 1 || message.invocationId === undefined)
+      continue;
+    const id = message.invocationId;
+    if (message.target === 'Watch')
+      replies.push(JSON.stringify({ type: 3, invocationId: id, result: [] }) + RS);
+    else if (message.target === 'Unwatch')
+      replies.push(JSON.stringify({ type: 3, invocationId: id }) + RS);
+    else if (message.target === 'Viewing')
+      replies.push(JSON.stringify({ type: 3, invocationId: id, result: PRESENCE }) + RS);
+  }
+  return replies;
+}
 
 /** Whether `req` is one of HUBS' WebSocket upgrade, as the mock backend sees it (/hub stripped by the
  * proxy, see src/server.ts's toBackend). */
@@ -34,7 +65,7 @@ export function isHubUpgrade(req: IncomingMessage): boolean {
   return HUBS.has((req.url ?? '').split('?')[0]);
 }
 
-/** Whether `req` is one of HUBS' negotiate requests (POST /TeamsHub/negotiate?negotiateVersion=1), as the mock backend sees it. */
+/** Whether `req` is one of HUBS' negotiate requests (POST /LiveHub/negotiate?negotiateVersion=1), as the mock backend sees it. */
 export function isHubNegotiate(req: IncomingMessage): boolean {
   const path = (req.url ?? '').split('?')[0];
   return req.method === 'POST' && path.endsWith('/negotiate') && HUBS.has(path.slice(0, -'/negotiate'.length));
@@ -51,8 +82,8 @@ export function negotiateResponse(): string {
 
 /**
  * Completes the WebSocket handshake for `req`/`socket` and runs the JSON Hub Protocol on it: accepts
- * the client's handshake ({}), answers pings and pings back, and otherwise ignores every message (no
- * invocation the team builder sends needs an answer; see the module comment).
+ * the client's handshake ({}), answers pings and pings back, and answers the live hub's invocations
+ * (liveHubReplies); every other message is ignored.
  */
 export function handleHubUpgrade(req: IncomingMessage, socket: Socket): void {
   const key = req.headers['sec-websocket-key'];
@@ -95,13 +126,18 @@ export function handleHubUpgrade(req: IncomingMessage, socket: Socket): void {
         sendFrame(socket, 0xA, frame.payload); // pong
         continue;
       }
-      if (frame.opcode === 0x1 && !handshook) {
+      if (frame.opcode !== 0x1)
+        continue;
+      let text = frame.payload.toString('utf8');
+      if (!handshook) {
         // The JSON Hub Protocol's own handshake request ({"protocol":"json","version":1}<RS>): an
-        // empty object accepts it, same as the real hub.
+        // empty object accepts it, same as the real hub. Messages may follow it in the same frame.
         handshook = true;
         sendText(socket, `{}${RS}`);
+        text = text.slice(text.indexOf(RS) + 1);
       }
-      // Any later message is an invocation; nothing the page sends needs one answered (module comment).
+      for (const reply of liveHubReplies(text))
+        sendText(socket, reply);
     }
   });
 }

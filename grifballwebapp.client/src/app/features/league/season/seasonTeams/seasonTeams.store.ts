@@ -5,6 +5,8 @@ import type { SeasonSummaryDto, SeasonTeamDto } from '@api/models';
 import { SeasonService } from '@api/services/season.service';
 import { catchError, EMPTY, merge, Subject, switchMap, tap } from 'rxjs';
 import { SeasonSummaryService } from '../seasonSummary';
+import { liveReload } from '@core/live/liveReload';
+import { seasonTopics } from '@core/live/liveTopics';
 
 /** A season's teams with their rosters, and its summary. One per page (the component provides it). */
 @Injectable()
@@ -48,6 +50,8 @@ export class SeasonTeamsStore {
       )),
       takeUntilDestroyed(),
     ).subscribe();
+    // A team formed, renamed or its roster changed: the season's teams again, in place
+    liveReload(() => seasonTopics(this.seasonID()), () => this.load.next(this.seasonID()));
   }
 
   /** Loads a season, forgetting the one shown before so none of it is left on the new season's page. */

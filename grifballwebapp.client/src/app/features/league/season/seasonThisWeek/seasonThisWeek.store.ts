@@ -1,10 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import type { SeasonLiveDto } from '@api/models';
 import { MatchPlannerService } from '@api/services/match-planner.service';
 import { StoreInput } from '@shared/storeInput';
 import { map } from 'rxjs';
 import { parseScheduledMatch } from '../scheduleList/scheduledMatchDto';
 import { resourceView } from '@shared/resourceView';
+import { liveData } from '@core/live/liveReload';
+import { seasonTopics } from '@core/live/liveTopics';
 
 /** A season's scheduled matches, for its "This week" cards. One per panel (the component provides it). */
 @Injectable()
@@ -21,4 +24,13 @@ export class SeasonThisWeekStore {
   }), []);
   /** The season's scheduled matches; none for 0, or when they can't be read. */
   readonly matches = this.schedule.value;
+
+  constructor() {
+    // A match of the season scheduled, played or changed: its scheduled matches as they are now come with it
+    liveData<SeasonLiveDto>(() => seasonTopics(this.seasonID.value()), season => {
+      if (season.seasonID === this.seasonID.value())
+        this.schedule.set(season.scheduled.map(parseScheduledMatch));
+      return true;
+    }, () => this.schedule.reload());
+  }
 }

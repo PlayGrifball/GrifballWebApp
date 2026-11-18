@@ -3,6 +3,8 @@ import type { CommissionerDashboardDto } from '@api/models';
 import { CommissionerDashboardService } from '@api/services/commissioner-dashboard.service';
 import { RescheduleService } from '@api/services/reschedule.service';
 import { AppLog } from '@core/telemetry/appLog';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** The commissioner dashboard's data (reschedule requests, overdue matches), and making a request's Discord thread. One per page (the component provides it). */
 @Injectable()
@@ -18,8 +20,15 @@ export class CommissionerDashboardStore {
   private readonly _error = signal<string | null>(null);
   readonly error = this._error.asReadonly();
 
+  constructor() {
+    // A reschedule asked for or decided, a match played: the dashboard again, in place
+    liveReload(() => [LiveTopics.staffReschedules, LiveTopics.seasons], () => this.load());
+  }
+
+  /** Loads the dashboard (again): loading only while nothing is shown, so a reload keeps it shown. */
   load(): void {
-    this._loading.set(true);
+    if (!this._dashboardData())
+      this._loading.set(true);
     this._error.set(null);
     this.dashboard.getDashboardData().subscribe({
       next: data => {

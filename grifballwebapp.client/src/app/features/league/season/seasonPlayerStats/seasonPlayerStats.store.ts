@@ -1,8 +1,11 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import type { SeasonLiveDto } from '@api/models';
 import { SeasonService } from '@api/services/season.service';
 import { StoreInput } from '@shared/storeInput';
 import { resourceView } from '@shared/resourceView';
+import { liveData } from '@core/live/liveReload';
+import { seasonTopics } from '@core/live/liveTopics';
 
 /** A season's player stats, or one team's. One per table (the component provides it). */
 @Injectable()
@@ -25,5 +28,17 @@ export class SeasonPlayerStatsStore {
 
   /** The rows as the server sent them (none while loading, or if they could not be loaded). */
   readonly stats = this.resource.value;
-  readonly loaded = computed(() => !this.resource.isLoading());
+  readonly loaded = computed(() => this.resource.status() !== 'loading');
+
+  constructor() {
+    // A game or a stats sheet of the season: the season's stats as they are now come with it; a team's (its page) are read
+    liveData<SeasonLiveDto>(() => seasonTopics(this.seasonID.value()), season => {
+      if (season.seasonID !== this.seasonID.value())
+        return true;
+      if (this.teamID.value() != null)
+        return false;
+      this.resource.set(season.playerStats);
+      return true;
+    }, () => this.resource.reload());
+  }
 }

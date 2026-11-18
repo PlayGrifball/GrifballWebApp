@@ -1,13 +1,15 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { SiteFooterStore } from './siteFooter.store';
+import { WhosOnlineComponent } from './whosOnline.component';
 
-/** The page footer: which build is running, linked to the source. */
+/** The page footer: who is on the site, live, and which build is running, linked to the source. */
 @Component({
   selector: 'app-site-footer',
-  imports: [DatePipe],
+  imports: [DatePipe, WhosOnlineComponent],
   template: `
     <footer class="site-footer">
+      <app-whos-online />
       <a class="site-footer__build" href="https://github.com/PlayGrifball/GrifballWebApp">
         BUILD {{commitDate() | date:'short'}} {{commitHash()}}
       </a>

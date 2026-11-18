@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import {
-  HttpClient, HttpRequest, HttpResponse, HubConnectionBuilder, HubConnectionState, IHttpConnectionOptions,
+  HttpClient, HttpRequest, HttpResponse, HubConnectionBuilder, IHttpConnectionOptions,
 } from '@microsoft/signalr';
-import { SignalRService } from './signalR.service';
+import { LiveService } from './live.service';
+import { LiveTopics } from './liveTopics';
 
 /** The record separator ending every JSON hub protocol message. */
 const RS = '\x1e';
@@ -11,15 +12,23 @@ const RS = '\x1e';
  * What the server side of ASP.NET Core SignalR says to the client over a WebSocket or long polling: the JSON hub
  * protocol (handshake, invocations), and for long polling the HTTP mechanics around it (a connect poll, then a
  * background one held until there is data, and the handshake and invocations the client sends as POSTs). It runs the
- * real @microsoft/signalr client through SignalRService, with the service's own options, so a client upgrade that
- * changes the wire protocol or how the options are used fails here. The other spec (signalR.service.spec.ts) replaces
- * the connection with a stub.
+ * real @microsoft/signalr client through LiveService, with the service's own options, so a client upgrade that
+ * changes the wire protocol or how the options are used fails here. It answers the client's invocations as LiveHub
+ * does: Watch with none refused, Viewing with who is on the site.
  */
-class FakeTeamsHub {
+class FakeLiveHub {
   readonly httpRequests: HttpRequest[] = [];
   readonly sockets: FakeSocket[] = [];
   readonly handshakes: unknown[] = [];
   readonly fromClient: { type: number }[] = [];
+
+  /** The completion LiveHub sends for an invocation the client waits on (with an ID): Watch refuses none, Viewing says who is on. */
+  completion(message: { type: number, target?: string, invocationId?: string }): string | null {
+    if (message.type !== 1 || message.invocationId === undefined)
+      return null;
+    const result = message.target === 'Watch' ? [] : message.target === 'Viewing' ? SNAPSHOT : undefined;
+    return JSON.stringify({ type: 3, invocationId: message.invocationId, result }) + RS;
+  }
 
   /** The transports the negotiate offers, as the server's would (WebSockets first). */
   constructor(readonly offered: string[] = ['WebSockets', 'ServerSentEvents', 'LongPolling']) {}
@@ -36,7 +45,7 @@ class FakeTeamsHub {
     private pendingPoll: ((response: HttpResponse) => void) | null = null;
     private queued: string | null = null;
     private handshaken = false;
-    constructor(private readonly hub: FakeTeamsHub) { super(); }
+    constructor(private readonly hub: FakeLiveHub) { super(); }
     override send(request: HttpRequest): Promise<HttpResponse> {
       this.hub.httpRequests.push(request);
       if (request.url?.includes('/negotiate'))
@@ -52,7 +61,11 @@ class FakeTeamsHub {
             this.hub.handshakes.push(JSON.parse(frame));
             this.deliver('{}' + RS);
           } else {
-            this.hub.fromClient.push(JSON.parse(frame));
+            const message = JSON.parse(frame);
+            this.hub.fromClient.push(message);
+            const completion = this.hub.completion(message);
+            if (completion)
+              this.deliver(completion);
           }
         }
         return Promise.resolve(new HttpResponse(204, 'No Content', ''));
@@ -125,7 +138,7 @@ class FakeSocket {
   onclose: ((event: { code: number, reason: string, wasClean: boolean }) => void) | null = null;
   onerror: ((event: unknown) => void) | null = null;
 
-  constructor(private readonly hub: FakeTeamsHub, readonly url: string) {
+  constructor(private readonly hub: FakeLiveHub, readonly url: string) {
     hub.sockets.push(this);
     setTimeout(() => {
       this.readyState = FakeSocket.OPEN;
@@ -140,7 +153,11 @@ class FakeSocket {
         this.handshaken = true;
         this.deliver('{}' + RS);
       } else {
-        this.hub.fromClient.push(JSON.parse(frame));
+        const message = JSON.parse(frame);
+        this.hub.fromClient.push(message);
+        const completion = this.hub.completion(message);
+        if (completion)
+          this.deliver(completion);
       }
     }
   }
@@ -167,14 +184,17 @@ async function waitFor(condition: () => boolean, what: string, timeoutMs = 5000)
   }
 }
 
+/** Who is on the site, as the hub answers Viewing and sends it. */
+const SNAPSHOT = { online: 1, members: 0, guests: 1, pages: [{ path: '/seasons', guests: 1, members: [] }] };
+
 /**
  * A fake hub for each test of the describe it is called in (offering these transports), and the service connected to
- * it with its own URL and options, stopped after the test.
+ * it with its own URL and options. The test's injector going stops the connection (hubLifecycle).
  */
-function useFakeHub(offered?: ConstructorParameters<typeof FakeTeamsHub>[0]): { hub: FakeTeamsHub; service: SignalRService } {
-  const current = {} as { hub: FakeTeamsHub; service: SignalRService };
+function useFakeHub(offered?: ConstructorParameters<typeof FakeLiveHub>[0]): { hub: FakeLiveHub; service: LiveService } {
+  const current = {} as { hub: FakeLiveHub; service: LiveService };
   beforeEach(() => {
-    const hub = new FakeTeamsHub(offered);
+    const hub = new FakeLiveHub(offered);
     const withUrl = HubConnectionBuilder.prototype.withUrl as (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) => HubConnectionBuilder;
     spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callFake(function (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) {
       // The service's own URL and options (its transports), over the fake server.
@@ -187,71 +207,110 @@ function useFakeHub(offered?: ConstructorParameters<typeof FakeTeamsHub>[0]): { 
     spyOn(console, 'error');
 
     current.hub = hub;
-    current.service = TestBed.inject(SignalRService);
-  });
-
-  afterEach(async () => {
-    await current.service.hubConnection.stop();
+    current.service = TestBed.inject(LiveService);
   });
   return current;
 }
 
-describe('SignalRService over the SignalR wire protocol', () => {
+/** The hub methods the client called, with their arguments. */
+const called = (hub: FakeLiveHub) => hub.fromClient
+  .filter((m): m is { type: number, target: string, arguments: unknown[] } => m.type === 1)
+  .map(m => [m.target, ...m.arguments]);
+
+describe('LiveService over the SignalR wire protocol', () => {
   const fake = useFakeHub();
-  let hub: FakeTeamsHub;
-  let service: SignalRService;
+  let hub: FakeLiveHub;
+  let service: LiveService;
   beforeEach(() => {
     hub = fake.hub;
     service = fake.service;
   });
 
-  const connected = () => service.hubConnection.state === HubConnectionState.Connected && (hub.latest?.handshaken ?? false);
-
   it('negotiates, then opens the WebSocket by its connection token and completes the JSON handshake', async () => {
-    await waitFor(connected, 'the connection');
+    service.connect();
+    await waitFor(() => hub.latest?.handshaken ?? false, 'the connection');
 
-    expect(hub.httpRequests.map(r => [r.method, new URL(r.url!, location.href).pathname])).toEqual([['POST', '/hub/TeamsHub/negotiate']]);
+    expect(hub.httpRequests.map(r => [r.method, new URL(r.url!, location.href).pathname])).toEqual([['POST', '/hub/LiveHub/negotiate']]);
     const url = new URL(hub.latest!.url);
     expect(url.protocol).toMatch(/^wss?:$/);
-    expect(url.pathname).toBe('/hub/TeamsHub');
+    expect(url.pathname).toBe('/hub/LiveHub');
     // The negotiate's connection token, and no access token: the session cookie goes with it (same origin)
     expect(url.searchParams.get('id')).toBe('token');
     expect(url.searchParams.has('access_token')).toBeFalse();
     expect(hub.handshakes).toContain({ protocol: 'json', version: 1 });
   });
 
-  it('delivers the hub\'s invocations to the service\'s callbacks', async () => {
-    const locked: number[] = [];
-    const unlocked: number[] = [];
-    const captains: unknown[] = [];
-    service.lockCaptains(seasonID => locked.push(seasonID));
-    service.unlockCaptains(seasonID => unlocked.push(seasonID));
-    service.addCaptain(dto => captains.push(dto));
-    await waitFor(connected, 'the connection');
+  it('watches the topics watched before it connected, says the page, and takes who is on the site', async () => {
+    service.watch(['season:5', 'queue:me'], () => undefined);
+    service.connect();
 
-    hub.invoke('LockCaptains', 7);
-    hub.invoke('UnlockCaptains', 8);
-    hub.invoke('AddCaptain', { seasonID: 7, personID: 42, teamName: "Captain's Team", captainName: 'Captain', orderNumber: 1 });
-    await waitFor(() => locked.length + unlocked.length + captains.length === 3, 'the invocations');
+    await waitFor(() => service.presence() !== null, 'the page said');
 
-    expect(locked).toEqual([7]);
-    expect(unlocked).toEqual([8]);
-    expect(captains).toEqual([{ seasonID: 7, personID: 42, teamName: "Captain's Team", captainName: 'Captain', orderNumber: 1 }]);
+    expect(called(hub)).toEqual([['Watch', ['season:5']], ['Viewing', '/']]);
+    expect(service.presence()).toEqual(SNAPSHOT);
+  });
+
+  it('calls the watchers of the topic that changed alone, and the viewer\'s own queue place without watching it', async () => {
+    const changed: string[] = [];
+    service.watch(['season:5'], () => changed.push('season'));
+    service.watch(['queue'], () => changed.push('queue'));
+    service.watch([LiveTopics.myQueue], () => changed.push('mine'));
+    service.connect();
+    await waitFor(() => service.presence() !== null, 'the connection');
+
+    hub.invoke('Changed', 'season:5');
+    hub.invoke('Changed', 'queue:me');
+    await waitFor(() => changed.length === 2, 'the changes');
+
+    expect(changed).toEqual(['season', 'mine']);
+  });
+
+  it('hands a topic\'s data, parsed once, to its watchers', async () => {
+    const got: unknown[] = [];
+    service.watch(['queue'], message => got.push(message));
+    service.watch(['queue'], message => got.push(message));
+    service.connect();
+    await waitFor(() => service.presence() !== null, 'the connection');
+
+    hub.invoke('Snapshot', 'queue', '{"count":2}');
+    await waitFor(() => got.length === 2, 'the data');
+
+    expect(got).toEqual([{ topic: 'queue', data: { count: 2 } }, { topic: 'queue', data: { count: 2 } }]);
+    expect((got[0] as { data: unknown }).data).toBe((got[1] as { data: unknown }).data);
+  });
+
+  it('stops watching a topic its last watcher left', async () => {
+    service.connect();
+    await waitFor(() => service.presence() !== null, 'the connection');
+
+    const first = service.watch(['season:5'], () => undefined);
+    const second = service.watch(['season:5'], () => undefined);
+    first();
+    second();
+    await waitFor(() => called(hub).some(([target]) => target === 'Unwatch'), 'the unwatch');
+
+    expect(called(hub).filter(([target]) => target === 'Watch' || target === 'Unwatch')).toEqual([['Watch', ['season:5']], ['Unwatch', ['season:5']]]);
+  });
+
+  it('takes who is on the site whenever the hub sends it', async () => {
+    service.connect();
+    await waitFor(() => service.presence() !== null, 'the connection');
+
+    hub.invoke('Presence', { ...SNAPSHOT, online: 3 });
+    await waitFor(() => service.presence()?.online === 3, 'the snapshot');
+
+    expect(service.presence()?.online).toBe(3);
   });
 });
 
-describe('SignalRService where WebSockets don\'t get through', () => {
+describe('LiveService where WebSockets don\'t get through', () => {
   const fake = useFakeHub(['LongPolling']);
-  let hub: FakeTeamsHub;
-  let service: SignalRService;
-  beforeEach(() => {
-    hub = fake.hub;
-    service = fake.service;
-  });
 
   it('falls back to long polling when the server offers no WebSockets, completes the handshake and delivers over it', async () => {
-    const locked: number[] = [];
-    service.lockCaptains(seasonID => locked.push(seasonID));
+    const { hub, service } = fake;
+    const changed: string[] = [];
+    service.watch(['seasons'], () => changed.push('seasons'));
+    service.connect();
 
     // The negotiate, then the connect poll by the connection's token: no WebSocket at all.
     await waitFor(() => hub.httpRequests.some(r => r.method === 'GET'), 'a poll');
@@ -259,11 +318,11 @@ describe('SignalRService where WebSockets don\'t get through', () => {
     expect(new URL(poll.url!, location.href).searchParams.get('id')).toBe('token');
     expect(hub.sockets).toEqual([]);
 
-    await waitFor(() => service.hubConnection.state === HubConnectionState.Connected, 'the connection');
+    await waitFor(() => service.presence() !== null, 'the connection');
     expect(hub.handshakes).toContain({ protocol: 'json', version: 1 });
 
-    hub.invoke('LockCaptains', 9);
-    await waitFor(() => locked.length === 1, 'the invocation, delivered over the poll');
-    expect(locked).toEqual([9]);
+    hub.invoke('Changed', 'seasons');
+    await waitFor(() => changed.length === 1, 'the invocation, delivered over the poll');
+    expect(changed).toEqual(['seasons']);
   });
 });

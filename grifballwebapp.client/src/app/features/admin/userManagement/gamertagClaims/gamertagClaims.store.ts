@@ -8,6 +8,8 @@ import { problemText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
 import { Observable } from 'rxjs';
 import { resourceView } from '@shared/resourceView';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 type Decision = 'approve' | 'reject';
 
@@ -62,7 +64,14 @@ export class GamertagClaimsStore {
   }), []);
   readonly duplicateRows = this.duplicates.value;
   readonly duplicatesLoaded = this.duplicates.hasValue;
-  readonly duplicatesLoading = this.duplicates.isLoading;
+  /** The first look for duplicates (a live reload keeps them shown). */
+  readonly duplicatesLoading = computed(() => this.duplicates.status() === 'loading');
+
+  constructor() {
+    // A claim made or decided: the claims again; a merge or a dismissal: the duplicates shown again, in place
+    liveReload(() => [LiveTopics.staffClaims], () => this.claims.reload());
+    liveReload(() => this.duplicatesShown() ? [LiveTopics.staffMerges] : [], () => this.duplicates.reload());
+  }
   readonly duplicatesFailed = this.duplicates.failed;
   /** The pair being merged or dismissed: its buttons wait for the answer. */
   private readonly _actingPair = signal<string | null>(null);

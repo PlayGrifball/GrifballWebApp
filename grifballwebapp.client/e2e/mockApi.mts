@@ -570,7 +570,7 @@ const telemetryMetrics = {
     { route: 'GET /api/seasons/{seasonID}/summary', requests: 4210, errors: 0, p95Ms: 42.5 },
     { route: 'GET /api/season-matches/{seasonMatchID}', requests: 1830, errors: 3, p95Ms: 210 },
     { route: 'POST /api/identity/login', requests: 96, errors: 0, p95Ms: 1240 },
-    { route: 'GET /hub/TeamsHub', requests: 12, errors: 0, p95Ms: null },
+    { route: 'GET /hub/LiveHub', requests: 12, errors: 0, p95Ms: null },
   ],
 };
 const logLine = (timestamp: string, level: string, message: string, source: string, attributes: Record<string, string> = {}, traceId: string | null = null) => ({
@@ -649,7 +649,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
               { seasonID: 12, name: 'Autumn Brawl', start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z', eventType: 'Season' },
               { seasonID: 13, name: 'Winter Campaign', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z', eventType: 'Season' },
             ]),
-    // The home page's matchmaking queue panel (its live updates come over hub/QueueHub, which hubMock.mts answers)
+    // The home page's matchmaking queue panel (its live updates come over hub/LiveHub, which hubMock.mts answers)
     '/api/queue': answer('getQueueStatus', { count: 6, open: true, signedIn: role !== 'anon', hasGamertag: role !== 'anon', inQueue: false, inMatch: false }),
     // The season list: the home page's past seasons and the seasons page (the backfilled season 5 among them)
     '/api/seasons': answer('getSeasonList', {

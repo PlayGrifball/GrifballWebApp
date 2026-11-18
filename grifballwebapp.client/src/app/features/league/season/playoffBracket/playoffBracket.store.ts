@@ -5,6 +5,8 @@ import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import type { ViewerData } from 'brackets-viewer';
 import { AppLog } from '@core/telemetry/appLog';
+import { liveReload } from '@core/live/liveReload';
+import { seasonTopics } from '@core/live/liveTopics';
 
 /** A season's playoff bracket, as brackets-viewer draws it. One per bracket (the component provides it). */
 @Injectable()
@@ -36,6 +38,8 @@ export class PlayoffBracketStore {
           this.reload();
       });
     });
+    // A result sent on, a team placed, a BYE: the bracket again, in place
+    liveReload(() => seasonTopics(this.seasonID.value()), () => this.reload());
   }
 
   /** Loads the bracket again (after it was created or reseeded). */

@@ -7338,13 +7338,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -7420,13 +7413,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -7494,13 +7480,6 @@
             "schema": {
               "type": "integer",
               "format": "int32"
-            }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -7570,13 +7549,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -7644,13 +7616,6 @@
             "schema": {
               "type": "integer",
               "format": "int32"
-            }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -7720,13 +7685,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -7795,13 +7753,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -7846,13 +7797,6 @@
             "schema": {
               "type": "integer",
               "format": "int32"
-            }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -9791,42 +9735,6 @@
         },
         "additionalProperties": false
       },
-      "CaptainAddedDto": {
-        "required": [
-          "captainName",
-          "orderNumber",
-          "personID",
-          "seasonID",
-          "teamID",
-          "teamName"
-        ],
-        "type": "object",
-        "properties": {
-          "seasonID": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "personID": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "teamID": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "teamName": {
-            "type": "string"
-          },
-          "captainName": {
-            "type": "string"
-          },
-          "orderNumber": {
-            "type": "integer",
-            "format": "int32"
-          }
-        },
-        "additionalProperties": false
-      },
       "CaptainAddedResponseDto": {
         "required": [
           "teamID",
@@ -10571,6 +10479,38 @@
         },
         "additionalProperties": false,
         "description": "One team a player was on in a season (a deployment), newest season first on the profile."
+      },
+      "DraftLiveDto": {
+        "required": [
+          "captainsLocked",
+          "pool",
+          "seasonID",
+          "teams"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamResponseDto"
+            }
+          },
+          "pool": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamsPlayerDto"
+            }
+          },
+          "captainsLocked": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season's draft as its page shows it: what its three reads give (the teams, the player pool, the lock)."
       },
       "DtosMatchDto": {
         "required": [
@@ -14552,6 +14492,81 @@
         },
         "additionalProperties": false
       },
+      "PresenceMember": {
+        "required": [
+          "name",
+          "userID"
+        ],
+        "type": "object",
+        "properties": {
+          "userID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A member on a page: the name the site shows for them (never their login name; null when they have none)."
+      },
+      "PresencePage": {
+        "required": [
+          "guests",
+          "members",
+          "path"
+        ],
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "guests": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PresenceMember"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A page and who is on it: the members by name, and how many guests."
+      },
+      "PresenceSnapshot": {
+        "required": [
+          "guests",
+          "members",
+          "online",
+          "pages"
+        ],
+        "type": "object",
+        "properties": {
+          "online": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "members": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "guests": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PresencePage"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "Who is on the site now, as the footer shows it: how many (members, each counted once however many tabs they have open,\nand guests, a tab each), and the pages they are on, the busiest first, with the members on each by name. A page is its\nroute; a staff page, or the page of a season not announced yet, is the staff area alone (GrifballWebApp.Application.Live.PresenceSnapshot.StaffArea)."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -14736,6 +14751,20 @@
           }
         },
         "additionalProperties": false
+      },
+      "QueueLiveDto": {
+        "required": [
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "The matchmaking queue's size."
       },
       "QueueStatusDto": {
         "required": [
@@ -16006,6 +16035,58 @@
         "additionalProperties": false,
         "description": "A season in the season list: every season that has started, imported or played in the app alike."
       },
+      "SeasonLiveDto": {
+        "required": [
+          "playerStats",
+          "scheduled",
+          "seasonID",
+          "standings",
+          "summary",
+          "unscheduled"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "summary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonSummaryDto"
+              }
+            ],
+            "description": "A season's page header: what it is, its champions, and how much of each kind of data it has, so the page can say\nwhat is missing (a season backfilled from the historical archive has teams and stats but no signups or schedule;\none with Waypoint matches has those too).",
+            "nullable": true
+          },
+          "standings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamStandingDto"
+            }
+          },
+          "scheduled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduledMatchDto"
+            }
+          },
+          "unscheduled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnscheduledMatchDto"
+            }
+          },
+          "playerStats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonPlayerStatDto"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season's page as it shows it: its summary (header, champions, awards), standings, scheduled and unscheduled matches\n(this week's are the scheduled ones), and its players' stats, the season's whole. Its bracket is read on its own."
+      },
       "SeasonMatchDecisionDto": {
         "enum": [
           "Games",
@@ -16747,6 +16828,22 @@
           }
         },
         "additionalProperties": false
+      },
+      "SeasonsLiveDto": {
+        "required": [
+          "events"
+        ],
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "The home page's current and coming events, as its viewer may see them."
       },
       "SeedOrdering": {
         "enum": [

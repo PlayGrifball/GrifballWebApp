@@ -6,6 +6,8 @@ import { fromApiDate } from '@shared/apiDates';
 import { StoreInput } from '@shared/storeInput';
 import { DateTime } from 'luxon';
 import { map } from 'rxjs';
+import { liveReload } from '@core/live/liveReload';
+import { seasonTopics } from '@core/live/liveTopics';
 
 export interface MatchDto
 {
@@ -42,17 +44,24 @@ export class TeamStore {
   /** The matches have loaded: a backfilled or ended season without any says so. */
   private readonly _matchesLoaded = signal(false);
   readonly matchesLoaded = this._matchesLoaded.asReadonly();
+  /** Bumped by a live change: the team loaded again, in place. */
+  private readonly changes = signal(0);
 
   constructor() {
     // Another team: nothing of the previous one stays (its name would title the page), and its requests are cancelled
-    // so a late answer can't land on this one
+    // so a late answer can't land on this one. A live change loads the same team again, keeping it shown meanwhile.
+    let shown: string | undefined;
     effect(onCleanup => {
       const teamID = this.teamID.value();
-      this.seasonID.value();
+      const seasonID = this.seasonID.value();
+      this.changes();
       if (teamID === undefined)
         return;
-      this._team.set(null);
-      this._matchesLoaded.set(false);
+      if (shown !== `${teamID}:${seasonID}`) {
+        shown = `${teamID}:${seasonID}`;
+        this._team.set(null);
+        this._matchesLoaded.set(false);
+      }
       const team = this.api.team({ teamID }).pipe(nullWhenNotFound()).subscribe({
         next: v => this._team.set(v),
       });
@@ -67,5 +76,7 @@ export class TeamStore {
         matches.unsubscribe();
       });
     });
+    // A result, a roster change, a rename of the season: the team again
+    liveReload(() => seasonTopics(this.seasonID.value()), () => this.changes.update(n => n + 1));
   }
 }
