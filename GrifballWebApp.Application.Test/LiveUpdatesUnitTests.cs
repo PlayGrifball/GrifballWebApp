@@ -31,6 +31,8 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     private static readonly string[] HandlersInOrder = ["failing", "own", "every", "failing", "own", "every"];
     private static readonly string[] MembersByName = ["amy", "Zed"];
     private static readonly string[] ATeam = ["season:5", "draft:5"];
+    private static readonly string[] OnlySeasons = ["seasons"];
+    private static readonly string[] PushedTopics = ["seasons", "season:1", "draft:1", "queue"];
     private FakeTimeProvider _time = null!;
 
     [SetUp]
@@ -202,6 +204,35 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
             Assert.That(snapshot.Pages.Select(p => (p.Path, p.Guests, p.Members.Count)), Is.EqualTo(new[] { ("/", 3, 0), ("/leaderboards", 1, 1), ("/seasons", 0, 2) }));
             Assert.That(snapshot.Pages[2].Members.Select(m => m.Name), Is.EqualTo(MembersByName));
             Assert.That((PresenceSnapshot.Of([]).Online, PresenceSnapshot.Of([]).Pages.Count), Is.EqualTo((0, 0)));
+        }
+    }
+
+    [TestCase("draft:5", ExpectedResult = true)]
+    [TestCase("season:5", ExpectedResult = true)]
+    [TestCase("seasons", ExpectedResult = true)]
+    [TestCase("queue", ExpectedResult = true)]
+    [TestCase("queue:me", ExpectedResult = false)]
+    [TestCase("player:5", ExpectedResult = false)]
+    [TestCase("seasonmatch:5", ExpectedResult = false)]
+    [TestCase("staff:users", ExpectedResult = false)]
+    public bool TheTopicsManyWatch_ComeWithTheirData(string topic) => LiveSnapshots.Pushes(topic);
+
+    [Test]
+    public void OnlyTheHomePagesData_DependsOnTheViewer()
+        => Assert.That(PushedTopics.Where(LiveSnapshots.DependsOnViewer), Is.EqualTo(OnlySeasons));
+
+    [Test]
+    public async Task TheQueuesData_IsItsSize_ANoticeTopicHasNone()
+    {
+        var queue = Substitute.For<GrifballWebApp.Application.Matchmaking.IQueueRepository>();
+        queue.Count(Arg.Any<CancellationToken>()).Returns(4);
+        var snapshots = new LiveSnapshots(null!, null!, null!, null!, null!, queue);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await snapshots.For(LiveTopics.Queue, SeasonViewer.Public), Is.EqualTo(new QueueLiveDto(4)));
+            Assert.That(await snapshots.For(LiveTopics.Player(1), SeasonViewer.Public), Is.Null);
+            Assert.That(await snapshots.For("draft:x", SeasonViewer.Public), Is.Null);
         }
     }
 

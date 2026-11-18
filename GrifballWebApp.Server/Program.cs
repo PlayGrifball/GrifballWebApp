@@ -175,6 +175,11 @@ public class Program
         builder.Services.AddHostedService(provider => provider.GetRequiredService<LiveUpdates>());
         if (role.ServesApi)
         {
+            // Where the pages' connections are: what each watches, the changes to them (with the data of the topics many
+            // watch, built once here), the other processes' changes through Redis when scaled out
+            builder.Services.AddSingleton<LiveWatchers>();
+            builder.Services.AddSingleton<LiveDelivery>();
+            builder.Services.AddHostedService<LiveRelayListener>();
             builder.Services.AddScoped<PresencePages>();
             builder.Services.AddSingleton<IPresenceStore>(provider => provider.GetService<AppRedis>() is { } redis
                 ? ActivatorUtilities.CreateInstance<RedisPresenceStore>(provider, redis)

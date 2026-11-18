@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Live;
+using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using TypedSignalR.Client;
@@ -6,14 +7,15 @@ using TypedSignalR.Client;
 namespace GrifballWebApp.Server.Live;
 
 /// <summary>
-/// The site's live updates, one connection a tab: a page watches the topics of what it shows (<see cref="Watch"/>) and loads
-/// them again when told one changed (<see cref="ILiveHubClient.Changed"/>, sent by <see cref="LiveUpdates"/> once a change
-/// is committed); a player's own queue place comes to them whatever they watch. And who is on the site: each tab says which
-/// page it shows (<see cref="Viewing"/>), and every tab is sent the count and the pages, as the footer shows them
-/// (<see cref="ILiveHubClient.Presence"/>, <see cref="PresenceTracker"/>). Signed in or out; a connection is its user's
-/// (the session cookie), so the client connects again on a sign-in or out.
+/// The site's live updates, one connection a tab: a page watches the topics of what it shows (<see cref="Watch"/>, kept in
+/// <see cref="LiveWatchers"/>) and, once a change is committed (<see cref="LiveDelivery"/>), is sent the data of a topic many
+/// watch (<see cref="ILiveHubClient.Snapshot"/>) or told another changed, to load it again (<see cref="ILiveHubClient.Changed"/>);
+/// a player's own queue place comes to them whatever they watch. And who is on the site: each tab says which page it shows
+/// (<see cref="Viewing"/>), and every tab is sent the count and the pages, as the footer shows them
+/// (<see cref="ILiveHubClient.Presence"/>, <see cref="PresenceTracker"/>). Signed in or out; a connection is its user's (the
+/// session cookie), so the client connects again on a sign-in or out.
 /// </summary>
-public class LiveHub(LiveTopicAccess access, HubUser user, PresenceTracker presence, PresencePages pages) : Hub<ILiveHubClient>, ILiveHubServer
+public class LiveHub(LiveTopicAccess access, HubUser user, LiveWatchers watchers, PresenceTracker presence, PresencePages pages) : Hub<ILiveHubClient>, ILiveHubServer
 {
     public const string Path = "LiveHub";
 
@@ -48,19 +50,20 @@ public class LiveHub(LiveTopicAccess access, HubUser user, PresenceTracker prese
                 refused.Add(topic);
                 continue;
             }
-            await Groups.AddToGroupAsync(Context.ConnectionId, topic, Context.ConnectionAborted);
+            watchers.Watch(topic, Context.ConnectionId, SeasonVisibility.For(user.Roles));
             watched.Add(topic);
         }
         return refused;
     }
 
-    public async Task Unwatch(List<string> topics)
+    public Task Unwatch(List<string> topics)
     {
         foreach (var topic in topics.Distinct(StringComparer.Ordinal))
         {
             if (Watched.Remove(topic))
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, topic, Context.ConnectionAborted);
+                watchers.Unwatch(topic, Context.ConnectionId);
         }
+        return Task.CompletedTask;
     }
 
     public async Task<PresenceSnapshot> Viewing(string path)
@@ -73,6 +76,8 @@ public class LiveHub(LiveTopicAccess access, HubUser user, PresenceTracker prese
     public override Task OnDisconnectedAsync(Exception? exception)
     {
         presence.Left(Context.ConnectionId);
+        foreach (var topic in Watched)
+            watchers.Unwatch(topic, Context.ConnectionId);
         return base.OnDisconnectedAsync(exception);
     }
 }
@@ -101,6 +106,12 @@ public interface ILiveHubClient
 {
     /// <summary>What <paramref name="topic"/> names changed: a page showing it loads it again.</summary>
     Task Changed(string topic);
+
+    /// <summary>
+    /// What <paramref name="topic"/> names changed, and here it is: <paramref name="data"/>, its LiveSnapshots payload as the API
+    /// gives it (JSON: DraftLiveDto, SeasonLiveDto, SeasonsLiveDto or QueueLiveDto, by the topic), for the pages many watch.
+    /// </summary>
+    Task Snapshot(string topic, string data);
 
     /// <summary>Who is on the site now.</summary>
     Task Presence(PresenceSnapshot snapshot);

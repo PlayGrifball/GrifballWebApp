@@ -184,14 +184,14 @@ public sealed class JsonNamedQueryParametersFilter(IOptions<JsonOptions> json) :
 
 /// <summary>
 /// Adds the hubs' payloads to the document's schemas (Program.cs): what the hubs' methods take and answer and their
-/// receivers are sent, so the client's models have them too (CaptainAddedDto is only ever sent over SignalR) and the
-/// typed SignalR client (src/generated/signalr) uses the same models as the REST one.
+/// receivers are sent, and the live updates' payloads LiveHub sends as JSON (LiveSnapshots.Types), so the client's models
+/// have them too and the typed SignalR client (src/generated/signalr) uses the same models as the REST one.
 /// </summary>
 public sealed class HubSchemasDocumentFilter : IDocumentFilter
 {
     public void Apply(OpenApiDocument swaggerDoc, DocumentFilterContext context)
     {
-        foreach (var type in PayloadTypes(typeof(HubSchemasDocumentFilter).Assembly))
+        foreach (var type in PayloadTypes(typeof(HubSchemasDocumentFilter).Assembly).Concat(GrifballWebApp.Application.Live.LiveSnapshots.Types))
             context.SchemaGenerator.GenerateSchema(type, context.SchemaRepository);
     }
 

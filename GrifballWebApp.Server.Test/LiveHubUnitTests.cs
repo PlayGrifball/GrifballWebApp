@@ -37,106 +37,165 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     private PresenceTracker Tracker(IPresenceStore? store = null)
         => new(store ?? new MemoryPresenceStore(), _hubContext, Substitute.For<IServiceScopeFactory>(), TimeProvider.System, NullLogger<PresenceTracker>.Instance);
 
-    private (LiveHub Hub, IGroupManager Groups) Hub(params string[] roles)
+    private readonly LiveWatchers _watchers = new();
+
+    private LiveHub Hub(params string[] roles)
     {
         var user = new HubUser();
         user.Set(new HubUserState(roles.Length == 0 ? null : 1, roles));
         var context = Substitute.For<HubCallerContext>();
         context.ConnectionId.Returns("conn");
         context.Items.Returns(new Dictionary<object, object?>());
-        var groups = Substitute.For<IGroupManager>();
         var visibility = new SeasonVisibility(Db);
-        var hub = new LiveHub(new LiveTopicAccess(visibility, Db), user, Tracker(), new PresencePages(visibility, Db)) { Context = context, Groups = groups };
-        return (hub, groups);
+        return new LiveHub(new LiveTopicAccess(visibility, Db), user, _watchers, Tracker(), new PresencePages(visibility, Db)) { Context = context };
     }
 
+    private string[] Watching(string topic) => [.. _watchers.Of(topic).Select(w => $"{w.ConnectionID}:{w.Viewer}")];
+
     [Test]
-    public async Task Watch_JoinsTheTopicsTheCallerMaySee_AndNamesTheRest()
+    public async Task Watch_WatchesTheTopicsTheCallerMaySee_AndNamesTheRest()
     {
         var hidden = await HiddenSeason();
         var shown = await AddSeason("Shown");
-        var (hub, groups) = Hub();
+        var hub = Hub();
 
         var refused = await hub.Watch([LiveTopics.Seasons, LiveTopics.Season(hidden.SeasonID), LiveTopics.StaffUsers, LiveTopics.Season(shown.SeasonID)]);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(refused, Is.EqualTo(new[] { LiveTopics.Season(hidden.SeasonID), LiveTopics.StaffUsers }));
-            await groups.Received(1).AddToGroupAsync("conn", LiveTopics.Seasons, Arg.Any<CancellationToken>());
-            await groups.Received(1).AddToGroupAsync("conn", LiveTopics.Season(shown.SeasonID), Arg.Any<CancellationToken>());
-            await groups.DidNotReceive().AddToGroupAsync("conn", LiveTopics.Season(hidden.SeasonID), Arg.Any<CancellationToken>());
+            Assert.That(Watching(LiveTopics.Seasons), Is.EqualTo(new[] { "conn:Public" }));
+            Assert.That(Watching(LiveTopics.Season(shown.SeasonID)), Is.EqualTo(new[] { "conn:Public" }));
+            Assert.That(Watching(LiveTopics.Season(hidden.SeasonID)), Is.Empty);
         }
     }
 
     [Test]
-    public async Task Watch_AHiddenSeason_IsStaffs()
+    public async Task Watch_AHiddenSeason_IsStaffs_WatchingAsStaff()
     {
         var hidden = await HiddenSeason();
-        var (hub, groups) = Hub(SiteRoles.Commissioner);
+        var hub = Hub(SiteRoles.Commissioner);
 
         var refused = await hub.Watch([LiveTopics.Draft(hidden.SeasonID), LiveTopics.StaffReschedules]);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(refused, Is.Empty);
-            await groups.Received(2).AddToGroupAsync("conn", Arg.Any<string>(), Arg.Any<CancellationToken>());
+            Assert.That(Watching(LiveTopics.Draft(hidden.SeasonID)), Is.EqualTo(new[] { "conn:Staff" }));
         }
     }
 
     [Test]
-    public async Task Watch_JoinsATopicOnce_UpToTheMost_AndUnwatchLeavesOnlyWhatItWatched()
+    public async Task Watch_UpToTheMost_AndUnwatchAndLeaving_StopWatching()
     {
-        var (hub, groups) = Hub();
+        var hub = Hub();
         var many = Enumerable.Range(1, LiveHub.MaxWatched + 1).Select(LiveTopics.Player).ToList();
 
         await hub.Watch([LiveTopics.Queue]);
         var refused = await hub.Watch([LiveTopics.Queue, .. many]);
         await hub.Unwatch([LiveTopics.Queue, LiveTopics.LateLeague]);
+        var afterUnwatch = Watching(LiveTopics.Queue);
+        await hub.OnDisconnectedAsync(null);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(refused, Is.EqualTo(new[] { LiveTopics.Player(LiveHub.MaxWatched), LiveTopics.Player(LiveHub.MaxWatched + 1) }));
-            await groups.Received(1).AddToGroupAsync("conn", LiveTopics.Queue, Arg.Any<CancellationToken>());
-            await groups.Received(1).RemoveFromGroupAsync("conn", LiveTopics.Queue, Arg.Any<CancellationToken>());
-            await groups.DidNotReceive().RemoveFromGroupAsync("conn", LiveTopics.LateLeague, Arg.Any<CancellationToken>());
+            Assert.That(afterUnwatch, Is.Empty);
+            Assert.That(Watching(LiveTopics.Player(1)), Is.Empty, "gone with the connection");
         }
     }
 
     [Test]
-    public async Task LiveUpdates_SendsATopicOnce_ToItsWatchers_AndAUsersToThemAlone()
+    public async Task LiveUpdates_SendsAUsersToThemAlone_AndTheTopicsOnceToThisProcesssPages()
     {
-        var watchers = Substitute.For<ILiveHubClient>();
         var player = Substitute.For<ILiveHubClient>();
-        _hubContext.Clients.Group(LiveTopics.Season(5)).Returns(watchers);
+        var watchers = Substitute.For<ILiveHubClient>();
         _hubContext.Clients.User("7").Returns(player);
-        var live = new LiveUpdates(_hubContext, NullLogger<LiveUpdates>.Instance);
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
+        _watchers.Watch(LiveTopics.Player(5), "conn", SeasonViewer.Public);
+        var live = new LiveUpdates(_hubContext, NullLogger<LiveUpdates>.Instance, delivery: Delivery(Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!)));
 
-        live.Publish([new LiveChange(LiveTopics.Season(5)), new LiveChange(LiveTopics.MyQueue, 7)]);
-        live.Publish([new LiveChange(LiveTopics.Season(5))]);
+        live.Publish([new LiveChange(LiveTopics.Player(5)), new LiveChange(LiveTopics.MyQueue, 7)]);
+        live.Publish([new LiveChange(LiveTopics.Player(5))]);
         await live.SendPendingAsync();
         await live.SendPendingAsync();
 
         using (Assert.EnterMultipleScope())
         {
-            await watchers.Received(1).Changed(LiveTopics.Season(5));
             await player.Received(1).Changed(LiveTopics.MyQueue);
+            await watchers.Received(1).Changed(LiveTopics.Player(5));
+        }
+    }
+
+    [TestCase(null, ExpectedResult = 0)]
+    [TestCase("not json", ExpectedResult = 0)]
+    [TestCase("[\"season:1\",\"queue\"]", ExpectedResult = 2)]
+    public int TheRelaysMessage_IsTheTopics(string? message) => LiveUpdates.Parse(message).Count;
+
+    private LiveDelivery Delivery(LiveSnapshots snapshots)
+    {
+        var services = new ServiceCollection();
+        services.AddScoped(_ => snapshots);
+        return new LiveDelivery(_watchers, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance);
+    }
+
+    [Test]
+    public async Task Delivery_BuildsATopicsDataOnce_ForAllItsWatchers_AndNothingForATopicNobodyWatches()
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(3));
+        var watchers = Substitute.For<ILiveHubClient>();
+        _hubContext.Clients.Clients(Arg.Is<IReadOnlyList<string>>(c => c.Count == 2)).Returns(watchers);
+        _watchers.Watch(LiveTopics.Queue, "a", SeasonViewer.Public);
+        _watchers.Watch(LiveTopics.Queue, "b", SeasonViewer.Staff);
+
+        await Delivery(snapshots).Deliver([LiveTopics.Queue, LiveTopics.Draft(9)]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            await watchers.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
+            await snapshots.Received(1).For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>());
+            await snapshots.DidNotReceive().For(LiveTopics.Draft(9), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>());
         }
     }
 
     [Test]
-    public async Task LiveUpdates_AFailedSend_IsLogged_AndTheRestGo()
+    public async Task Delivery_BuildsTheHomePagesData_OnceAViewer()
     {
-        var failing = Substitute.For<ILiveHubClient>();
-        failing.Changed(Arg.Any<string>()).Returns(Task.FromException(new HubException("down")));
-        var fine = Substitute.For<ILiveHubClient>();
-        _hubContext.Clients.Group("seasons").Returns(failing);
-        _hubContext.Clients.Group("queue").Returns(fine);
-        var live = new LiveUpdates(_hubContext, NullLogger<LiveUpdates>.Instance);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Seasons, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new SeasonsLiveDto([]));
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(Substitute.For<ILiveHubClient>());
+        _watchers.Watch(LiveTopics.Seasons, "a", SeasonViewer.Public);
+        _watchers.Watch(LiveTopics.Seasons, "b", SeasonViewer.Public);
+        _watchers.Watch(LiveTopics.Seasons, "c", SeasonViewer.Staff);
 
-        live.Publish([new LiveChange("seasons"), new LiveChange("queue")]);
-        await live.SendPendingAsync();
+        await Delivery(snapshots).Deliver([LiveTopics.Seasons]);
 
-        await fine.Received(1).Changed("queue");
+        using (Assert.EnterMultipleScope())
+        {
+            await snapshots.Received(1).For(LiveTopics.Seasons, SeasonViewer.Public, Arg.Any<CancellationToken>());
+            await snapshots.Received(1).For(LiveTopics.Seasons, SeasonViewer.Staff, Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Test]
+    public async Task Delivery_ANoticeTopic_OrDataThatFailsToBuild_TellsItsPagesToReadAgain()
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Draft(4), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns<object?>(_ => throw new InvalidOperationException("down"));
+        var watchers = Substitute.For<ILiveHubClient>();
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
+        _watchers.Watch(LiveTopics.Draft(4), "a", SeasonViewer.Public);
+        _watchers.Watch(LiveTopics.Player(2), "a", SeasonViewer.Public);
+
+        await Delivery(snapshots).Deliver([LiveTopics.Draft(4), LiveTopics.Player(2)]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            await watchers.Received(1).Changed(LiveTopics.Draft(4));
+            await watchers.Received(1).Changed(LiveTopics.Player(2));
+            await watchers.DidNotReceive().Snapshot(Arg.Any<string>(), Arg.Any<string>());
+        }
     }
 
     [TestCase("/usermanagement/merges")]

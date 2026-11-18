@@ -123,6 +123,7 @@ public static class ApplicationServiceCollectionExtensions
         // ILiveUpdates: the web host's hub, else nobody; who may watch what is LiveTopicAccess's call
         services.TryAddSingleton<Live.ILiveUpdates, Live.NoLiveUpdates>();
         services.AddTransient<Live.LiveTopicAccess>();
+        services.AddTransient<Live.LiveSnapshots>();
         services.AddDomainEvents(typeof(ApplicationServiceCollectionExtensions).Assembly);
         return services;
     }

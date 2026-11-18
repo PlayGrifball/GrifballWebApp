@@ -92,9 +92,15 @@ refuses raises nothing. An aggregate about to be removed says so first (`Team.Di
   page needs to hear of it at once (the import jobs' progress, which the page polls).
 - **Live updates** are one handler, `LiveUpdatesHandler` (Application/Live): `LiveChanges.Of` maps each event to the
   topics it changes (`season:12`, `draft:12`, `seasonmatch:55`, `player:7`, `queue`, `staff:users`, …: `LiveTopics`),
-  and `ILiveUpdates` (the Server's `LiveUpdates`) sends `Changed(topic)` to the connections watching it, a quarter of a
-  second later and once a topic however many events changed it, from any role through the backplane. A change carries
-  no data: the page loads what it shows again, through the API, as its viewer may.
+  and `ILiveUpdates` (the Server's `LiveUpdates`) gathers them for a quarter of a second, once a topic however many
+  events changed it, and hands them to the API pods (through Redis when scaled out), where `LiveDelivery` tells the
+  connections watching each topic there (`LiveWatchers`). A topic nobody on the pod watches costs nothing.
+- **Pushed or a notice.** The topics many watch at once (a season's page, its draft, the home page, the queue) come with
+  their data (`Snapshot(topic, json)`, `LiveSnapshots`: the same DTOs the API gives those pages, as JSON), built once
+  a change on each pod for all its watchers (once a viewer for the home page, whose events differ for staff): a draft
+  pick is one set of reads, not one per viewer. Every other topic is a notice (`Changed(topic)`), and its pages read
+  again, each after a random delay of up to two seconds so they don't all ask at once. A change's data, or a page's
+  read, is what the API gives that viewer.
 - **Who may watch what** is `LiveTopicAccess`: a season's topics and its matches' only for a season the viewer may see
   (one not announced yet is staff's alone), the `staff:` topics only for staff. The viewer's own queue place
   (`queue:me`) goes to their connections alone.
