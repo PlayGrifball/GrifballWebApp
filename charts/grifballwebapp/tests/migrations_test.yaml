@@ -32,7 +32,7 @@ tests:
       - equal: { path: "spec.template.spec.initContainers[2].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
       - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
       - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: '/app/migrations.txt' }
-      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: '^set -eu\nsqlcmd ' }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: '^set -eu\ntries=0\nuntil sqlcmd ' }
 
   - it: waits for the database itself to be online, not just SQL Server's port
     template: templates/migrations-job.yaml
@@ -43,6 +43,13 @@ tests:
       - matchRegex:
           path: spec.template.spec.initContainers[0].args[0]
           pattern: 'DATABASEPROPERTYEX\(N.\\\$\$\(DB_NAME\)., .Status.\)'
+      # Its status reads ONLINE before SQL Server has started it after a restart: a query in it has to answer too
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].args[0]
+          pattern: 'QUOTENAME\(N.\\\$\$\(DB_NAME\).\) \+ N.\.sys\.objects'
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].args[0]
+          pattern: 'IF DB_ID\(N.\\\$\$\(DB_NAME\).\) IS NOT NULL EXEC \(@probe\)'
       - matchRegex:
           path: spec.template.spec.initContainers[0].args[0]
           pattern: '\[ "\$state" = ONLINE \]'
@@ -54,12 +61,16 @@ tests:
           path: spec.template.spec.initContainers[0].env
           content: { name: DB_NAME, value: GrifballWebApp }
 
-  - it: shows why reading the applied migrations failed
+  - it: shows why reading the applied migrations failed, after reading again while the database is still starting
     template: templates/migrations-job.yaml
     asserts:
       - matchRegex:
           path: spec.template.spec.initContainers[1].args[0]
-          pattern: 'applied\.txt \|\| \{ echo "Reading \$DB_NAME.s migrations failed:"; cat /work/applied\.txt; exit 1; \}'
+          pattern: 'echo "Reading \$DB_NAME.s migrations failed:"; cat /work/applied\.txt; exit 1\ndone'
+      # Only a database still starting is read again (SQL Server's Msg 904 or 922, PostgreSQL's "starting up"), for half a minute
+      - matchRegex:
+          path: spec.template.spec.initContainers[1].args[0]
+          pattern: 'if \[ "\$tries" -lt 15 \] && grep -qE .Msg \(904\|922\),\|the database system is \(starting up\|shutting down\). /work/applied\.txt; then'
 
   - it: keeps the password off the command line
     template: templates/migrations-job.yaml
