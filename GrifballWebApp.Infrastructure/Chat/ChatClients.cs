@@ -71,9 +71,10 @@ public sealed class ChatClients : IChatClientFactory
 }
 
 /// <summary>
-/// The chats' models from configuration: Chat:Models, in order, when it lists any; else the defaults, Claude Haiku, Sonnet and Opus
-/// for sysadmins with Anthropic:ApiKey set (Haiku first: their default), then the Ollama model (Ollama:Model) for anyone with
-/// Ollama:Url set. A model whose provider isn't configured or named, a negative price, or an ID twice, is refused as the app starts
+/// The chats' models from configuration: Chat:Models, in order, when it lists any; else the defaults, Claude Haiku for anyone
+/// signed in, Sonnet and Opus for sysadmins to pick instead, with Anthropic:ApiKey set (Haiku first: a signed-in caller's
+/// default), then the Ollama model (Ollama:Model) for anyone, signed in or not, with Ollama:Url set. A model whose provider
+/// isn't configured or named, a negative price, or an ID twice, is refused as the app starts
 /// (<see cref="ChatClientsExtensions.AddChatModels"/>).
 /// </summary>
 public static class ChatModels
@@ -87,13 +88,15 @@ public static class ChatModels
     public const int ClaudeMaxOutputTokens = 16_000;
 
     /// <summary>
-    /// Claude, for sysadmins, at Anthropic's prices (US dollars per million tokens: input, output, cache writes for five minutes,
-    /// cache reads); Haiku's are for prompts up to 100,000 tokens, as a chat's are.
+    /// Claude, at Anthropic's prices (US dollars per million tokens: input, output, cache writes for five minutes, cache reads);
+    /// Haiku's are for prompts up to 100,000 tokens, as a chat's are. Haiku is for anyone signed in (a site user, or a Discord
+    /// account linked to one with a gamertag): a paid reply always runs for a signed-in user's account anyway
+    /// (<see cref="GrifChat"/>), so nothing here is uncapped. Sonnet and Opus stay for sysadmins to pick instead.
     /// </summary>
     public static readonly IReadOnlyList<ChatModelOption> Claude =
     [
         new("claude-haiku", "Claude Haiku 5.5", ChatProvider.Anthropic, "claude-haiku-5-5")
-            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, EveryTool = true, Price = new(Input: 0.10m, Output: 0.50m, CacheWrite: 0.125m, CacheRead: 0.01m) },
+            { SignedIn = true, MaxOutputTokens = ClaudeMaxOutputTokens, EveryTool = true, Price = new(Input: 0.10m, Output: 0.50m, CacheWrite: 0.125m, CacheRead: 0.01m) },
         new("claude-sonnet", "Claude Sonnet 5.5", ChatProvider.Anthropic, "claude-sonnet-5-5")
             { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, EveryTool = true, Price = new(Input: 2m, Output: 10m, CacheWrite: 2.50m, CacheRead: 0.10m) },
         new("claude-opus", "Claude Opus 5.5", ChatProvider.Anthropic, "claude-opus-5-5")
@@ -136,6 +139,7 @@ public static class ChatModels
         public ChatProvider? Provider { get; set; }
         public string Model { get; set; } = "";
         public List<string> Roles { get; set; } = [];
+        public bool SignedIn { get; set; }
         public PriceSettings? Price { get; set; }
         public int? MaxOutputTokens { get; set; }
         public bool EveryTool { get; set; }
@@ -153,6 +157,7 @@ public static class ChatModels
             return new(Id, string.IsNullOrWhiteSpace(Name) ? Model : Name, provider, Model)
             {
                 Roles = Roles,
+                SignedIn = SignedIn,
                 MaxOutputTokens = MaxOutputTokens,
                 EveryTool = EveryTool,
                 Price = Price is null ? null : new(Price.Input, Price.Output, Price.CacheWrite, Price.CacheRead),

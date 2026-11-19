@@ -69,7 +69,7 @@ public class ChatClientsUnitTests
     }
 
     [Test]
-    public void WithAnApiKey_ClaudeHaikuSonnetAndOpus_ForSysadmins_HaikuFirst_ThenOllama()
+    public void WithAnApiKey_ClaudeHaikuSonnetAndOpus_HaikuForAnyoneSignedIn_SonnetAndOpusForSysadmins_HaikuFirst_ThenOllama()
     {
         using var services = Services((ChatModels.OllamaUrlKey, OllamaUrl), (ChatModels.AnthropicApiKeyKey, "sk-test"));
         var clients = services.GetRequiredService<IChatClientFactory>();
@@ -77,8 +77,11 @@ public class ChatClientsUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(clients.Models.Select(m => m.Id), Is.EqualTo(DefaultIds));
-            Assert.That(clients.Models.Take(3).Select(m => (m.Provider, m.Roles.Single(), m.Price is not null)),
-                Is.All.EqualTo((ChatProvider.Anthropic, SiteRoles.Sysadmin, true)));
+            Assert.That(clients.Models.Take(3).Select(m => (m.Provider, m.Price is not null)),
+                Is.All.EqualTo((ChatProvider.Anthropic, true)));
+            Assert.That((clients.Models[0].Roles.Count, clients.Models[0].SignedIn), Is.EqualTo((0, true)), "Haiku: anyone signed in, not sysadmins only");
+            Assert.That(clients.Models.Skip(1).Take(2).Select(m => (m.Roles.Single(), m.SignedIn)),
+                Is.All.EqualTo((SiteRoles.Sysadmin, false)), "Sonnet and Opus stay for sysadmins to pick instead");
             Assert.That(clients.Models.Select(m => m.EveryTool), Is.EqualTo(EveryToolByDefault), "Claude picks well from every tool; the small model keeps the short list");
             Assert.That(clients.Models.Take(3).Select(m => m.Model), Is.EqualTo(ClaudeModels));
             Assert.That(clients.Create(clients.Models[0]).GetService<IAnthropicClient>(), Is.Not.Null, "Anthropic's own client");
@@ -96,7 +99,7 @@ public class ChatClientsUnitTests
             ("Chat:Models:0:Id", "local"), ("Chat:Models:0:Name", "Grif"), ("Chat:Models:0:Provider", "Ollama"), ("Chat:Models:0:Model", "qwen3:4b"),
             ("Chat:Models:1:Id", "haiku"), ("Chat:Models:1:Provider", "Anthropic"), ("Chat:Models:1:Model", "claude-haiku-5-5"),
             ("Chat:Models:1:Roles:0", "Commissioner"), ("Chat:Models:1:Price:Input", "0.1"), ("Chat:Models:1:Price:Output", "0.5"),
-            ("Chat:Models:1:EveryTool", "true"));
+            ("Chat:Models:1:EveryTool", "true"), ("Chat:Models:1:SignedIn", "true"));
 
         var models = ChatModels.From(configuration);
 
@@ -110,6 +113,7 @@ public class ChatClientsUnitTests
             Assert.That(models[1].Roles, Is.EqualTo(Commissioners));
             Assert.That(models[1].Price, Is.EqualTo(new ChatPrice(0.1m, 0.5m, 0m, 0m)));
             Assert.That(models[0].Price, Is.Null);
+            Assert.That((models[0].SignedIn, models[1].SignedIn), Is.EqualTo((false, true)), "SignedIn binds through; false when the list doesn't say so");
             Assert.That((models[0].EveryTool, models[1].EveryTool), Is.EqualTo((false, true)), "Every tool when the list says so");
         }
     }

@@ -214,8 +214,9 @@ backend:
   # ClientConfiguration:ClientSecret: InfiniteClientSecret
   # ClientConfiguration:RedirectUrl: InfiniteRedirectUrl
   # BaseUrl: { secretName: grif-urls, key: BaseUrl }
-  # Claude for the chats (sysadmins only, Chat:Models' defaults), with an Anthropic API key. The backend's HTTPS
-  # egress (networkPolicy.backend.httpsTo) already reaches Anthropic's API.
+  # Claude for the chats (Haiku for anyone signed in, Sonnet and Opus for sysadmins to pick instead, Chat:Models'
+  # defaults), with an Anthropic API key. The backend's HTTPS egress (networkPolicy.backend.httpsTo) already reaches
+  # Anthropic's API.
   # Anthropic:ApiKey: { secretName: grif-anthropic, key: api-key }
 
   # Halo Infinite (docs/development-setup.md, "Halo Infinite"). Gateway: every Halo call goes through the Halo

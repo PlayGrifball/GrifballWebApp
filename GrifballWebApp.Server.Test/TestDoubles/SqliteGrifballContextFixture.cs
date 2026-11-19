@@ -65,6 +65,18 @@ public abstract class SqliteGrifballContextFixture
         return user;
     }
 
+    /// <summary>A dummy user (the historical import's placeholder, <see cref="User.ImportPlaceholder"/>'s shape) linked to a
+    /// Discord account with a gamertag: never really signed in (<see cref="GrifballWebApp.Server.Commands.DiscordCaller.AsToolCaller"/>
+    /// doesn't count it as one), unlike <see cref="AddUser"/>'s real account.</summary>
+    protected async Task<User> AddDummyUserLinkedToDiscord(ulong discordUserId, string gamertag)
+    {
+        var user = User.Seed(userName: "historical:" + gamertag, isDummyUser: true,
+            xboxUser: XboxUser.FromXbox((long)discordUserId, gamertag), discordUser: DiscordUser.FromDiscord((long)discordUserId, gamertag));
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+        return user;
+    }
+
     /// <summary>A user tied to a Discord account and a gamertag, with <paramref name="roles"/> (by name, matching the
     /// seeded roles: Sysadmin, Commissioner, Player).</summary>
     protected async Task<User> AddUser(ulong discordUserId, string gamertag, params string[] roles)

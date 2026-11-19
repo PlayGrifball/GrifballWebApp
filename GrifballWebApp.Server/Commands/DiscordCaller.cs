@@ -58,10 +58,14 @@ public class DiscordCaller
 
     /// <summary>
     /// Who the agents' tools run as for this Discord user (the bot's chat): their linked site account with its roles, gamertag or
-    /// not, or <see cref="ToolCaller.Anonymous"/> when none is linked.
+    /// not, or <see cref="ToolCaller.Anonymous"/> when none is linked. Counts as signed in (<see cref="ToolCaller.SignedIn"/>, a
+    /// chat model that is only for one) when the account has a gamertag and isn't a placeholder the historical import made: the
+    /// same account a paid reply would be charged to either way, so this only widens who sees the model, never who may spend.
     /// </summary>
     public async Task<ToolCaller> AsToolCaller(ulong discordUserId, CancellationToken ct = default)
-        => await Linked(discordUserId, ct) is { } user ? new ToolCaller(user.Id, user.RoleNames) : ToolCaller.Anonymous;
+        => await Linked(discordUserId, ct) is { } user
+            ? new ToolCaller(user.Id, user.RoleNames) { SignedIn = user is { Gamertag: not null, IsDummyUser: false } }
+            : ToolCaller.Anonymous;
 
     /// <summary>
     /// Which seasons this Discord user sees in a reply only they read (<see cref="SeasonVisibility.For(IReadOnlyCollection{string})"/>):
@@ -70,15 +74,16 @@ public class DiscordCaller
     public async Task<SeasonViewer> Viewer(ulong discordUserId, CancellationToken ct = default)
         => SeasonVisibility.For((IReadOnlyCollection<string>?)(await Linked(discordUserId, ct))?.RoleNames ?? []);
 
-    /// <summary>The site account linked to a Discord user: its ID, Xbox account (if it has one) and roles.</summary>
-    private sealed record LinkedUser(int Id, long? XboxUserID, string? Gamertag, List<string> RoleNames);
+    /// <summary>The site account linked to a Discord user: its ID, Xbox account (if it has one), whether it's a dummy user (a
+    /// historical import placeholder, never really signed in), and roles.</summary>
+    private sealed record LinkedUser(int Id, long? XboxUserID, string? Gamertag, bool IsDummyUser, List<string> RoleNames);
 
     /// <summary>The site account linked to this Discord user, if any (<see cref="Find"/> and <see cref="AsToolCaller"/> both read it).</summary>
     private Task<LinkedUser?> Linked(ulong discordUserId, CancellationToken ct)
         => _context.Users
             .AsNoTracking()
             .Where(x => x.DiscordUserID == (long)discordUserId)
-            .Select(x => new LinkedUser(x.Id, x.XboxUserID, x.XboxUser != null ? x.XboxUser.Gamertag : null, x.UserRoles.Select(r => r.Role.Name!).ToList()))
+            .Select(x => new LinkedUser(x.Id, x.XboxUserID, x.XboxUser != null ? x.XboxUser.Gamertag : null, x.IsDummyUser, x.UserRoles.Select(r => r.Role.Name!).ToList()))
             .FirstOrDefaultAsync(ct);
 
     /// <summary>

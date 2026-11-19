@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Tools;
 using Microsoft.Extensions.AI;
 
 namespace GrifballWebApp.Application.Chat;
@@ -15,14 +16,24 @@ public enum ChatProvider
 
 /// <summary>
 /// A model the chat can answer with (Chat:Models): its ID (what a user's choice keeps), the name people see, who runs it, the
-/// provider's model, the roles that may use it (none: anyone), its price (none: free), its output limit, and whether it gets every tool
+/// provider's model, the roles that may use it (none: anyone) and whether it's for anyone signed in only
+/// (<see cref="SignedIn"/>), its price (none: free), its output limit, and whether it gets every tool
 /// in private (<see cref="EveryTool"/>). The order matters: a caller's default is
-/// the first they may use (<see cref="GrifChat.Allowed"/>), and a Discord channel's the first anyone may.
+/// the first they may use (<see cref="GrifChat.Allowed"/>), and a Discord channel's the first anyone open to their own sign-in
+/// state may use.
 /// </summary>
 public sealed record ChatModelOption(string Id, string Name, ChatProvider Provider, string Model)
 {
-    /// <summary>The roles that may use it; none: anyone, signed in or not.</summary>
+    /// <summary>The roles that may use it; none: anyone, signed in or not (unless <see cref="SignedIn"/> narrows that to anyone signed in).</summary>
     public IReadOnlyList<string> Roles { get; init; } = [];
+
+    /// <summary>
+    /// Whether it is only for a caller who counts as signed in (<see cref="ToolCaller.SignedIn"/>): the site's own user, or a
+    /// Discord account linked to one with a gamertag, not a placeholder. False: open to anyone <see cref="Roles"/> allows, signed
+    /// in or not (Ollama, free, never over its own spend). Paid models stay capped either way: a reply only ever runs for a
+    /// signed-in user's account (<see cref="GrifChat"/>), so this is about who sees the model, not who may be charged.
+    /// </summary>
+    public bool SignedIn { get; init; }
 
     /// <summary>What its tokens cost; null: nothing (the chat counts no spend for it).</summary>
     public ChatPrice? Price { get; init; }
@@ -39,11 +50,19 @@ public sealed record ChatModelOption(string Id, string Name, ChatProvider Provid
     /// </summary>
     public bool EveryTool { get; init; }
 
-    /// <summary>Anyone may use it: no roles.</summary>
+    /// <summary>Anyone with the right roles may use it, whether signed in or not: no roles, or <see cref="SignedIn"/> alone, names.</summary>
     public bool IsOpen => Roles.Count == 0;
 
-    /// <summary>Whether <paramref name="roles"/> may use it.</summary>
-    public bool AllowsRoles(IReadOnlyCollection<string> roles) => IsOpen || SiteRoles.IsInAnyRole(roles, Roles);
+    /// <summary>
+    /// Whether <paramref name="caller"/> may use it: refused when it is <see cref="SignedIn"/>-only and they aren't
+    /// (<see cref="ToolCaller.SignedIn"/>); else as before, anyone when it <see cref="IsOpen"/>, or one of its <see cref="Roles"/>.
+    /// </summary>
+    public bool Allows(ToolCaller caller)
+    {
+        if (SignedIn && !caller.SignedIn)
+            return false;
+        return IsOpen || SiteRoles.IsInAnyRole(caller.Roles, Roles);
+    }
 }
 
 /// <summary>
