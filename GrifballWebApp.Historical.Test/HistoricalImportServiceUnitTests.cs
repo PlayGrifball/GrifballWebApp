@@ -1009,6 +1009,83 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         }));
     }
 
+    [Test]
+    public async Task Import_ATitleOfAnUnknownLeagueIsSkipped_AndARosterlessTitleTakesOnlyItsOwnTeamsPlayers()
+    {
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = Input(new ArchiveSeason
+            {
+                SeasonName = "GGL Spring League 2014",
+                GameVersion = "halo4",
+                League = "GGL",
+                SourceWorkbook = "history-grifballhub-db",
+                SourceSheet = "Player_Stats#sggl-sl14",
+                Teams =
+                [
+                    new ArchiveTeam { TeamName = "Natural Selection", Captain = "ixGingy", Roster = ["Darwin"] },
+                    new ArchiveTeam { TeamName = "Other Team", Captain = "Someone", Roster = ["Nobody"] },
+                ],
+            }).Seasons,
+            Championships = new ChampionsArchive
+            {
+                SourceId = "history-grifballhub-db",
+                Champions =
+                [
+                    new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "GGL Spring League 2014", Game = "Halo 4", Tier = "Open", Team = "Natural Selection", Roster = [] },
+                    new ArchiveChampionship { League = "Nope", SourceId = "history-grifballhub-db", Season = "Nope Season 1", Game = "Halo 4", Tier = "Open", Team = "Red", Roster = ["Cap1"] },
+                ],
+            },
+        });
+
+        Context.ChangeTracker.Clear();
+        var titles = await Context.Set<PlayerChampionship>().AsNoTracking().ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Skipped, Has.Member("Nope Season 1 Open champions: unknown league 'Nope'"));
+            Assert.That(titles.Select(t => (t.GamertagUsed, t.IsCaptain)), Is.EquivalentTo(new[] { ("ixGingy", true), ("Darwin", false) }));
+        }
+    }
+
+    [Test]
+    public async Task Import_ASeasonIsKeyedByItsRegularSeasonListedAfterItsPlayoffs_AndAPlayoffsOnlySeasonByItsPlayoffs()
+    {
+        await _service.Import(Input(
+            Entry("Summer League 2016", "halo3", "AGLA", true, Player("Alpha")),
+            Entry("Summer League 2016", "halo3", "AGLA", false, Player("Alpha")),
+            Entry("Fall League 2016", "halo3", "AGLA", true, Player("Bravo"))));
+
+        Context.ChangeTracker.Clear();
+        var seasons = await Context.Seasons.AsNoTracking().OrderBy(s => s.SeasonName).Select(s => s.HistoricalSourceID).ToListAsync();
+        Assert.That(seasons, Is.EqualTo(new[]
+        {
+            $"{HistoricalKeys.Slug("Fall League 2016")}/Playoff Stats",
+            $"{HistoricalKeys.Slug("Summer League 2016")}/Stats",
+        }));
+    }
+
+    [Test]
+    public async Task Import_ASeasonKeyedWithoutAWorkbook_AdoptsNoOtherSeasonOfItsName()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow"))));
+
+        var report = await _service.Import(Input(new ArchiveSeason
+        {
+            SeasonName = "Winter League 2019",
+            GameVersion = "halo3",
+            League = "AGLA",
+            HistoricalSourceId = "wl19",
+            Players = [Player("Shadow")],
+        }));
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Skipped, Has.Some.EndsWith("the league already has a season with that name that is not wl19"));
+            Assert.That(await Context.Seasons.Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(new[] { $"{HistoricalKeys.Slug("Winter League 2019")}/Stats" }));
+        }
+    }
+
     // ---------- A season's dates, from its sheet's timestamps, its name's year or its source's ----------
 
     [Test]

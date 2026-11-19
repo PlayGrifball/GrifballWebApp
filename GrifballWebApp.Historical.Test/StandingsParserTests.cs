@@ -531,4 +531,40 @@ public class StandingsParserTests
             ["IXSNARF"] = "ThunderCats",
         }));
     }
+
+    [Test]
+    public void CaptainRows_ARosterRunsToTheLossesColumnOrTheRowsEnd_AndARowNamingNoTeamIsSkipped()
+    {
+        var sheet = Sheet(
+            ["", "ThunderCats", "", "ixLiono", "ixSnarf"],
+            ["", "", "", "Captain"],
+            ["", "", "", "Lonely"],
+            ["", "", "", "Captain"],
+            ["", "Sword Division", "", "", "", "Losses", "Note"],
+            ["", "Bears", "", "Menz", "Nkotb4evah", "2", "late"],
+            ["", "", "", "Captain"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings", Layout = StandingsLayout.CaptainRows });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain, t.Wins, t.Losses, string.Join(",", t.Roster))),
+            Is.EqualTo(new[]
+            {
+                ("ThunderCats", (string?)"ixLiono", (int?)null, (int?)null, "ixLiono,ixSnarf"),
+                ("Bears", (string?)"Menz", (int?)null, (int?)2, "Menz,Nkotb4evah"),
+            }));
+    }
+
+    private static readonly string[][] TeamStatRows = [["Impulse"], [], ["iGalvanator", "Totals:"], ["Goals:", "11"], ["Totals"], ["Goals:", "57"]];
+
+    [Test]
+    public void RosterParser_TeamStatBlocks_SkipTotalsRows_AndTabsNamedForNoTeam()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(RosterParser.Parse(new SheetTable { Name = "Impulse", Rows = [.. TeamStatRows] }),
+                Is.EqualTo(new Dictionary<string, string> { ["IGALVANATOR"] = "Impulse" }));
+            Assert.That(RosterParser.Parse(new SheetTable { Name = "Subs", Rows = [.. TeamStatRows] }), Is.Empty);
+            Assert.That(RosterParser.Parse(new SheetTable { Name = " ", Rows = [.. TeamStatRows] }), Is.Empty);
+        }
+    }
 }

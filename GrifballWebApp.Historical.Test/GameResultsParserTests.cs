@@ -475,4 +475,87 @@ public class GameResultsParserTests
             Assert.That(zeroForfeit.Single().IsForfeit, Is.True);
         }
     }
+
+    private static readonly ResultsTab FixturesTab = new() { Sheet = "Results", Layout = ResultsLayout.Table };
+    private static readonly string[] OneOneSided = ["fl20/Results: 1 results naming one team only left out"];
+    private static readonly bool[] ForfeitThenTieThenForfeit = [true, false, true];
+
+    [Test]
+    public void Table_TeamFixtureHeadersByTheirOtherNames_AreRead_AndRowsNamingNoGameArePhasesOrOneSided()
+    {
+        var warnings = new List<string>();
+        var games = Parse(FixturesTab, Sheet(
+            ["Team 1", "Goals", "Team 2", "Vods"],
+            ["Alpha", "W", "Bravo", "https://v/1"],
+            ["Week 2"],
+            ["Alpha", "", "", ""],
+            ["", "", "", ""],
+            ["Home Team", "Away Team", "Video"],
+            ["Alpha", "Bravo", ""],
+            ["Team 1", "Score", "Score", "Team 2", "Link"],
+            ["Charlie", "", "", "Delta", ""],
+            ["Team 1", "Score", "Score", "Team 2", "VOD"],
+            ["Charlie", "", "", "Delta", ""]), warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(Sides), Is.EqualTo(new[] { ((string?)"Alpha", Outcomes.Won, (int?)null, (string?)"Bravo", Outcomes.Lost, (int?)null) }),
+                "a W in the only score column is a win; a row with no score or W/L is no game");
+            Assert.That((games[0].IsForfeit, games[0].Vod), Is.EqualTo((true, "https://v/1")));
+            Assert.That(warnings, Is.EqualTo(OneOneSided));
+        }
+    }
+
+    [Test]
+    public void Table_VisitorsHomeHeadersByTheirOtherNames_AreRead_AndAW_LDecidesATie()
+    {
+        var games = Parse(FixturesTab, Sheet(
+            ["Score", "Visitors", "Home", "Score", "WL", "Host", "VOD"],
+            ["5", "Alpha", "Bravo", "5", "W", "FF", ""],
+            ["3", "Alpha", "Bravo", "3", "", "Regresser", "https://v/2"],
+            ["WL", "Visitors", "Home", "W/L", "Vods"],
+            ["L", "Charlie", "Delta", "W", ""],
+            ["Away", "Home", "Video"],
+            ["Echo", "Foxtrot", "https://v/3"],
+            ["Visitors", "Home"],
+            ["Echo", "Foxtrot"]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(Sides), Is.EqualTo(new[]
+            {
+                ((string?)"Alpha", Outcomes.Lost, (int?)5, (string?)"Bravo", Outcomes.Won, (int?)5),
+                ("Alpha", Outcomes.Tie, 3, "Bravo", Outcomes.Tie, 3),
+                ("Charlie", Outcomes.Lost, null, "Delta", Outcomes.Won, null),
+            }));
+            Assert.That(games.Select(g => g.IsForfeit), Is.EqualTo(ForfeitThenTieThenForfeit));
+            Assert.That(games.Select(g => (g.Host, g.Vod)), Is.EqualTo(new[] { ((string?)null, (string?)null), ("Regresser", "https://v/2"), (null, null) }),
+                "a forfeit's mark in the host column is no host");
+        }
+    }
+
+    [Test]
+    public void Table_ABannerOverTheFirstBlockOnly_IsEveryBlocksPhase_AndHeadersWithoutAPairOfTeamsAreNone()
+    {
+        var games = Parse(FixturesTab, Sheet(
+            ["Semi Finals", "", "", "", "", ""],
+            ["Team 1", "Score", "Score", "Team 2", "", "Team 1", "Score", "Score", "Team 2"],
+            ["Alpha", "5", "1", "Bravo", "", "Charlie", "2", "5", "Delta"]));
+
+        var none = Parse(FixturesTab, Sheet(
+            ["Team 1", "a", "b", "c", "d", "e", "f", "Team 2"],
+            ["Visitors", "Score", "Away"],
+            ["Alpha", "5", "1", "Bravo"]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(Sides), Is.EqualTo(new[]
+            {
+                ((string?)"Alpha", Outcomes.Won, (int?)5, (string?)"Bravo", Outcomes.Lost, (int?)1),
+                ("Charlie", Outcomes.Lost, 2, "Delta", Outcomes.Won, 5),
+            }));
+            Assert.That(games.Select(g => g.IsPlayoffs), Has.All.True, "the second block's games are the banner's playoffs too");
+            Assert.That(none, Is.Empty);
+        }
+    }
 }

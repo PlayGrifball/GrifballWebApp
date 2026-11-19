@@ -403,6 +403,108 @@ public class BracketParserTests
         }
     }
 
+    private static StatsTable EugblStats() => new()
+    {
+        Sheet = "Player_Stats",
+        Game = "halo4",
+        SeasonColumn = "season_id",
+        Seasons = new() { ["eugbl-s17"] = new() { Name = "EUGBL Season 17", League = "EUGBL" } },
+    };
+
+    [Test]
+    public void ParseTable_ReadsEachKindOfRound_SkipsRowsWithoutBothTeams_AndKeepsAScoreOnlyWhenItAgreesWithTheWinner()
+    {
+        var sheet = new SheetTable
+        {
+            Name = "Brackets",
+            Rows =
+            [
+                ["season_id", "bracket", "round", "seed_1", "team_1", "score_1", "seed_2", "team_2", "score_2", "winner"],
+                ["eugbl-s17", "Winner", "", "", "Alpha", "2", "", "Bravo", "1", ""],
+                ["eugbl-s17", "Loser", "0", "3", "", "", "4", "Delta", "", ""],
+                ["eugbl-s17", "Loser", "1", "3", "Charlie", "", "4", "", "", ""],
+                ["eugbl-s17", "Grand Final Sudden Death", "3", "1", "Alpha", "1", "2", "Charlie", "0", "Alpha"],
+                ["eugbl-s17", "Grand Final", "2", "1", "Alpha", "3", "2", "Charlie", "0", "Alpha"],
+                ["eugbl-s17", "Loser", "1", "3", "Charlie", "2", "4", "Delta", "0", "Charlie"],
+                ["eugbl-s17", "Loser", "2", "5", "Echo", "0", "6", "Foxtrot", "2", "Echo"],
+                ["eugbl-s17", "", "2", "7", "Golf", "1", "8", "Hotel", "1", ""],
+                ["eugbl-s17", "Winner", "3", "", "India", "0", "", "Juliet", "0", ""],
+            ],
+        };
+
+        var series = BracketParser.ParseTable("hub", new BracketTableConfig { Sheet = "Brackets", Stats = "Player_Stats" }, EugblStats(), Workbook(sheet), _warnings)
+            ["hub/Player_Stats#seugbl-s17"].Series;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_warnings, Is.Empty);
+            Assert.That(series.Select(s => (s.Bracket, s.Round, s.Number, s.Home, s.Away, s.HomeSeed)), Is.EqualTo(new[]
+            {
+                (Bracket.Winner, 1, 1, "Alpha", "Bravo", (int?)null),
+                (Bracket.Winner, 2, 2, "Golf", "Hotel", 7),
+                (Bracket.Winner, 3, 3, "India", "Juliet", null),
+                (Bracket.Loser, 1, 1, "Charlie", "Delta", 3),
+                (Bracket.Loser, 2, 2, "Echo", "Foxtrot", 5),
+                (Bracket.GrandFinal, 2, 4, "Alpha", "Charlie", 1),
+                (Bracket.GrandFinalSuddenDeath, 3, 5, "Alpha", "Charlie", 1),
+            }));
+            Assert.That((series[0].HomeWins, series[0].AwayWins, series[0].Winner), Is.EqualTo(((int?)2, (int?)1, (SeasonMatchSide?)SeasonMatchSide.Home)),
+                "a score names the winner the table doesn't");
+            Assert.That((series[1].HomeWins, series[1].AwayWins), Is.EqualTo(((int?)1, (int?)1)), "a tied score is kept");
+            Assert.That((series[2].HomeWins, series[2].AwayWins), Is.EqualTo(((int?)null, (int?)null)), "a score of no games is none");
+            Assert.That((series[4].HomeWins, series[4].AwayWins, series[4].Winner), Is.EqualTo(((int?)null, (int?)null, (SeasonMatchSide?)SeasonMatchSide.Home)),
+                "a score that says the other side won is left out");
+        }
+    }
+
+    [Test]
+    public void ParseTable_FindsColumnsByTheirOtherNames_AndAScoreDecidesASeriesNoWinnerColumnNames()
+    {
+        var sheet = new SheetTable
+        {
+            Name = "Brackets",
+            Rows =
+            [
+                ["season", "home", "away", "score_1", "score_2"],
+                ["eugbl-s17", "Alpha", "Bravo", "1", "2"],
+            ],
+        };
+
+        var series = BracketParser.ParseTable("hub", new BracketTableConfig { Sheet = "Brackets", Stats = "Player_Stats" }, EugblStats(), Workbook(sheet), _warnings)
+            ["hub/Player_Stats#seugbl-s17"].Series;
+
+        Assert.That(series.Select(s => (s.Bracket, s.Round, s.Home, s.Away, s.HomeSeed, s.AwaySeed, s.HomeWins, s.AwayWins, s.Winner)), Is.EqualTo(new[]
+        {
+            (Bracket.Winner, 1, "Alpha", "Bravo", (int?)null, (int?)null, (int?)1, (int?)2, (SeasonMatchSide?)SeasonMatchSide.Away),
+        }));
+    }
+
+    private static readonly string[] BracketTableSheets = ["Missing", "Header Only", "No Teams"];
+
+    private static readonly string[] BracketTableWarnings =
+    [
+        "hub: no bracket sheet 'Missing'",
+        "hub: bracket sheet 'No Teams' is missing required season or team columns",
+    ];
+
+    [Test]
+    public void ParseTable_ASheetThatIsNotThere_HasNoRows_OrNamesNoTeams_ReadsNoBracket()
+    {
+        var headerOnly = new SheetTable { Name = "Header Only", Rows = [["season_id", "team_1", "team_2"]] };
+        var noTeams = new SheetTable { Name = "No Teams", Rows = [["season_id", "team_1"], ["eugbl-s17", "Alpha"]] };
+        var workbook = Workbook(headerOnly, noTeams);
+
+        var parsed = BracketTableSheets
+            .Select(name => BracketParser.ParseTable("hub", new BracketTableConfig { Sheet = name, Stats = "Player_Stats" }, EugblStats(), workbook, _warnings))
+            .ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(parsed.Select(p => p.Count), Has.All.EqualTo(0));
+            Assert.That(_warnings, Is.EqualTo(BracketTableWarnings));
+        }
+    }
+
     private static readonly string[] NoRecordsSheet = ["wb: no records sheet 'Missing'"];
 
     [Test]

@@ -505,6 +505,39 @@ public class SeasonStatsParserTests
     }
 
     [Test]
+    public void TeamSectionRows_WithoutCarryTeam_LeaveTheTeamToTheRoster_AndANameForNoTeamIsALine()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Rosters",
+            [
+                Row(null, "Teams", null, null, null, null, "Wins", null, "Losses"),
+                Row(null, "ThunderCats", null, "ixLiono", "ixGingy", null, 9, null, 1),
+                Row(null, null, null, "Captain"),
+            ]),
+            ("Stats",
+            [
+                Row("Pro Players", "Team", "Total Games"),
+                Row("ThunderCats"),
+                Row("ixLiono", null, 3),
+                Row("Subs", null, 2),
+                Row("Gone", null, 1),
+            ])))!;
+
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Winter League 2020 (Reach PC)", League = "AGLA", Game = "reach" },
+            RosterSheets = ["Rosters"],
+            Tabs = [new() { Name = "Stats", HeaderRow = 0, TeamSectionRows = true }],
+            TeamNames = new() { ["Gone"] = "" },
+        };
+
+        var players = SeasonStatsParser.Parse("wl20", config, workbook, []).Single().Players;
+
+        Assert.That(players.Select(p => (p.Gamertag, p.TeamName)),
+            Is.EqualTo(new[] { ("ixLiono", (string?)"ThunderCats"), ("Subs", null), ("Gone", null) }));
+    }
+
+    [Test]
     public void RosterParser_TeamStatBlocks_ReadsPlayersAboveGoalsRows()
     {
         var workbook = SheetWorkbook.Read(Workbook(
