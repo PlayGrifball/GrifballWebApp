@@ -92,8 +92,16 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         var tracker = Tracker(store, time);
 
         await tracker.StartAsync(CancellationToken.None);
-        time.Advance(PresenceTracker.Heartbeat);
-        await stored.Task.WaitAsync(Wait);
+        // ExecuteAsync starts on its own thread: its heartbeat may be set after a first advance, so keep the clock going
+        using (var giveUp = new CancellationTokenSource(Wait))
+        {
+            while (!stored.Task.IsCompleted)
+            {
+                time.Advance(PresenceTracker.Heartbeat);
+                await Task.WhenAny(stored.Task, Task.Delay(TimeSpan.FromMilliseconds(50), giveUp.Token));
+                giveUp.Token.ThrowIfCancellationRequested();
+            }
+        }
         await tracker.StopAsync(CancellationToken.None);
 
         await store.Received().Exchange(Arg.Any<IReadOnlyList<PresenceTab>>(), Arg.Any<CancellationToken>());
