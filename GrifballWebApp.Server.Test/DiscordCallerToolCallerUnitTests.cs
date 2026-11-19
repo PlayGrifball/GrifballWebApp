@@ -37,8 +37,10 @@ public class DiscordCallerToolCallerUnitTests : SqliteGrifballContextFixture
 
     /// <summary>
     /// <see cref="ToolCaller.SignedIn"/>: who counts as signed in for a chat model that is only for one
-    /// (<see cref="GrifballWebApp.Application.Chat.ChatModelOption.SignedIn"/>). Only a linked account with a gamertag, not a
-    /// placeholder, counts; the account and roles the tools run as (above) never change.
+    /// (<see cref="GrifballWebApp.Application.Chat.ChatModelOption.SignedIn"/>). A real (non-placeholder) linked account always
+    /// counts, gamertag or not: it only exists through /setgamertag or a site sign-in with Discord, either of which also signs
+    /// them in on the site. Only a dummy user (a historical import placeholder) doesn't; the account and roles the tools run as
+    /// (above) never change.
     /// </summary>
     [Test]
     public async Task ALinkedAuthorWithAGamertag_CountsAsSignedIn()
@@ -51,7 +53,7 @@ public class DiscordCallerToolCallerUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task ALinkedAuthorWithNoGamertag_DoesNotCountAsSignedIn()
+    public async Task ALinkedAuthorWithNoGamertag_StillCountsAsSignedIn()
     {
         await AddDiscordOnlyUser(5);
 
@@ -60,7 +62,7 @@ public class DiscordCallerToolCallerUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(caller.UserID, Is.Not.Null, "Still their account: the tools run as them");
-            Assert.That(caller.SignedIn, Is.False);
+            Assert.That(caller.SignedIn, Is.True, "A real account, linked only through /setgamertag or a site sign-in: either signs them in on the site too");
         }
     }
 

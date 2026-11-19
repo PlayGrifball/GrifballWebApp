@@ -30,8 +30,8 @@ public sealed record ToolCaller(int? UserID, IReadOnlyList<string> Roles)
     /// <summary>
     /// Whether the caller counts as signed in, for a chat model that is only for one (<see cref="GrifballWebApp.Application.Chat.ChatModelOption.SignedIn"/>):
     /// the site's own user (<see cref="UserID"/> alone isn't enough: a Discord caller's is set for any linked account, even
-    /// without a gamertag), or a Discord account linked to one with a gamertag, not a placeholder the historical import made.
-    /// False for <see cref="Anonymous"/>, and the default for anyone else until set.
+    /// a placeholder's), or a Discord account linked to a real (non-placeholder) one, gamertag or not. False for
+    /// <see cref="Anonymous"/>, and the default for anyone else until set.
     /// </summary>
     public bool SignedIn { get; init; }
 

@@ -29,8 +29,8 @@ public sealed record ChatModelOption(string Id, string Name, ChatProvider Provid
 
     /// <summary>
     /// Whether it is only for a caller who counts as signed in (<see cref="ToolCaller.SignedIn"/>): the site's own user, or a
-    /// Discord account linked to one with a gamertag, not a placeholder. False: open to anyone <see cref="Roles"/> allows, signed
-    /// in or not (Ollama, free, never over its own spend). Paid models stay capped either way: a reply only ever runs for a
+    /// Discord account linked to a real (non-placeholder) one, gamertag or not. False: open to anyone <see cref="Roles"/> allows,
+    /// signed in or not (Ollama, free, never over its own spend). Paid models stay capped either way: a reply only ever runs for a
     /// signed-in user's account (<see cref="GrifChat"/>), so this is about who sees the model, not who may be charged.
     /// </summary>
     public bool SignedIn { get; init; }

@@ -59,12 +59,14 @@ public class DiscordCaller
     /// <summary>
     /// Who the agents' tools run as for this Discord user (the bot's chat): their linked site account with its roles, gamertag or
     /// not, or <see cref="ToolCaller.Anonymous"/> when none is linked. Counts as signed in (<see cref="ToolCaller.SignedIn"/>, a
-    /// chat model that is only for one) when the account has a gamertag and isn't a placeholder the historical import made: the
-    /// same account a paid reply would be charged to either way, so this only widens who sees the model, never who may spend.
+    /// chat model that is only for one) whenever the account is real, gamertag or not: it exists only through /setgamertag or a
+    /// site sign-in with Discord, either of which signs them in on the site too. Only a dummy user (a historical import's
+    /// placeholder) doesn't count. The same account a paid reply would be charged to either way, so this only widens who sees
+    /// the model, never who may spend.
     /// </summary>
     public async Task<ToolCaller> AsToolCaller(ulong discordUserId, CancellationToken ct = default)
         => await Linked(discordUserId, ct) is { } user
-            ? new ToolCaller(user.Id, user.RoleNames) { SignedIn = user is { Gamertag: not null, IsDummyUser: false } }
+            ? new ToolCaller(user.Id, user.RoleNames) { SignedIn = !user.IsDummyUser }
             : ToolCaller.Anonymous;
 
     /// <summary>

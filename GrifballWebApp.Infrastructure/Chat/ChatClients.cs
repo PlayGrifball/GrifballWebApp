@@ -90,7 +90,7 @@ public static class ChatModels
     /// <summary>
     /// Claude, at Anthropic's prices (US dollars per million tokens: input, output, cache writes for five minutes, cache reads);
     /// Haiku's are for prompts up to 100,000 tokens, as a chat's are. Haiku is for anyone signed in (a site user, or a Discord
-    /// account linked to one with a gamertag): a paid reply always runs for a signed-in user's account anyway
+    /// account linked to a real site account, gamertag or not): a paid reply always runs for a signed-in user's account anyway
     /// (<see cref="GrifChat"/>), so nothing here is uncapped. Sonnet and Opus stay for sysadmins to pick instead.
     /// </summary>
     public static readonly IReadOnlyList<ChatModelOption> Claude =

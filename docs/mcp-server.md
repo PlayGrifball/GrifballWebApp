@@ -139,8 +139,8 @@ alone. A host keeps the conversation, passes the caller and its `ChatHost`, and 
 
 The models are `IChatClientFactory`'s, which Infrastructure registers (`ChatClients`): `Chat:Models` when it lists any
 (each one's ID, name, provider, model, roles, `SignedIn` and price), else Claude Haiku for anyone signed in (a site user,
-or a Discord account linked to one with a gamertag, not a historical import's placeholder), Sonnet and Opus for
-sysadmins to pick instead, with `Anthropic:ApiKey` set, then the Ollama model (`Ollama:Model`, default
+or a Discord account linked to a real site account, gamertag or not, not a historical import's placeholder), Sonnet and
+Opus for sysadmins to pick instead, with `Anthropic:ApiKey` set, then the Ollama model (`Ollama:Model`, default
 `llama3.1:latest`, at `Ollama:Url`) for anyone, signed in or not.
 A model with `EveryTool` (the Claude defaults) gets, in private (the site, a Discord DM), every tool the caller's roles allow, as the
 MCP server gives them; the others, and every model in a Discord channel, keep the chat's short list, which a small model picks from

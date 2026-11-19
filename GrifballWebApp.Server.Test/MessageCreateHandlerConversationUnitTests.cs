@@ -236,6 +236,27 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     }
 
     [Test]
+    public async Task HandleAsync_InAChannel_ALinkedAuthorWithNoGamertag_StillGetsTheSignedInOnlyModel()
+    {
+        // A real account, linked only through /setgamertag or a site sign-in with Discord: either signs them in on the
+        // site too, so they count as signed in here whether or not they ever set a gamertag (unlike a dummy placeholder).
+        await AddDiscordOnlyUser(AuthorId);
+        var signedInOnly = new ChatModelOption("claude-haiku", "Claude Haiku", ChatProvider.Anthropic, "claude-haiku-5-5") { SignedIn = true };
+        var free = new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b");
+        _configuredModels = [signedInOnly, free];
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi there"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            _chatClients.Received(1).Create(signedInOnly);
+            _chatClients.DidNotReceive().Create(free);
+        }
+    }
+
+    [Test]
     public async Task HandleAsync_InAChannel_AnUnlinkedAuthor_GetsTheOpenModel_NeverTheSignedInOnlyOne()
     {
         var signedInOnly = new ChatModelOption("claude-haiku", "Claude Haiku", ChatProvider.Anthropic, "claude-haiku-5-5") { SignedIn = true };
