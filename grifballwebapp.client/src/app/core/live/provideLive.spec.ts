@@ -7,10 +7,17 @@ import { provideLive } from './provideLive';
 @Component({ template: '' })
 class BlankPage {}
 
-/** Lets the initializer's import of LiveService resolve (and what it does then run). */
+/** Lets the initializer's import of LiveService resolve, however long it takes, and what it does then run. */
 async function settled(): Promise<void> {
+  await import('./live.service');
   for (let i = 0; i < 5; i++)
     await new Promise(resolve => setTimeout(resolve));
+}
+
+/** Waits for `done`, up to two seconds: the initializer's import is a chunk of its own, slower on a busy machine. */
+async function until(done: () => boolean): Promise<void> {
+  for (let i = 0; i < 200 && !done(); i++)
+    await new Promise(resolve => setTimeout(resolve, 10));
 }
 
 describe('provideLive', () => {
@@ -35,7 +42,7 @@ describe('provideLive', () => {
 
   it('in the browser, says the page the tab shows, then each page it goes to, and connects', async () => {
     const live = start('browser');
-    await settled();
+    await until(() => live.connect.calls.count() > 0);
 
     expect(live.viewing.calls.allArgs()).toEqual([['/']]);
     expect(live.connect).toHaveBeenCalledTimes(1);

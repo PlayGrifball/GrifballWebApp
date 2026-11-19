@@ -5,8 +5,14 @@
 export const LiveTopics = {
   /** The seasons: their list, the home page's events, and what a season's matches add to it. */
   seasons: 'seasons',
-  /** A season's pages: its overview, standings, schedule and bracket, teams and team pages, stats. */
+  /** A season's overview tabs: its summary, standings, schedule and this week, its players' stats. */
   season: (seasonID: number) => `season:${seasonID}`,
+  /** A season's playoff bracket. */
+  bracket: (seasonID: number) => `bracket:${seasonID}`,
+  /** A season's teams page: its teams with their rosters and records, and the season's banner. */
+  teams: (seasonID: number) => `teams:${seasonID}`,
+  /** A team's page: its roster, record, matches and players' stats. */
+  team: (teamID: number) => `team:${teamID}`,
   /** A season's draft: its teams, captains and their lock, its player pool. */
   draft: (seasonID: number) => `draft:${seasonID}`,
   /** A season's signups (the staff's signups and grades pages). */

@@ -2,7 +2,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { SeasonLiveDto, SeasonPlayerStatDto } from '@api/models';
+import type { SeasonLiveDto, SeasonPlayerStatDto, TeamLiveDto } from '@api/models';
 import { SeasonPlayerStatsStore } from './seasonPlayerStats.store';
 import { LiveService, type LiveMessage } from '@core/live/live.service';
 import { LIVE_RELOAD_MS, LIVE_SPREAD_MS } from '@core/live/liveReload';
@@ -84,6 +84,9 @@ describe('SeasonPlayerStatsStore', () => {
     /** A season's page as the live hub pushes it: only its players' stats. */
     const seasonLive = (seasonID: number, playerStats: SeasonPlayerStatDto[]): SeasonLiveDto =>
       ({ seasonID, summary: null, standings: [], scheduled: [], unscheduled: [], playerStats });
+    /** A team's page as the live hub pushes it: only its players' stats. */
+    const teamLive = (teamID: number, playerStats: SeasonPlayerStatDto[]): TeamLiveDto =>
+      ({ teamID, team: null, matches: [], playerStats });
     const teamID = signal<number | null>(null);
 
     // The clock goes in once the first load is in (whenStable waits on the real one), and out before the next
@@ -115,21 +118,33 @@ describe('SeasonPlayerStatsStore', () => {
       http.expectNone(() => true);
     });
 
-    it("reads a team's stats again rather than take the season's", async () => {
+    /** Shows team 10's stats (its page's table), its first read in. */
+    const showTeam = async () => {
       jasmine.clock().uninstall();
       teamID.set(10);
       TestBed.tick();
       request(4).flush([row('Grif')]);
       await settle();
       jasmine.clock().install();
+    };
 
-      live.send({ topic: 'season:4', data: seasonLive(4, [row('Simmons'), row('Grif')]) });
+    it("watches a team's page for its stats, and shows them pushed with a change, not another team's", async () => {
+      await showTeam();
+
+      expect(live.active).toEqual([['team:10']]);
+      live.send({ topic: 'team:10', data: teamLive(11, [row('Other')]) });
       expect(store.stats().map(r => r.gamertag)).toEqual(['Grif']);
-      jasmine.clock().tick(LIVE_RELOAD_MS);
-      TestBed.tick();
-      const again = request(4);
-      expect(again.request.params.get('teamID')).toBe('10');
-      again.flush([row('Grif'), row('Sarge')]);
+      live.send({ topic: 'team:10', data: teamLive(10, [row('Grif'), row('Sarge')]) });
+      expect(store.stats().map(r => r.gamertag)).toEqual(['Grif', 'Sarge']);
+      jasmine.clock().tick(LIVE_RELOAD_MS + LIVE_SPREAD_MS);
+      http.expectNone(() => true);
+    });
+
+    it("ignores a season page's stats while it shows a team's", async () => {
+      await showTeam();
+
+      live.send({ topic: 'team:10', data: seasonLive(4, [row('Simmons')]) });
+      expect(store.stats().map(r => r.gamertag)).toEqual(['Grif']);
     });
 
     it('reads the stats again on a change without data', () => {

@@ -31,6 +31,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     private static readonly string[] WatchingConnection = ["conn"];
     private static readonly string[] BothTabs = ["a", "b"];
     private static readonly string[] OnlyB = ["b"];
+    private static readonly string[] Reds = ["Reds"];
 
     private readonly IHubContext<LiveHub, ILiveHubClient> _hubContext = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
 
@@ -180,6 +181,47 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     }
 
     private static LiveSnapshots NoSnapshots() => Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+
+    /// <summary>The teams page's and team pages' data, on the app's context (their queries translated for SQLite as the app's are).</summary>
+    private LiveSnapshots TeamSnapshots()
+        => new(null!, new SeasonService(Db, new GrifballWebApp.Application.Stats.SeasonStatsService(Db), new SeasonVisibility(Db)), null!, null!, null!, null!, null!,
+            new GrifballWebApp.Application.TeamPage.TeamPageService(Db));
+
+    [Test]
+    public async Task ATeamsPagesData_IsTheSeasonsBanner_AndItsTeams()
+    {
+        var season = await AddSeason("Shown");
+        await AddTeam(season, "Reds");
+
+        var teams = (TeamsLiveDto?)await TeamSnapshots().For(LiveTopics.Teams(season.SeasonID), SeasonViewer.Public);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams!.SeasonID, Is.EqualTo(season.SeasonID));
+            Assert.That(teams.Summary, Is.Not.Null);
+            Assert.That(teams.Teams!.Select(t => t.TeamName), Is.EqualTo(Reds));
+        }
+    }
+
+    [Test]
+    public async Task ATeamsData_IsItsPage_ItsMatches_AndItsPlayersStats_AndNoneOnceItIsGone()
+    {
+        var season = await AddSeason("Shown");
+        var reds = await AddTeam(season, "Reds");
+        var snapshots = TeamSnapshots();
+
+        var team = (TeamLiveDto?)await snapshots.For(LiveTopics.Team(reds.TeamID), SeasonViewer.Public);
+        var gone = (TeamLiveDto?)await snapshots.For(LiveTopics.Team(999), SeasonViewer.Public);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((team!.TeamID, team.Team!.TeamName), Is.EqualTo((reds.TeamID, "Reds")));
+            Assert.That(team.Matches, Is.Empty);
+            Assert.That(team.PlayerStats, Is.Empty);
+            Assert.That(gone!.Team, Is.Null);
+            Assert.That(gone.PlayerStats, Is.Empty);
+        }
+    }
 
     [Test]
     public async Task Delivery_AnXboxAccountsChange_TellsTheProfileWatchedHere_OfItsUser_AndNoneOfAnAccountNoUserHas()

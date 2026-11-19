@@ -29,14 +29,13 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     private static readonly string[] NoRoles = [];
     private static readonly string[] Commissioner = [SiteRoles.Commissioner];
     private static readonly string[] PlayerRole = [SiteRoles.Player];
-    private static readonly string[] ADraftPick = ["season:5", "draft:5", "player:7"];
-    private static readonly string[] AResult = ["seasons", "season:5", "seasonmatch:11"];
+    private static readonly string[] ADraftPick = ["season:5", "teams:5", "team:3", "bracket:5", "draft:5", "player:7"];
+    private static readonly string[] AResult = ["seasons", "season:5", "bracket:5", "teams:5", "seasonmatch:11", "team:1", "team:2"];
     private static readonly string[] ASpot = ["queue", "queue:me@7"];
     private static readonly string[] HandlersInOrder = ["failing", "own", "every", "failing", "own", "every"];
     private static readonly string[] MembersByName = ["amy", "Zed"];
-    private static readonly string[] Reds = ["Reds"];
     private static readonly int[] UnnamedFirst = [3, 4];
-    private static readonly string[] ATeam = ["season:5", "draft:5"];
+    private static readonly string[] ATeam = ["season:5", "teams:5", "team:3", "bracket:5", "draft:5"];
     private static readonly string[] OnlySeasons = ["seasons"];
     private static readonly string[] PushedTopics = ["seasons", "season:1", "bracket:1", "teams:1", "team:1", "draft:1", "queue"];
     private FakeTimeProvider _time = null!;
@@ -61,7 +60,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     private static string[] Topics(IDomainEvent domainEvent) => [.. LiveChanges.Of(domainEvent).Select(c => c.UserID is int u ? $"{c.Topic}@{u}" : c.Topic)];
 
     [Test]
-    public void ADraftPick_ChangesTheSeason_ItsDraft_AndThePlayersProfile()
+    public void ADraftPick_ChangesTheSeason_ItsTeamsPages_Bracket_AndDraft_AndThePlayersProfile()
     {
         var team = Team.Seed("Reds", seasonID: 5, teamID: 3);
 
@@ -69,7 +68,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public void AResult_ChangesTheSeasons_TheSeason_AndTheMatchsPage()
+    public void AResult_ChangesTheSeasons_TheSeason_ItsBracketAndTeamsPages_TheMatchsPage_AndItsTeams()
     {
         var match = SeasonMatch.Seed(5, 1, 2);
         match.SeasonMatchID = 11;
@@ -499,45 +498,6 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
             Assert.That(bracket!.SeasonID, Is.EqualTo(5));
             Assert.That(bracket.ViewerData, Is.Not.Null);
             Assert.That(gone!.ViewerData, Is.Null);
-        }
-    }
-
-    [Test]
-    public async Task ATeamsPagesData_IsTheSeasonsBanner_AndItsTeams()
-    {
-        await AddSeason(5, announced: true);
-        Context.Teams.Add(Team.Seed("Reds", seasonID: 5));
-        await Context.SaveChangesAsync();
-
-        var teams = (TeamsLiveDto?)await Snapshots().For(LiveTopics.Teams(5), SeasonViewer.Public);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(teams!.SeasonID, Is.EqualTo(5));
-            Assert.That(teams.Summary, Is.Not.Null);
-            Assert.That(teams.Teams!.Select(t => t.TeamName), Is.EqualTo(Reds));
-        }
-    }
-
-    [Test]
-    public async Task ATeamsData_IsItsPage_ItsMatches_AndItsPlayersStats_AndNoneOnceItIsGone()
-    {
-        await AddSeason(5, announced: true);
-        var reds = Team.Seed("Reds", seasonID: 5);
-        Context.Teams.Add(reds);
-        await Context.SaveChangesAsync();
-        var snapshots = Snapshots();
-
-        var team = (TeamLiveDto?)await snapshots.For(LiveTopics.Team(reds.TeamID), SeasonViewer.Public);
-        var gone = (TeamLiveDto?)await snapshots.For(LiveTopics.Team(999), SeasonViewer.Public);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That((team!.TeamID, team.Team!.TeamName), Is.EqualTo((reds.TeamID, "Reds")));
-            Assert.That(team.Matches, Is.Empty);
-            Assert.That(team.PlayerStats, Is.Empty);
-            Assert.That(gone!.Team, Is.Null);
-            Assert.That(gone.PlayerStats, Is.Empty);
         }
     }
 

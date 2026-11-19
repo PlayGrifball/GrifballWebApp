@@ -99,23 +99,24 @@ refuses raises nothing. An aggregate about to be removed says so first (`Team.Di
   `LateLeagueMatchDecided`, `LateLeagueGameRecorded` (a player's MMR before and after), with general ones (`TeamRosterChanged`,
   `SeasonEdited`) for the rest.
 - **Bulk statements raise nothing** (`ExecuteUpdate`, `ExecuteDelete`): they bypass the aggregates. Use them where no
-  page needs to hear of it at once (the import jobs' progress, which the page polls).
+  page needs to hear of it at once (the import jobs' progress, which the page polls), or raise the events first: drawing
+  a bracket again cancels each old match (`SeasonMatch.Cancel`) before its bulk delete.
 - **Live updates** are one handler, `LiveUpdatesHandler` (Application/Live): `LiveChanges.Of` maps each event to the
-  topics it changes (`season:12`, `draft:12`, `seasonmatch:55`, `player:7`, `queue`, `staff:users`, …: `LiveTopics`),
-  and `ILiveUpdates` (the Server's `LiveUpdates`) gathers them for a quarter of a second, once a topic however many
+  topics it changes (`season:12`, `bracket:12`, `teams:12`, `team:40`, `draft:12`, `seasonmatch:55`, `player:7`, `queue`,
+  `staff:users`, …: `LiveTopics`), and `ILiveUpdates` (the Server's `LiveUpdates`) gathers them for a quarter of a second, once a topic however many
   events changed it, and hands them to the API pods (through Redis when scaled out), where `LiveDelivery` tells the
   connections watching each topic there (`LiveWatchers`). A topic nobody on the pod watches costs nothing.
-- **Pushed or a notice.** The topics many watch at once (a season's page, its draft, the home page, the queue) come with
-  their data (`Snapshot(topic, json)`, `LiveSnapshots`: the same DTOs the API gives those pages, as JSON), built once
-  a change on each pod for all its watchers (once a viewer for the home page, whose events differ for staff): a draft
+- **Pushed or a notice.** The topics many watch at once (a season's overview, bracket and teams page, a team's page, its
+  draft, the home page, the queue) come with their data (`Snapshot(topic, json)`, `LiveSnapshots`: the same DTOs the API
+  gives those pages, as JSON), built once a change on each pod for all its watchers (once a viewer for the home page, whose events differ for staff): a draft
   pick is one set of reads, not one per viewer. Every other topic is a notice (`Changed(topic)`), and its pages read
   again, each after a random delay of up to two seconds so they don't all ask at once. A change's data, or a page's
   read, is what the API gives that viewer.
-- **Who may watch what** is `LiveTopicAccess`: a season's topics and its matches' only for a season the viewer may see
-  (one not announced yet is staff's alone), the `staff:` topics only for staff. The viewer's own queue place
+- **Who may watch what** is `LiveTopicAccess`: a season's topics and its matches' and teams' only for a season the
+  viewer may see (one not announced yet is staff's alone), the `staff:` topics only for staff. The viewer's own queue place
   (`queue:me`) goes to their connections alone.
-- **Pages** watch through `liveReload(topics, reload)` (client `core/live`), in their store's constructor: the store
-  loads again, in place, once a burst of changes settles, and when the connection comes back after a drop.
+- **Pages** watch through `liveReload(topics, reload)`, or `liveData(topics, apply, reload)` for a pushed topic (client
+  `core/live`), in their store's constructor: the store loads again, in place, once a burst of changes settles, and when the connection comes back after a drop.
 
 ### Who is on the site
 

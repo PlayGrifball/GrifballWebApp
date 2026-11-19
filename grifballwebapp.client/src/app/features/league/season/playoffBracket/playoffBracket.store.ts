@@ -5,8 +5,9 @@ import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import type { ViewerData } from 'brackets-viewer';
 import { AppLog } from '@core/telemetry/appLog';
-import { liveReload } from '@core/live/liveReload';
-import { seasonTopics } from '@core/live/liveTopics';
+import type { BracketLiveDto } from '@api/models';
+import { liveData } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** A season's playoff bracket, as brackets-viewer draws it. One per bracket (the component provides it). */
 @Injectable()
@@ -38,8 +39,18 @@ export class PlayoffBracketStore {
           this.reload();
       });
     });
-    // A result sent on, a team placed, a BYE: the bracket again, in place
-    liveReload(() => seasonTopics(this.seasonID.value()), () => this.reload());
+    // A result sent on, a team placed, a BYE: the bracket as it is now comes with it, in place
+    liveData<BracketLiveDto>(() => {
+      const seasonID = this.seasonID.value();
+      return seasonID ? [LiveTopics.bracket(seasonID)] : [];
+    }, bracket => {
+      if (bracket.seasonID === this.seasonID.value()) {
+        // brackets-model's data, as a read of it gives it (see reload)
+        this._viewerData.set((bracket.viewerData ?? null) as unknown as ViewerData | null);
+        this._loaded.set(true);
+      }
+      return true;
+    }, () => this.reload());
   }
 
   /** Loads the bracket again (after it was created or reseeded). */

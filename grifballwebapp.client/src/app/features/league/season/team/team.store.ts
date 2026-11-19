@@ -1,13 +1,13 @@
 import { effect, inject, Injectable, signal } from '@angular/core';
-import type { TeamDto, TeamPageMatchDto } from '@api/models';
+import type { TeamDto, TeamLiveDto, TeamPageMatchDto } from '@api/models';
 import { TeamService } from '@api/services/team.service';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { fromApiDate } from '@shared/apiDates';
 import { StoreInput } from '@shared/storeInput';
 import { DateTime } from 'luxon';
 import { map } from 'rxjs';
-import { liveReload } from '@core/live/liveReload';
-import { seasonTopics } from '@core/live/liveTopics';
+import { liveData } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 export interface MatchDto
 {
@@ -76,7 +76,17 @@ export class TeamStore {
         matches.unsubscribe();
       });
     });
-    // A result, a roster change, a rename of the season: the team again
-    liveReload(() => seasonTopics(this.seasonID.value()), () => this.changes.update(n => n + 1));
+    // A result, a roster change, a rename: the team and its matches as they are now come with it, in place
+    liveData<TeamLiveDto>(() => {
+      const teamID = this.teamID.value();
+      return teamID ? [LiveTopics.team(teamID)] : [];
+    }, team => {
+      if (team.teamID === this.teamID.value()) {
+        this._team.set(team.team ?? null);
+        this._matches.set(team.matches.map(parseTeamMatch));
+        this._matchesLoaded.set(true);
+      }
+      return true;
+    }, () => this.changes.update(n => n + 1));
   }
 }

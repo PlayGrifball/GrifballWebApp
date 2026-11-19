@@ -9,7 +9,8 @@ import { UnscheduledMatchDto } from '../models/unscheduled-match-dto';
 
 /**
  * A season's page as it shows it: its summary (header, champions, awards), standings, scheduled and unscheduled matches
- * (this week's are the scheduled ones), and its players' stats, the season's whole. Its bracket is read on its own.
+ * (this week's are the scheduled ones), and its players' stats, the season's whole. Its bracket, teams page and team
+ * pages have topics of their own.
  */
 export interface SeasonLiveDto {
   playerStats: Array<SeasonPlayerStatDto>;

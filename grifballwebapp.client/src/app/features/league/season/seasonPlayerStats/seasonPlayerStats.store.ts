@@ -1,11 +1,11 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import type { SeasonLiveDto } from '@api/models';
+import type { SeasonLiveDto, TeamLiveDto } from '@api/models';
 import { SeasonService } from '@api/services/season.service';
 import { StoreInput } from '@shared/storeInput';
 import { resourceView } from '@shared/resourceView';
 import { liveData } from '@core/live/liveReload';
-import { seasonTopics } from '@core/live/liveTopics';
+import { LiveTopics, seasonTopics } from '@core/live/liveTopics';
 
 /** A season's player stats, or one team's. One per table (the component provides it). */
 @Injectable()
@@ -31,13 +31,14 @@ export class SeasonPlayerStatsStore {
   readonly loaded = computed(() => this.resource.status() !== 'loading');
 
   constructor() {
-    // A game or a stats sheet of the season: the season's stats as they are now come with it; a team's (its page) are read
-    liveData<SeasonLiveDto>(() => seasonTopics(this.seasonID.value()), season => {
-      if (season.seasonID !== this.seasonID.value())
-        return true;
-      if (this.teamID.value() != null)
-        return false;
-      this.resource.set(season.playerStats);
+    // A game or a stats sheet: the season's stats as they are now come with the season's page, a team's with its page
+    liveData<SeasonLiveDto | TeamLiveDto>(() => {
+      const teamID = this.teamID.value();
+      return teamID == null ? seasonTopics(this.seasonID.value()) : [LiveTopics.team(teamID)];
+    }, page => {
+      const current = 'teamID' in page ? page.teamID === this.teamID.value() : page.seasonID === this.seasonID.value() && this.teamID.value() == null;
+      if (current)
+        this.resource.set(page.playerStats);
       return true;
     }, () => this.resource.reload());
   }

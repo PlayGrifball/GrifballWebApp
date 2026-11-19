@@ -9662,6 +9662,29 @@
         },
         "additionalProperties": false
       },
+      "BracketLiveDto": {
+        "required": [
+          "seasonID",
+          "viewerData"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "viewerData": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ViewerDataDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season's playoff bracket as brackets-viewer draws it; null for a season with none."
+      },
       "BracketsMatch": {
         "required": [
           "child_count",
@@ -16085,7 +16108,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "A season's page as it shows it: its summary (header, champions, awards), standings, scheduled and unscheduled matches\n(this week's are the scheduled ones), and its players' stats, the season's whole. Its bracket is read on its own."
+        "description": "A season's page as it shows it: its summary (header, champions, awards), standings, scheduled and unscheduled matches\n(this week's are the scheduled ones), and its players' stats, the season's whole. Its bracket, teams page and team\npages have topics of their own."
       },
       "SeasonMatchDecisionDto": {
         "enum": [
@@ -17601,6 +17624,43 @@
         "additionalProperties": false,
         "description": "One season of a franchise: that season's team."
       },
+      "TeamLiveDto": {
+        "required": [
+          "matches",
+          "playerStats",
+          "team",
+          "teamID"
+        ],
+        "type": "object",
+        "properties": {
+          "teamID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "team": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TeamDto"
+              }
+            ],
+            "nullable": true
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamPageMatchDto"
+            }
+          },
+          "playerStats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonPlayerStatDto"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A team's page: the team (null once it is gone), its matches, and its players' stats for its season."
+      },
       "TeamPageMatchDto": {
         "required": [
           "bestOf",
@@ -17852,6 +17912,38 @@
           }
         },
         "additionalProperties": false
+      },
+      "TeamsLiveDto": {
+        "required": [
+          "seasonID",
+          "summary",
+          "teams"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "summary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonSummaryDto"
+              }
+            ],
+            "description": "A season's page header: what it is, its champions, and how much of each kind of data it has, so the page can say\nwhat is missing (a season backfilled from the historical archive has teams and stats but no signups or schedule;\none with Waypoint matches has those too).",
+            "nullable": true
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonTeamDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season's teams page: its banner (the summary) and its teams with their rosters and records."
       },
       "TeamsPlayerDto": {
         "required": [
