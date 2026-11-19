@@ -479,4 +479,92 @@ public class StandingsParserTests
     {
         Assert.That(StandingsParser.WithoutNote(name), Is.EqualTo(expected));
     }
+
+    [Test]
+    public void Rows_WonLossAndPsHeaders_ReadRankAndRecords()
+    {
+        var sheet = Sheet(
+            ["PS", "Team", "Played", "Won", "Loss", "Net Goals"],
+            ["2", "Legendary", "16", "14", "2", "49"],
+            ["6", "Zero Gravity", "16", "8", "8", "8"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Rank, t.Wins, t.Losses)),
+            Is.EqualTo(new[] { ("Legendary", (int?)2, (int?)14, (int?)2), ("Zero Gravity", (int?)6, (int?)8, (int?)8) }));
+    }
+
+    [Test]
+    public void CaptainRows_ReadsTeamsCaptainsRostersAndRecordsAcrossBlocks()
+    {
+        var sheet = Sheet(
+            ["", "Sword Division", "", "", "", "", "Wins", "", "Losses"],
+            ["", "ThunderCats", "", "ixLiono", "ixSnarf", "ixGingy", "9", "", "1"],
+            ["", "", "", "Captain"],
+            ["", "Hammer Division", "", "", "", "", "Wins", "", "Losses"],
+            ["", "JankYard Doogs", "", "Nkotb4evah", "Menz", "", "10", "", "0"],
+            ["", "", "", "Captain"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings", Layout = StandingsLayout.CaptainRows, Ranked = true });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain, t.Rank, t.Wins, t.Losses, string.Join(",", t.Roster))),
+            Is.EqualTo(new[]
+            {
+                ("ThunderCats", (string?)"ixLiono", (int?)1, (int?)9, (int?)1, "ixLiono,ixSnarf,ixGingy"),
+                ("JankYard Doogs", (string?)"Nkotb4evah", (int?)1, (int?)10, (int?)0, "Nkotb4evah,Menz"),
+            }));
+    }
+
+    [Test]
+    public void RosterParser_CaptainRows_StopsAtWinsColumnAndIgnoresTrailingNotes()
+    {
+        var sheet = Sheet(
+            ["", "Sword Division", "", "", "", "Wins", "Losses", "Record"],
+            ["", "ThunderCats", "", "ixLiono (c)", "ixSnarf", "9", "1", "9-1"],
+            ["", "", "", "Captain"]);
+
+        var byPlayer = RosterParser.Parse(sheet);
+
+        Assert.That(byPlayer, Is.EqualTo(new Dictionary<string, string>
+        {
+            ["IXLIONO"] = "ThunderCats",
+            ["IXSNARF"] = "ThunderCats",
+        }));
+    }
+
+    [Test]
+    public void CaptainRows_ARosterRunsToTheLossesColumnOrTheRowsEnd_AndARowNamingNoTeamIsSkipped()
+    {
+        var sheet = Sheet(
+            ["", "ThunderCats", "", "ixLiono", "ixSnarf"],
+            ["", "", "", "Captain"],
+            ["", "", "", "Lonely"],
+            ["", "", "", "Captain"],
+            ["", "Sword Division", "", "", "", "Losses", "Note"],
+            ["", "Bears", "", "Menz", "Nkotb4evah", "2", "late"],
+            ["", "", "", "Captain"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings", Layout = StandingsLayout.CaptainRows });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain, t.Wins, t.Losses, string.Join(",", t.Roster))),
+            Is.EqualTo(new[]
+            {
+                ("ThunderCats", (string?)"ixLiono", (int?)null, (int?)null, "ixLiono,ixSnarf"),
+                ("Bears", (string?)"Menz", (int?)null, (int?)2, "Menz,Nkotb4evah"),
+            }));
+    }
+
+    private static readonly string[][] TeamStatRows = [["Impulse"], [], ["iGalvanator", "Totals:"], ["Goals:", "11"], ["Totals"], ["Goals:", "57"]];
+
+    [Test]
+    public void RosterParser_TeamStatBlocks_SkipTotalsRows_AndTabsNamedForNoTeam()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(RosterParser.Parse(new SheetTable { Name = "Impulse", Rows = [.. TeamStatRows] }),
+                Is.EqualTo(new Dictionary<string, string> { ["IGALVANATOR"] = "Impulse" }));
+            Assert.That(RosterParser.Parse(new SheetTable { Name = "Subs", Rows = [.. TeamStatRows] }), Is.Empty);
+            Assert.That(RosterParser.Parse(new SheetTable { Name = " ", Rows = [.. TeamStatRows] }), Is.Empty);
+        }
+    }
 }

@@ -450,4 +450,111 @@ public class GamesTableParserTests
             }));
         }
     }
+
+    [Test]
+    public void ScheduleResults_ParsesDecidedMatchesAndForfeits_SkipsUnplayed_AndIgnoresTimeOnlyDates()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Season = new() { Name = "Multi", League = "AGLA", Game = "multi" },
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "Player_Stats",
+                    Game = "halo4",
+                    SeasonColumn = "season_id",
+                    StandingsSheet = "Standings",
+                    Seasons = new()
+                    {
+                        ["ggl-fl15"] = new() { Name = "GGL Fall League 2015", League = "GGL", Game = "halo5" },
+                    },
+                },
+            ],
+            GameTables = [new() { Sheet = "Matches_Schedule", Layout = GamesTableLayout.ScheduleResults, Stats = "Player_Stats" }],
+        };
+        var workbook = Workbook(
+            ("Player_Stats", [Row("season_id", "gamertag", "team", "games played")]),
+            ("Standings", [
+                Row("season_id", "team_name", "rank", "wins", "losses"),
+                Row("ggl-fl15", "Alpha", 1, 2, 0),
+                Row("ggl-fl15", "Bravo", 2, 0, 2),
+            ]),
+            ("Matches_Schedule", [
+                Row("season_id", "division", "team_a", "team_b", "winner", "score_a", "score_b", "is_forfeit", "match_time"),
+                Row("ggl-fl15", "Open", "Alpha", "Bravo", "Alpha", 5, 2, 0, "2015-09-20"),
+                Row("ggl-fl15", "Playoffs", "Bravo", "Alpha", "Alpha", null, null, 0, "Sunday, 9:00pm"),
+                Row("ggl-fl15", "Open", "Alpha", "Bravo", "Alpha", null, null, 1, "2015-09-21"),
+                Row("ggl-fl15", "Open", "Alpha", "Bravo", null, null, null, 0, "Sunday, 9:00pm"),
+            ]));
+
+        var build = Build("hub", workbook, config);
+        var games = Games(build, "Matches_Schedule");
+        var forfeits = Forfeits(build, "Matches_Schedule");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Is.Empty, "unplayed schedule rows skip silently without warning");
+            Assert.That(games, Has.Count.EqualTo(2));
+            Assert.That((games[0].GameVersion, games[0].IsPlayoffs, games[0].PlayedAt),
+                Is.EqualTo(("halo5", false, new DateTime(2015, 9, 20, 0, 0, 0, DateTimeKind.Utc))));
+            Assert.That(Sides(games[0]), Is.EqualTo(new[] { (1, (string?)"Alpha", Outcomes.Won, (int?)5), (2, "Bravo", Outcomes.Lost, 2) }));
+            Assert.That((games[1].IsPlayoffs, games[1].PlayedAt), Is.EqualTo((true, (DateTime?)null)), "time-only strings do not default to the current year");
+            Assert.That(Sides(games[1]), Is.EqualTo(new[] { (1, (string?)"Bravo", Outcomes.Lost, (int?)null), (2, "Alpha", Outcomes.Won, null) }));
+            Assert.That(forfeits.Select(f => (f.Winner, f.Loser, f.PlayedAt)), Is.EqualTo(new[] { ("Alpha", "Bravo", (DateTime?)new DateTime(2015, 9, 21, 0, 0, 0, DateTimeKind.Utc)) }));
+        }
+    }
+
+    [Test]
+    public void ScheduleResults_ScoresDecideAMatchNoWinnerNames_SecondTeamWinsAForfeit_AndOneSidedRowsAreCounted()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Season = new() { Name = "Multi", League = "AGLA", Game = "multi" },
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "Player_Stats",
+                    Game = "halo4",
+                    SeasonColumn = "season_id",
+                    StandingsSheet = "Standings",
+                    Seasons = new()
+                    {
+                        ["ggl-fl15"] = new() { Name = "GGL Fall League 2015", League = "GGL", Game = "halo5" },
+                        ["ggl-wl16"] = new() { Name = "GGL Winter League 2016", League = "GGL" },
+                    },
+                },
+            ],
+            GameTables = [new() { Sheet = "Matches_Schedule", Layout = GamesTableLayout.ScheduleResults, Stats = "Player_Stats" }],
+        };
+        var workbook = Workbook(
+            ("Player_Stats", [Row("season_id", "gamertag", "team", "games played")]),
+            ("Standings", [
+                Row("season_id", "team_name", "rank", "wins", "losses"),
+                Row("ggl-fl15", "Alpha", 1, 2, 0),
+                Row("ggl-wl16", "Bravo", 1, 1, 0),
+            ]),
+            ("Matches_Schedule", [
+                Row("season_id", "division", "team_a", "team_b", "winner", "score_a", "score_b", "is_forfeit", "match_time"),
+                Row("ggl-wl16", "Open", "Alpha", "Bravo", null, 3, 5, 0, null),
+                Row("ggl-fl15", "Open", "Alpha", null, "Alpha", 5, 2, 0, "2015-09-20"),
+                Row("ggl-fl15", "Open", "Alpha", "Bravo", null, 3, null, 0, "2015-09-22"),
+                Row("ggl-fl15", "Open", "Alpha", "Bravo", "Bravo", null, null, 1, "2015-02-30"),
+            ]));
+
+        var build = Build("hub", workbook, config);
+        var games = Games(build, "Matches_Schedule");
+        var forfeits = Forfeits(build, "Matches_Schedule");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Has.Member("hub: Matches_Schedule: 1 row(s) without both sides or a result, skipped"));
+            Assert.That(games, Has.Count.EqualTo(1), "a row with one score and no winner is unplayed");
+            Assert.That((games[0].GameVersion, games[0].PlayedAt), Is.EqualTo(("halo4", (DateTime?)null)), "a season naming no game is its table's");
+            Assert.That(Sides(games[0]), Is.EqualTo(new[] { (1, (string?)"Alpha", Outcomes.Lost, (int?)3), (2, "Bravo", Outcomes.Won, 5) }));
+            Assert.That(forfeits.Select(f => (f.Winner, f.Loser, f.PlayedAt)), Is.EqualTo(new[] { ("Bravo", "Alpha", (DateTime?)null) }),
+                "a date that isn't one is none");
+        }
+    }
 }

@@ -35,7 +35,9 @@ public sealed partial class HistoricalArchiveBuilder
     private readonly IReadOnlySet<string>? _changedSourceIds;
     private readonly List<string> _warnings = [];
     private readonly List<ArchiveSeason> _seasons = [];
-    private ChampionsArchive? _champions;
+    private readonly List<ArchiveChampionship> _champions = [];
+    private string? _championsSourceId;
+    private string? _championsSourceUrl;
     private readonly List<RecordedGameInput> _games = [];
     private readonly List<ArchiveForfeitInput> _forfeits = [];
     private readonly List<ArchivePlayerInput> _players = [];
@@ -53,6 +55,8 @@ public sealed partial class HistoricalArchiveBuilder
     private readonly List<(string SourceId, int? Year, SeasonDefaults? Defaults, ResultsTab Tab, List<RecordedGameInput>? Games)> _results = [];
     /// <summary>Each bracket tab's series, put on their season's regular season once every season (and its standings) is known.</summary>
     private readonly List<(string SourceId, BracketTab Tab, ArchiveBracket? Bracket)> _brackets = [];
+    /// <summary>Each normalized bracket table's series, keyed by season source ID.</summary>
+    private readonly List<(string SourceId, string SeasonSourceId, ArchiveBracket Bracket)> _tableBrackets = [];
     /// <summary>Each draft tab's teams, put on their season's regular season once every season (and its standings) is known.</summary>
     private readonly List<(string SourceId, DraftTab Tab, List<ArchiveTeam>? Teams)> _drafts = [];
     /// <summary>Each awards tab's awards, put on their season's regular season once every season is known.</summary>
@@ -97,8 +101,12 @@ public sealed partial class HistoricalArchiveBuilder
         _seasons.AddRange(entries);
         if (config.ChampionsSheet is not null)
             AddChampions(id, source.Url, config, workbook, changed);
+        if (config.ChampionsTable is { } championsTable)
+            AddChampionsTable(id, source.Url, config, championsTable.Sheet, workbook, changed);
         AddWaypoint(id, config, workbook);
         AddSeasonTabs(id, config, workbook);
+        if (config.BracketTable is { } bracketTable)
+            AddBracketTable(id, config, bracketTable, workbook);
         AddResultLists(id, source.Year, config, workbook);
         AddGames(id, config, workbook, changed);
         AddGameTables(id, config, workbook, entries);
@@ -159,11 +167,41 @@ public sealed partial class HistoricalArchiveBuilder
         var sheetName = config.ChampionsSheet!;
         if (workbook.Sheet(sheetName) is { } sheet)
         {
-            _champions = ChampionsParser.Parse(id, url, sheet, config);
+            // Every source's champions, each named as its config names its teams (#534)
+            var parsed = ChampionsParser.Parse(id, url, sheet, config);
+            _championsSourceId = id;
+            _championsSourceUrl = url;
+            _champions.AddRange(parsed.Champions);
             _everySeason |= changed;
         }
         else
             _warnings.Add($"{id}: no sheet '{sheetName}'");
+    }
+
+    private void AddChampionsTable(string id, string url, HistoricalSourceConfig config, string sheetName, SheetWorkbook workbook, bool changed)
+    {
+        if (workbook.Sheet(sheetName) is { } sheet)
+        {
+            var parsed = ChampionsParser.ParseTable(id, url, sheet, _warnings, config);
+            _championsSourceId ??= id;
+            _championsSourceUrl ??= url;
+            _champions.AddRange(parsed.Champions);
+            _everySeason |= changed;
+        }
+        else
+            _warnings.Add($"{id}: no sheet '{sheetName}'");
+    }
+
+    private void AddBracketTable(string id, HistoricalSourceConfig config, BracketTableConfig table, SheetWorkbook workbook)
+    {
+        var stats = config.Tables.FirstOrDefault(t => string.Equals(t.Sheet, table.Stats, StringComparison.OrdinalIgnoreCase));
+        if (stats is null)
+        {
+            _warnings.Add($"{id}: bracket table '{table.Sheet}' names no stats table '{table.Stats}'");
+            return;
+        }
+        foreach (var (seasonSourceId, bracket) in BracketParser.ParseTable(id, table, stats, workbook, _warnings))
+            _tableBrackets.Add((id, seasonSourceId, bracket));
     }
 
     private void AddWaypoint(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
@@ -259,7 +297,9 @@ public sealed partial class HistoricalArchiveBuilder
         var input = new HistoricalArchiveInput
         {
             Seasons = new UnifiedArchive { Seasons = _seasons },
-            Championships = _champions,
+            Championships = _champions.Count > 0 || _championsSourceId is not null
+                ? new ChampionsArchive { SourceId = _championsSourceId, SourceUrl = _championsSourceUrl, Champions = _champions }
+                : null,
             Catalog = new ArchiveCatalog { Sources = _catalog },
             WaypointMatches = waypoint.Where(w => w.Value.Regular.Count > 0 || w.Value.Playoffs.Count > 0)
                 .ToDictionary(w => w.Key, w => new WaypointSeasonMatches { Regular = [.. w.Value.Regular], Playoffs = [.. w.Value.Playoffs], Schedule = [.. w.Value.Schedule.Values.OrderBy(g => g.MatchId, StringComparer.Ordinal)] }),
@@ -384,19 +424,36 @@ public sealed partial class HistoricalArchiveBuilder
                 _warnings.Add($"{sourceId}: bracket '{tab.Sheet ?? tab.Rounds[0].Sheet}' not read (no season from {workbook})");
                 continue;
             }
-            var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
-            var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
-                .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            // A bracket's team is often "Team (captain)": the name without it, a few letters off, is the season's too
-            string Named(string name)
-            {
-                name = tab.Aliases.GetValueOrDefault(name) ?? name;
-                return Closest(name, known) ?? Closest(StandingsParser.WithoutNote(name), known) ?? name;
-            }
-            regular.Bracket = new ArchiveBracket { Series = [.. bracket.Series.Select(s => s with { Home = Named(s.Home), Away = Named(s.Away) })] };
-            if (_changedSourceIds?.Contains(sourceId) != false)
-                _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+            AttachBracket(regular, bracket, tab.Aliases, sourceId);
         }
+
+        foreach (var (sourceId, seasonSourceId, bracket) in _tableBrackets)
+        {
+            var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs
+                && string.Equals(HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!), seasonSourceId, StringComparison.OrdinalIgnoreCase));
+            if (regular is null)
+            {
+                _warnings.Add($"{sourceId}: bracket for '{seasonSourceId}' not attached (no regular-season entry)");
+                continue;
+            }
+            AttachBracket(regular, bracket, null, sourceId);
+        }
+    }
+
+    private void AttachBracket(ArchiveSeason regular, ArchiveBracket bracket, Dictionary<string, string>? aliases, string sourceId)
+    {
+        var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, regular.SourceWorkbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
+        var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
+            .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        // A bracket's team is often "Team (captain)": the name without it, a few letters off, is the season's too
+        string Named(string name)
+        {
+            name = aliases?.GetValueOrDefault(name) ?? name;
+            return Closest(name, known) ?? Closest(StandingsParser.WithoutNote(name), known) ?? name;
+        }
+        regular.Bracket = new ArchiveBracket { Series = [.. bracket.Series.Select(s => s with { Home = Named(s.Home), Away = Named(s.Away) })] };
+        if (_changedSourceIds?.Contains(sourceId) != false)
+            _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
     }
 
     /// <summary>The regular-season entry of the workbook's season (the first, or its stats tab's), and all of that season's entries.</summary>

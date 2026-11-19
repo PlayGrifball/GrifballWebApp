@@ -21,10 +21,10 @@ public static partial class StandingsParser
     private static readonly Dictionary<string, Field> Headers = new(StringComparer.Ordinal)
     {
         ["team"] = Field.Team, ["teams"] = Field.Team, ["team name"] = Field.Team, ["team names"] = Field.Team, ["team standings"] = Field.Team,
-        ["w"] = Field.Wins, ["win"] = Field.Wins, ["wins"] = Field.Wins,
+        ["w"] = Field.Wins, ["win"] = Field.Wins, ["wins"] = Field.Wins, ["won"] = Field.Wins,
         ["l"] = Field.Losses, ["loss"] = Field.Losses, ["losses"] = Field.Losses,
         ["record"] = Field.Record, ["w-l"] = Field.Record,
-        ["rank"] = Field.Rank, ["seed"] = Field.Rank, ["place"] = Field.Rank, ["standing"] = Field.Rank, ["standings"] = Field.Rank, ["season standing"] = Field.Rank, ["season standings"] = Field.Rank,
+        ["rank"] = Field.Rank, ["seed"] = Field.Rank, ["place"] = Field.Rank, ["standing"] = Field.Rank, ["standings"] = Field.Rank, ["season standing"] = Field.Rank, ["season standings"] = Field.Rank, ["ps"] = Field.Rank,
         ["place finished"] = Field.Finish, ["finish"] = Field.Finish, ["final place"] = Field.Finish, ["playoffs"] = Field.Finish,
         ["playoff ending"] = Field.Finish, ["ending"] = Field.Finish,
         ["captain"] = Field.Captain,
@@ -33,6 +33,11 @@ public static partial class StandingsParser
     /// <summary>The tab's teams, in its order; null when it has no table (no anchor cell, or no team header).</summary>
     public static List<ArchiveTeam>? Parse(SheetTable sheet, StandingsTab tab)
     {
+        if (tab.Layout == StandingsLayout.CaptainRows)
+        {
+            var captainTeams = ByCaptainRows(sheet, tab);
+            return captainTeams.Count == 0 ? null : captainTeams;
+        }
         if (Anchor(sheet, tab) is not var (row, column))
             return null;
         var teams = tab.Layout switch
@@ -79,6 +84,60 @@ public static partial class StandingsParser
                 teams.Add(name, Value, roster);
         }
         return teams.List;
+    }
+
+    private static List<ArchiveTeam> ByCaptainRows(SheetTable sheet, StandingsTab tab)
+    {
+        var teams = new Teams(tab);
+        var (winsCol, lossesCol) = (-1, -1);
+        for (var r = 0; r < sheet.Rows.Count; r++)
+        {
+            var row = sheet.Rows[r];
+            var w = Enumerable.Range(0, row.Length).FirstOrDefault(c => FieldOf(row[c]) == Field.Wins, -1);
+            var l = Enumerable.Range(0, row.Length).FirstOrDefault(c => FieldOf(row[c]) == Field.Losses, -1);
+            if (w >= 0 || l >= 0)
+            {
+                (winsCol, lossesCol) = (w, l);
+                if (teams.List.Count > 0)
+                    teams.NewBlock();
+                continue;
+            }
+            AddCaptainRow(teams, sheet, r, winsCol, lossesCol);
+        }
+        return teams.List;
+    }
+
+    /// <summary>The team of row <paramref name="r"/> when the row below heads its captain's column: its name, captain,
+    /// roster (from the captain's column up to the wins) and record.</summary>
+    private static void AddCaptainRow(Teams teams, SheetTable sheet, int r, int winsCol, int lossesCol)
+    {
+        if (r + 1 >= sheet.Rows.Count)
+            return;
+        var row = sheet.Rows[r];
+        var below = sheet.Rows[r + 1];
+        var captainCol = Enumerable.Range(1, Math.Max(0, below.Length - 1))
+            .FirstOrDefault(c => FieldOf(below[c]) == Field.Captain, -1);
+        if (captainCol <= 0)
+            return;
+        var teamCol = Enumerable.Range(0, captainCol).FirstOrDefault(c => !string.IsNullOrWhiteSpace(sheet.Cell(r, c)), -1);
+        if (teamCol < 0)
+            return;
+        var teamName = sheet.Cell(r, teamCol).Trim();
+        var captain = Gamertag(sheet.Cell(r, captainCol));
+        var end = winsCol >= 0 ? winsCol : lossesCol >= 0 ? lossesCol : row.Length;
+        var roster = Enumerable.Range(captainCol, Math.Max(0, Math.Min(end, row.Length) - captainCol))
+            .Select(c => Gamertag(row[c]))
+            .Where(p => p.Length > 0)
+            .ToList();
+        var wins = winsCol >= 0 ? sheet.Cell(r, winsCol).Trim() : "";
+        var losses = lossesCol >= 0 ? sheet.Cell(r, lossesCol).Trim() : "";
+        teams.Add(teamName, f => f switch
+        {
+            Field.Captain => captain,
+            Field.Wins => wins,
+            Field.Losses => losses,
+            _ => "",
+        }, roster);
     }
 
     private static bool IsPlayersHeader(string cell) => Normalize(cell) is "gamertag" or "gamertags" or "player" or "players" or "player name";

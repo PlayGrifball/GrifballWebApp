@@ -149,14 +149,228 @@ public static partial class GameResultsParser
     private static void Table(ResultsParse parse)
     {
         TableColumns? columns = null;
+        int fixtureHeaderRow = -1;
+        List<FixtureBlock>? fixtureBlocks = null;
+        List<(int RowIndex, string[] Row)> fixtureRows = [];
+
+        void FlushFixtures()
+        {
+            if (fixtureBlocks is null)
+                return;
+            FlushFixtureBlocks(parse, fixtureHeaderRow, fixtureBlocks, fixtureRows);
+            fixtureBlocks = null;
+            fixtureRows = [];
+            fixtureHeaderRow = -1;
+        }
+
         for (var r = 0; r < parse.Sheet.Rows.Count; r++)
         {
             var row = parse.Sheet.Rows[r];
             if (TableColumns.Of(row, columns) is { } header)
+            {
+                FlushFixtures();
                 columns = header;
+            }
+            else if (FixtureBlocksOf(row) is { Count: > 0 } blocks)
+            {
+                FlushFixtures();
+                fixtureHeaderRow = r;
+                fixtureBlocks = blocks;
+                columns = null;
+            }
             else if (columns is not null)
                 TableRow(parse, columns, row, r.ToString(CultureInfo.InvariantCulture));
+            else if (fixtureBlocks is not null)
+                fixtureRows.Add((r, row));
+            else
+            {
+                var first = row.Select(c => c.Trim()).FirstOrDefault(c => c.Length > 0, "");
+                parse.Phase(first);
+            }
         }
+        FlushFixtures();
+    }
+
+    private sealed record FixtureBlock(int Team1, int Team2, int Score1, int Score2, int Wl1, int Wl2, int Host, int Vod)
+    {
+        public int MinCol => new[] { Team1, Team2, Score1, Score2, Wl1, Wl2 }.Where(i => i >= 0).Min();
+    }
+
+    private static void FlushFixtureBlocks(ResultsParse parse, int headerRow, List<FixtureBlock> blocks, List<(int RowIndex, string[] Row)> rows)
+    {
+        var basePlayoffs = parse.Playoffs;
+        string[]? bannerRow = headerRow > 0 ? parse.Sheet.Rows[headerRow - 1] : null;
+        var sharedBanner = SharedBanner(bannerRow, blocks);
+
+        for (var i = 0; i < blocks.Count; i++)
+        {
+            var block = blocks[i];
+            var colStart = i == 0 ? 0 : block.MinCol;
+            var colEnd = i + 1 < blocks.Count ? blocks[i + 1].MinCol : int.MaxValue;
+
+            parse.Playoffs = basePlayoffs;
+            parse.EndSeries();
+
+            var ownBanner = bannerRow is null ? null : FirstCellInSpan(bannerRow, colStart, colEnd);
+            if (ownBanner is not null)
+                parse.Phase(ownBanner);
+            else if (sharedBanner is not null)
+                parse.Phase(sharedBanner);
+
+            foreach (var (r, row) in rows)
+                FixtureRow(parse, block, colStart, colEnd, row, r);
+        }
+        parse.EndSeries();
+    }
+
+    /// <summary>The banner over the first block's columns when none is over the others': the phase of every block.</summary>
+    private static string? SharedBanner(string[]? bannerRow, List<FixtureBlock> blocks)
+    {
+        if (bannerRow is null)
+            return null;
+        var secondStart = blocks.Count > 1 ? blocks[1].MinCol : int.MaxValue;
+        var firstSpanCells = bannerRow.Take(Math.Min(bannerRow.Length, secondStart)).Select(c => c.Trim()).Where(c => c.Length > 0).ToList();
+        var restHasAny = blocks.Count > 1 && bannerRow.Skip(secondStart).Any(c => !string.IsNullOrWhiteSpace(c));
+        return firstSpanCells.Count > 0 && !restHasAny ? firstSpanCells[0] : null;
+    }
+
+    private static string? FirstCellInSpan(string[] row, int colStart, int colEnd)
+    {
+        var end = Math.Min(row.Length, colEnd);
+        for (var c = colStart; c < end; c++)
+        {
+            var trimmed = row[c].Trim();
+            if (trimmed.Length > 0)
+                return trimmed;
+        }
+        return null;
+    }
+
+    private static List<FixtureBlock>? FixtureBlocksOf(string[] row)
+    {
+        var keys = row.Select(c => ArchiveCells.HeaderKey(c).TrimEnd(':')).ToList();
+        var blocks = new List<FixtureBlock>();
+        for (var c = 0; c < keys.Count; c++)
+        {
+            if (keys[c] is "team1" or "hometeam")
+            {
+                if (TeamsBlock(keys, c) is not { } block)
+                    continue;
+                blocks.Add(block);
+                c = block.Team2;
+                continue;
+            }
+            if (keys[c] is "visitors" or "away" && c + 1 < keys.Count && keys[c + 1] == "home")
+            {
+                blocks.Add(VisitorsHomeBlock(keys, c));
+                return blocks;
+            }
+        }
+        return blocks.Count > 0 ? blocks : null;
+    }
+
+    /// <summary>A "Team 1 | Score | Score | Team 2" block from its first team's column; null when no second team follows it.</summary>
+    private static FixtureBlock? TeamsBlock(List<string> keys, int c)
+    {
+        var team2 = Enumerable.Range(c + 1, Math.Min(6, keys.Count - c - 1)).FirstOrDefault(i => keys[i] is "team2" or "awayteam", -1);
+        if (team2 <= c)
+            return null;
+        var scores = Enumerable.Range(c + 1, team2 - c - 1).Where(i => keys[i] is "score" or "goals").ToList();
+        var link = Enumerable.Range(team2 + 1, Math.Min(3, keys.Count - team2 - 1))
+            .FirstOrDefault(i => keys[i] is "gamelink" or "link" or "vod" or "vods" or "video", -1);
+        return new FixtureBlock(c, team2, scores.Count > 0 ? scores[0] : -1, scores.Count > 1 ? scores[1] : -1, -1, -1, -1, link);
+    }
+
+    /// <summary>A "W/L | Goals | Visitors | Home | Goals | W/L" block from its visitors' column, with its host and link columns.</summary>
+    private static FixtureBlock VisitorsHomeBlock(List<string> keys, int c)
+    {
+        var (s1, wl1) = VisitorsColumns(keys, c);
+        var (s2, wl2) = HomeColumns(keys, c);
+        var host = Enumerable.Range(c + 2, keys.Count - c - 2).FirstOrDefault(i => keys[i] is "nh" or "host", -1);
+        var link = Enumerable.Range(c + 2, keys.Count - c - 2).FirstOrDefault(i => keys[i] is "link" or "vod" or "vods" or "video", -1);
+        return new FixtureBlock(c, c + 1, s1, s2, wl1, wl2, host, link);
+    }
+
+    /// <summary>The visitors' goals and W/L columns, before their name's (-1 for one not there).</summary>
+    private static (int Score, int WinLoss) VisitorsColumns(List<string> keys, int c)
+    {
+        var s1 = c - 1 >= 0 && keys[c - 1] is "goals" or "score" ? c - 1 : -1;
+        var beforeVisitors = s1 >= 0 ? s1 - 1 : c - 1;
+        var wl1 = beforeVisitors >= 0 && keys[beforeVisitors] is "w/l" or "wl" ? beforeVisitors : -1;
+        return (s1, wl1);
+    }
+
+    /// <summary>The home team's goals and W/L columns, after its name's (-1 for one not there).</summary>
+    private static (int Score, int WinLoss) HomeColumns(List<string> keys, int c)
+    {
+        var s2 = c + 2 < keys.Count && keys[c + 2] is "goals" or "score" ? c + 2 : -1;
+        var afterHome = s2 >= 0 ? s2 + 1 : c + 2;
+        var wl2 = afterHome < keys.Count && keys[afterHome] is "w/l" or "wl" ? afterHome : -1;
+        return (s2, wl2);
+    }
+
+    private static void FixtureRow(ResultsParse parse, FixtureBlock block, int colStart, int colEnd, string[] row, int r)
+    {
+        var team1 = TeamName(Cell(row, block.Team1));
+        var team2 = TeamName(Cell(row, block.Team2));
+        if (team1 is null || team2 is null)
+        {
+            NoGameRow(parse, row, colStart, colEnd, oneSided: (team1 ?? team2) is not null);
+            return;
+        }
+        var rawS1 = Cell(row, block.Score1).Trim();
+        var rawS2 = Cell(row, block.Score2).Trim();
+        var wl1 = WinLossCell(row, block.Wl1, rawS1);
+        var wl2 = WinLossCell(row, block.Wl2, rawS2);
+        var host = Text(Cell(row, block.Host));
+        var hostIsForfeit = host is not null && IsForfeitMark(host);
+        var vodRaw = Cell(row, block.Vod).Trim();
+        var (s1, s2) = (0, 0);
+        var hasScore = int.TryParse(rawS1, out s1) && int.TryParse(rawS2, out s2);
+        var wlWon = wl1.Equals("W", StringComparison.OrdinalIgnoreCase) || wl2.Equals("L", StringComparison.OrdinalIgnoreCase);
+        var wlLost = wl1.Equals("L", StringComparison.OrdinalIgnoreCase) || wl2.Equals("W", StringComparison.OrdinalIgnoreCase);
+        var isForfeit = !hasScore
+            || IsForfeitMark(vodRaw)
+            || hostIsForfeit
+            || (hasScore && s1 == 0 && s2 == 0 && (wlWon || wlLost))
+            || rawS1.Equals("W", StringComparison.OrdinalIgnoreCase)
+            || rawS1.Equals("L", StringComparison.OrdinalIgnoreCase);
+        if (FixtureOutcome(hasScore, s1, s2, wlWon, wlLost) is not { } outcome)
+            return;
+
+        var where = block.Team1 == 0 ? r.ToString(CultureInfo.InvariantCulture) : $"{r}_{block.Team1}";
+        Add(parse, parse.Key(where), parse.SeriesOf(team1, team2, where), new GameResult(team1, team2, outcome, hasScore ? s1 : null, hasScore ? s2 : null)
+        {
+            IsForfeit = isForfeit,
+            Host = hostIsForfeit ? null : host,
+            Vod = Link(vodRaw),
+        });
+    }
+
+    /// <summary>A fixture row naming no game: a phase marker, else the end of the series (a one-sided result counted).</summary>
+    private static void NoGameRow(ResultsParse parse, string[] row, int colStart, int colEnd, bool oneSided)
+    {
+        var marker = FirstCellInSpan(row, colStart, colEnd) ?? "";
+        if (parse.Phase(marker))
+            return;
+        if (oneSided)
+            parse.OneSided++;
+        parse.EndSeries();
+    }
+
+    /// <summary>A side's W/L cell, or its score's when the block has no W/L column.</summary>
+    private static string WinLossCell(string[] row, int column, string rawScore) => column >= 0 ? Cell(row, column).Trim() : rawScore;
+
+    /// <summary>A fixture's outcome for its first team: its score's, else its W/L's; null when neither says.</summary>
+    private static Outcomes? FixtureOutcome(bool hasScore, int s1, int s2, bool wlWon, bool wlLost)
+    {
+        if (hasScore && (s1 != s2 || (!wlWon && !wlLost)))
+            return Outcome(s1, s2);
+        if (wlWon)
+            return Outcomes.Won;
+        if (wlLost)
+            return Outcomes.Lost;
+        return null;
     }
 
     /// <summary>A row of a table: a game, a week or playoffs marker, a result naming one team (reported), or neither.</summary>
@@ -245,6 +459,7 @@ public static partial class GameResultsParser
     {
         /// <summary>Its numbers are the series score whatever they are ("A 2-1 B"), not perhaps a game's.</summary>
         public bool SeriesScore { get; init; }
+        public bool IsForfeit { get; init; }
 
         public static SeriesEntry? Of(string cell)
         {
@@ -253,7 +468,7 @@ public static partial class GameResultsParser
             {
                 var games = over.Groups["games"].Success ? over.Groups["games"].Value.Split(',').Select(g => g.Trim()).Where(g => g.Length > 0).ToList() : [];
                 return new SeriesEntry(a, b, over.Groups["verb"].Value.Equals("tied", StringComparison.OrdinalIgnoreCase),
-                    Number(over.Groups["sa"]), Number(over.Groups["sb"]), games);
+                    Number(over.Groups["sa"]), Number(over.Groups["sb"]), games) { IsForfeit = over.Groups["ff"].Success };
             }
             var between = BetweenPattern().Match(cell);
             if (between.Success && TeamName(between.Groups["a"].Value) is { } first && TeamName(between.Groups["b"].Value) is { } second)
@@ -296,6 +511,8 @@ public static partial class GameResultsParser
     /// <summary>A series cell without game scores: "A over B 5-3" one game, "A over B 2-0" two without scores.</summary>
     private static List<GameResult>? ScorelessGames(SeriesEntry entry)
     {
+        if (entry.IsForfeit)
+            return [new GameResult(entry.A, entry.B, Outcomes.Won, null, null) { IsForfeit = true }];
         if (entry.ScoreA is not int sa || entry.ScoreB is not int sb)
             return null;
         if (!entry.SeriesScore && Math.Max(sa, sb) >= 5)
@@ -475,8 +692,8 @@ public static partial class GameResultsParser
     [GeneratedRegex(@"^ff\s+(?<team>.+?)\s+win", RegexOptions.IgnoreCase)]
     private static partial Regex ForfeitWinnerPattern();
 
-    /// <summary>"A over B 2-0 (5-1, 5-4)", "A tied B (5-3, 5-3)", "A over B 5-3".</summary>
-    [GeneratedRegex(@"^(?<a>.+?)\s+(?<verb>over|tied|beat|def\.?|defeated)\s+(?<b>.+?)(?:\s+(?<sa>\d{1,2})\s*-\s*(?<sb>\d{1,2}))?\s*(?:\((?<games>[^)]*)\))?$", RegexOptions.IgnoreCase)]
+    /// <summary>"A over B 2-0 (5-1, 5-4)", "A tied B (5-3, 5-3)", "A over B 5-3", "A over B FF".</summary>
+    [GeneratedRegex(@"^(?<a>.+?)\s+(?<verb>over|tied|beat|def\.?|defeated)\s+(?<b>.+?)(?:\s+(?<sa>\d{1,2})\s*-\s*(?<sb>\d{1,2})|\s+(?<ff>ff|forfeit))?\s*(?:\((?<games>[^)]*)\))?$", RegexOptions.IgnoreCase)]
     private static partial Regex OverPattern();
 
     /// <summary>"A 2-1 B": a series score (up to 4) between the names.</summary>

@@ -435,4 +435,50 @@ public class StatsTableParserTests
         var team = Seasons(build).Single().Teams.Single();
         Assert.That((team.TeamName, team.Wins, team.GoalsFor), Is.EqualTo(("Red Team", (int?)null, (int?)30)));
     }
+
+    [Test]
+    public void SeasonOverrides_UsePerSeasonLeagueAndGameVersionInsteadOfTableDefaults()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Season = new() { Name = "Multi", League = "AGLA", Game = "multi" },
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "Player_Stats",
+                    Game = "halo4",
+                    SeasonColumn = "season_id",
+                    PlayoffsColumn = "playoffs",
+                    StandingsSheet = "Standings",
+                    Seasons = new()
+                    {
+                        ["ggl-sml17"] = new() { Name = "GGL Summer League 2017", League = "GGL", Game = "halo5", Year = 2017 },
+                        ["eugbl-s20"] = new() { Name = "EUGBL Season 20", League = "EUGBL", Year = 2015 },
+                    },
+                },
+            ],
+        };
+        var workbook = Workbook(
+            ("Player_Stats", [
+                Row("season_id", "playoffs", "gamertag", "team", "games played", "goals"),
+                Row("ggl-sml17", 0, "GglPlayer", "Red", 5, 10),
+            ]),
+            ("Standings", [
+                Row("season_id", "team_name", "rank", "wins", "losses"),
+                Row("ggl-sml17", "Red", 1, 5, 0),
+                Row("eugbl-s20", "Europe", 1, 6, 1),
+            ]));
+
+        var seasons = Seasons(Build(config, workbook));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons.Select(s => (s.SourceSheet, s.League, s.GameVersion, s.Players.Count, s.Teams.Count)), Is.EqualTo(new[]
+            {
+                ("Player_Stats#sggl-sml17", "GGL", "halo5", 1, 1),
+                ("Player_Stats#seugbl-s20", "EUGBL", "halo4", 0, 1),
+            }));
+        }
+    }
 }

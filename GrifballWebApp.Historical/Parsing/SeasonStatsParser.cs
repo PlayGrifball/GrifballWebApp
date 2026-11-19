@@ -18,25 +18,27 @@ public static partial class SeasonStatsParser
     public static readonly IReadOnlyDictionary<string, string> Columns = new Dictionary<string, string>
     {
         ["player"] = "gamertag", ["gamertag"] = "gamertag", ["players"] = "gamertag", ["name"] = "gamertag",
+        ["pro players"] = "gamertag", ["team/player"] = "gamertag",
         ["team"] = "teamName", ["team name"] = "teamName",
-        ["games"] = "gamesPlayed", ["games played"] = "gamesPlayed", ["gamesplayed"] = "gamesPlayed", ["played"] = "gamesPlayed", ["gp"] = "gamesPlayed",
-        ["wins"] = "wins", ["win"] = "wins",
-        ["losses"] = "losses", ["loses"] = "losses", ["loss"] = "losses",
+        ["games"] = "gamesPlayed", ["games played"] = "gamesPlayed", ["gamesplayed"] = "gamesPlayed", ["played"] = "gamesPlayed", ["gp"] = "gamesPlayed", ["total games"] = "gamesPlayed",
+        ["wins"] = "wins", ["win"] = "wins", ["games won"] = "wins",
+        ["losses"] = "losses", ["loses"] = "losses", ["loss"] = "losses", ["games lost"] = "losses",
         ["winpercent"] = "winPercent", ["win %"] = "winPercent", ["win percent"] = "winPercent", ["win/loss"] = "winPercent", ["win percentage"] = "winPercent",
-        ["goals"] = "goals", ["kills"] = "kills", ["assists"] = "assists", ["assist"] = "assists", ["deaths"] = "deaths",
+        ["goals"] = "goals", ["goals for"] = "goals", ["kills"] = "kills", ["assists"] = "assists", ["assist"] = "assists", ["assists (special playoff stat)"] = "assists", ["deaths"] = "deaths",
         ["k/d"] = "kdRatio", ["kd"] = "kdRatio", ["kd ratio"] = "kdRatio", ["k/d ratio"] = "kdRatio", ["kda"] = "kdRatio",
         ["spread"] = "kdSpread", ["k/d spread"] = "kdSpread", ["kd spread"] = "kdSpread", ["k-d"] = "kdSpread",
-        ["carrier kills"] = "carrierKills", ["carrier kill"] = "carrierKills", ["carrier killers"] = "carrierKills", ["stops"] = "carrierKills",
+        ["carrier kills"] = "carrierKills", ["carrier kill"] = "carrierKills", ["carrier killers"] = "carrierKills", ["ball carrier kills"] = "carrierKills", ["stops"] = "carrierKills",
         ["bomb stops"] = "carrierKills", ["bombstops"] = "carrierKills", ["plate stops"] = "carrierKills",
         ["avg life"] = "averageLifeSeconds", ["averagelife"] = "averageLifeSeconds", ["average life"] = "averageLifeSeconds",
         ["avg life duration"] = "averageLifeSeconds", ["average life duration"] = "averageLifeSeconds", ["average life (seconds)"] = "averageLifeSeconds",
+        ["avg life (s)"] = "averageLifeSeconds", ["average life (s)"] = "averageLifeSeconds",
         ["time"] = "totalSecondsPlayed", ["minutes"] = "totalSecondsPlayed", ["minutes played"] = "totalSecondsPlayed", ["seconds played"] = "totalSecondsPlayed",
-        ["time played (seconds)"] = "totalSecondsPlayed", ["game time"] = "totalSecondsPlayed", ["gametime"] = "totalSecondsPlayed", ["timealive"] = "totalSecondsPlayed", ["playingtime"] = "totalSecondsPlayed",
+        ["time played (seconds)"] = "totalSecondsPlayed", ["time (m)"] = "totalSecondsPlayed", ["game time"] = "totalSecondsPlayed", ["gametime"] = "totalSecondsPlayed", ["timealive"] = "totalSecondsPlayed", ["playingtime"] = "totalSecondsPlayed",
         ["sprees"] = "sprees", ["killing spree"] = "sprees", ["killing sprees"] = "sprees", ["killingsprees"] = "sprees",
         ["multikills"] = "multiKills", ["multikill"] = "multiKills",
         ["exterminations"] = "exterminations", ["extermination"] = "exterminations", ["exterm"] = "exterminations", ["exterms"] = "exterminations",
         ["betrayals"] = "betrayals",
-        ["hammer kills"] = "hammerKills", ["hammerkills"] = "hammerKills", ["sword kills"] = "swordKills", ["swordkills"] = "swordKills",
+        ["hammer kills"] = "hammerKills", ["hammerkills"] = "hammerKills", ["ham kills"] = "hammerKills", ["sword kills"] = "swordKills", ["swordkills"] = "swordKills",
         ["ball kills"] = "ballKills", ["ballkills"] = "ballKills", ["punches"] = "punches", ["ball punches"] = "punches",
         ["score"] = "score", ["damage done"] = "damageDealt", ["damage taken"] = "damageTaken",
         // A pivot table's averages per game (SL24's): the line keeps the total, the average times the games
@@ -118,7 +120,7 @@ public static partial class SeasonStatsParser
         var sides = teamColumns.Count > 0 && dataRows.Select(r => teamColumns.Select(c => c < r.Length ? r[c].Trim() : "").LastOrDefault(v => v.Length > 0))
             .OfType<string>().Where(v => v.Length > 0).DefaultIfEmpty("x").All(v => v is "0" or "1");
         var played = PlayedDates(sourceId, workbook, tab, sheet, dataRows, warnings);
-        var players = TabPlayers(sheet, tab, columns, sides, rosters);
+        var players = TabPlayers(sheet, config, tab, columns, sides, rosters);
         if (tab.GamesSheet is { } gamesName)
             CountGames(sourceId, workbook, gamesName, columns, players, warnings);
 
@@ -253,7 +255,7 @@ public static partial class SeasonStatsParser
 
     /// <summary>The tab's player lines: a row with a gamertag (not a totals row, or the header again), a player's second
     /// row their second stint, the team their row's (unless it is a side) or else their roster's.</summary>
-    private static List<ArchivePlayer> TabPlayers(SheetTable sheet, StatsTab tab, Dictionary<int, (string Key, string Header)> columns, bool sides,
+    private static List<ArchivePlayer> TabPlayers(SheetTable sheet, HistoricalSourceConfig config, StatsTab tab, Dictionary<int, (string Key, string Header)> columns, bool sides,
         Dictionary<string, string> rosters)
     {
         var players = new List<ArchivePlayer>();
@@ -273,7 +275,7 @@ public static partial class SeasonStatsParser
             if (tab.StopAt is { } stopAt && firstCell?.StartsWith(stopAt, StringComparison.OrdinalIgnoreCase) == true)
                 break;
 
-            if (TryParseTabRow(sheet, r, tab, columns, sides, rosters, stints, ref currentTeam) is { } player)
+            if (TryParseTabRow(sheet, r, config, tab, columns, sides, rosters, stints, ref currentTeam) is { } player)
                 players.Add(player);
         }
 
@@ -290,7 +292,7 @@ public static partial class SeasonStatsParser
         return tab.PerGame ? AggregatePerGame(players) : players;
     }
 
-    private static ArchivePlayer? TryParseTabRow(SheetTable sheet, int r, StatsTab tab, Dictionary<int, (string Key, string Header)> columns,
+    private static ArchivePlayer? TryParseTabRow(SheetTable sheet, int r, HistoricalSourceConfig config, StatsTab tab, Dictionary<int, (string Key, string Header)> columns,
         bool sides, Dictionary<string, string> rosters, Dictionary<string, int> stints, ref string? currentTeam)
     {
         var row = sheet.Rows[r];
@@ -308,6 +310,11 @@ public static partial class SeasonStatsParser
             currentTeam = null;
             return null;
         }
+        if (tab.TeamSectionRows && FindKnownTeam(config, rosters.Values, rawGamertag) is { } sectionTeam)
+        {
+            currentTeam = tab.CarryTeam ? sectionTeam : null;
+            return null;
+        }
         var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(rawGamertag);
         if (gamertag.Length == 0)
         {
@@ -317,24 +324,36 @@ public static partial class SeasonStatsParser
         if (tab.PerGame && !HasAnyGameStat(row, columns))
         {
             // A row that didn't play still names the team of the rows below it
-            ResolveRowTeam(teamName, sides, tab.CarryTeam, gamertag, rosters, ref currentTeam);
+            ResolveRowTeam(config, teamName, sides, tab.CarryTeam, gamertag, rosters, ref currentTeam);
             return null;
         }
 
-        var team = ResolveRowTeam(teamName, sides, tab.CarryTeam, gamertag, rosters, ref currentTeam);
+        var team = ResolveRowTeam(config, teamName, sides, tab.CarryTeam, gamertag, rosters, ref currentTeam);
         var stint = stints.GetValueOrDefault(gamertag) + 1;
         stints[gamertag] = stint;
         return Player(row, columns, gamertag, team, tradeNote, roleNote, stint, lossesAreGamesNotWon: tab.LossesAreGamesNotWon);
     }
 
-    private static string? ResolveRowTeam(string? teamName, bool sides, bool carryTeam, string gamertag,
+    private static string? FindKnownTeam(HistoricalSourceConfig config, IEnumerable<string> knownTeams, string raw)
+    {
+        var candidate = config.TeamName(raw.Trim()).Trim();
+        if (candidate.Length == 0 || HistoricalKeys.IsExcludedTeamName(candidate))
+            return null;
+        return knownTeams.FirstOrDefault(t => string.Equals(t.Trim(), candidate, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? ResolveRowTeam(HistoricalSourceConfig config, string? teamName, bool sides, bool carryTeam, string gamertag,
         Dictionary<string, string> rosters, ref string? currentTeam)
     {
-        var explicitTeam = sides || HistoricalKeys.IsExcludedTeamName(teamName) ? null : teamName?.Trim();
+        var mapped = string.IsNullOrWhiteSpace(teamName) ? null : config.TeamName(teamName.Trim());
+        var explicitTeam = sides || HistoricalKeys.IsExcludedTeamName(mapped) ? null : mapped?.Trim();
         if (carryTeam)
         {
-            if (!string.IsNullOrWhiteSpace(teamName) && HistoricalKeys.IsExcludedTeamName(teamName))
+            // A block's Team column occasionally holds a W-L record note beside one player ("8-2"): keep the carried team.
+            if (!string.IsNullOrWhiteSpace(teamName) && HistoricalKeys.IsExcludedTeamName(mapped))
                 currentTeam = null;
+            else if (explicitTeam is not null && RecordCell().IsMatch(explicitTeam))
+                explicitTeam = null;
             else if (!string.IsNullOrWhiteSpace(explicitTeam))
                 currentTeam = explicitTeam;
             explicitTeam ??= currentTeam;
@@ -500,7 +519,7 @@ public static partial class SeasonStatsParser
         {
             var text = row[c].Trim();
             // A pivot table's column is its stat's ("SUM of Games Played"), and a database's header has underscores
-            var lower = text.ToLowerInvariant().Replace('_', ' ');
+            var lower = Whitespace().Replace(text.ToLowerInvariant().Replace('_', ' '), " ");
             if (Columns.TryGetValue(lower.StartsWith("sum of ") ? lower[7..].Trim() : lower, out var key))
                 cols[c] = (key, text);
         }
@@ -684,8 +703,14 @@ public static partial class SeasonStatsParser
         return at.Year is >= 2007 and <= 2100 ? DateTime.SpecifyKind(at, DateTimeKind.Utc) : null;
     }
 
-    [GeneratedRegex("total|average|subtotal", RegexOptions.IgnoreCase)]
+    [GeneratedRegex("total|average|subtotal|team stats", RegexOptions.IgnoreCase)]
     private static partial Regex TotalsRow();
+
+    [GeneratedRegex(@"^\d+\s*-\s*\d+$")]
+    private static partial Regex RecordCell();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Whitespace();
 
     private static bool IsRepeatingHeader(string rawGamertag, string? teamName)
     {
@@ -693,6 +718,8 @@ public static partial class SeasonStatsParser
         var isTagHeader = cleanTag.Equals("Player", StringComparison.OrdinalIgnoreCase)
             || cleanTag.Equals("Gamertag", StringComparison.OrdinalIgnoreCase)
             || cleanTag.Equals("Players", StringComparison.OrdinalIgnoreCase)
+            || cleanTag.Equals("Pro Players", StringComparison.OrdinalIgnoreCase)
+            || cleanTag.Equals("Team/Player", StringComparison.OrdinalIgnoreCase)
             || cleanTag.Equals("Name", StringComparison.OrdinalIgnoreCase)
             || cleanTag.Equals("Player Name", StringComparison.OrdinalIgnoreCase);
         return isTagHeader && (string.IsNullOrWhiteSpace(teamName) || HistoricalKeys.IsExcludedTeamName(teamName));

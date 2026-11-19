@@ -461,4 +461,110 @@ public class SeasonStatsParserTests
             Assert.That(warnings, Is.EqualTo(TwoLinesWarning));
         }
     }
+
+    [Test]
+    public void LegacyHeaders_TimeMinutes_RecordCellsAndTeamSectionRows_AreHandled()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Rosters",
+            [
+                Row(null, "Teams", null, null, null, null, "Wins", null, "Losses"),
+                Row(null, "ThunderCats", null, "ixLiono", "ixGingy", null, 9, null, 1),
+                Row(null, null, null, "Captain"),
+            ]),
+            ("Stats",
+            [
+                Row("Pro Players", "Team", "Total Games", "Games Won", "Games Lost", "Time (m)", "Avg Life (S)", "Goals For", "Kills", "Ham Kills", "Ball    Kills"),
+                Row("Jankyard Doogs"),
+                Row("ixLiono", null, 3, 2, 1, 60, 14.0, 5, 200, 150, 8),
+                Row("Pro Players", null),
+                Row("ixGingy", "8-2", 5, 4, 1, 95, 11.2, 6, 300, 250, 12),
+                Row("SubPlayer", "Various Teams", 1, 0, 1, 15, 9.0, 1, 40, 30, 1),
+            ])))!;
+
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Winter League 2020 (Reach PC)", League = "AGLA", Game = "reach" },
+            RosterSheets = ["Rosters"],
+            Tabs = [new() { Name = "Stats", HeaderRow = 0, CarryTeam = true, TeamSectionRows = true }],
+            TeamNames = new() { ["Jankyard Doogs"] = "ThunderCats", ["Various Teams"] = "" },
+        };
+
+        var players = SeasonStatsParser.Parse("wl20", config, workbook, []).Single().Players;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(players.Select(p => (p.Gamertag, p.TeamName, p.TotalSecondsPlayed, p.BallKills, p.HammerKills)),
+                Is.EqualTo(new[]
+                {
+                    ("ixLiono", (string?)"ThunderCats", (decimal?)3600m, (decimal?)8m, (decimal?)150m),
+                    ("ixGingy", (string?)"ThunderCats", (decimal?)5700m, (decimal?)12m, (decimal?)250m),
+                    ("SubPlayer", (string?)null, (decimal?)900m, (decimal?)1m, (decimal?)30m),
+                }));
+        }
+    }
+
+    [Test]
+    public void TeamSectionRows_WithoutCarryTeam_LeaveTheTeamToTheRoster_AndANameForNoTeamIsALine()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Rosters",
+            [
+                Row(null, "Teams", null, null, null, null, "Wins", null, "Losses"),
+                Row(null, "ThunderCats", null, "ixLiono", "ixGingy", null, 9, null, 1),
+                Row(null, null, null, "Captain"),
+            ]),
+            ("Stats",
+            [
+                Row("Pro Players", "Team", "Total Games"),
+                Row("ThunderCats"),
+                Row("ixLiono", null, 3),
+                Row("Subs", null, 2),
+                Row("Gone", null, 1),
+            ])))!;
+
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Winter League 2020 (Reach PC)", League = "AGLA", Game = "reach" },
+            RosterSheets = ["Rosters"],
+            Tabs = [new() { Name = "Stats", HeaderRow = 0, TeamSectionRows = true }],
+            TeamNames = new() { ["Gone"] = "" },
+        };
+
+        var players = SeasonStatsParser.Parse("wl20", config, workbook, []).Single().Players;
+
+        Assert.That(players.Select(p => (p.Gamertag, p.TeamName)),
+            Is.EqualTo(new[] { ("ixLiono", (string?)"ThunderCats"), ("Subs", null), ("Gone", null) }));
+    }
+
+    [Test]
+    public void RosterParser_TeamStatBlocks_ReadsPlayersAboveGoalsRows()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Impulse",
+            [
+                Row("Impulse"),
+                Row(),
+                Row("iGalvanator", "Totals:"),
+                Row("Goals:", 11),
+                Row("KID TONGA 1"),
+                Row("Goals:", 46),
+            ]),
+            ("Overall",
+            [
+                Row("Pro Players", "Total Games", "Kills", "Deaths"),
+                Row("iGalvanator", 13, 784, 604),
+                Row("KID TONGA 1", 15, 446, 609),
+            ])))!;
+
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Summer League 2016", League = "AGLA", Game = "halo5" },
+            RosterSheets = ["Impulse"],
+            Tabs = [new() { Name = "Overall", HeaderRow = 0 }],
+        };
+
+        var players = SeasonStatsParser.Parse("sml16", config, workbook, []).Single().Players;
+        Assert.That(players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("iGalvanator", "Impulse"), ("KID TONGA 1", "Impulse") }));
+    }
 }

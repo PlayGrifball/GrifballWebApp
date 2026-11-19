@@ -26,7 +26,13 @@ public static partial class RosterParser
     {
         var teams = new Teams(config);
         if (!Table(sheet, teams))
+        {
             DraftSheet(sheet, teams);
+            if (teams.ByPlayer.Count == 0)
+                CaptainRows(sheet, teams);
+            if (teams.ByPlayer.Count == 0)
+                TeamStatBlocks(sheet, teams);
+        }
         return teams.ByPlayer;
     }
 
@@ -91,6 +97,36 @@ public static partial class RosterParser
             if (columns[column] is null && captains && ArchiveCells.Gamertag(row[column]).Gamertag is { Length: > 0 } captain)
                 columns[column] = captain;
             teams.Add(row[column], columns[column]);
+        }
+    }
+
+    /// <summary>A roster tab whose row below each team has "Captain" under the captain column and teammates to its right
+    /// (up to any Wins/Losses columns at the end).</summary>
+    private static void CaptainRows(SheetTable sheet, Teams teams)
+    {
+        foreach (var team in StandingsParser.Parse(sheet, new StandingsTab { Sheet = sheet.Name, Layout = StandingsLayout.CaptainRows }) ?? [])
+        {
+            if (!string.IsNullOrWhiteSpace(team.Captain))
+                teams.Add(team.Captain, team.TeamName);
+            foreach (var player in team.Roster)
+                teams.Add(player, team.TeamName);
+        }
+    }
+
+    /// <summary>A team stat sheet (tab named for the team): each player's gamertag sits in column 0 directly above their "Goals:" stat row.</summary>
+    private static void TeamStatBlocks(SheetTable sheet, Teams teams)
+    {
+        var team = sheet.Name.Trim();
+        if (team.Length == 0 || HistoricalKeys.IsExcludedTeamName(team))
+            return;
+        for (var r = 1; r < sheet.Rows.Count; r++)
+        {
+            if (sheet.Cell(r, 0).Trim().Equals("Goals:", StringComparison.OrdinalIgnoreCase))
+            {
+                var gamertag = sheet.Cell(r - 1, 0).Trim();
+                if (!gamertag.StartsWith("Total", StringComparison.OrdinalIgnoreCase))
+                    teams.Add(gamertag, team);
+            }
         }
     }
 

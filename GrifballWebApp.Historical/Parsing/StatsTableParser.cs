@@ -179,8 +179,8 @@ public static partial class StatsTableParser
         return new ArchiveSeason
         {
             SeasonName = key.Division is null ? season.Name : $"{season.Name} ({key.Division})",
-            GameVersion = table.Game,
-            League = config.Season?.League ?? "AGLA",
+            GameVersion = season.Game ?? table.Game,
+            League = season.League ?? config.Season?.League ?? "AGLA",
             Division = key.Division ?? season.Division ?? config.Season?.Division ?? "Open",
             Format = config.Season?.Format,
             Titles = season.Titles,

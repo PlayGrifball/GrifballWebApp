@@ -58,8 +58,10 @@ public class EventOrganizerControllerDatabaseUnitTests : SqliteGrifballContextFi
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Has.Count.EqualTo(4));
+            Assert.That(result, Has.Count.EqualTo(6));
             Assert.That(result.Select(l => l.Name), Does.Contain("AGLA"));
+            Assert.That(result.Select(l => l.Name), Does.Contain("GGL"));
+            Assert.That(result.Select(l => l.Name), Does.Contain("EUGBL"));
         }
     }
 
