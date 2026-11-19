@@ -31,3 +31,19 @@ internal static class AppDomainEvents
         return new DomainEventsInterceptor(new NoDomainEventHandlers(), provider.GetRequiredService<IBeforeCommitDispatcher>(), provider);
     }
 }
+
+/// <summary>The domain events a context's commits sent, as its handlers would get them.</summary>
+internal sealed class RecordedDomainEvents : IDomainEventDispatcher
+{
+    public List<GrifballWebApp.Domain.Shared.IDomainEvent> Sent { get; } = [];
+
+    public Task Dispatch(IReadOnlyList<GrifballWebApp.Domain.Shared.IDomainEvent> domainEvents, CancellationToken cancellationToken = default)
+    {
+        lock (Sent)
+            Sent.AddRange(domainEvents);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>A context's interceptor that records what its commits send (no before-commit handlers).</summary>
+    public DomainEventsInterceptor Interceptor() => new(this);
+}

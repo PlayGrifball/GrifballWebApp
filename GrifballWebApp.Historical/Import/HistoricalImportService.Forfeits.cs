@@ -26,6 +26,8 @@ public partial class HistoricalImportService
             if (!ImportForfeit(forfeit, season, teams, existing, counts))
                 withoutTeam.Add(forfeit.SourceKey);
         }
+        foreach (var gone in existing)
+            gone.Cancel();
         _context.SeasonMatches.RemoveRange(existing);
         counts.SeasonMatchesRemoved += existing.Count;
         await _context.SaveChangesAsync(ct);

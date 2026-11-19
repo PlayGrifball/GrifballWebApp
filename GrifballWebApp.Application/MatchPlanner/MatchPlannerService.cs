@@ -27,6 +27,9 @@ public class MatchPlannerService
         if (await regularSeason.AnyAsync(SeasonMatch.Played, ct))
             throw new SeasonRefusedException(PlayedMatches, StatusCodes.Status409Conflict);
         await _grifballContext.RecordedGames.DeleteManualForAsync(regularSeason, ct);
+        // Each match gone says so (its page hears of it), with the save below
+        foreach (var gone in await regularSeason.ToListAsync(ct))
+            gone.Cancel();
         await regularSeason.ExecuteDeleteAsync(ct);
 
         var teams = await _grifballContext.Teams.Where(t => t.SeasonID == seasonID).ToListAsync(ct);

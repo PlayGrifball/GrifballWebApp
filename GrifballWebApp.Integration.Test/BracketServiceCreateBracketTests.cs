@@ -116,6 +116,31 @@ public class BracketServiceCreateBracketTests
     }
 
     [Test]
+    public async Task CreateBracket_Again_SaysEachOldMatchIsGone_SoItsPageHearsOfIt()
+    {
+        var events = new RecordedDomainEvents();
+        var context = await TestDatabase.NewGrifballContext(events.Interceptor());
+        try
+        {
+            var service = new BracketService(context, new TeamStandingsService(context), new GrifballWebApp.Application.Championships.ChampionshipService(context));
+            var season = Season.Seed(seasonName: "Season");
+            context.Seasons.Add(season);
+            await context.SaveChangesAsync();
+            await service.CreateBracket(4, season.SeasonID, doubleElimination: false, bestOf: 3);
+            var old = await context.SeasonMatches.AsNoTracking().Where(m => m.SeasonID == season.SeasonID).Select(m => m.SeasonMatchID).ToListAsync();
+            events.Sent.Clear();
+
+            await service.CreateBracket(4, season.SeasonID, doubleElimination: false, bestOf: 3);
+
+            Assert.That(events.Sent.OfType<SeasonMatchCanceled>().Select(e => e.Match.SeasonMatchID), Is.EquivalentTo(old));
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
+    }
+
+    [Test]
     public async Task CreateBracket_EightTeams_UsesStandardSeedOrder()
     {
         var seasonID = await CreateSeason();
