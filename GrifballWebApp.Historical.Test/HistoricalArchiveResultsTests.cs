@@ -214,4 +214,58 @@ public class HistoricalArchiveResultsTests
             Assert.That(warnings[0], Does.StartWith("wl19/Game Results: 3 games"), "Nor a title whose teams it can't tell apart");
         }
     }
+
+    private static HistoricalSourceConfig Catalog(string id) => HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == id).Config!;
+
+    private static readonly object?[] HistoryHeader = Row("", "Home", "Away", "Score", "Time", "Waypoint URL");
+
+    [Test]
+    public void Wl23sGameHistory_NamesUsurperSzn_ByItsCaptainSpankatron()
+    {
+        // Both draft boards name SPANKATR0N (with a zero) USURPER SZN's captain; the game history spells him SPANKATRON
+        List<HistoricalSourceContent> sources =
+        [
+            Source("2023-da-wl23-stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Winter League 2023 (DA)", Game = "infinite" },
+                    Tabs = [new() { Name = "Halo Infinite Stats" }],
+                },
+                Workbook(("Halo Infinite Stats", [StatsHeader, Row("AwareMosquito", "USURPER SZN", 4, 1), Row("Deathcrawller", "The Crawller Death Squad", 4, 1)]))),
+            Source("2023-da-wl23-schedule", Catalog("2023-da-wl23-schedule"),
+                Workbook(("Game History", [HistoryHeader, Row("Week 5", "Deathcrawller", "SPANKATRON", "5-4", "16:01", "343 Deleted History"),
+                    Row(null, "SPANKATRON ", "Deathcrawller", "1-5", "25:53")]))),
+        ];
+
+        var games = HistoricalArchiveBuilder.Build(sources).Input.RecordedGames!;
+
+        Assert.That(games.Select(g => (g.Teams[0].Name, g.Teams[1].Name)), Is.EqualTo(new[]
+        {
+            ((string?)"The Crawller Death Squad", (string?)"USURPER SZN"), ("USURPER SZN", "The Crawller Death Squad"),
+        }));
+    }
+
+    [Test]
+    public void Sl25sGameHistory_NamesJunkyardDogsAndMurderIncorporated_ByTheirCaptains()
+    {
+        // The owner confirmed it (#496): "nkot" is Nkot, Junkyard Dogs' captain; "Squirel" MasterSquirre ("squirell"),
+        // Murder Incorporated's
+        List<HistoricalSourceContent> sources =
+        [
+            Source("2025-octane-sl25-bid-stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Spring League 2025 (Octane Bid)", Game = "infinite" },
+                    Tabs = [new() { Name = "Regular Season Stats Sheet stat" }],
+                },
+                Workbook(("Regular Season Stats Sheet stat", [StatsHeader, Row("PapasnipezX", "Junkyard Dogs", 4, 1), Row("mxrvine", "Murder Incorporated", 4, 1)]))),
+            Source("2025-octane-sl25-bid-schedule", Catalog("2025-octane-sl25-bid-schedule"),
+                Workbook(("Game History", [HistoryHeader, Row("Week 3", "Squirel", "nkot", "FF (5-0)"), Row(null, "Nkot", "Squirel", "FF (5-0)")]))),
+        ];
+
+        var games = HistoricalArchiveBuilder.Build(sources).Input.RecordedGames!;
+
+        Assert.That(games.Select(g => (g.Teams[0].Name, g.Teams[1].Name)), Is.EqualTo(new[]
+        {
+            ((string?)"Murder Incorporated", (string?)"Junkyard Dogs"), ("Junkyard Dogs", "Murder Incorporated"),
+        }));
+    }
 }

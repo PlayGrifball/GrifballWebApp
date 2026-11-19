@@ -191,7 +191,7 @@ public class BrowserAuthUnitTests
     {
         var context = Context("GET");
         context.Request.QueryString = new QueryString(query);
-        var metadata = hub ? new EndpointMetadataCollection(new HubMetadata(typeof(GrifballWebApp.Server.Teams.TeamsHub))) : EndpointMetadataCollection.Empty;
+        var metadata = hub ? new EndpointMetadataCollection(new HubMetadata(typeof(GrifballWebApp.Server.Live.LiveHub))) : EndpointMetadataCollection.Empty;
         context.SetEndpoint(new Endpoint(_ => Task.CompletedTask, metadata, hub ? "hub" : "api"));
         return context;
     }
@@ -378,7 +378,7 @@ public class BrowserAuthUnitTests
     /// <summary>A request on <paramref name="context"/> to a SignalR hub endpoint, its services logging to <paramref name="logger"/>.</summary>
     private static DefaultHttpContext ToAHub(DefaultHttpContext context, Microsoft.Extensions.Logging.ILogger logger)
     {
-        context.SetEndpoint(new Endpoint(null, new EndpointMetadataCollection(new Microsoft.AspNetCore.SignalR.HubMetadata(typeof(GrifballWebApp.Server.Teams.TeamsHub))), "teams hub"));
+        context.SetEndpoint(new Endpoint(null, new EndpointMetadataCollection(new Microsoft.AspNetCore.SignalR.HubMetadata(typeof(GrifballWebApp.Server.Live.LiveHub))), "live hub"));
         context.Request.Path = "/hubs/teams/negotiate";
         var loggers = Substitute.For<Microsoft.Extensions.Logging.ILoggerFactory>();
         loggers.CreateLogger(typeof(BrowserAuth).FullName!).Returns(logger);

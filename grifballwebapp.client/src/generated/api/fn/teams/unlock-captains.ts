@@ -10,14 +10,12 @@ import { RequestBuilder } from '../../request-builder';
 
 export interface UnlockCaptains$Params {
   seasonID: number;
-  signalRConnectionID?: string;
 }
 
 export function unlockCaptains(http: HttpClient, rootUrl: string, params: UnlockCaptains$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
   const rb = new RequestBuilder(rootUrl, unlockCaptains.PATH, 'post');
   if (params) {
     rb.path('seasonID', params.seasonID, {});
-    rb.header('signalRConnectionID', params.signalRConnectionID, {});
   }
 
   return http.request(

@@ -24,19 +24,16 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
     private const int PlayingID = 4;
     private const int OpponentID = 5;
     private const long GamerDiscordID = 111;
-    private static readonly int[] OnlyGamer = [GamerID];
     private static readonly int[] OnlyQueued = [QueuedID];
 
-    private IQueueNotifier _notifier = null!;
     private QueueRepository _repository = null!;
     private QueueMembership _membership = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _notifier = Substitute.For<IQueueNotifier>();
         _repository = new QueueRepository(Context);
-        _membership = new QueueMembership(_repository, Context, _notifier);
+        _membership = new QueueMembership(_repository, Context);
     }
 
     /// <summary>
@@ -76,8 +73,6 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
             Assert.That(count, Is.EqualTo(2));
             Assert.That(queue, Does.Contain(GamerID));
         }
-        await _notifier.Received(1).Send(2);
-        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(ids => ids.SequenceEqual(OnlyGamer)));
     }
 
     [TestCase(NoGamertagID, QueueJoinResult.NoGamertag)]
@@ -97,7 +92,6 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
             Assert.That(count, Is.Zero);
             Assert.That(queue, Is.EqualTo(OnlyQueued));
         }
-        await _notifier.DidNotReceive().Send(Arg.Any<int>());
     }
 
     [Test]
@@ -135,7 +129,7 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
         var queue = Substitute.For<IQueueRepository>();
         queue.PlayerState(GamerID, Arg.Any<CancellationToken>()).Returns(new QueuePlayerState(GamerID, HasGamertag: true, InQueue: false, InMatch: false, QueueCount: 0));
         queue.AddPlayerToQueue(Arg.Any<QueuedPlayer>(), Arg.Any<CancellationToken>()).Returns(false);
-        var membership = new QueueMembership(queue, Context, _notifier);
+        var membership = new QueueMembership(queue, Context);
 
         var (result, count) = await membership.Join(GamerID);
 
@@ -145,7 +139,6 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
             Assert.That(count, Is.Zero);
         }
         await queue.Received(1).AddPlayerToQueue(Arg.Is<QueuedPlayer>(q => q.UserID == GamerID), Arg.Any<CancellationToken>());
-        await _notifier.DidNotReceive().Send(Arg.Any<int>());
     }
 
     [Test]
@@ -161,8 +154,6 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
             Assert.That(count, Is.Zero);
             Assert.That(await Queue(), Is.Empty);
         }
-        await _notifier.Received(1).Send(0);
-        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(ids => ids.SequenceEqual(OnlyQueued)));
     }
 
     [Test]
@@ -177,7 +168,6 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
             Assert.That(result, Is.EqualTo(QueueLeaveResult.NotInQueue));
             Assert.That(count, Is.Zero);
         }
-        await _notifier.DidNotReceive().Send(Arg.Any<int>());
     }
 
     [Test]
@@ -185,7 +175,6 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
     {
         await Seed();
         await _membership.Join(GamerID);
-        _notifier.ClearReceivedCalls();
 
         var (result, count) = await _membership.LeaveByDiscord(GamerDiscordID);
 

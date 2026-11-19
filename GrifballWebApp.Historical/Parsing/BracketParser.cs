@@ -147,6 +147,13 @@ public static partial class BracketParser
     private static ArchiveBracket BuildBracket(List<Draft> drafts)
     {
         Decide(drafts);
+        if (tab.RecordsSheet is { } recordsSheet)
+        {
+            if (workbook.Sheet(recordsSheet) is { } records)
+                DecideByPlayoffLosses(drafts, PlayoffLosses(records, tab.Aliases));
+            else
+                warnings.Add($"{sourceId}: no records sheet '{recordsSheet}'");
+        }
         foreach (var draft in drafts.Where(d => d.Unplaced is not null && d.Winner is not null))
             (draft.HomeWins, draft.AwayWins) = draft.Winner is SeasonMatchSide.Home ? (draft.Unplaced!.Value.Winner, draft.Unplaced.Value.Loser) : (draft.Unplaced!.Value.Loser, draft.Unplaced.Value.Winner);
         var winners = 0;
@@ -393,6 +400,51 @@ public static partial class BracketParser
         }
     }
 
+    /// <summary>Each team's playoff losses from a tab of the teams' records (<see cref="BracketTab.RecordsSheet"/>): a record
+    /// cell under the team's name (as the bracket tab's aliases name it), the season's then the playoffs' in brackets
+    /// ("16-2 (4-0)"). A tie breaker's game, "(1-0*)", isn't the playoffs'. A record without brackets (no playoffs), with two
+    /// unmarked ones (which is the playoffs'?) or under no name is no one's.</summary>
+    private static List<(string Team, int Losses)> PlayoffLosses(SheetTable sheet, Dictionary<string, string> aliases)
+    {
+        var losses = new List<(string, int)>();
+        for (var r = 1; r < sheet.Rows.Count; r++)
+        {
+            for (var c = 0; c < sheet.Rows[r].Length; c++)
+            {
+                var cell = sheet.Rows[r][c].Trim();
+                var name = sheet.Cell(r - 1, c).Trim();
+                var team = aliases.GetValueOrDefault(name) ?? name;
+                if (team.Length == 0 || !RecordWithPlayoffsPattern().IsMatch(cell))
+                    continue;
+                var playoffs = PlayoffRecordPattern().Matches(cell);
+                if (playoffs.Count == 1)
+                    losses.Add((team, int.Parse(playoffs[0].Groups["losses"].Value, CultureInfo.InvariantCulture)));
+            }
+        }
+        return losses;
+    }
+
+    /// <summary>
+    /// The winners of series whose score is known but not whose it is, from the teams' playoff losses: its loser lost as many
+    /// games as its winner won, so a side with fewer playoff losses than that won it, when the other side has enough (H4 Bid
+    /// 2022's final: Beer, 0 losses, over Forklift Certified, 2, in a 2-0). Nothing is decided when both sides could have
+    /// lost it, neither could, or a side has no record.
+    /// </summary>
+    private static void DecideByPlayoffLosses(List<Draft> drafts, List<(string Team, int Losses)> losses)
+    {
+        int? Of(string team) => losses.Where(l => Same(l.Team, team)).Select(l => (int?)l.Losses).FirstOrDefault();
+        foreach (var draft in drafts.Where(d => d.Winner is null && d.Unplaced is not null))
+        {
+            var lostBy = draft.Unplaced!.Value.Winner;
+            if (Of(draft.Home) is not int home || Of(draft.Away) is not int away)
+                continue;
+            if (home < lostBy && away >= lostBy)
+                draft.Winner = SeasonMatchSide.Home;
+            else if (away < lostBy && home >= lostBy)
+                draft.Winner = SeasonMatchSide.Away;
+        }
+    }
+
     /// <summary>A side's team and the seed its name carries ("Rated R (4)", "Beer - Seed 1"); no team for an empty cell or
     /// a template's placeholder ("Team Name", "Match 3").</summary>
     public static (string? Name, int? Seed) Side(string cell, bool seedsInNames)
@@ -429,6 +481,14 @@ public static partial class BracketParser
 
     [GeneratedRegex(@"^(?<first>\d+)\s*-\s*(?<second>\d+)\s*(?<named>.*)$|^vs\.?\s*\(\s*(?<first>\d+)\s*-\s*(?<second>\d+)\s*\)\s*(?<named>)$", RegexOptions.IgnoreCase)]
     private static partial Regex ScorePattern();
+
+    /// <summary>A record with a bracket or more after it: "16-2 (4-0)", "10-8 (1-0*) (0-2)".</summary>
+    [GeneratedRegex(@"^\d+\s*-\s*\d+(\s*\([^)]*\))+$")]
+    private static partial Regex RecordWithPlayoffsPattern();
+
+    /// <summary>A bracket of a playoff record, its losses second: "(4-2)", not a tie breaker's "(1-0*)".</summary>
+    [GeneratedRegex(@"\(\s*\d+\s*-\s*(?<losses>\d+)\s*\)")]
+    private static partial Regex PlayoffRecordPattern();
 
     [GeneratedRegex(@"Round\s*(\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex RoundPattern();

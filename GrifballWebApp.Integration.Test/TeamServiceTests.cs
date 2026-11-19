@@ -17,15 +17,13 @@ namespace GrifballWebApp.Integration.Test;
 public class TeamServiceTests
 {
     private GrifballContext _context;
-    private IPublisher _publisher;
     private TeamService _service;
 
     [SetUp]
     public async Task Setup()
     {
-        _context = await TestDatabase.NewGrifballContext();
-        _publisher = Substitute.For<IPublisher>();
-        _service = new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
+        _service = new TeamService(_context, new ContextDatabaseLocks(_context));
     }
 
     [TearDown]

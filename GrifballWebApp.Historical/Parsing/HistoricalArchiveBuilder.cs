@@ -100,9 +100,9 @@ public sealed partial class HistoricalArchiveBuilder
             entry.SourceYear ??= source.Year;
         _seasons.AddRange(entries);
         if (config.ChampionsSheet is not null)
-            AddChampions(id, source.Url, config.ChampionsSheet, workbook, changed);
+            AddChampions(id, source.Url, config, workbook, changed);
         if (config.ChampionsTable is { } championsTable)
-            AddChampionsTable(id, source.Url, championsTable.Sheet, workbook, changed);
+            AddChampionsTable(id, source.Url, config, championsTable.Sheet, workbook, changed);
         AddWaypoint(id, config, workbook);
         AddSeasonTabs(id, config, workbook);
         if (config.BracketTable is { } bracketTable)
@@ -162,11 +162,13 @@ public sealed partial class HistoricalArchiveBuilder
         return workbook;
     }
 
-    private void AddChampions(string id, string url, string sheetName, SheetWorkbook workbook, bool changed)
+    private void AddChampions(string id, string url, HistoricalSourceConfig config, SheetWorkbook workbook, bool changed)
     {
+        var sheetName = config.ChampionsSheet!;
         if (workbook.Sheet(sheetName) is { } sheet)
         {
-            var parsed = ChampionsParser.Parse(id, url, sheet);
+            // Every source's champions, each named as its config names its teams (#534)
+            var parsed = ChampionsParser.Parse(id, url, sheet, config);
             _championsSourceId = id;
             _championsSourceUrl = url;
             _champions.AddRange(parsed.Champions);
@@ -176,11 +178,11 @@ public sealed partial class HistoricalArchiveBuilder
             _warnings.Add($"{id}: no sheet '{sheetName}'");
     }
 
-    private void AddChampionsTable(string id, string url, string sheetName, SheetWorkbook workbook, bool changed)
+    private void AddChampionsTable(string id, string url, HistoricalSourceConfig config, string sheetName, SheetWorkbook workbook, bool changed)
     {
         if (workbook.Sheet(sheetName) is { } sheet)
         {
-            var parsed = ChampionsParser.ParseTable(id, url, sheet, _warnings);
+            var parsed = ChampionsParser.ParseTable(id, url, sheet, _warnings, config);
             _championsSourceId ??= id;
             _championsSourceUrl ??= url;
             _champions.AddRange(parsed.Champions);

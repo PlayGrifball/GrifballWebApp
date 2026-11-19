@@ -1,21 +1,48 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import type { OnDemandJobStatusDto, ScheduleRecommendationPageDto } from '@api/models';
+import type { OnDemandJobStatusDto, ScheduleRecommendationPageDto, SeasonLiveDto } from '@api/models';
 import { DateTime } from 'luxon';
 import { ScheduleListStore } from './scheduleList.store';
+import { LiveService, type LiveMessage } from '@core/live/live.service';
+import { LIVE_RELOAD_MS, LIVE_SPREAD_MS } from '@core/live/liveReload';
 
 const idleRun: OnDemandJobStatusDto = { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null };
+
+/** The live service as the store sees it: who watches what, and a message to send them. */
+class FakeLive {
+  readonly watching: { topics: readonly string[], listener: (message: LiveMessage) => void, stopped: boolean }[] = [];
+
+  watch(topics: readonly string[], listener: (message: LiveMessage) => void): () => void {
+    const watch = { topics, listener, stopped: false };
+    this.watching.push(watch);
+    return () => watch.stopped = true;
+  }
+
+  /** Sends `message` to those watching its topic; a null topic (the connection came back) to everyone. */
+  send(message: LiveMessage): void {
+    for (const watch of this.watching.filter(w => !w.stopped && (message.topic === null || w.topics.includes(message.topic))))
+      watch.listener(message);
+  }
+
+  get active(): (readonly string[])[] {
+    return this.watching.filter(w => !w.stopped).map(w => w.topics);
+  }
+}
 
 describe('ScheduleListStore', () => {
   let store: ScheduleListStore;
   let http: HttpTestingController;
+  let live: FakeLive;
 
   const unscheduled = (id: number) => ({ seasonMatchID: id, homeCaptain: 'H', awayCaptain: 'A', homeTeam: 'Home', awayTeam: 'Away', complete: false });
   const scheduled = (id: number, time: string) => ({ ...unscheduled(id), time });
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [ScheduleListStore, provideHttpClient(withXhr()), provideHttpClientTesting()] });
+    live = new FakeLive();
+    TestBed.configureTestingModule({
+      providers: [ScheduleListStore, provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: LiveService, useValue: live }],
+    });
     store = TestBed.inject(ScheduleListStore);
     http = TestBed.inject(HttpTestingController);
   });
@@ -103,5 +130,46 @@ describe('ScheduleListStore', () => {
     store.show(0);
     late.flush({ run: idleRun, latest: null });
     expect(store.recommendation()).toBeNull();
+  });
+
+  describe('live', () => {
+    /** A season's page as the live hub pushes it: only its matches. */
+    const seasonLive = (seasonID: number, overrides: Partial<SeasonLiveDto> = {}): SeasonLiveDto =>
+      ({ seasonID, summary: null, standings: [], scheduled: [], unscheduled: [], playerStats: [], ...overrides });
+
+    beforeEach(() => {
+      jasmine.clock().install();
+      // No spread: a reload runs LIVE_RELOAD_MS after a change
+      spyOn(Math, 'random').and.returnValue(0);
+      show();
+      TestBed.tick();
+    });
+    afterEach(() => jasmine.clock().uninstall());
+
+    it('watches the season shown', () => {
+      expect(live.active).toEqual([['season:4']]);
+    });
+
+    it('shows both lists pushed with a change, the scheduled one by week, with no request', () => {
+      live.send({ topic: 'season:4', data: seasonLive(4, { unscheduled: [unscheduled(10), unscheduled(11)], scheduled: [scheduled(2, '2026-01-14T19:00:00Z')] }) });
+      expect(store.unscheduledMatches().map(m => m.seasonMatchID)).toEqual([10, 11]);
+      expect(store.scheduledMatches().flatMap(w => w.games.map(m => m.seasonMatchID))).toEqual([2]);
+      expect(store.loaded()).toBeTrue();
+      jasmine.clock().tick(LIVE_RELOAD_MS + LIVE_SPREAD_MS);
+    });
+
+    it("ignores another season's matches", () => {
+      live.send({ topic: 'season:4', data: seasonLive(5, { unscheduled: [unscheduled(10)] }) });
+      jasmine.clock().tick(LIVE_RELOAD_MS + LIVE_SPREAD_MS);
+      expect(store.unscheduledMatches().map(m => m.seasonMatchID)).toEqual([9]);
+    });
+
+    it('loads both lists again on a change without data', () => {
+      live.send({ topic: 'season:4' });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+      http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
+      http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
+      expect(store.unscheduledMatches()).toEqual([]);
+    });
   });
 });

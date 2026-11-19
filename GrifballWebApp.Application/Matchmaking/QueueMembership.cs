@@ -7,21 +7,18 @@ namespace GrifballWebApp.Application.Matchmaking;
 /// <summary>
 /// Joining and leaving the matchmaking queue, by its rules (<see cref="QueuedPlayer.Join"/>). The Discord buttons (<c>MatchmakingButtonHandler</c>) and the site (<c>QueueController</c>)
 /// both go through here; each says the outcome its own way.
-/// Every change is sent to the queue's watchers (<see cref="IQueueNotifier"/>): the new size to everyone, and a nudge to
-/// the player, whose page may be open elsewhere. Without waiting for it: a Discord button must be answered within 3
-/// seconds, and the send goes through the backplane.
+/// A change is the spot's to tell (<see cref="PlayerQueued"/>, <see cref="PlayerLeftQueue"/>): once saved, the pages showing
+/// the queue load its size again, and the player's own, open elsewhere, their place (LiveUpdatesHandler).
 /// </summary>
 public class QueueMembership
 {
     private readonly IQueueRepository _queue;
     private readonly IApplicationDbContext _context;
-    private readonly IQueueNotifier _notifier;
 
-    public QueueMembership(IQueueRepository queue, IApplicationDbContext context, IQueueNotifier notifier)
+    public QueueMembership(IQueueRepository queue, IApplicationDbContext context)
     {
         _queue = queue;
         _context = context;
-        _notifier = notifier;
     }
 
     /// <summary>Joins the queue. <c>Count</c> is the queue's size once joined, 0 when refused.</summary>
@@ -43,7 +40,7 @@ public class QueueMembership
         if (await _queue.AddPlayerToQueue(join.Spot, ct) is false)
             return (QueueJoinResult.AlreadyInQueue, 0);
 
-        return (QueueJoinResult.Joined, await Changed(player.UserId, ct));
+        return (QueueJoinResult.Joined, await _queue.Count(ct));
     }
 
     /// <summary>Leaves the queue. <c>Count</c> is the queue's size once left, 0 when refused.</summary>
@@ -52,7 +49,7 @@ public class QueueMembership
         if (await _queue.RemovePlayerToQueue(userId, ct) is false)
             return (QueueLeaveResult.NotInQueue, 0);
 
-        return (QueueLeaveResult.Left, await Changed(userId, ct));
+        return (QueueLeaveResult.Left, await _queue.Count(ct));
     }
 
     /// <summary>Leaves the queue as the user with this Discord account.</summary>
@@ -63,15 +60,6 @@ public class QueueMembership
             .Select(x => (int?)x.Id)
             .FirstOrDefaultAsync(ct);
         return userId is int id ? await Leave(id, ct) : (QueueLeaveResult.NotInQueue, 0);
-    }
-
-    /// <summary>The queue's new size, sent on with the player's nudge, without waiting (neither send throws).</summary>
-    private async Task<int> Changed(int userId, CancellationToken ct)
-    {
-        var count = await _queue.Count(ct);
-        _ = _notifier.Send(count);
-        _ = _notifier.SendStatusChanged([userId]);
-        return count;
     }
 }
 

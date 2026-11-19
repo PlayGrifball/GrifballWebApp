@@ -50,8 +50,13 @@ public class QueuedPlayer : AuditableEntity
     private static QueuedPlayer Spot(int userId, DateTime joinedAt)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(userId);
-        return new() { UserID = userId, JoinedAt = joinedAt };
+        var spot = new QueuedPlayer { UserID = userId, JoinedAt = joinedAt };
+        spot.Raise(new PlayerQueued(spot));
+        return spot;
     }
+
+    /// <summary>The spot is about to go (left, matched, dropped): the event that says so. The caller removes it.</summary>
+    public void Leave() => Raise(new PlayerLeftQueue(this));
 
     /// <summary>For tests: a spot seeded past the rules.</summary>
     internal static QueuedPlayer Seed(int userId, DateTime joinedAt) => Spot(userId, joinedAt);

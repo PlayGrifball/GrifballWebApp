@@ -35,6 +35,7 @@ public class Team : AuditableEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
         var team = new Team { SeasonID = seasonID, TeamName = teamName };
         team._teamPlayers.Add(TeamPlayer.On(team, captainUserID, draftCaptainOrder: captainOrder));
+        team.Raise(new TeamFormed(team));
         return team;
     }
 
@@ -45,7 +46,9 @@ public class Team : AuditableEntity
     public static Team Imported(int seasonID, string teamName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
-        return new Team { SeasonID = seasonID, TeamName = teamName };
+        var team = new Team { SeasonID = seasonID, TeamName = teamName };
+        team.Raise(new TeamFormed(team));
+        return team;
     }
 
     /// <summary>
@@ -116,10 +119,15 @@ public class Team : AuditableEntity
         _teamAvailability.RemoveWhere(a => !chosen.Contains(a.AvailabilityOptionID));
         foreach (var option in chosen.Where(o => _teamAvailability.All(a => a.AvailabilityOptionID != o)))
             _teamAvailability.Add(global::GrifballWebApp.Domain.League.TeamAvailability.Of(this, option));
+        Raise(new TeamTimeslotsChanged(this));
     }
 
     /// <summary>Its own timeslots gone: the team's are its roster's again.</summary>
-    public void ClearAvailability() => _teamAvailability.Clear();
+    public void ClearAvailability()
+    {
+        _teamAvailability.Clear();
+        Raise(new TeamTimeslotsChanged(this));
+    }
     public IReadOnlyCollection<PlayerSeasonStat> PlayerSeasonStats => _playerSeasonStats;
     private readonly HashSet<PlayerSeasonStat> _playerSeasonStats = [];
     public IReadOnlyCollection<PlayerChampionship> PlayerChampionships => _playerChampionships;
@@ -167,6 +175,7 @@ public class Team : AuditableEntity
         if (teamName.Length > TeamNameColumnLength)
             return TeamRenameResult.TooLong;
         TeamName = teamName;
+        Raise(new TeamRenamed(this));
         return TeamRenameResult.Renamed;
     }
 
@@ -181,6 +190,7 @@ public class Team : AuditableEntity
             return TeamCaptainResult.NotOnRoster;
         Captain = player;
         CaptainID = player.TeamPlayerID is 0 ? null : player.TeamPlayerID;
+        Raise(new TeamCaptainChanged(this));
         return TeamCaptainResult.Appointed;
     }
 
@@ -189,6 +199,7 @@ public class Team : AuditableEntity
     {
         Captain = null;
         CaptainID = null;
+        Raise(new TeamCaptainChanged(this));
     }
 
     /// <summary>Places the team's captain <paramref name="order"/> among the season's captains; refused without a captain.</summary>
@@ -197,6 +208,7 @@ public class Team : AuditableEntity
         if (CaptainPlayer is not { } captain)
             return TeamCaptainResult.NoCaptain;
         captain.OrderedAsCaptain(order);
+        Raise(new TeamCaptainChanged(this));
         return TeamCaptainResult.Appointed;
     }
 
@@ -208,6 +220,7 @@ public class Team : AuditableEntity
         if (PlayerOf(userID) is not null)
             return TeamRosterResult.AlreadyOnTeam;
         _teamPlayers.Add(TeamPlayer.On(this, userID));
+        Raise(new TeamRosterChanged(this, [userID]));
         return TeamRosterResult.Done;
     }
 
@@ -221,6 +234,7 @@ public class Team : AuditableEntity
             return TeamRosterResult.AlreadyOnTeam;
         var round = Picks.Select(p => p.DraftRound).Max() + 1 ?? 1;
         _teamPlayers.Add(TeamPlayer.On(this, userID, draftRound: round));
+        Raise(new PlayerDrafted(this, userID, round, CaptainPlayer?.UserID));
         return TeamRosterResult.Done;
     }
 
@@ -236,6 +250,7 @@ public class Team : AuditableEntity
         if (IsCaptainRow(player))
             ClearCaptain();
         _teamPlayers.Remove(player);
+        Raise(new TeamRosterChanged(this, [userID]));
         return TeamRosterResult.Done;
     }
 
@@ -254,6 +269,7 @@ public class Team : AuditableEntity
         picks.Remove(player);
         _teamPlayers.Remove(player);
         Renumber(picks);
+        Raise(new PlayerUndrafted(this, userID, CaptainPlayer?.UserID));
         return TeamRosterResult.Done;
     }
 
@@ -272,6 +288,7 @@ public class Team : AuditableEntity
         picks.Remove(player);
         picks.Insert(round - 1, player);
         Renumber(picks);
+        Raise(new PickMoved(this, this, userID, round, CaptainPlayer?.UserID, CaptainPlayer?.UserID));
         return TeamRosterResult.Done;
     }
 
@@ -302,6 +319,7 @@ public class Team : AuditableEntity
         to._teamPlayers.Add(player);
         theirs.Insert(round - 1, player);
         Renumber(theirs);
+        Raise(new PickMoved(this, to, userID, round, CaptainPlayer?.UserID, to.CaptainPlayer?.UserID));
         return TeamRosterResult.Done;
     }
 
@@ -325,6 +343,7 @@ public class Team : AuditableEntity
         if (to is null)
         {
             from.ReassignUser(toUserID);
+            Raise(new TeamRosterChanged(this, [fromUserID, toUserID]));
             return true;
         }
         if (IsCaptainRow(from))
@@ -335,14 +354,22 @@ public class Team : AuditableEntity
                 to.OrderedAsCaptain(from.DraftCaptainOrder);
         }
         _teamPlayers.Remove(from);
+        Raise(new TeamRosterChanged(this, [fromUserID, toUserID]));
         return true;
     }
+
+    /// <summary>
+    /// The team is about to be removed, its roster with it (the draft took its captain off, the import no longer has it): the
+    /// event that says so, with who was on it. The caller removes it.
+    /// </summary>
+    public void Disband() => Raise(new TeamDisbanded(this, _teamPlayers.Select(p => p.UserID).ToList()));
 
     /// <summary>The team's record as its source spreadsheet gives it (a season whose matches are not in the app).</summary>
     public void RecordArchive(int wins, int losses)
     {
         RecordedWins = wins;
         RecordedLosses = losses;
+        Raise(new TeamArchiveRecorded(this));
     }
 
     /// <summary>The team has no record of the spreadsheet's: its record is its matches'.</summary>
@@ -350,6 +377,7 @@ public class Team : AuditableEntity
     {
         RecordedWins = null;
         RecordedLosses = null;
+        Raise(new TeamArchiveRecorded(this));
     }
 
     /// <summary>
@@ -363,6 +391,7 @@ public class Team : AuditableEntity
         ArgumentOutOfRangeException.ThrowIfLessThan(finish ?? 1, 1, nameof(finish));
         ArchivedRank = rank;
         ArchivedFinish = finish;
+        Raise(new TeamArchiveRecorded(this));
     }
 
     /// <summary>
@@ -388,6 +417,7 @@ public class Team : AuditableEntity
             var pick = captain ? null : picks.GetValueOrDefault(player.UserID);
             player.Picked(pick?.Round, pick?.Pick);
         }
+        Raise(new TeamArchiveRecorded(this));
     }
 
     /// <summary>
@@ -413,6 +443,7 @@ public class Team : AuditableEntity
             copy._teamPlayers.Add(player.Copy(copy));
         foreach (var availability in _teamAvailability)
             copy._teamAvailability.Add(availability.Copy(copy));
+        copy.Raise(new TeamFormed(copy));
         return copy;
     }
 }

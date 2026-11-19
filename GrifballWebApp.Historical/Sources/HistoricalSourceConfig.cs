@@ -60,8 +60,9 @@ public class HistoricalSourceConfig
     public List<DraftTab> Drafts { get; init; } = [];
     /// <summary>Tabs of a season's awards (MVPs, named season awards, records): AwardsParser.</summary>
     public List<AwardsTab> Awards { get; init; } = [];
-    /// <summary>Teams this workbook's rosters and standings name another way, by the name they give: a placeholder never
-    /// filled in (H3 Action 2022's "Team Name", RDG NHL's team) that would otherwise read as no team.</summary>
+    /// <summary>Teams this workbook's rosters, standings and champions record name another way, by the name they give: a
+    /// placeholder never filled in (H3 Action 2022's "Team Name", RDG NHL's team) that would otherwise read as no team, or a
+    /// champion the record spells otherwise than its season's sheets ("Yung Hummu", the sheets' Yung Humma).</summary>
     public Dictionary<string, string> TeamNames { get; init; } = [];
 
     /// <summary>The archive's name of a team this workbook calls <paramref name="name"/>: its <see cref="TeamNames"/> entry in
@@ -101,6 +102,7 @@ public class HistoricalSourceConfig
             FinishesSheet,
             .. Results.Select(t => t.Sheet),
             .. Brackets.Select(t => t.Sheet),
+            .. Brackets.Select(t => t.RecordsSheet),
             .. Brackets.SelectMany(t => t.Rounds.Select(r => r.Sheet)),
             .. Drafts.Select(t => t.Sheet),
             .. Awards.Select(t => t.Sheet),
@@ -326,6 +328,9 @@ public class StandingsTab
     public bool Ranked { get; init; }
     /// <summary>A team is named "Team (captain)": the name in brackets is its captain's.</summary>
     public bool CaptainInName { get; init; }
+    /// <summary>Players the tab names otherwise than the stats, by the name it gives (any case): a captain's nickname to their
+    /// gamertag (SL25's Team Chart "Nkot", NKOTB4evah), who would otherwise be no player of the season.</summary>
+    public Dictionary<string, string> Names { get; init; } = [];
 }
 
 /// <summary>
@@ -497,6 +502,10 @@ public class BracketTab
     /// <summary>The season's name of a team the bracket calls something else (by its seed, or a typo): bracket name to
     /// the stats' or standings' name.</summary>
     public Dictionary<string, string> Aliases { get; init; } = [];
+    /// <summary>A tab of the teams' records, each under its team's name, the playoffs' in brackets after the season's (H4 Bid
+    /// 2022's Teams: "Beer" over "16-2 (4-0)"): a series no cell names the winner of, whose score is known, goes to the side
+    /// with too few playoff losses to have lost it.</summary>
+    public string? RecordsSheet { get; init; }
 }
 
 /// <summary>

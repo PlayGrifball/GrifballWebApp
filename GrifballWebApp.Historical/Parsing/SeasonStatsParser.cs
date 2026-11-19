@@ -302,7 +302,10 @@ public static partial class SeasonStatsParser
             return null;
         }
         var (rawGamertag, teamName) = NameCells(sheet, r, tab, columns);
-        if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag) || IsRepeatingHeader(rawGamertag, teamName))
+        // In a tab whose Team column names teams, a row that played no game and whose Team cell is a number is outside the
+        // table: a game side of a host (FL21's) or a bracket's seed beside a team under the stats (SML20's)
+        if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag) || IsRepeatingHeader(rawGamertag, teamName)
+            || (!sides && ArchiveCells.Number(teamName) is not null && !PlayedAGame(row, columns)))
         {
             currentTeam = null;
             return null;
@@ -357,6 +360,10 @@ public static partial class SeasonStatsParser
         }
         return explicitTeam ?? rosters.GetValueOrDefault(HistoricalKeys.Normalize(gamertag));
     }
+
+    /// <summary>A row's games played are more than none.</summary>
+    private static bool PlayedAGame(string[] row, Dictionary<int, (string Key, string Header)> columns)
+        => columns.Any(c => c.Value.Key == "gamesPlayed" && ArchiveCells.Number(row.ElementAtOrDefault(c.Key)) > 0);
 
     private static bool HasAnyGameStat(string[] row, Dictionary<int, (string Key, string Header)> columns)
     {

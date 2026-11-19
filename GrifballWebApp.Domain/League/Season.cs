@@ -25,14 +25,14 @@ public class Season : AuditableEntity
     /// A season an organizer makes in the event organizer: not public and not scheduled yet (<see cref="Schedule"/> and
     /// <see cref="AnnounceAt"/> set its dates).
     /// </summary>
-    public static Season Organized(string seasonName, int leagueID, int? gameVersionID, string division = null, SeasonFormat format = SeasonFormat.LeagueSeason) => new()
+    public static Season Organized(string seasonName, int leagueID, int? gameVersionID, string division = null, SeasonFormat format = SeasonFormat.LeagueSeason) => Created(new()
     {
         SeasonName = seasonName,
         LeagueID = leagueID,
         GameVersionID = gameVersionID,
         Division = NormalizedDivision(division),
         Format = format,
-    };
+    });
 
     /// <summary>
     /// A season of the historical archive, found again by <paramref name="historicalSourceID"/> (its workbook and sheet):
@@ -41,7 +41,7 @@ public class Season : AuditableEntity
     public static Season Imported(string historicalSourceID, string seasonName, int leagueID, int? gameVersionID, string division, string historicalSourceUrl, SeasonFormat format)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historicalSourceID);
-        return new()
+        return Created(new()
         {
             HistoricalSourceID = historicalSourceID,
             SeasonName = seasonName,
@@ -50,7 +50,7 @@ public class Season : AuditableEntity
             Division = division,
             HistoricalSourceUrl = historicalSourceUrl,
             Format = format,
-        };
+        });
     }
 
     /// <summary>
@@ -169,6 +169,7 @@ public class Season : AuditableEntity
         GameVersionID = gameVersionID;
         Division = NormalizedDivision(division);
         Format = format;
+        Raise(new SeasonEdited(this));
         return SeasonEditResult.Edited;
     }
 
@@ -184,6 +185,7 @@ public class Season : AuditableEntity
         Division = division;
         HistoricalSourceUrl = historicalSourceUrl;
         Format = format;
+        Raise(new SeasonEdited(this));
     }
 
     /// <summary>
@@ -195,6 +197,22 @@ public class Season : AuditableEntity
         RequireImported();
         ArgumentException.ThrowIfNullOrWhiteSpace(historicalSourceID);
         HistoricalSourceID = historicalSourceID;
+        Raise(new SeasonEdited(this));
+    }
+
+    /// <summary>A season that began (<see cref="Organized"/>, <see cref="Imported"/>), with the event that says so.</summary>
+    private static Season Created(Season season)
+    {
+        season.Raise(new SeasonCreated(season));
+        return season;
+    }
+
+    /// <summary>How many titles went: the event that says so when any did.</summary>
+    private int TitlesRemoved(int removed)
+    {
+        if (removed > 0)
+            Raise(new SeasonChampionsChanged(this));
+        return removed;
     }
 
     private void RequireImported()
@@ -210,7 +228,11 @@ public class Season : AuditableEntity
     }
 
     /// <summary>Locks the season's captains (the draft is on) or unlocks them.</summary>
-    public void LockCaptains(bool locked) => CaptainsLocked = locked;
+    public void LockCaptains(bool locked)
+    {
+        CaptainsLocked = locked;
+        Raise(new CaptainsLockChanged(this));
+    }
 
     /// <summary>
     /// The organizer's edit of the season's timeslots: they become <paramref name="options"/>. A timeslot not among them
@@ -224,6 +246,7 @@ public class Season : AuditableEntity
         _seasonAvailability.RemoveWhere(a => !options.Any(a.IsFor));
         foreach (var option in options.Where(o => !_seasonAvailability.Any(a => a.IsFor(o))).ToList())
             _seasonAvailability.Add(global::GrifballWebApp.Domain.League.SeasonAvailability.Of(this, option));
+        Raise(new SeasonTimeslotsChanged(this));
         return SeasonEditResult.Edited;
     }
 
@@ -236,6 +259,7 @@ public class Season : AuditableEntity
         _seasonAvailability.RemoveWhere(a => !options.Contains(a.AvailabilityOptionID));
         foreach (var option in options.Where(o => !_seasonAvailability.Any(a => a.AvailabilityOptionID == o)).ToList())
             _seasonAvailability.Add(global::GrifballWebApp.Domain.League.SeasonAvailability.Of(this, option));
+        Raise(new SeasonTimeslotsChanged(this));
     }
 
     /// <summary>The organizer copies another season's signups to this one, in place of its own. Refused for an imported season (throws).</summary>
@@ -245,6 +269,7 @@ public class Season : AuditableEntity
         _seasonSignups.Clear();
         foreach (var signup in other._seasonSignups.Select(s => s.Copy()).ToList())
             _seasonSignups.Add(signup);
+        Raise(new SeasonCopiedFrom(this));
     }
 
     /// <summary>
@@ -264,6 +289,7 @@ public class Season : AuditableEntity
                 captains.Add((copy, captain));
             _teams.Add(copy);
         }
+        Raise(new SeasonCopiedFrom(this));
         return captains;
     }
 
@@ -330,6 +356,8 @@ public class Season : AuditableEntity
         var stale = existing.Where(c => !kept.Contains(c.UserID)).ToList();
         foreach (var title in stale)
             _playerChampionships.Remove(title);
+        if (inserted + updated + stale.Count > 0)
+            Raise(new SeasonChampionsChanged(this));
         return new ChampionshipChanges(inserted, updated, stale.Count);
     }
 
@@ -338,14 +366,14 @@ public class Season : AuditableEntity
     public int RemoveArchivedTitlesExcept(IReadOnlySet<string> tiers)
     {
         RequireImported();
-        return _playerChampionships.RemoveWhere(c => !tiers.Contains(c.Tier));
+        return TitlesRemoved(_playerChampionships.RemoveWhere(c => !tiers.Contains(c.Tier)));
     }
 
     /// <summary>The titles of the imported season's teams the import removes go. Only an imported season (throws otherwise).</summary>
     public int RemoveArchivedTitlesOf(IReadOnlyCollection<int> teamIDs)
     {
         RequireImported();
-        return _playerChampionships.RemoveWhere(c => teamIDs.Contains(c.TeamID));
+        return TitlesRemoved(_playerChampionships.RemoveWhere(c => teamIDs.Contains(c.TeamID)));
     }
 
     /// <summary>
@@ -356,7 +384,8 @@ public class Season : AuditableEntity
     public int MergeTitles(int fromUserID, int toUserID)
     {
         var moved = 0;
-        foreach (var title in _playerChampionships.Where(c => c.UserID == fromUserID).ToList())
+        var titles = _playerChampionships.Where(c => c.UserID == fromUserID).ToList();
+        foreach (var title in titles)
         {
             var held = _playerChampionships.FirstOrDefault(h => h.UserID == toUserID && string.Equals(h.Tier, title.Tier, StringComparison.OrdinalIgnoreCase));
             if (held is not null)
@@ -370,6 +399,8 @@ public class Season : AuditableEntity
                 moved++;
             }
         }
+        if (titles.Count > 0)
+            Raise(new SeasonChampionsChanged(this));
         return moved;
     }
 
@@ -418,6 +449,8 @@ public class Season : AuditableEntity
             kept.Add(award);
         }
         var removed = _awards.RemoveWhere(a => !kept.Contains(a));
+        if (inserted + updated + removed > 0)
+            Raise(new SeasonAwardsChanged(this));
         return new AwardChanges(inserted, updated, removed);
     }
 
@@ -429,7 +462,9 @@ public class Season : AuditableEntity
         RequireImported();
         foreach (var award in _awards.Where(a => a.UserID is not null && a.TeamID is int teamID && teamIDs.Contains(teamID)))
             award.ClearTeam();
-        return _awards.RemoveWhere(a => a.TeamID is int teamID && teamIDs.Contains(teamID));
+        var removed = _awards.RemoveWhere(a => a.TeamID is int teamID && teamIDs.Contains(teamID));
+        Raise(new SeasonAwardsChanged(this));
+        return removed;
     }
 
     /// <summary>A user merge: the season's awards of <paramref name="fromUserID"/> become <paramref name="toUserID"/>'s.
@@ -439,6 +474,8 @@ public class Season : AuditableEntity
         var awards = _awards.Where(a => a.UserID == fromUserID).ToList();
         foreach (var award in awards)
             award.ReassignUser(toUserID);
+        if (awards.Count > 0)
+            Raise(new SeasonAwardsChanged(this));
         return awards.Count;
     }
 
@@ -474,6 +511,7 @@ public class Season : AuditableEntity
         DraftStart = draftStart;
         SeasonStart = seasonStart;
         SeasonEnd = seasonEnd;
+        Raise(new SeasonScheduled(this));
         return SeasonScheduleResult.Scheduled;
     }
 
@@ -518,6 +556,7 @@ public class Season : AuditableEntity
             PublicAt = was;
             return SeasonAnnounceResult.NotPublicBySignups;
         }
+        Raise(new SeasonAnnounced(this));
         return SeasonAnnounceResult.Announced;
     }
 

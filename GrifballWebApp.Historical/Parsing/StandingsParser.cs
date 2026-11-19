@@ -257,6 +257,10 @@ public static partial class StandingsParser
 
         public void NewBlock() => _blockStart = List.Count;
 
+        /// <summary>A player as the stats name them: the tab's <see cref="StandingsTab.Names"/> entry, else as written.</summary>
+        private string Named(string player)
+            => tab.Names.FirstOrDefault(n => string.Equals(n.Key.Trim(), player.Trim(), StringComparison.OrdinalIgnoreCase)).Value ?? player;
+
         public void Add(string cell, Func<Field, string> value, List<string>? roster = null)
         {
             var (name, record, others) = Brackets(cell);
@@ -270,6 +274,7 @@ public static partial class StandingsParser
             // A note in brackets stays on the name ("Junkyard Dogs (Winners)"): the archive's builder matches it to the
             // stats' team without it. A record's bracket, "(12-8)", is the record.
             name = string.Concat(name, string.Concat(others.Select(o => $" ({o})")));
+            captain = Named(captain);
             if (!_names.Add(name))
                 return;
             var (wins, losses) = (Count(value(Field.Wins)), Count(value(Field.Losses)));
@@ -289,7 +294,7 @@ public static partial class StandingsParser
                 Losses = losses,
                 Rank = Place(value(Field.Rank)) ?? (tab.Ranked ? List.Count - _blockStart + 1 : null),
                 Finish = Place(value(Field.Finish)),
-                Roster = roster ?? [],
+                Roster = roster?.Select(Named).ToList() ?? [],
             });
         }
     }

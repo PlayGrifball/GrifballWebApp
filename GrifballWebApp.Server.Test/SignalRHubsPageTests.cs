@@ -77,7 +77,7 @@ public class SignalRHubsPageTests
     }
 
     [TestCase("/seasons")]
-    [TestCase("/TeamsHub/negotiate")]
+    [TestCase("/LiveHub/negotiate")]
     [TestCase("/signalr-developers")]
     public async Task RequireSysadmin_LeavesTheRestAlone(string path)
     {

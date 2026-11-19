@@ -2,6 +2,7 @@ using System.Text.Json;
 using DiscordInterface.Generated;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Matchmaking;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
@@ -61,8 +62,13 @@ public class QueueServiceFinishTests : SqliteContextFixture
     /// <summary>The clock QueueService goes by: an hour into the matches, well short of the two hours that make one stale.</summary>
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(StartedAt.AddHours(1)));
 
+    /// <summary>With the app's domain events: the matches' Discord posts are queued as their changes commit.</summary>
+    protected override GrifballContext CreateContext() =>
+        new(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString)
+            .AddInterceptors(AppDomainEvents.Interceptor(() => Context)).Options);
+
     private QueueService Service() => new(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = QueueChannel, MatchPlayers = 2 }),
-        new QueueRepository(Context), _discord, Context, _dataPull, new ContextOutbox(Context), Substitute.For<IQueueNotifier>(), _time);
+        new QueueRepository(Context), _discord, Context, _dataPull, new ContextOutbox(Context), _time);
 
     private async Task<User> SeedUser()
     {
@@ -77,6 +83,7 @@ public class QueueServiceFinishTests : SqliteContextFixture
     private async Task<MatchedMatch> SeedMatch(User home, User away, WinnerVote? homeVote = null, WinnerVote? awayVote = null)
     {
         var match = MatchedMatch.Start([home.Id], [away.Id], StartedAt);
+        ((IHasDomainEvents)match).ClearDomainEvents(); // Announced before this test
         match.AttachThread(ThreadId);
         match.PostVoteMessage(VoteMessageId);
         Context.MatchedMatches.Add(match);
@@ -299,6 +306,7 @@ public class QueueServiceFinishTests : SqliteContextFixture
             Assert.That((await Context.MatchedMatches.AsNoTracking().SingleAsync(m => m.Id == broken.Id)).Status, Is.EqualTo(MatchedMatchStatus.Active));
             Assert.That((await Context.MatchedMatches.AsNoTracking().SingleAsync(m => m.Id == voted.Id)).Status, Is.EqualTo(MatchedMatchStatus.VoteDecided));
             Assert.That((await Reload(a1)).MMR, Is.EqualTo(User.StartingMMR), "nothing of the failed ending was saved");
+            Assert.That(await Queued(broken.Id), Is.Empty, "nor posted: its ending's events went with it, not out with the next match's save");
         }
     }
 
@@ -340,6 +348,18 @@ public class QueueServiceFinishTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task Go_TellsThePagesTheQueue_EveryTick_SoASizeTheyMissed_IsPutRight()
+    {
+        var live = Substitute.For<ILiveUpdates>();
+        var service = new QueueService(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = QueueChannel, MatchPlayers = 2 }),
+            new QueueRepository(Context), _discord, Context, _dataPull, new ContextOutbox(Context), _time, live);
+
+        await service.Go(CancellationToken.None);
+
+        live.Received(1).Publish(Arg.Is<IEnumerable<LiveChange>>(c => c.Single() == new LiveChange(LiveTopics.Queue, null)));
+    }
+
+    [Test]
     public async Task Go_AMatchUndecidedForUnderTwoHours_StaysActive()
     {
         var home = await SeedUser();
@@ -354,5 +374,61 @@ public class QueueServiceFinishTests : SqliteContextFixture
             Assert.That((await Context.MatchedMatches.AsNoTracking().SingleAsync(m => m.Id == match.Id)).Status, Is.EqualTo(MatchedMatchStatus.Active));
             Assert.That(await Queued(match.Id), Is.Empty);
         }
+    }
+
+    [Test]
+    public async Task TheEndPost_OfAHaloGameNobodyWon_FailsTheChange()
+    {
+        var home = await SeedUser();
+        var away = await SeedUser();
+        var seeded = await SeedMatch(home, away);
+        var game = Match.Seed(Guid.NewGuid(), startTime: StartedAt.AddMinutes(1), endTime: StartedAt.AddMinutes(13), duration: TimeSpan.FromMinutes(12));
+        game.AddTeam(0, 3, Outcomes.DidNotFinish);
+        game.AddTeam(1, 3, Outcomes.DidNotFinish);
+        Context.Matches.Add(game);
+        await Context.SaveChangesAsync();
+        var match = await Context.MatchedMatches.SingleAsync(m => m.Id == seeded.Id);
+        match.Report(game.MatchID);
+
+        Assert.That(async () => await new LateLeagueDiscordPosts(Context, new ContextOutbox(Context))
+            .Handle(new LateLeagueMatchDecided(match, []), [], CancellationToken.None), Throws.InvalidOperationException.With.Message.Contains("no winning team"));
+    }
+
+    [Test]
+    public async Task TheEndPostsMmrChanges_NameAPlayerByDiscord_ElseByGamertag_AndAnMmrNotRecordedAsUnknown()
+    {
+        var home = User.Seed(userName: "discorded", discordUser: GrifballWebApp.Domain.Players.DiscordUser.FromDiscord(4242, "DiscordName"),
+            xboxUser: GrifballWebApp.Domain.Players.XboxUser.FromXbox(4243, "HomeTag"));
+        Context.Users.Add(home);
+        await Context.SaveChangesAsync();
+        var away = await SeedUser();
+        var seeded = await SeedMatch(home, away);
+        var match = await Context.MatchedMatches.AsNoTracking()
+            .Include(m => m.HomeTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User).ThenInclude(u => u.DiscordUser)
+            .Include(m => m.AwayTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User).ThenInclude(u => u.XboxUser)
+            .SingleAsync(m => m.Id == seeded.Id);
+        var before = new Dictionary<long, int> { [home.Id] = home.MMR - 10 };
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(LateLeagueDiscordPosts.MmrChanges(before, match, MatchedSide.Home), Is.EqualTo($"DiscordName: {home.MMR - 10} -> {home.MMR} (+10)"));
+            Assert.That(LateLeagueDiscordPosts.MmrChanges(before, match, MatchedSide.Away), Is.EqualTo($"{away.XboxUser!.Gamertag}: UNK -> {away.MMR} (UNK)"));
+        }
+    }
+
+    [Test]
+    public async Task TheEndPostsMmrChanges_APlayerWithNeitherDiscordNorXbox_HasNoName()
+    {
+        var home = await SeedUser();
+        var away = User.Seed(userName: "unlinked");
+        Context.Users.Add(away);
+        await Context.SaveChangesAsync();
+        var seeded = await SeedMatch(home, away);
+        var match = await Context.MatchedMatches.AsNoTracking()
+            .Include(m => m.HomeTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User)
+            .Include(m => m.AwayTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User)
+            .SingleAsync(m => m.Id == seeded.Id);
+
+        Assert.That(LateLeagueDiscordPosts.MmrChanges(new Dictionary<long, int>(), match, MatchedSide.Away), Is.EqualTo($": UNK -> {away.MMR} (UNK)"));
     }
 }

@@ -184,6 +184,7 @@ public class RecordedGame : AuditableEntity
                 _teams.Add(row = new RecordedGameTeam(side.Side));
             row.Record(side);
         }
+        Raise(new RecordedGameChanged(this));
     }
 
     /// <summary>
@@ -209,6 +210,7 @@ public class RecordedGame : AuditableEntity
                 _participants.Add(row = new RecordedGameParticipant(line.UserID));
             row.Record(line, line.Side is int side ? _teams.FirstOrDefault(t => t.Side == side) : null);
         }
+        Raise(new RecordedGameChanged(this));
     }
 
     /// <summary>
@@ -259,6 +261,7 @@ public class RecordedGame : AuditableEntity
             _participants.Clear();
         PlayedAt = facts.PlayedAt;
         IsPlayoffs = facts.IsPlayoffs;
+        Raise(new RecordedGameChanged(this));
     }
 }
 

@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route, type WebSocketRoute } from '@playwright/test';
-import { RS, negotiateResponse } from './hubMock.mts';
+import { RS, liveHubReplies, negotiateResponse } from './hubMock.mts';
 import type {
-  BracketsMatch, ParticpantResult, Participant, PossibleTeamDto, RescheduleDto, SeasonInfoDto, SeasonMatchGameParticipantDto, SeasonMatchPageDto,
+  BracketsMatch, DraftLiveDto, ParticpantResult, Participant, PossibleTeamDto, RescheduleDto, SeasonInfoDto, SeasonMatchGameParticipantDto, SeasonMatchPageDto,
   SignupsTimeslotDto, StageSettings, Status, TeamDto, UserResponseDto, ViewerDataDto,
 } from '../src/generated/api/models';
 import { typed } from './mockApi.mts';
@@ -298,10 +298,57 @@ test('the user search box debounces typing and the table shows the filtered user
   expect(terms().length).toBeLessThan('grif'.length);
 });
 
-test('the team builder renders a captain added by another user over SignalR', async ({ page }) => {
+/**
+ * A minimal live hub (hub/LiveHub): a negotiate offering WebSockets, then the JSON hub protocol over one, answering the
+ * invocations the client waits on (Watch, Unwatch, Viewing). RS, negotiateResponse and liveHubReplies are shared with
+ * e2e/hubMock.mts, which answers the same hub for Lighthouse and the layout test (over a real socket there, so it can't
+ * share the rest of this route-based code). `changed(topic)` sends a Changed (a notice: the page reads it again) down the
+ * newest open socket, `snapshot(topic, data)` a Snapshot (the topic's data with it, as JSON: the page shows it as it is).
+ */
+async function routeLiveHub(page: Page) {
+  let negotiated = false;
+  const watched = new Set<string>();
+  await page.route('**/hub/LiveHub/negotiate**', route => {
+    negotiated = true;
+    return route.fulfill({ body: negotiateResponse(), contentType: 'application/json' });
+  });
+  const sockets: WebSocketRoute[] = [];
+  await page.routeWebSocket(/\/hub\/LiveHub/, ws => {
+    // The page may restart the connection once the session is known, so only the newest open socket is used.
+    ws.onClose(() => sockets.splice(sockets.indexOf(ws), 1));
+    ws.onMessage(message => {
+      const text = String(message);
+      // The first message is the handshake request; answer it, then the connection is open.
+      if (text.includes('"protocol"')) {
+        ws.send(`{}${RS}`);
+        sockets.push(ws);
+        return;
+      }
+      for (const raw of text.split(RS).filter(m => m.trim())) {
+        const invocation = JSON.parse(raw) as { target?: string, arguments?: unknown[] };
+        if (invocation.target === 'Watch')
+          for (const topic of invocation.arguments?.[0] as string[])
+            watched.add(topic);
+      }
+      for (const reply of liveHubReplies(text))
+        ws.send(reply);
+    });
+  });
+  return {
+    negotiated: () => negotiated,
+    /** The topics the page has watched on the hub. */
+    watched: () => [...watched],
+    open: () => sockets.length,
+    changed: (topic: string) => sockets[sockets.length - 1].send(JSON.stringify({ type: 1, target: 'Changed', arguments: [topic] }) + RS),
+    snapshot: (topic: string, data: unknown) =>
+      sockets[sockets.length - 1].send(JSON.stringify({ type: 1, target: 'Snapshot', arguments: [topic, JSON.stringify(data)] }) + RS),
+  };
+}
+
+test('the team builder loads a captain added by another user again when the live hub says the draft changed', async ({ page }) => {
   const SEASON_ID = 7;
-  // The server's draft, which the other user's change updates too: the page reloads it whenever its
-  // hub connection comes up, which may be just after the update arrives.
+  // The server's draft, which the other user's change updates too: the page loads it again on the live hub's Changed
+  // (and whenever its connection comes back).
   let captainAdded = false;
   await mockBackend(page, {
     [`/api/seasons/${SEASON_ID}/draft/teams`]: route => json(route, typed('getTeams', [
@@ -315,39 +362,53 @@ test('the team builder renders a captain added by another user over SignalR', as
     [`/api/seasons/${SEASON_ID}/draft/captains/locked`]: route => json(route, typed('areCaptainsLocked', true)),
   });
 
-  // A minimal SignalR server: a negotiate offering WebSockets, then the JSON hub protocol over one. RS and
-  // negotiateResponse are shared with e2e/hubMock.mts, which answers the same hub for Lighthouse and the
-  // layout test (over a real socket there, so it can't share the rest of this route-based code).
-  let negotiated = false;
-  await page.route('**/hub/TeamsHub/negotiate**', route => {
-    negotiated = true;
-    return route.fulfill({ body: negotiateResponse(), contentType: 'application/json' });
-  });
-  const sockets: WebSocketRoute[] = [];
-  await page.routeWebSocket(/\/hub\/TeamsHub/, ws => {
-    // The page may restart the connection once the access token is read, so only the
-    // newest open socket is used.
-    ws.onClose(() => sockets.splice(sockets.indexOf(ws), 1));
-    ws.onMessage(message => {
-      // The first message is the handshake request; answer it, then the connection is open.
-      if (String(message).includes('"protocol"')) {
-        ws.send(`{}${RS}`);
-        sockets.push(ws);
-      }
-    });
-  });
+  const hub = await routeLiveHub(page);
 
   await page.goto(`/season/${SEASON_ID}/draft`);
   await expect(page.locator('mat-list-item.player-pool-item', { hasText: 'Pool Blair' })).toBeVisible();
-  await expect.poll(() => sockets.length).toBeGreaterThan(0);
+  await expect.poll(() => hub.open()).toBeGreaterThan(0);
+  await expect.poll(() => hub.watched()).toContain(`draft:${SEASON_ID}`);
 
-  const addCaptain = { seasonID: SEASON_ID, personID: 102, teamName: "Blair's Team", captainName: 'Pool Blair', orderNumber: 2 };
   captainAdded = true;
-  sockets[sockets.length - 1].send(JSON.stringify({ type: 1, target: 'AddCaptain', arguments: [addCaptain] }) + RS);
+  hub.changed(`draft:${SEASON_ID}`);
 
   await expect(page.locator('mat-card.item:not(.dndPlaceholder) mat-card-title')).toHaveText(['1 - Red Team', "2 - Blair's Team"]);
   await expect(page.locator('mat-list-item.player-pool-item', { hasText: 'Pool Blair' })).toHaveCount(0);
-  expect(negotiated, 'the client negotiated first').toBe(true);
+  expect(hub.negotiated(), 'the client negotiated first').toBe(true);
+});
+
+test('the team builder shows a draft the live hub pushes with a change, without loading it', async ({ page }) => {
+  const SEASON_ID = 7;
+  const red = { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1, region: null }, players: [] };
+  const alex = { name: 'Pool Alex', personID: 101, pick: null, round: null, region: null };
+  const requests = await mockBackend(page, {
+    [`/api/seasons/${SEASON_ID}/draft/teams`]: route => json(route, typed('getTeams', [red])),
+    [`/api/seasons/${SEASON_ID}/draft/player-pool`]: route => json(route, typed('getPlayerPool', [alex, { name: 'Pool Blair', personID: 102, pick: null, round: null, region: null }])),
+    [`/api/seasons/${SEASON_ID}/draft/captains/locked`]: route => json(route, typed('areCaptainsLocked', true)),
+  });
+  const teamLoads = () => requests.filter(r => r === `GET /api/seasons/${SEASON_ID}/draft/teams`).length;
+  const hub = await routeLiveHub(page);
+
+  await page.goto(`/season/${SEASON_ID}/draft`);
+  await expect(page.locator('mat-list-item.player-pool-item', { hasText: 'Pool Blair' })).toBeVisible();
+  await expect.poll(() => hub.open()).toBeGreaterThan(0);
+  await expect.poll(() => hub.watched()).toContain(`draft:${SEASON_ID}`);
+  const loads = teamLoads();
+
+  // Another user made Pool Blair a captain: the server sends the draft as it is now (DraftLiveDto, as JSON)
+  const draft: DraftLiveDto = {
+    seasonID: SEASON_ID,
+    teams: [red, { teamID: 2, teamName: "Blair's Team", captain: { name: 'Pool Blair', personID: 102, order: 2, region: null }, players: [] }],
+    pool: [alex],
+    captainsLocked: true,
+  };
+  hub.snapshot(`draft:${SEASON_ID}`, draft);
+
+  await expect(page.locator('mat-card.item:not(.dndPlaceholder) mat-card-title')).toHaveText(['1 - Red Team', "2 - Blair's Team"]);
+  await expect(page.locator('mat-list-item.player-pool-item', { hasText: 'Pool Blair' })).toHaveCount(0);
+  // Longer than a reload would wait (LIVE_RELOAD_MS plus the most LIVE_SPREAD_MS adds): none came
+  await page.waitForTimeout(2_500); // eslint-disable-line sonarjs/no-fixed-wait-in-tests -- checks that no load comes
+  expect(teamLoads(), 'no load: the pushed draft is shown as it is').toBe(loads);
 });
 
 test('the signup form ticks single slots and whole days, and submits the chosen option ids', async ({ page }) => {
@@ -408,35 +469,25 @@ test('the signup form ticks single slots and whole days, and submits the chosen 
   expect(posted[0].userID).toBeUndefined();
 });
 
-test('the Late League queue panel shows the count the hub sends, and joins from it', async ({ page }) => {
+test('the Late League queue panel loads the count again when the live hub says the queue changed, and joins from it', async ({ page }) => {
   // The status as GET /api/queue sends it (QueueStatusDto): signed in with a gamertag, not in the queue
   const status = { count: 6, open: true, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
   await mockBackend(page, {
     '/api/queue': route => json(route, typed('getQueueStatus', status)),
     '/api/queue/join': route => json(route, typed('joinQueue', { ...status, count: 10, inQueue: true })),
   });
-  // QueueHub, as the team builder's hub above: its negotiate, then a WebSocket with the handshake answered
-  await page.route('**/hub/QueueHub/negotiate**', route => route.fulfill({ body: negotiateResponse(), contentType: 'application/json' }));
-  const sockets: WebSocketRoute[] = [];
-  await page.routeWebSocket(/\/hub\/QueueHub/, ws => {
-    ws.onClose(() => sockets.splice(sockets.indexOf(ws), 1));
-    ws.onMessage(message => {
-      if (String(message).includes('"protocol"')) {
-        ws.send(`{}${RS}`);
-        sockets.push(ws);
-      }
-    });
-  });
+  // The live hub, as for the team builder above
+  const hub = await routeLiveHub(page);
 
   await page.goto('/');
   const panel = page.locator('app-late-league-queue');
   await expect(panel.locator('.late-league-queue__number')).toHaveText('6');
-  await expect.poll(() => sockets.length).toBeGreaterThan(0);
+  await expect.poll(() => hub.open()).toBeGreaterThan(0);
+  await expect.poll(() => hub.watched()).toContain('queue');
 
-  // Someone joined elsewhere (Discord): the hub sends the new size (the server's status has it too, for a load the
-  // connection's start may still have under way)
+  // Someone joined elsewhere (Discord): the hub says the queue changed, and the panel loads its status (the size) again
   status.count = 9;
-  sockets[sockets.length - 1].send(JSON.stringify({ type: 1, target: 'QueueCount', arguments: [9] }) + RS);
+  hub.changed('queue');
   await expect(panel.locator('.late-league-queue__number')).toHaveText('9');
 
   await panel.getByRole('button', { name: 'Join the queue' }).click();

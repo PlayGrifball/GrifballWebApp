@@ -8,7 +8,6 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Application.Teams;
-using GrifballWebApp.Application.Teams.Handlers;
 using GrifballWebApp.Infrastructure.Teams;
 using GrifballWebApp.Application.Database;
 
@@ -23,18 +22,15 @@ public class TeamsControllerTests
     private static readonly string[] OnePoolPlayer = ["PoolGuy"];
     private static readonly string[] ResortedTeams = ["Two", "One"];
     private static readonly string[] TeamOneLeft = ["One"];
-    private static readonly bool[] LockedThenUnlocked = [true, false];
 
     private GrifballContext _context = null!;
-    private IPublisher _publisher = null!;
     private TeamsController _controller = null!;
 
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
-        _publisher = Substitute.For<IPublisher>();
-        _controller = new TeamsController(new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)));
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
+        _controller = new TeamsController(new TeamService(_context, new ContextDatabaseLocks(_context)));
         SetUser(null);
     }
 
@@ -45,9 +41,6 @@ public class TeamsControllerTests
     }
 
     private void SetUser(string? nameIdentifier) => _controller.WithUser(nameIdentifier);
-
-    private T SinglePublished<T>() =>
-        _publisher.ReceivedCalls().Select(c => c.GetArguments()[0]).OfType<T>().Single();
 
     [Test]
     public async Task GetTeams_And_GetPlayerPool_Should_ReturnServiceData()
@@ -70,7 +63,7 @@ public class TeamsControllerTests
     }
 
     [Test]
-    public async Task CaptainEndpoints_Should_Add_Resort_And_Remove_WithConnectionId()
+    public async Task CaptainEndpoints_Should_Add_Resort_And_Remove()
     {
         var season = await _context.AddSeason();
         var c1 = await _context.AddUser("c1", "C1");
@@ -79,25 +72,17 @@ public class TeamsControllerTests
         await _context.AddSignup(season, c2, "Two");
 
         // The route names the season: a body naming another is ignored
-        var added1 = (await _controller.AddCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = 999999, PersonID = c1.Id, OrderNumber = 1 }, "h1", CancellationToken.None)).Value!;
-        var added2 = (await _controller.AddCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c2.Id, OrderNumber = 2 }, "h1", CancellationToken.None)).Value!;
-        // The sender is not sent the CaptainAdded broadcast, so the response carries the team's name.
+        var added1 = (await _controller.AddCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = 999999, PersonID = c1.Id, OrderNumber = 1 }, CancellationToken.None)).Value!;
+        var added2 = (await _controller.AddCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c2.Id, OrderNumber = 2 }, CancellationToken.None)).Value!;
+        // The response carries the team's name.
         Assert.That((added1.TeamName, added2.TeamName), Is.EqualTo(("One", "Two")));
-        await _controller.ResortCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c2.Id, OrderNumber = 1 }, "h2", CancellationToken.None);
+        await _controller.ResortCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c2.Id, OrderNumber = 1 }, CancellationToken.None);
 
         var teams = await _controller.GetTeams(season.SeasonID, CancellationToken.None);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(ResortedTeams));
-            Assert.That(SinglePublished<Notification<CaptainPlacementDto>>().ConnectionId, Is.EqualTo("h2"));
-        }
+        Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(ResortedTeams));
 
-        await _controller.RemoveCaptain(season.SeasonID, new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = c2.Id }, "h3", CancellationToken.None);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(await _context.NewContextLike().Teams.Select(t => t.TeamName).ToListAsync(), Is.EqualTo(TeamOneLeft));
-            Assert.That(SinglePublished<Notification<RemoveCaptainDto>>().ConnectionId, Is.EqualTo("h3"));
-        }
+        await _controller.RemoveCaptain(season.SeasonID, new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = c2.Id }, CancellationToken.None);
+        Assert.That(await _context.NewContextLike().Teams.Select(t => t.TeamName).ToListAsync(), Is.EqualTo(TeamOneLeft));
     }
 
     [Test]
@@ -113,17 +98,17 @@ public class TeamsControllerTests
         var teamB = await _context.AddTeam(season, "B", capB, 2);
         SetUser(commish.Id.ToString());
 
-        var result = await _controller.AddPlayerToTeam(season.SeasonID, new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capA.Id, PersonID = p.Id }, "h", CancellationToken.None);
+        var result = await _controller.AddPlayerToTeam(season.SeasonID, new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capA.Id, PersonID = p.Id }, CancellationToken.None);
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.TypeOf<NoContentResult>());
             Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.TeamID == teamA.TeamID && tp.UserID == p.Id), Is.True);
         }
 
-        await _controller.MovePlayerToTeam(season.SeasonID, new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = capA.Id, NewCaptainID = capB.Id, PersonID = p.Id, RoundNumber = 1 }, "h", CancellationToken.None);
+        await _controller.MovePlayerToTeam(season.SeasonID, new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = capA.Id, NewCaptainID = capB.Id, PersonID = p.Id, RoundNumber = 1 }, CancellationToken.None);
         Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.TeamID == teamB.TeamID && tp.UserID == p.Id), Is.True);
 
-        await _controller.RemovePlayerFromTeam(season.SeasonID, new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, "h", CancellationToken.None);
+        await _controller.RemovePlayerFromTeam(season.SeasonID, new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, CancellationToken.None);
         Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.UserID == p.Id), Is.False);
     }
 
@@ -132,14 +117,10 @@ public class TeamsControllerTests
     {
         var season = await _context.AddSeason();
 
-        await _controller.LockCaptains(season.SeasonID, "h", CancellationToken.None);
-        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.True);
+        await _controller.LockCaptains(season.SeasonID, CancellationToken.None);
+        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.True);
 
-        await _controller.UnlockCaptains(season.SeasonID, "h", CancellationToken.None);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.False);
-            Assert.That(_publisher.ReceivedCalls().Select(c => c.GetArguments()[0]).OfType<LockChanged>().Select(l => l.Value), Is.EqualTo(LockedThenUnlocked));
-        }
+        await _controller.UnlockCaptains(season.SeasonID, CancellationToken.None);
+        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.False);
     }
 }

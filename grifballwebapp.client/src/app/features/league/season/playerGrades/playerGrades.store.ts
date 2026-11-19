@@ -4,6 +4,8 @@ import { GradesService } from '@api/services/grades.service';
 import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import { missing, SeasonSummaryService } from '../seasonSummary';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** A season's player grades and its summary. One per page (the component provides it). */
 @Injectable()
@@ -39,6 +41,12 @@ export class PlayerGradesStore {
       const seasonID = this.seasonID.value();
       if (seasonID !== undefined)
         untracked(() => this.load(seasonID));
+    });
+    // A game of the season, or a signup: the grades again, in place
+    liveReload(() => { const seasonID = this.seasonID.value(); return seasonID ? [LiveTopics.season(seasonID), LiveTopics.signups(seasonID)] : []; }, () => {
+      const seasonID = this.seasonID.value();
+      if (seasonID)
+        this.getGrades(seasonID);
     });
   }
 

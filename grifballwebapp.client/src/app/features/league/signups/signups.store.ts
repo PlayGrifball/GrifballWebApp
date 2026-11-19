@@ -6,6 +6,8 @@ import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import { SeasonSummaryService } from '../season/seasonSummary';
 import { AppLog } from '@core/telemetry/appLog';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /**
  * A season's signups and summary: the route's season, or the current one when it names none (0). A new season drops
@@ -36,6 +38,8 @@ export class SignupsStore {
         return;
       untracked(() => this.show(routeSeasonID));
     });
+    // A signup made, changed or withdrawn: the list again, in place
+    liveReload(() => this.shownSeasonID() ? [LiveTopics.signups(this.shownSeasonID())] : [], () => this.load());
   }
 
   private show(routeSeasonID: number): void {

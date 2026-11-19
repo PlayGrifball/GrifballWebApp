@@ -302,6 +302,24 @@ public class HistoricalArchiveParsingTests
         }
     }
 
+    private static readonly string[] ChampionsAsTheirSeasonsName = ["Yung Humma", "Yeji's Toasted Banana Icey", "Tuna"];
+
+    [Test]
+    public void Champions_ATitleSpellingItsTeamAnotherWay_TakesTheNameTheRecordsConfigGives()
+    {
+        // The record's "Yung Hummu" (Winter League 2021 Pro) is the sheets' Yung Humma; its "Yeji's Iced Toasted Banana" (Summer
+        // League 2021 Pro) the stats' Yeji's Toasted Banana Icey. A title by another name made a second team of the champion
+        var sheet = Read(Workbook(("AGLA Champions", [Row("AGLA Champions"), Row("Season", "Game", "League", "Team"),
+            Row("Winter League 2021", "MCC Halo 3", "Pro", "Yung Hummu", "ixGingy"),
+            Row("Summer League 2021", "MCC Split", "Pro", "Yeji's Iced Toasted Banana", "xStarBlade"),
+            Row("Winter League 2019", "MCC Halo 3", "-", "Tuna", "Rayzyr")]))).Sheet("AGLA Champions")!;
+        var config = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "history-agla-champions").Config!;
+
+        var champions = ChampionsParser.Parse("history-agla-champions", "https://example.org/c", sheet, config);
+
+        Assert.That(champions.Champions.Select(c => c.Team), Is.EqualTo(ChampionsAsTheirSeasonsName));
+    }
+
     [Test]
     public void ChampionsTable_AndBracketTable_MergeIntoChampionsArchiveAndAttachNormalizedBrackets()
     {
@@ -1099,6 +1117,37 @@ public class HistoricalArchiveParsingTests
         Assert.That(teams.Select(t => (t.TeamName, t.Captain)), Is.EqualTo(CaptainOnlyIfAPlayer));
     }
 
+    private static readonly (string, string?)[] Sl25Captains =
+    [
+        ("Junkyard Dogs", "NKOTB4evah"), ("Cosmic Oblivion", "KindredDaedric"), ("Murder Incorporated", "MasterSquirre"), ("Cosmic Oblivion", "KindredDaedric"),
+    ];
+
+    [Test]
+    public void AStandingsCaptain_TheTabNamesByANickname_IsThePlayerItsConfigNames()
+    {
+        // SL25's Team Chart names Junkyard Dogs' captain "Nkot" (NKOTB4evah: the owner confirmed it, #496) and Cosmic
+        // Oblivion's "DaedricKindred", its standings "(Daedric)" (KindredDaedric, the season's only Daedric): no player of the
+        // stats by those names, so neither team had a captain
+        List<HistoricalSourceContent> sources =
+        [
+            Source("2025-octane-sl25-bid-stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Spring League 2025 (Octane Bid)", Game = "infinite" },
+                    Tabs = [new() { Name = "Regular Season Stats Sheet stat" }],
+                },
+                Workbook(("Regular Season Stats Sheet stat", [Row("Player", "Team", "Games", "Kills"), Row("NKOTB4evah", null, 4, 1), Row("KindredDaedric", null, 4, 1), Row("MasterSquirre", null, 4, 1)]))),
+            Source("2025-octane-sl25-bid-schedule", HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "2025-octane-sl25-bid-schedule").Config,
+                Workbook(
+                    ("Team Chart", [Row(null, "Season Standings", "14th", "9th", "8th"), Row(null, "Team Name:", "Junkyard Dogs", "Cosmic Oblivion", "Murder Incorporated"),
+                        Row(null, "Captain:", "Nkot", "DaedricKindred", "MasterSquirre")]),
+                    ("Schedule ListStandings", [Row("Team Standings", "Wins", "Loss"), Row("Cosmic Oblivion (Daedric)", 9, 10)]))),
+        ];
+
+        var teams = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons.Single(s => !s.IsPlayoffs).Teams;
+
+        Assert.That(teams.Select(t => (t.TeamName, t.Captain)), Is.EquivalentTo(Sl25Captains));
+    }
+
     [Test]
     public void AStandingsTeamWhoseNumberDiffers_IsNoStatsTeamALetterAway()
     {
@@ -1330,6 +1379,29 @@ public class HistoricalArchiveParsingTests
             Assert.That((season.FirstPlayedAt, season.LastPlayedAt), Is.EqualTo(((DateTime?)new DateTime(2022, 10, 17, 21, 15, 0, DateTimeKind.Utc), (DateTime?)new DateTime(2022, 10, 18, 8, 1, 46, DateTimeKind.Utc))));
             Assert.That(warnings, Is.EqualTo(expected11));
         }
+    }
+
+    private static readonly (string, string?)[] OnlyTheNamedTeamsPlayers = [("ixGingy", "Natural Wonders"), ("yLuxe", "Nets Dimension"), ("Numbered", "3")];
+
+    [Test]
+    public void ARowWhoseTeamIsANumber_InATabThatNamesItsTeams_IsNoPlayersLine()
+    {
+        // FL21's stats end with the hosts who played no game, their Team cell a game side ("0 | ixjaga"); SML20's playoff
+        // bracket sits below its stats, under the same columns ("4 | Bank Your Items!": a seed and a team, its "3" a medals
+        // cell). Neither is a team, and neither row a player's line. A row that played games is a line whatever its Team says
+        var xlsx = Workbook(("Stats", [
+            Row("Team", "Player", "GamesPlayed", "Wins", "Kills", "Medals"),
+            Row("Natural Wonders", "ixGingy", 10, 8, 746, 900),
+            Row("Nets Dimension", "yLuxe", 8, 3, 567, 600),
+            Row(0, "ixjaga", 0, 0, 0, 0),
+            Row(1, "RandyJacksonBK", 0, 0, 0, 0),
+            Row(4, "Bank Your Items!", null, null, null, 3),
+            Row(3, "Numbered", 2, 1, 50, 60)]));
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Fall League 2021 (Pro)", Game = "halo3" }, Tabs = [new() { Name = "Stats" }] };
+
+        var season = SeasonStatsParser.Parse("sml21", config, Read(xlsx), []).Single();
+
+        Assert.That(season.Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(OnlyTheNamedTeamsPlayers));
     }
 
     [Test]
@@ -1615,7 +1687,8 @@ public class HistoricalArchiveParsingTests
                 Is.SubsetOf(sources.Where(s => s.Config?.Tabs.Count > 0).Select(s => s.HistoricalSourceID)));
             Assert.That(sources.Count(s => s.Config?.ChampionsSheet is not null), Is.EqualTo(1));
             Assert.That(sources.Single(s => s.Kind == HistoricalSourceKind.YouTubeChannel).Enabled, Is.True, "Kept for the VODs to come");
-            Assert.That(stats, Has.Count.EqualTo(69), "All configured stats tabs across the archive catalog");
+            Assert.That(stats, Has.Count.EqualTo(67),
+                "The seasons the Node compiler made, the DJBluePDX Summer Series and the GrifballHub archive's since; not SML21's copies of WL21 Legacy's Playoff Stats");
         }
     }
 
@@ -1670,5 +1743,24 @@ public class HistoricalArchiveParsingTests
             Assert.That(parsedTable.Champions, Is.Empty);
             Assert.That(warnings, Has.Some.Contains("missing required season or team columns"));
         }
+    }
+
+    [Test]
+    public void ChampionsParser_ATablesChampion_IsNamedAsItsSourcesConfigNamesTheTeam()
+    {
+        var tableSheet = new SheetTable
+        {
+            Name = "Champions",
+            Rows =
+            [
+                ["league", "season_name", "tier", "champion_team"],
+                ["GGL", "Season 3", "Open", "Yung Hummu"],
+            ],
+        };
+        var config = new HistoricalSourceConfig { TeamNames = new() { ["Yung Hummu"] = "Yung Humma" } };
+
+        var parsed = ChampionsParser.ParseTable("history-grifballhub-db", "https://example.test/hub", tableSheet, config: config);
+
+        Assert.That(parsed.Champions.Single().Team, Is.EqualTo("Yung Humma"), "as the champions record's are (#534)");
     }
 }

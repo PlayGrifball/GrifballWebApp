@@ -2,20 +2,17 @@ import { isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import type { QueueStatusDto } from '@api/models';
+import type { QueueLiveDto, QueueStatusDto } from '@api/models';
 import { QueueService } from '@api/services/queue.service';
 import { AuthSession } from '@core/auth/authSession.service';
-import { hubLifecycle } from '@core/signalr/hubLifecycle';
-import { getReceiverRegister } from '@signalr/TypedSignalR.Client';
+import { liveData, liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 import { errorText } from '@shared/errorText';
 import { Observable } from 'rxjs';
 
-/** The queue's hub (QueueHub): it sends the queue's size whenever it changes. */
-export const QUEUE_HUB_URL = 'hub/QueueHub';
-
 /**
- * The Late League queue as the viewer sees it: its size, live from the queue's hub, the viewer's own status, and
- * joining or leaving it. Only in the browser: the status is the viewer's own, and the hub connection is a WebSocket.
+ * The Late League queue as the viewer sees it: its size and the viewer's own status, loaded again when either changes (live), and
+ * joining or leaving it. Only in the browser: the status is the viewer's own.
  * One per queue panel (the component provides it).
  */
 @Injectable()
@@ -46,16 +43,11 @@ export class LateLeagueQueueStore {
     if (!isPlatformBrowser(inject(PLATFORM_ID)))
       return;
 
-    // The size is for everyone; the connection is also the signed-in user's (the session cookie goes with
-    // it), for the nudge when their own status changes, so hubLifecycle makes it again on a sign-in or out.
-    // Connected (again): a size sent meanwhile was missed.
-    const connection = hubLifecycle(QUEUE_HUB_URL, { name: 'Late League queue', connected: () => this.load() });
-    // The hub's receiver, generated from its C# interface (IQueueHubClient)
-    getReceiverRegister('IQueueHubClient').register(connection, {
-      queueCount: count => Promise.resolve(this.counted(count)),
-      // Matched, their match over, joined or left elsewhere (Discord, another tab), kicked
-      queueStatusChanged: () => Promise.resolve(this.load()),
-    });
+    // The size comes with every change to the queue, for everyone: taken as it is. The viewer's own place (matched, their
+    // match over, joined or left elsewhere: Discord, another tab; kicked) comes to them alone, and their status is loaded
+    // again. Both are loaded again when the live connection comes back: missed meanwhile.
+    liveData<QueueLiveDto>(() => [LiveTopics.queue], queue => this.counted(queue.count), () => this.load());
+    liveReload(() => [LiveTopics.myQueue], () => this.load());
 
     inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => {
       this._message.set(null);
@@ -84,24 +76,13 @@ export class LateLeagueQueueStore {
     });
   }
 
-  /**
-   * The hub's news: the queue's size. A player in the queue or in a match may have been matched, or put
-   * back when a match was canceled, so theirs is loaded again; everyone else's status is unchanged, and
-   * reloading it for every viewer on every change would be a request each for nothing.
-   */
-  counted(count: number): void {
+  /** The queue's size, as a change pushed it: shown in the status (false: none loaded yet, so it is loaded). */
+  private counted(count: number): boolean {
     const status = this.status();
-    // Not loaded yet, or the load failed: this size is news, so load (again)
-    if (!status) {
-      this.load();
-      return;
-    }
-    if (status.count === count)
-      return;
+    if (!status)
+      return false;
     this._status.set({ ...status, count });
-    // A join or leave under way answers with a size that may be older than this one
-    if (status.inQueue || status.inMatch || this.busy())
-      this.load();
+    return true;
   }
 
   join(): void {

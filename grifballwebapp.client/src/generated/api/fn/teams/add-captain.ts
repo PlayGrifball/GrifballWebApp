@@ -12,7 +12,6 @@ import { CaptainPlacementDto } from '../../models/captain-placement-dto';
 
 export interface AddCaptain$Params {
   seasonID: number;
-  signalRConnectionID?: string;
       body?: CaptainPlacementDto
 }
 
@@ -20,7 +19,6 @@ export function addCaptain(http: HttpClient, rootUrl: string, params: AddCaptain
   const rb = new RequestBuilder(rootUrl, addCaptain.PATH, 'post');
   if (params) {
     rb.path('seasonID', params.seasonID, {});
-    rb.header('signalRConnectionID', params.signalRConnectionID, {});
     rb.body(params.body, 'application/json');
   }
 

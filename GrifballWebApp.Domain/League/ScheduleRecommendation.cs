@@ -38,6 +38,7 @@ public class ScheduleRecommendation : AuditableEntity
                 throw new ArgumentException($"Season match {match.SeasonMatchID} is proposed twice", nameof(matches));
             recommendation._matches.Add(new ScheduleRecommendationMatch(recommendation, match));
         }
+        recommendation.Raise(new ScheduleRecommendationChanged(recommendation));
         return recommendation;
     }
 
@@ -86,6 +87,7 @@ public class ScheduleRecommendation : AuditableEntity
             return ScheduleRecommendationApply.AlreadyApplied;
         AppliedAt = at;
         AppliedBy = by;
+        Raise(new ScheduleRecommendationChanged(this));
         return ScheduleRecommendationApply.Applied;
     }
 }

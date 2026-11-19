@@ -35,6 +35,8 @@ export class UserManagementComponent {
 
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
   readonly request = this.store.request;
+  /** A live change to the users: the table loads its page again. */
+  readonly changes = this.store.changes;
   // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
   // A row of the users page (GET /api/users)
   readonly parseUser = (row: ApiUserResponseDto) => parseUser(row)!;

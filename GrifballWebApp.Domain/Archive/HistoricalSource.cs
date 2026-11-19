@@ -112,6 +112,7 @@ public class HistoricalSource : AuditableEntity
         Config = listing.Config;
         if (revived && LastFetchedAt is null)
             Enabled = enabled;
+        Raise(new HistoricalSourceChanged(this));
     }
 
     /// <summary>A sysadmin's: a disabled source is no longer downloaded; the import keeps reading its last snapshot. A dead
@@ -121,6 +122,7 @@ public class HistoricalSource : AuditableEntity
         if (enabled && IsDead)
             return HistoricalSourceSetEnabledResult.Dead;
         Enabled = enabled;
+        Raise(new HistoricalSourceChanged(this));
         return HistoricalSourceSetEnabledResult.Set;
     }
 
@@ -130,6 +132,7 @@ public class HistoricalSource : AuditableEntity
         EnsureDownloadable();
         LastFetchedAt = at;
         LastFetchStatus = Truncate($"Failed: {reason}", MaxFetchStatusLength);
+        Raise(new HistoricalSourceChanged(this));
     }
 
     /// <summary>
@@ -144,12 +147,14 @@ public class HistoricalSource : AuditableEntity
         if (sha == latestSha256)
         {
             LastFetchStatus = UnchangedStatus;
+            Raise(new HistoricalSourceChanged(this));
             return null;
         }
         var snapshot = new HistoricalSourceSnapshot(this, at, sha, content, contentType);
         _snapshots.Add(snapshot);
         LastFetchStatus = ChangedStatus;
         LastChangedAt = at;
+        Raise(new HistoricalSourceChanged(this));
         return snapshot;
     }
 

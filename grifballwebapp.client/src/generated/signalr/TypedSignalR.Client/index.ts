@@ -4,10 +4,9 @@
 // @ts-nocheck
 import type { HubConnection, IStreamResult, Subject } from '@microsoft/signalr';
 import type { IChatHubServer, IChatHubClient } from './GrifballWebApp.Server.Chat';
-import type { IQueueHubServer, IQueueHubClient } from './GrifballWebApp.Server.Matchmaking';
-import type { ITeamsHubServer, ITeamsHubClient } from './GrifballWebApp.Server.Teams';
+import type { ILiveHubServer, ILiveHubClient } from './GrifballWebApp.Server.Live';
 import type { ChatRequestDto, ChatModelsDto, ChatConfirmDto, ChatActionDto } from '../GrifballWebApp.Application.Chat';
-import type { TeamResponseDto, PlayerDto, CaptainPlacementDto, RemoveCaptainDto, RemovePlayerFromTeamRequestDto, MovePlayerToTeamRequestDto, AddPlayerToTeamRequestDto, CaptainAddedDto } from '../GrifballWebApp.Application.Teams';
+import type { PresenceSnapshot } from '../GrifballWebApp.Application.Live';
 
 
 // components
@@ -47,37 +46,29 @@ class ReceiverMethodSubscription implements Disposable {
 
 export type HubProxyFactoryProvider = {
     (hubType: "IChatHubServer"): HubProxyFactory<IChatHubServer>;
-    (hubType: "IQueueHubServer"): HubProxyFactory<IQueueHubServer>;
-    (hubType: "ITeamsHubServer"): HubProxyFactory<ITeamsHubServer>;
+    (hubType: "ILiveHubServer"): HubProxyFactory<ILiveHubServer>;
 }
 
 export const getHubProxyFactory = ((hubType: string) => {
     if(hubType === "IChatHubServer") {
         return IChatHubServer_HubProxyFactory.Instance;
     }
-    if(hubType === "IQueueHubServer") {
-        return IQueueHubServer_HubProxyFactory.Instance;
-    }
-    if(hubType === "ITeamsHubServer") {
-        return ITeamsHubServer_HubProxyFactory.Instance;
+    if(hubType === "ILiveHubServer") {
+        return ILiveHubServer_HubProxyFactory.Instance;
     }
 }) as HubProxyFactoryProvider;
 
 export type ReceiverRegisterProvider = {
     (receiverType: "IChatHubClient"): ReceiverRegister<IChatHubClient>;
-    (receiverType: "IQueueHubClient"): ReceiverRegister<IQueueHubClient>;
-    (receiverType: "ITeamsHubClient"): ReceiverRegister<ITeamsHubClient>;
+    (receiverType: "ILiveHubClient"): ReceiverRegister<ILiveHubClient>;
 }
 
 export const getReceiverRegister = ((receiverType: string) => {
     if(receiverType === "IChatHubClient") {
         return IChatHubClient_Binder.Instance;
     }
-    if(receiverType === "IQueueHubClient") {
-        return IQueueHubClient_Binder.Instance;
-    }
-    if(receiverType === "ITeamsHubClient") {
-        return ITeamsHubClient_Binder.Instance;
+    if(receiverType === "ILiveHubClient") {
+        return ILiveHubClient_Binder.Instance;
     }
 }) as ReceiverRegisterProvider;
 
@@ -128,81 +119,32 @@ class IChatHubServer_HubProxy implements IChatHubServer {
     }
 }
 
-class IQueueHubServer_HubProxyFactory implements HubProxyFactory<IQueueHubServer> {
-    public static Instance = new IQueueHubServer_HubProxyFactory();
+class ILiveHubServer_HubProxyFactory implements HubProxyFactory<ILiveHubServer> {
+    public static Instance = new ILiveHubServer_HubProxyFactory();
 
     private constructor() {
     }
 
-    public readonly createHubProxy = (connection: HubConnection): IQueueHubServer => {
-        return new IQueueHubServer_HubProxy(connection);
+    public readonly createHubProxy = (connection: HubConnection): ILiveHubServer => {
+        return new ILiveHubServer_HubProxy(connection);
     }
 }
 
-class IQueueHubServer_HubProxy implements IQueueHubServer {
-
-    public constructor(private connection: HubConnection) {
-    }
-}
-
-class ITeamsHubServer_HubProxyFactory implements HubProxyFactory<ITeamsHubServer> {
-    public static Instance = new ITeamsHubServer_HubProxyFactory();
-
-    private constructor() {
-    }
-
-    public readonly createHubProxy = (connection: HubConnection): ITeamsHubServer => {
-        return new ITeamsHubServer_HubProxy(connection);
-    }
-}
-
-class ITeamsHubServer_HubProxy implements ITeamsHubServer {
+class ILiveHubServer_HubProxy implements ILiveHubServer {
 
     public constructor(private connection: HubConnection) {
     }
 
-    public readonly getTeams = async (seasonID: number): Promise<TeamResponseDto[]> => {
-        return await this.connection.invoke("GetTeams", seasonID);
+    public readonly watch = async (topics: string[]): Promise<string[]> => {
+        return await this.connection.invoke("Watch", topics);
     }
 
-    public readonly getPlayerPool = async (seasonID: number): Promise<PlayerDto[]> => {
-        return await this.connection.invoke("GetPlayerPool", seasonID);
+    public readonly unwatch = async (topics: string[]): Promise<void> => {
+        return await this.connection.invoke("Unwatch", topics);
     }
 
-    public readonly addCaptain = async (dto: CaptainPlacementDto): Promise<void> => {
-        return await this.connection.invoke("AddCaptain", dto);
-    }
-
-    public readonly resortCaptain = async (dto: CaptainPlacementDto): Promise<void> => {
-        return await this.connection.invoke("ResortCaptain", dto);
-    }
-
-    public readonly removeCaptain = async (dto: RemoveCaptainDto): Promise<void> => {
-        return await this.connection.invoke("RemoveCaptain", dto);
-    }
-
-    public readonly removePlayerFromTeam = async (dto: RemovePlayerFromTeamRequestDto): Promise<void> => {
-        return await this.connection.invoke("RemovePlayerFromTeam", dto);
-    }
-
-    public readonly movePlayerToTeam = async (dto: MovePlayerToTeamRequestDto): Promise<void> => {
-        return await this.connection.invoke("MovePlayerToTeam", dto);
-    }
-
-    public readonly addPlayerToTeam = async (dto: AddPlayerToTeamRequestDto): Promise<void> => {
-        return await this.connection.invoke("AddPlayerToTeam", dto);
-    }
-
-    public readonly lockCaptains = async (seasonID: number): Promise<void> => {
-        return await this.connection.invoke("LockCaptains", seasonID);
-    }
-
-    public readonly unlockCaptains = async (seasonID: number): Promise<void> => {
-        return await this.connection.invoke("UnlockCaptains", seasonID);
-    }
-
-    public readonly areCaptainsLocked = async (seasonID: number): Promise<boolean> => {
-        return await this.connection.invoke("AreCaptainsLocked", seasonID);
+    public readonly viewing = async (path: string): Promise<PresenceSnapshot> => {
+        return await this.connection.invoke("Viewing", path);
     }
 }
 
@@ -227,66 +169,27 @@ class IChatHubClient_Binder implements ReceiverRegister<IChatHubClient> {
     }
 }
 
-class IQueueHubClient_Binder implements ReceiverRegister<IQueueHubClient> {
+class ILiveHubClient_Binder implements ReceiverRegister<ILiveHubClient> {
 
-    public static Instance = new IQueueHubClient_Binder();
-
-    private constructor() {
-    }
-
-    public readonly register = (connection: HubConnection, receiver: IQueueHubClient): Disposable => {
-
-        const __queueCount = (...args: [number]) => receiver.queueCount(...args);
-        const __queueStatusChanged = () => receiver.queueStatusChanged();
-
-        connection.on("QueueCount", __queueCount);
-        connection.on("QueueStatusChanged", __queueStatusChanged);
-
-        const methodList: ReceiverMethod[] = [
-            { methodName: "QueueCount", method: __queueCount },
-            { methodName: "QueueStatusChanged", method: __queueStatusChanged }
-        ]
-
-        return new ReceiverMethodSubscription(connection, methodList);
-    }
-}
-
-class ITeamsHubClient_Binder implements ReceiverRegister<ITeamsHubClient> {
-
-    public static Instance = new ITeamsHubClient_Binder();
+    public static Instance = new ILiveHubClient_Binder();
 
     private constructor() {
     }
 
-    public readonly register = (connection: HubConnection, receiver: ITeamsHubClient): Disposable => {
+    public readonly register = (connection: HubConnection, receiver: ILiveHubClient): Disposable => {
 
-        const __addCaptain = (...args: [CaptainAddedDto]) => receiver.addCaptain(...args);
-        const __resortCaptain = (...args: [CaptainPlacementDto]) => receiver.resortCaptain(...args);
-        const __removeCaptain = (...args: [RemoveCaptainDto]) => receiver.removeCaptain(...args);
-        const __removePlayerFromTeam = (...args: [RemovePlayerFromTeamRequestDto]) => receiver.removePlayerFromTeam(...args);
-        const __movePlayerToTeam = (...args: [MovePlayerToTeamRequestDto]) => receiver.movePlayerToTeam(...args);
-        const __addPlayerToTeam = (...args: [AddPlayerToTeamRequestDto]) => receiver.addPlayerToTeam(...args);
-        const __lockCaptains = (...args: [number]) => receiver.lockCaptains(...args);
-        const __unlockCaptains = (...args: [number]) => receiver.unlockCaptains(...args);
+        const __changed = (...args: [string]) => receiver.changed(...args);
+        const __snapshot = (...args: [string, string]) => receiver.snapshot(...args);
+        const __presence = (...args: [PresenceSnapshot]) => receiver.presence(...args);
 
-        connection.on("AddCaptain", __addCaptain);
-        connection.on("ResortCaptain", __resortCaptain);
-        connection.on("RemoveCaptain", __removeCaptain);
-        connection.on("RemovePlayerFromTeam", __removePlayerFromTeam);
-        connection.on("MovePlayerToTeam", __movePlayerToTeam);
-        connection.on("AddPlayerToTeam", __addPlayerToTeam);
-        connection.on("LockCaptains", __lockCaptains);
-        connection.on("UnlockCaptains", __unlockCaptains);
+        connection.on("Changed", __changed);
+        connection.on("Snapshot", __snapshot);
+        connection.on("Presence", __presence);
 
         const methodList: ReceiverMethod[] = [
-            { methodName: "AddCaptain", method: __addCaptain },
-            { methodName: "ResortCaptain", method: __resortCaptain },
-            { methodName: "RemoveCaptain", method: __removeCaptain },
-            { methodName: "RemovePlayerFromTeam", method: __removePlayerFromTeam },
-            { methodName: "MovePlayerToTeam", method: __movePlayerToTeam },
-            { methodName: "AddPlayerToTeam", method: __addPlayerToTeam },
-            { methodName: "LockCaptains", method: __lockCaptains },
-            { methodName: "UnlockCaptains", method: __unlockCaptains }
+            { methodName: "Changed", method: __changed },
+            { methodName: "Snapshot", method: __snapshot },
+            { methodName: "Presence", method: __presence }
         ]
 
         return new ReceiverMethodSubscription(connection, methodList);
