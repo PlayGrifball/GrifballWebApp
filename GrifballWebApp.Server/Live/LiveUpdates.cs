@@ -193,9 +193,9 @@ public sealed class LiveDelivery(LiveWatchers watchers, HubConnections connectio
 
     private async Task<string?> Build(string topic, SeasonViewer viewer, CancellationToken ct)
     {
+        await using var scope = scopes.CreateAsyncScope();
         try
         {
-            await using var scope = scopes.CreateAsyncScope();
             var data = await scope.ServiceProvider.GetRequiredService<LiveSnapshots>().For(topic, viewer, ct);
             return data is null ? null : JsonSerializer.Serialize(data, data.GetType(), Json);
         }

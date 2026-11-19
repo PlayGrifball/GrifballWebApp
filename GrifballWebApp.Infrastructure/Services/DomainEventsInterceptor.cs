@@ -66,7 +66,7 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
     {
         Saved();
-        if (!_handling && eventData.Context!.Database.CurrentTransaction is null)
+        if (eventData.Context!.Database.CurrentTransaction is null)
             DispatchInBackground();
         return result;
     }
@@ -208,14 +208,10 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
         return result;
     }
 
-    public void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData)
-    {
-        if (!_handling)
-            DispatchInBackground();
-    }
+    public void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData) => DispatchInBackground();
 
     public Task TransactionCommittedAsync(DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
-        => _handling ? Task.CompletedTask : DispatchAsync();
+        => DispatchAsync();
 
     public void TransactionRolledBack(DbTransaction transaction, TransactionEndEventData eventData) => Forget();
 

@@ -316,4 +316,24 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
             Assert.That(((IHasDomainEvents)twin).DomainEvents, Is.Not.Empty, "kept for the next try");
         }
     }
+
+    [Test]
+    public void AFailedSynchronousSave_InATransaction_KeepsItsEarlierSavesEvents_ForTheCommit()
+    {
+        var first = DiscordUser.FromDiscord(5, "first");
+
+        using (var transaction = Context.Database.BeginTransaction())
+        {
+            Context.DiscordUsers.Add(first);
+            Context.SaveChanges();
+            Context.Entry(first).State = EntityState.Detached;
+            var twin = DiscordUser.FromDiscord(5, "twin");
+            Context.DiscordUsers.Add(twin);
+            Assert.That(() => Context.SaveChanges(), Throws.InstanceOf<DbUpdateException>());
+            Context.Entry(twin).State = EntityState.Detached;
+            transaction.Commit();
+        }
+
+        Assert.That(_dispatcher.Dispatched.Single(), Is.EqualTo(new IDomainEvent[] { new DiscordUserChanged(first) }));
+    }
 }

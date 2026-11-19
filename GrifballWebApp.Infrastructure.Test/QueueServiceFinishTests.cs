@@ -401,4 +401,20 @@ public class QueueServiceFinishTests : SqliteContextFixture
             Assert.That(LateLeagueDiscordPosts.MmrChanges(before, match, MatchedSide.Away), Is.EqualTo($"{away.XboxUser!.Gamertag}: UNK -> {away.MMR} (UNK)"));
         }
     }
+
+    [Test]
+    public async Task TheEndPostsMmrChanges_APlayerWithNeitherDiscordNorXbox_HasNoName()
+    {
+        var home = await SeedUser();
+        var away = User.Seed(userName: "unlinked");
+        Context.Users.Add(away);
+        await Context.SaveChangesAsync();
+        var seeded = await SeedMatch(home, away);
+        var match = await Context.MatchedMatches.AsNoTracking()
+            .Include(m => m.HomeTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User)
+            .Include(m => m.AwayTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User)
+            .SingleAsync(m => m.Id == seeded.Id);
+
+        Assert.That(LateLeagueDiscordPosts.MmrChanges(new Dictionary<long, int>(), match, MatchedSide.Away), Is.EqualTo($": UNK -> {away.MMR} (UNK)"));
+    }
 }
