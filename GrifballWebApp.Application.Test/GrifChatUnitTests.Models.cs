@@ -31,6 +31,22 @@ public partial class GrifChatUnitTests
     private static readonly ToolCaller Sysadmin = new(7, [SiteRoles.Sysadmin]);
     private static readonly ToolCaller Player = new(8, [SiteRoles.Player]);
 
+    /// <summary>Haiku as it is configured by default now: for anyone signed in, not sysadmins only (<see cref="ChatModelOption.SignedIn"/>).</summary>
+    private static readonly ChatModelOption HaikuForSignedIn = new("claude-haiku", "Claude Haiku", ChatProvider.Anthropic, "claude-haiku-5-5")
+        { SignedIn = true, Price = new(Input: 1m, Output: 5m, CacheWrite: 1.25m, CacheRead: 0.10m) };
+
+    /// <summary>A signed-in site player: an ordinary account, no staff role.</summary>
+    private static readonly ToolCaller SignedInPlayer = new ToolCaller(9, [SiteRoles.Player]) { SignedIn = true };
+
+    /// <summary>A sysadmin who also counts as signed in, as a real one on the site always does.</summary>
+    private static readonly ToolCaller SignedInSysadmin = new ToolCaller(10, [SiteRoles.Sysadmin]) { SignedIn = true };
+
+    /// <summary>A Discord account linked to a real site account (gamertag or not): counts as signed in.</summary>
+    private static readonly ToolCaller LinkedRealDiscordCaller = new ToolCaller(11, []) { SignedIn = true };
+
+    /// <summary>A Discord account linked to a dummy user (a historical import's placeholder): never counts as signed in.</summary>
+    private static readonly ToolCaller LinkedDummyDiscordCaller = new(12, []);
+
     /// <summary>The answer's texts, the usage updates' empty ones among them (the hosts skip those).</summary>
     private static readonly string[] NoonWithUsage = ["It is ", "", "noon.", ""];
     private static readonly string[] FreeAnswer = ["Free"];
@@ -574,5 +590,114 @@ public partial class GrifChatUnitTests
             Assert.That(chat.Allowed(Sysadmin, ChatHost.Discord), Is.EqualTo(new[] { Free }), "A channel's text: the one anyone may use, as before");
             Assert.That(GrifChat.Instructions(ChatHost.DiscordVoice), Does.Contain("spoken"));
         }
+    }
+
+    /// <summary>
+    /// Who gets a <see cref="ChatModelOption.SignedIn"/>-only model: not its <see cref="ChatModelOption.Roles"/> (none, here: anyone
+    /// a role would allow), but whether the caller counts as signed in (<see cref="ToolCaller.SignedIn"/>) at all.
+    /// </summary>
+    [Test]
+    public void Allowed_InPrivate_ASignedInOnlyModel_IsForAnyoneSignedIn_SysadminOrNot_NeverAnonymous()
+    {
+        var chat = ChatWithModels(new FakeModel());
+        _clients.Models.Returns([HaikuForSignedIn, Opus, Free]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(chat.Allowed(SignedInPlayer, ChatHost.Site), Is.EqualTo(new[] { HaikuForSignedIn, Free }),
+                "Signed in: Haiku and the free model, not Opus (no sysadmin role)");
+            Assert.That(chat.Allowed(SignedInSysadmin, ChatHost.Site), Is.EqualTo(new[] { HaikuForSignedIn, Opus, Free }),
+                "A sysadmin still gets Opus (and Sonnet) to pick instead of Haiku");
+            Assert.That(chat.Allowed(ToolCaller.Anonymous, ChatHost.Site), Is.EqualTo(new[] { Free }), "Signed out: Haiku is out too, only the free model");
+            Assert.That(chat.Allowed(LinkedRealDiscordCaller, ChatHost.DiscordDirect), Is.EqualTo(new[] { HaikuForSignedIn, Free }),
+                "A Discord account linked to a real site account counts as signed in, in a DM too (gamertag or not)");
+            Assert.That(chat.Allowed(LinkedDummyDiscordCaller, ChatHost.DiscordDirect), Is.EqualTo(new[] { Free }),
+                "A Discord account linked to a dummy user (a historical import's placeholder) doesn't count as signed in");
+        }
+    }
+
+    [Test]
+    public void Allowed_InADiscordChannel_OffersHaikuOnlyToASignedInRealAccount_OtherwiseTheFreeModel_NeverSonnetOrOpus()
+    {
+        var chat = ChatWithModels(new FakeModel());
+        _clients.Models.Returns([HaikuForSignedIn, Opus, Free]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(chat.Allowed(LinkedRealDiscordCaller, ChatHost.Discord), Is.EqualTo(new[] { HaikuForSignedIn }),
+                "A linked real account: Haiku, the only model open to anyone signed in (gamertag or not)");
+            Assert.That(chat.Allowed(ToolCaller.Anonymous, ChatHost.Discord), Is.EqualTo(new[] { Free }), "No linked account: the free model");
+            Assert.That(chat.Allowed(LinkedDummyDiscordCaller, ChatHost.Discord), Is.EqualTo(new[] { Free }),
+                "A linked dummy account that doesn't count as signed in: the free model too");
+            Assert.That(chat.Allowed(SignedInSysadmin, ChatHost.Discord), Is.EqualTo(new[] { HaikuForSignedIn }), "Never Opus in public, whoever asks");
+        }
+    }
+
+    [Test]
+    public async Task ModelForAsync_InADiscordChannel_NeverReadsTheCallersSavedChoice()
+    {
+        var chat = ChatWithModels(new FakeModel());
+        _clients.Models.Returns([HaikuForSignedIn, Free]);
+        await chat.ChooseAsync(LinkedRealDiscordCaller, "ollama");
+
+        Assert.That(await chat.ModelForAsync(LinkedRealDiscordCaller, ChatHost.Discord), Is.EqualTo(HaikuForSignedIn),
+            "A channel's is the one anyone signed in may use, never their saved choice (there's only ever one candidate there)");
+    }
+
+    [Test]
+    public async Task StartAsync_InADiscordChannel_APaidReplyFromASignedInRealAccount_IsChargedToTheirMonth()
+    {
+        var chat = ChatWithModels(new FakeModel([Text("Hi"), Used(input: 1000, output: 100)]));
+        _clients.Models.Returns([HaikuForSignedIn]);
+
+        using (var reply = await chat.StartAsync([], "Hi", LinkedRealDiscordCaller, ChatHost.Discord, Asker))
+            await All(reply.StreamAsync());
+
+        var month = await _db.ChatMonths.SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(month.UserID, Is.EqualTo(LinkedRealDiscordCaller.UserID!.Value));
+            // 1000 input at $1 a million, 100 output at $5: $0.0015
+            Assert.That(month.CostMicros, Is.EqualTo(1_500L));
+        }
+    }
+
+    [Test]
+    public async Task StartAsync_InADiscordDirectMessage_APaidReplyFromASignedInRealAccount_IsChargedToTheirMonth()
+    {
+        var chat = ChatWithModels(new FakeModel([Text("Hi"), Used(input: 1000, output: 100)]));
+        _clients.Models.Returns([HaikuForSignedIn, Free]);
+
+        using (var reply = await chat.StartAsync([], "Hi", LinkedRealDiscordCaller, ChatHost.DiscordDirect, Asker))
+            await All(reply.StreamAsync());
+
+        var month = await _db.ChatMonths.SingleAsync();
+        Assert.That((month.UserID, month.CostMicros), Is.EqualTo((LinkedRealDiscordCaller.UserID!.Value, 1_500L)));
+    }
+
+    [Test]
+    public async Task StartAsync_InADiscordChannel_ThePaidModelsMonthlyLimitReached_IsRefused_NotASilentFreeAnswer()
+    {
+        using var limits = new ChatLimits(maxReplies: 3, monthlyLimit: 0.01m);
+        var chat = ChatWithModels(new FakeModel([Text("Hi"), Used(input: 0, output: 2000)]), limits);
+        _clients.Models.Returns([HaikuForSignedIn]);
+
+        // $0.01: 2000 output tokens at $5 a million
+        using (var reply = await chat.StartAsync([], "Hi", LinkedRealDiscordCaller, ChatHost.Discord, Asker))
+            await All(reply.StreamAsync());
+
+        Assert.That(async () => await chat.StartAsync([], "Again", LinkedRealDiscordCaller, ChatHost.Discord, Asker),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(ChatLimits.MonthlyLimitReached));
+    }
+
+    [Test]
+    public void StartAsync_InADiscordChannel_AnAnonymousCallerIsNeverOfferedThePaidModel_SoNothingCanBeUncapped()
+    {
+        var chat = ChatWithModels(new FakeModel());
+        _clients.Models.Returns([HaikuForSignedIn]);
+
+        // No linked account: the channel's only candidate, Haiku, isn't open to them (not signed in); with no model left, Unavailable
+        Assert.That(async () => await chat.StartAsync([], "Hi", ToolCaller.Anonymous, ChatHost.Discord, "discord:999"),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.Unavailable));
     }
 }

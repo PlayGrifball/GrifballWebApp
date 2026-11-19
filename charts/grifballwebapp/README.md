@@ -589,13 +589,17 @@ workers and grif-discord get its server (`Ollama:Url`) and model (`Ollama:Model`
 
 Not both. With neither, the pods get no `Ollama:Url`, and both chats answer that the chat is unavailable.
 
-**Claude** (`backend.secretConfig` `Anthropic:ApiKey`, from a Secret): with a key, the chats also offer Claude Haiku, Sonnet
-and Opus 5.5, to sysadmins only, before the Ollama model (so Haiku is a sysadmin's default). A user picks a model on the
-chat page, and their choice holds in their Discord DMs too; a Discord channel always uses the model anyone may use. Each
+**Claude** (`backend.secretConfig` `Anthropic:ApiKey`, from a Secret): with a key, the chats also offer Claude Haiku to
+anyone signed in (a site user, or a Discord account linked to a real site account, gamertag or not, not a historical
+import's placeholder), before the Ollama model (so Haiku is a signed-in caller's default); Sonnet and Opus stay for
+sysadmins to pick instead. Signed out (on the site, or in Discord with no such account), only Ollama. A user picks a
+model on the chat page, and their choice holds in their Discord DMs too; a Discord channel always uses the first model
+anyone open to their own sign-in state may use (Haiku for a linked real account, Ollama otherwise; never Sonnet or Opus
+there, and no choice read). Each paid reply, in a channel and a DM included, is charged to the signed-in asker's own account: each
 user's spend on Claude is counted a month and stopped at `Chat:MonthlyLimit` (`backend.config`, 10 US dollars by
 default); replies started at the same moment in different pods (backend replicas, the Discord bot) can each spend what
 is left, so the limit can be overshot by at most one reply a pod (ten model calls of at most 16,000 output tokens each). `Chat:Models` (`backend.config`) replaces the list: each model's `Id`, `Name`, `Provider` (`Ollama` or
-`Anthropic`), `Model`, `Roles` (none: anyone) and `Price` (US dollars per million tokens: `Input`, `Output`, `CacheWrite`,
+`Anthropic`), `Model`, `Roles` (none: anyone) and `SignedIn` (also narrows it to anyone signed in, whatever their roles) and `Price` (US dollars per million tokens: `Input`, `Output`, `CacheWrite`,
 `CacheRead`; none: free), `MaxOutputTokens` and `EveryTool` (in private, every tool the caller's roles allow rather than the chat's short list; the Claude defaults have it), in order. The backend's HTTPS egress (`networkPolicy.backend.httpsTo`) already reaches
 Anthropic's API.
 For a cap across every environment together, give the key a workspace of its own in Anthropic's console with a monthly

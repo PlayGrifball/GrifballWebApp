@@ -37,8 +37,8 @@ public sealed class HubUser
 
     public void Set(HubUserState state) => State = state;
 
-    /// <summary>The caller the agents' tools run as: this user with their roles now, else no account.</summary>
-    public ToolCaller AsToolCaller() => State.UserId is { } id ? new ToolCaller(id, State.Roles) : ToolCaller.Anonymous;
+    /// <summary>The caller the agents' tools run as: this user with their roles now, signed in; else no account.</summary>
+    public ToolCaller AsToolCaller() => State.UserId is { } id ? new ToolCaller(id, State.Roles) { SignedIn = true } : ToolCaller.Anonymous;
 }
 
 /// <summary>
