@@ -25,6 +25,10 @@ public class HistoricalSourceConfig
     public List<GamesTab> Games { get; init; } = [];
     /// <summary>The tab of the AGLA champions record.</summary>
     public string? ChampionsSheet { get; init; }
+    /// <summary>A normalized champions table (with league, season_name, game, tier, champion_team, p1..p8 columns).</summary>
+    public ChampionsTableConfig? ChampionsTable { get; init; }
+    /// <summary>A normalized bracket table (with season_id, bracket, round, seed_1, team_1, score_1, seed_2, team_2, score_2, winner columns).</summary>
+    public BracketTableConfig? BracketTable { get; init; }
     /// <summary>The tab of a players list (gamertag, Discord, Discord ID, Location, System).</summary>
     public string? PlayersSheet { get; init; }
     /// <summary>Tabs of the teams' rosters (a "Team Name" and "Player Name" table, or a draft sheet: a "Team Name" row with
@@ -101,6 +105,8 @@ public class HistoricalSourceConfig
             .. Drafts.Select(t => t.Sheet),
             .. Awards.Select(t => t.Sheet),
             ChampionsSheet,
+            ChampionsTable?.Sheet,
+            BracketTable?.Sheet,
             PlayersSheet,
         ];
         return names.OfType<string>().Select(n => n.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -167,6 +173,9 @@ public class StatsTab
     /// <summary>A game a player's row doesn't count as won is lost: their losses are their games less their wins (a tab
     /// with no Losses column, whose games are never tied). Otherwise a tab without one gives no losses.</summary>
     public bool LossesAreGamesNotWon { get; init; }
+    /// <summary>Treat rows whose player cell matches a known roster team name (summary/header rows above or below a team's
+    /// players) as non-player team markers rather than player rows, updating the carried team when <see cref="CarryTeam"/> is set.</summary>
+    public bool TeamSectionRows { get; init; }
 }
 
 /// <summary>
@@ -239,6 +248,22 @@ public enum GamesTableLayout
     /// Game_Date, g_season, forfeit 1 or 2 for a double forfeit), its player lines by GameID (Gamertag, TeamName, Goals,
     /// Kills, Deaths, Assists, Betrayals, hammer_kills, sword_kills, bomb_kills, bombstops, playoffs).</summary>
     Reported = 4,
+    /// <summary>Normalized schedule/match results table (season_id, division, team_a, team_b, winner, score_a, score_b,
+    /// is_forfeit, match_time): unplayed rows without a winner or scores are skipped without warning.</summary>
+    ScheduleResults = 5,
+}
+
+/// <summary>A normalized champions table tab (e.g. history-grifballhub-db's Champions tab).</summary>
+public class ChampionsTableConfig
+{
+    public required string Sheet { get; init; }
+}
+
+/// <summary>A normalized playoff bracket table tab (e.g. history-grifballhub-db's Brackets tab), keyed by season ID to a <see cref="StatsTable"/>.</summary>
+public class BracketTableConfig
+{
+    public required string Sheet { get; init; }
+    public required string Stats { get; init; }
 }
 
 /// <summary>Another tab's column by an ID: <see cref="Column"/> of the <see cref="Sheet"/> row whose <see cref="Key"/> is the
@@ -254,6 +279,10 @@ public class TableLookup
 public class TableSeason
 {
     public required string Name { get; init; }
+    /// <summary>Optional league name or slug override for this season; defaults to the source's <see cref="SeasonDefaults.League"/>.</summary>
+    public string? League { get; init; }
+    /// <summary>Optional GameVersion slug override for this season; defaults to <see cref="StatsTable.Game"/>.</summary>
+    public string? Game { get; init; }
     /// <summary>The season's division (Pro, Amateur, Open, UK, Aussie, OGBL) when all rows of the season share one.</summary>
     public string? Division { get; init; }
     /// <summary>The champions record's name for the season's titles, when it isn't the season's own.</summary>
@@ -331,6 +360,8 @@ public enum StandingsLayout
     Columns,
     /// <summary>A cell per team down the anchor's column, its record in brackets: "ZMD (Zeg) (17-3) (95-46)".</summary>
     List,
+    /// <summary>A team per row with unlabelled roster slots before Wins/Losses and a "Captain" label row beneath each team's captain.</summary>
+    CaptainRows,
 }
 
 /// <summary>

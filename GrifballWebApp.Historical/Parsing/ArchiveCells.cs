@@ -28,7 +28,7 @@ public static partial class ArchiveCells
         var text = value?.Trim();
         if (string.IsNullOrEmpty(text))
             return null;
-        if (header.Contains("minute", StringComparison.OrdinalIgnoreCase) && !text.Contains(':'))
+        if ((header.Contains("minute", StringComparison.OrdinalIgnoreCase) || header.Contains("(m)", StringComparison.OrdinalIgnoreCase)) && !text.Contains(':'))
             return LeadingNumber(text) is decimal minutes ? Math.Round(minutes * 60, MidpointRounding.AwayFromZero) : null;
         if (text.Contains(':'))
         {

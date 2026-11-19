@@ -44,6 +44,9 @@ public static partial class GamesTableParser
                 case GamesTableLayout.Reported:
                     reader.Reported(sheet, result);
                     break;
+                case GamesTableLayout.ScheduleResults:
+                    reader.ScheduleResults(sheet, result);
+                    break;
                 default:
                     reader.Matches(sheet, result);
                     break;
@@ -188,11 +191,16 @@ public static partial class GamesTableParser
 
         private static RecordedTeamInput Side(int side, string name, Outcomes outcome, int? score) => new() { Side = side, Name = name, Outcome = outcome, Score = score, NamesItsTeam = true };
 
-        private RecordedGameInput Game(string season, string id, string[] teams, (Outcomes Outcome, int? Score)[] results, List<RecordedPlayerInput> players, bool playoffs = false, DateTime? playedAt = null) => new()
+        private string GameVersionOf(string? seasonId)
+            => seasonId is not null && _canonical.TryGetValue(seasonId, out var canonical) && _stats.Seasons.TryGetValue(canonical, out var season) && !string.IsNullOrWhiteSpace(season.Game)
+                ? season.Game
+                : _stats.Game;
+
+        private RecordedGameInput Game(string season, string id, string[] teams, (Outcomes Outcome, int? Score)[] results, List<RecordedPlayerInput> players, bool playoffs = false, DateTime? playedAt = null, string? gameVersion = null) => new()
         {
             SeasonSourceId = season,
             SourceKey = Key(id),
-            GameVersion = _stats.Game,
+            GameVersion = gameVersion ?? _stats.Game,
             PlayedAt = playedAt,
             IsPlayoffs = playoffs,
             Teams = [Side(1, teams[0], results[0].Outcome, results[0].Score), Side(2, teams[1], results[1].Outcome, results[1].Score)],
@@ -488,6 +496,64 @@ public static partial class GamesTableParser
             return c.Line.Line(row, gamertag, isWinner ? 1 : 2);
         }
 
+        /// <summary>Normalized schedule/match results (<see cref="GamesTableLayout.ScheduleResults"/>): skips unplayed rows without warning.</summary>
+        public void ScheduleResults(SheetTable sheet, Result result)
+        {
+            var h = new Header(sheet.Rows[0]);
+            var (seasonCol, divisionCol, teamACol, teamBCol) = (h[ArchiveCells.HeaderKey(_stats.SeasonColumn)], h["division"], h["team_a"], h["team_b"]);
+            var (winnerCol, scoreACol, scoreBCol, forfeitCol, timeCol) = (h["winner"], h["score_a"], h["score_b"], h["is_forfeit"], h["match_time"]);
+            var rowNumber = 0;
+            foreach (var row in sheet.Rows.Skip(1))
+            {
+                rowNumber++;
+                var rawSeason = Value(row, seasonCol);
+                if (SeasonKey(rawSeason, null) is not { } key)
+                    continue;
+                if (Value(row, teamACol) is not { } a || Value(row, teamBCol) is not { } b)
+                {
+                    _incomplete++;
+                    continue;
+                }
+                var winnerName = Value(row, winnerCol);
+                var (sa, sb) = (Int(row, scoreACol), Int(row, scoreBCol));
+                var isForfeit = Int(row, forfeitCol) == 1;
+                if (!isForfeit && winnerName is null && (sa is null || sb is null))
+                    continue;
+
+                var playoffs = string.Equals(Value(row, divisionCol), "Playoffs", StringComparison.OrdinalIgnoreCase);
+                var playedAt = ParseUtcDate(Value(row, timeCol));
+                var id = rowNumber.ToString(CultureInfo.InvariantCulture);
+
+                if (isForfeit)
+                {
+                    var (win, lose) = string.Equals(winnerName, b, StringComparison.OrdinalIgnoreCase) ? (b, a) : (a, b);
+                    result.Forfeits.Add(Forfeit(key, id, win, lose, both: false, playedAt, playoffs));
+                    continue;
+                }
+
+                var (oa, ob) = WinnerOutcomes(a, b, winnerName, sa, sb);
+                result.Games.Add(Game(key, id, [a, b], [(oa, sa), (ob, sb)], [], playoffs, playedAt, GameVersionOf(rawSeason)));
+            }
+        }
+
+        private static (Outcomes A, Outcomes B) WinnerOutcomes(string a, string b, string? winner, int? sa, int? sb)
+        {
+            if (string.Equals(winner, a, StringComparison.OrdinalIgnoreCase))
+                return (Outcomes.Won, Outcomes.Lost);
+            if (string.Equals(winner, b, StringComparison.OrdinalIgnoreCase))
+                return (Outcomes.Lost, Outcomes.Won);
+            return (Outcome(sa, sb), Outcome(sb, sa));
+        }
+
+        private static DateTime? ParseUtcDate(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text) || !YearPattern().IsMatch(text))
+                return null;
+            return DateTime.TryParse(text.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dt)
+                ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
+                : null;
+        }
+
         /// <summary>What the table left out, a warning per kind.</summary>
         public IEnumerable<string> Problems()
         {
@@ -514,4 +580,8 @@ public static partial class GamesTableParser
     /// <summary>A result's score, "(7 - 2)" or "7-2".</summary>
     [GeneratedRegex(@"(\d+)\s*-\s*(\d+)")]
     private static partial Regex ScorePattern();
+
+    /// <summary>A 4-digit calendar year, so time-only schedule strings don't default to the current year.</summary>
+    [GeneratedRegex(@"\b(19|20)\d{2}\b")]
+    private static partial Regex YearPattern();
 }

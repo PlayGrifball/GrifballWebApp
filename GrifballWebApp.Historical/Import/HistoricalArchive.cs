@@ -198,6 +198,13 @@ public class ChampionsArchive
 
 public class ArchiveChampionship
 {
+    /// <summary>The league's name or slug (e.g. "AGLA", "GGL", "EUGBL"); null defaults to AGLA.</summary>
+    [JsonPropertyName("leagueSlug")]
+    public string? League { get; init; }
+    /// <summary>The source workbook ID that supplied this title, when merged from multiple sources.</summary>
+    public string? SourceId { get; init; }
+    /// <summary>The source URL that supplied this title, when merged from multiple sources.</summary>
+    public string? SourceUrl { get; init; }
     /// <summary>The season's name, e.g. "Summer League 2021".</summary>
     public required string Season { get; init; }
     /// <summary>The game as the record writes it, e.g. "MCC Halo 3", "Infinite".</summary>
