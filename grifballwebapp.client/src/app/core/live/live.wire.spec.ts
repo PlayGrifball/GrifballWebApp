@@ -314,6 +314,19 @@ describe('LiveService over the SignalR wire protocol', () => {
 
     expect(service.presence()?.online).toBe(3);
   });
+
+  it('calls nobody for a change with no topic', async () => {
+    const changed: (string | null)[] = [];
+    service.watch(['season:5'], message => changed.push(message.topic));
+    void service.connect();
+    await waitFor(() => service.presence() !== null, 'the connection');
+
+    hub.invoke('Changed', null);
+    hub.invoke('Changed', 'season:5');
+    await waitFor(() => changed.length === 1, 'the change');
+
+    expect(changed).toEqual(['season:5']);
+  });
 });
 
 describe('LiveService where WebSockets don\'t get through', () => {

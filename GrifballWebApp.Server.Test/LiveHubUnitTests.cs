@@ -207,6 +207,35 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         }
     }
 
+    [Test]
+    public async Task Delivery_DataThereIsNoneOf_TellsItsPagesToReadAgain()
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Draft(4), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns((object?)null);
+        var watchers = Substitute.For<ILiveHubClient>();
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
+        _watchers.Watch(LiveTopics.Draft(4), "a", SeasonViewer.Public);
+
+        await Delivery(snapshots).Deliver([new LiveChange(LiveTopics.Draft(4))]);
+
+        await watchers.Received(1).Changed(LiveTopics.Draft(4));
+    }
+
+    [Test]
+    public async Task Delivery_Canceled_StopsBuilding_RatherThanSendingANotice()
+    {
+        using var canceled = new CancellationTokenSource();
+        await canceled.CancelAsync();
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Draft(4), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns<object?>(_ => throw new OperationCanceledException(canceled.Token));
+        var watchers = Substitute.For<ILiveHubClient>();
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
+        _watchers.Watch(LiveTopics.Draft(4), "a", SeasonViewer.Public);
+
+        Assert.That(async () => await Delivery(snapshots).Deliver([new LiveChange(LiveTopics.Draft(4))], canceled.Token), Throws.InstanceOf<OperationCanceledException>());
+        await watchers.DidNotReceive().Changed(Arg.Any<string>());
+    }
+
     [TestCase("/usermanagement/merges")]
     [TestCase("/seasonManager")]
     [TestCase("/commissioner-dashboard")]

@@ -361,4 +361,44 @@ public class QueueServiceFinishTests : SqliteContextFixture
             Assert.That(await Queued(match.Id), Is.Empty);
         }
     }
+
+    [Test]
+    public async Task TheEndPost_OfAHaloGameNobodyWon_FailsTheChange()
+    {
+        var home = await SeedUser();
+        var away = await SeedUser();
+        var seeded = await SeedMatch(home, away);
+        var game = Match.Seed(Guid.NewGuid(), startTime: StartedAt.AddMinutes(1), endTime: StartedAt.AddMinutes(13), duration: TimeSpan.FromMinutes(12));
+        game.AddTeam(0, 3, Outcomes.DidNotFinish);
+        game.AddTeam(1, 3, Outcomes.DidNotFinish);
+        Context.Matches.Add(game);
+        await Context.SaveChangesAsync();
+        var match = await Context.MatchedMatches.SingleAsync(m => m.Id == seeded.Id);
+        match.Report(game.MatchID);
+
+        Assert.That(async () => await new LateLeagueDiscordPosts(Context, new ContextOutbox(Context))
+            .Handle(new LateLeagueMatchDecided(match, []), [], CancellationToken.None), Throws.InvalidOperationException.With.Message.Contains("no winning team"));
+    }
+
+    [Test]
+    public async Task TheEndPostsMmrChanges_NameAPlayerByDiscord_ElseByGamertag_AndAnMmrNotRecordedAsUnknown()
+    {
+        var home = User.Seed(userName: "discorded", discordUser: GrifballWebApp.Domain.Players.DiscordUser.FromDiscord(4242, "DiscordName"),
+            xboxUser: GrifballWebApp.Domain.Players.XboxUser.FromXbox(4243, "HomeTag"));
+        Context.Users.Add(home);
+        await Context.SaveChangesAsync();
+        var away = await SeedUser();
+        var seeded = await SeedMatch(home, away);
+        var match = await Context.MatchedMatches.AsNoTracking()
+            .Include(m => m.HomeTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User).ThenInclude(u => u.DiscordUser)
+            .Include(m => m.AwayTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User).ThenInclude(u => u.XboxUser)
+            .SingleAsync(m => m.Id == seeded.Id);
+        var before = new Dictionary<long, int> { [home.Id] = home.MMR - 10 };
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(LateLeagueDiscordPosts.MmrChanges(before, match, MatchedSide.Home), Is.EqualTo($"DiscordName: {home.MMR - 10} -> {home.MMR} (+10)"));
+            Assert.That(LateLeagueDiscordPosts.MmrChanges(before, match, MatchedSide.Away), Is.EqualTo($"{away.XboxUser!.Gamertag}: UNK -> {away.MMR} (UNK)"));
+        }
+    }
 }

@@ -43,11 +43,23 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (await _signal.Reader.WaitToReadAsync(stoppingToken))
+        while (await NextAsync(stoppingToken))
+            await SendPendingAsync(stoppingToken);
+    }
+
+    /// <summary>Waits for a change, then for its window to close; false once the process stops.</summary>
+    private async Task<bool> NextAsync(CancellationToken stoppingToken)
+    {
+        try
         {
+            await _signal.Reader.WaitToReadAsync(stoppingToken);
             _signal.Reader.TryRead(out _);
             await Task.Delay(Window, stoppingToken);
-            await SendPendingAsync(stoppingToken);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
         }
     }
 
@@ -95,21 +107,13 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
 }
 
 /// <summary>Scaled out, on an API process: the changes any process published (<see cref="LiveUpdates.RelayChannel"/>), to this one's pages.</summary>
-public sealed class LiveRelayListener(LiveDelivery delivery, ILogger<LiveRelayListener> logger, AppRedis? redis = null) : IHostedService
+public sealed class LiveRelayListener(LiveDelivery delivery, AppRedis? redis = null) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        redis?.WhenConnected(connection => connection.GetSubscriber().Subscribe(LiveUpdates.RelayChannel).OnMessage(async message =>
-        {
-            try
-            {
-                await delivery.Deliver(LiveUpdates.Parse(message.Message), CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Could not tell this process's pages what changed");
-            }
-        }));
+        // Deliver logs its own failures (a build, a send) and isn't canceled here, so it doesn't throw
+        redis?.WhenConnected(connection => connection.GetSubscriber().Subscribe(LiveUpdates.RelayChannel)
+            .OnMessage(message => delivery.Deliver(LiveUpdates.Parse(message.Message), CancellationToken.None)));
         return Task.CompletedTask;
     }
 

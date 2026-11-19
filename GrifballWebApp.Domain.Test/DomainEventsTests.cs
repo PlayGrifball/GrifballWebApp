@@ -109,6 +109,27 @@ public class DomainEventsTests
     }
 
     [Test]
+    public void Team_WithNoCaptain_RaisesItsDraftsMoves_WithNoCaptainNamed()
+    {
+        var reds = Team.Seed("Reds", seasonID: 5);
+        var blues = Team.Seed("Blues", seasonID: 5);
+        reds.Draft(3);
+        reds.Draft(4);
+        Clear(reds);
+
+        reds.MovePick(4, 1);
+        reds.TradePick(3, blues, 1);
+        reds.Undraft(4);
+
+        Assert.That(Events(reds), Is.EqualTo(new IDomainEvent[]
+        {
+            new PickMoved(reds, reds, 4, Round: 1, FromCaptainUserID: null, ToCaptainUserID: null),
+            new PickMoved(reds, blues, 3, Round: 1, FromCaptainUserID: null, ToCaptainUserID: null),
+            new PlayerUndrafted(reds, 4, CaptainUserID: null),
+        }));
+    }
+
+    [Test]
     public void Team_FormedAndDisbanded_SaySo_WithItsRoster()
     {
         var team = Team.Drafted(5, "Reds", 1, 1);

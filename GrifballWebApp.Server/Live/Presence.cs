@@ -127,24 +127,29 @@ public sealed class PresenceTracker(IPresenceStore store, IHubContext<LiveHub, I
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            using (var beat = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken))
-            {
-                beat.CancelAfter(Heartbeat);
-                try
-                {
-                    await _signal.Reader.WaitToReadAsync(beat.Token);
-                    _signal.Reader.TryRead(out _);
-                    await Task.Delay(Settle, time, stoppingToken);
-                }
-                catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
-                {
-                    // The heartbeat: stored again, and any process gone is dropped
-                }
-            }
+        while (await NextAsync(stoppingToken))
             await SendAsync(stoppingToken);
+    }
+
+    /// <summary>
+    /// Waits for a tab's change, then for the burst to settle, or for the heartbeat (stored again, and any process gone is
+    /// dropped); false once the process stops.
+    /// </summary>
+    private async Task<bool> NextAsync(CancellationToken stoppingToken)
+    {
+        using var heartbeat = new CancellationTokenSource(Heartbeat, time);
+        using var beat = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, heartbeat.Token);
+        try
+        {
+            await _signal.Reader.WaitToReadAsync(beat.Token);
+            _signal.Reader.TryRead(out _);
+            await Task.Delay(Settle, time, stoppingToken);
         }
+        catch (OperationCanceledException)
+        {
+            // The heartbeat, or the process stopping
+        }
+        return !stoppingToken.IsCancellationRequested;
     }
 
     /// <summary>Stores this process's tabs, and sends the snapshot of everyone's if it changed.</summary>

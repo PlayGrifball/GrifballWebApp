@@ -333,6 +333,28 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
         }
     }
 
+    [Test]
+    public async Task DraftDiscordPosts_ASeasonNotAnnouncedYet_PostsNothingInThePublicChannel()
+    {
+        var season = Season.Seed(seasonName: "Hidden Season");
+        var now = _time.GetUtcNow().UtcDateTime;
+        season.ScheduleSeeded(now.AddDays(10), now.AddDays(20), now.AddDays(25), now.AddDays(30), now.AddDays(90));
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+        var captain = await AddUser("Cap");
+        var player = await AddUser("Pick");
+        var team = Team.Drafted(season.SeasonID, "Cap's team", captain.Id, 1);
+        var posts = new DraftDiscordPosts(Context, _outbox, _teams, _time);
+
+        await posts.Handle(new PlayerDrafted(team, player.Id, 1, captain.Id), [], CancellationToken.None);
+        await posts.Handle(new PickMoved(team, team, player.Id, 1, captain.Id, captain.Id), [], CancellationToken.None);
+        await posts.Handle(new PlayerUndrafted(team, player.Id, captain.Id), [], CancellationToken.None);
+        await posts.Handle(new CaptainsLockChanged(season), [], CancellationToken.None);
+
+        var (_, queued) = await QueuedAsync();
+        Assert.That(queued, Is.Empty);
+    }
+
     private static readonly string[] ChannelPosts =
     [
         "Pick has been added to Cap's team",

@@ -45,8 +45,8 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         return services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
     }
 
-    private PresenceTracker Tracker(IPresenceStore? store = null)
-        => new(store ?? new MemoryPresenceStore(), _hubContext, Scopes(), TimeProvider.System, NullLogger<PresenceTracker>.Instance);
+    private PresenceTracker Tracker(IPresenceStore? store = null, TimeProvider? time = null)
+        => new(store ?? new MemoryPresenceStore(), _hubContext, Scopes(), time ?? TimeProvider.System, NullLogger<PresenceTracker>.Instance);
 
     /// <summary>A Redis that is down: every connection attempt fails.</summary>
     private static AppRedis DownRedis()
@@ -76,6 +76,27 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
             Assert.That(snapshot.Pages.Single().Path, Is.EqualTo("/seasons"));
             await store.Received(1).Leave(Arg.Any<CancellationToken>());
         }
+    }
+
+    [Test]
+    public async Task TheTracker_WithNoChange_StoresItsTabsAgainEachHeartbeat()
+    {
+        var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
+        var stored = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = Substitute.For<IPresenceStore>();
+        store.Exchange(Arg.Any<IReadOnlyList<PresenceTab>>(), Arg.Any<CancellationToken>()).Returns<IReadOnlyList<PresenceTab>>(call =>
+        {
+            stored.TrySetResult();
+            return call.Arg<IReadOnlyList<PresenceTab>>();
+        });
+        var tracker = Tracker(store, time);
+
+        await tracker.StartAsync(CancellationToken.None);
+        time.Advance(PresenceTracker.Heartbeat);
+        await stored.Task.WaitAsync(Wait);
+        await tracker.StopAsync(CancellationToken.None);
+
+        await store.Received().Exchange(Arg.Any<IReadOnlyList<PresenceTab>>(), Arg.Any<CancellationToken>());
     }
 
     [Test]

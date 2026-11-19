@@ -25,6 +25,13 @@ describe('WhosOnlineComponent', () => {
     expect(render().textContent?.trim()).toBe('');
   });
 
+  it('has no count and no pages until then', () => {
+    render();
+    const component = TestBed.createComponent(WhosOnlineComponent).componentInstance;
+
+    expect([component.split(), component.pages()]).toEqual(['', []]);
+  });
+
   it('shows how many are on, and each page with its members by name and its guests', () => {
     presence.set({
       online: 4, members: 2, guests: 2, pages: [

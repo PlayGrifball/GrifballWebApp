@@ -34,6 +34,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     private static readonly string[] ASpot = ["queue", "queue:me@7"];
     private static readonly string[] HandlersInOrder = ["failing", "own", "every", "failing", "own", "every"];
     private static readonly string[] MembersByName = ["amy", "Zed"];
+    private static readonly int[] UnnamedFirst = [3, 4];
     private static readonly string[] ATeam = ["season:5", "draft:5"];
     private static readonly string[] OnlySeasons = ["seasons"];
     private static readonly string[] PushedTopics = ["seasons", "season:1", "draft:1", "queue"];
@@ -227,6 +228,8 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
             Assert.That(snapshot.Pages.Select(p => (p.Path, p.Guests, p.Members.Count)), Is.EqualTo(new[] { ("/", 3, 0), ("/leaderboards", 1, 1), ("/seasons", 0, 2) }));
             Assert.That(snapshot.Pages[2].Members.Select(m => m.Name), Is.EqualTo(MembersByName));
             Assert.That((PresenceSnapshot.Of([]).Online, PresenceSnapshot.Of([]).Pages.Count), Is.EqualTo((0, 0)));
+            Assert.That(PresenceSnapshot.Of([new PresenceTab("a", 4, "Bo", "/"), new PresenceTab("b", 3, null, "/")]).Pages[0].Members.Select(m => m.UserID),
+                Is.EqualTo(UnnamedFirst), "a member with no name shown first");
         }
     }
 

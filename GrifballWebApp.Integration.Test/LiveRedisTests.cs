@@ -94,6 +94,23 @@ public class LiveRedisTests
     }
 
     [Test]
+    public async Task AnEntryThatIsNoProcesssTabs_IsDropped()
+    {
+        var db = (await Process().ConnectAsync()).GetDatabase();
+        await db.HashSetAsync($"{_prefix}presence", [new("empty", ""), new("null", "null"), new("garbled", "not json")]);
+        var alive = Store();
+        PresenceTab[] aliveTabs = [new("b", null, null, "/")];
+
+        var all = await alive.Exchange(aliveTabs);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(all.Select(t => t.ConnectionID), Is.EquivalentTo(SecondsTab));
+            Assert.That(await StoredProcesses(), Is.EqualTo(1));
+        }
+    }
+
+    [Test]
     public async Task AProcessThatStoppedWithoutLeaving_IsDropped_OnceStale()
     {
         // The first stored its tabs long ago (killed since): the second's exchange drops them
@@ -131,7 +148,7 @@ public class LiveRedisTests
         var delivery = new LiveDelivery(watchers, new HubConnections(), hub, new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             NullLogger<LiveDelivery>.Instance);
         var apiRedis = Process();
-        var listener = new LiveRelayListener(delivery, NullLogger<LiveRelayListener>.Instance, apiRedis);
+        var listener = new LiveRelayListener(delivery, apiRedis);
         await listener.StartAsync(CancellationToken.None);
         await apiRedis.ConnectAsync();
 
