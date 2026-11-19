@@ -943,5 +943,22 @@ broken "the chart release reading an output publish doesn't declare" helm-chart.
   '(.jobs.release.steps[] | select(.name == "Release*") | .env.DIGEST) = "${{ needs.publish.outputs.sha }}"' \
   "helm-chart.yml: every needs"
 
+# historical-archive-regressions.sh: a check that passed on the base and fails on the head is a regression; the known
+# gaps (failing on both sides), a check the change adds that fails, and one it removes are not.
+trx() { # trx <file> <outcome:name>...: a trx with those results
+  { echo '<TestRun><Results>'
+    for r in "${@:2}"; do echo "<UnitTestResult executionId=\"x\" testName=\"${r#*:}\" computerName=\"c\" outcome=\"${r%%:*}\" testListId=\"y\" />"; done
+    echo '</Results></TestRun>'; } > "$1"
+}
+regressions() { "$scripts/historical-archive-regressions.sh" "$work/base.trx" "$work/head.trx" > "$work/regout"; }
+trx "$work/base.trx" Passed:Kept Passed:Broken Failed:KnownGap 'Passed:ByLeague(&quot;IGL&quot;)' Passed:Skipped Passed:Removed
+trx "$work/head.trx" Passed:Kept Failed:Broken Failed:KnownGap 'Failed:ByLeague(&quot;IGL&quot;)' NotExecuted:Skipped Failed:Added
+if regressions; then bad "regressions: a check that broke passes the gate"
+elif [[ "$(sort "$work/regout")" == "$(printf 'Broken\nByLeague("IGL")\nSkipped\n' | sort)" ]]; then ok "regressions: the checks that passed and now fail or didn't run, a case of a parameterized test its own"
+else bad "regressions: listed $(tr '\n' ' ' < "$work/regout")"; fi
+trx "$work/head.trx" Passed:Kept Passed:Broken Failed:KnownGap 'Passed:ByLeague(&quot;IGL&quot;)' Passed:Skipped Failed:Added
+if regressions && [[ ! -s "$work/regout" ]]; then ok "regressions: the known gaps, a new failing check and a removed one are none"
+else bad "regressions: none expected, listed $(tr '\n' ' ' < "$work/regout")"; fi
+
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

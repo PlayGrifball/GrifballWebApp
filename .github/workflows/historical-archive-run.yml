@@ -4,8 +4,10 @@ name: Historical archive (run)
 # leg of dotnet-tests.yml runs. The copy of the archive is filled once, and the import run on it twice, this commit's
 # and its base's (the PR's base, or master), so the report is what the change does to the archive: each season whose
 # teams, ranks, stats, matches or titles changed. The import's known gaps (#511) fail some of its tests on both sides:
-# they don't fail the job; the comparison is the result. On a PR from this repository, it's a comment (kept up to
-# date); always the run's summary; the summaries and the imported databases are artifacts. docs/historical-import.md.
+# they don't fail the job; the comparison is the result. A check that passed on the base and fails here does: a
+# regression (.github/scripts/historical-archive-regressions.sh), named in the report too. On a PR from this
+# repository, it's a comment (kept up to date); always the run's summary; the summaries and the imported databases are
+# artifacts. docs/historical-import.md.
 #
 # Called by its two runs, which differ in where they run and so what the copy can have:
 # - historical-archive.yml, on the org's in-cluster runners: the test environment's snapshots (its SQL Server, through
@@ -150,6 +152,15 @@ jobs:
             failed=$(grep -o 'testName="[^"]*" [^>]*outcome="Failed"' "$RUNNER_TEMP/results/head.trx" | sed -E 's/testName="([^"]*)".*/\1/' | sort -u | tr '\n' ' ')
             echo "Checks that fall short: ${failed:-none}"
           fi
+          # The checks this change broke: passed on the base, fail here (the step at the end fails the run on them)
+          if [ -s "$RUNNER_TEMP/results/base.trx" ] && [ -s "$RUNNER_TEMP/results/head.trx" ]; then
+            echo
+            if broken=$(sh .github/scripts/historical-archive-regressions.sh "$RUNNER_TEMP/results/base.trx" "$RUNNER_TEMP/results/head.trx"); then
+              echo "Regressions: none (every check that passed on the base still passes)."
+            else
+              echo "**Regressions** (passed on the base, fail here): $(echo "$broken" | tr '\n' ' ')"
+            fi
+          fi
           echo
           echo "The summaries and imported databases: this run's historical-archive artifact."
         } > "$out/report.md"
@@ -191,3 +202,19 @@ jobs:
         else
           api -X POST "https://api.github.com/repos/$REPO/issues/$PR/comments" -d "$body" > /dev/null
         fi
+
+    # Last, so the report, the artifact and the comment are there either way: the import's known gaps (#511) fail on
+    # both sides and are fine; a check that passed on the base and fails here is a regression, and fails the run
+    - name: No regressions
+      if: steps.base.outputs.sha != ''
+      run: |
+        results="$RUNNER_TEMP/results"
+        if [ ! -s "$results/base.trx" ] || [ ! -s "$results/head.trx" ]; then
+          echo "No base results to compare with: nothing to check"
+          exit 0
+        fi
+        if ! broken=$(sh .github/scripts/historical-archive-regressions.sh "$results/base.trx" "$results/head.trx"); then
+          echo "$broken" | while IFS= read -r check; do echo "::error::$check passed on the base and fails here"; done
+          exit 1
+        fi
+        echo "Every check that passed on the base still passes"

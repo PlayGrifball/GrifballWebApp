@@ -148,8 +148,9 @@ the real-archive tests, `Application/Historical`, `Domain/Archive`, the workbook
 Run workflow, on any branch).
 Both fill a copy once, run this commit's import and its base's on it, and report each season whose counts changed: in
 the run's summary, and on a PR from this repository a comment each, kept up to date. The import's known gaps don't fail
-them. The summaries and imported databases are each run's artifact. They share `historical-archive-run.yml`; they
-differ in where they run, so in what their copy can have:
+them; a check that passed on the base and fails on the change (a regression) does, and the report names it.
+The summaries and imported databases are each run's artifact. They share `historical-archive-run.yml`; they differ in
+where they run, so in what their copy can have:
 
 - **`historical-archive.yml`**: the org's in-cluster runners (`grif-k8s`). By hand only: every source the import reads is
   public, so the PRs' runs are GitHub's, and the cluster's memory stays the cluster's (its PR trigger is in the
