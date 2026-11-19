@@ -89,9 +89,7 @@ describe('TeamStandingsStore', () => {
     beforeEach(async () => {
       store.seasonID.use(signal(4));
       TestBed.tick();
-      const read = http.expectOne('/api/seasons/4/standings');
-      expect(read.request.method).toBe('GET');
-      read.flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+      http.expectOne('/api/seasons/4/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
       await TestBed.inject(ApplicationRef).whenStable();
       jasmine.clock().install();
       // No spread: a reload runs LIVE_RELOAD_MS after a change
@@ -120,7 +118,9 @@ describe('TeamStandingsStore', () => {
       live.send({ topic: 'season:4' });
       jasmine.clock().tick(LIVE_RELOAD_MS);
       TestBed.tick();
-      http.expectOne('/api/seasons/4/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+      const read = http.expectOne('/api/seasons/4/standings');
+      expect(read.request.method).toBe('GET');
+      read.flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
     });
   });
 });

@@ -77,9 +77,7 @@ describe('SeasonThisWeekStore', () => {
     beforeEach(async () => {
       store.seasonID.use(signal(4));
       TestBed.tick();
-      const read = http.expectOne('/api/seasons/4/matches/scheduled');
-      expect(read.request.method).toBe('GET');
-      read.flush([{ seasonMatchID: 1, homeCaptain: 'H', awayCaptain: 'A', homeTeam: 'Home', awayTeam: 'Away', complete: false, time: '2026-01-07T19:00:00Z' }]);
+      http.expectOne('/api/seasons/4/matches/scheduled').flush([{ seasonMatchID: 1, homeCaptain: 'H', awayCaptain: 'A', homeTeam: 'Home', awayTeam: 'Away', complete: false, time: '2026-01-07T19:00:00Z' }]));
       await TestBed.inject(ApplicationRef).whenStable();
       jasmine.clock().install();
       // No spread: a reload runs LIVE_RELOAD_MS after a change
@@ -108,7 +106,9 @@ describe('SeasonThisWeekStore', () => {
       live.send({ topic: 'season:4' });
       jasmine.clock().tick(LIVE_RELOAD_MS);
       TestBed.tick();
-      http.expectOne('/api/seasons/4/matches/scheduled').flush([{ seasonMatchID: 1, homeCaptain: 'H', awayCaptain: 'A', homeTeam: 'Home', awayTeam: 'Away', complete: false, time: '2026-01-07T19:00:00Z' }]);
+      const read = http.expectOne('/api/seasons/4/matches/scheduled');
+      expect(read.request.method).toBe('GET');
+      read.flush([{ seasonMatchID: 1, homeCaptain: 'H', awayCaptain: 'A', homeTeam: 'Home', awayTeam: 'Away', complete: false, time: '2026-01-07T19:00:00Z' }]);
     });
   });
 });
