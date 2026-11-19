@@ -192,6 +192,11 @@ public class HubSessionTests
     public async Task ARoleRemovedBehindTheAppsBack_FailsTheNextCall_AndClosesTheConnection()
     {
         var (id, cookie) = await SignedIn(["Commissioner"]);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+            Assert.That(await users.GetRolesAsync((await users.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture)))!), Is.EqualTo(CommissionerRole), "a commissioner before connecting");
+        }
         var (connection, closed) = await Connect(LiveHub.Path, cookie);
         Assert.That(connection.State, Is.EqualTo(HubConnectionState.Connected));
 
