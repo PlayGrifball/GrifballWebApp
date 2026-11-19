@@ -24,19 +24,4 @@ public class TeamsAuthorizationAttributeTests
     {
         Assert.That(Roles(typeof(TeamsController), method), Is.EqualTo(roles));
     }
-
-    [TestCase(nameof(TeamsHub.AddCaptain), "Commissioner")]
-    [TestCase(nameof(TeamsHub.ResortCaptain), "Commissioner")]
-    [TestCase(nameof(TeamsHub.RemoveCaptain), "Commissioner")]
-    [TestCase(nameof(TeamsHub.RemovePlayerFromTeam), "Commissioner")]
-    [TestCase(nameof(TeamsHub.MovePlayerToTeam), "Commissioner")]
-    [TestCase(nameof(TeamsHub.LockCaptains), "Commissioner")]
-    [TestCase(nameof(TeamsHub.UnlockCaptains), "Commissioner")]
-    [TestCase(nameof(TeamsHub.AddPlayerToTeam), "Commissioner,Player")]
-    [TestCase(nameof(TeamsHub.GetTeams), null)]
-    [TestCase(nameof(TeamsHub.AreCaptainsLocked), null)]
-    public void TeamsHub_Should_RequireRoles(string method, string? roles)
-    {
-        Assert.That(Roles(typeof(TeamsHub), method), Is.EqualTo(roles));
-    }
 }

@@ -47,7 +47,7 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
         new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)),
         new MatchPlannerService(Db),
         _bracketService,
-        new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), null!),
+        new TeamService(Db, null!),
         new ScheduleRecommendations(Db, TimeProvider.System),
         null!, null!,
         new GamertagClaimService(Db, Substitute.For<IUserMergeService>()),

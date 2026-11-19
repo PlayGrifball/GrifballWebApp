@@ -19,6 +19,8 @@ export interface ResourceView<V> {
   readonly resolved: Signal<boolean>;
   /** Asks again with the same parameters; false when nothing was asked (the resource is idle). */
   reload(): boolean;
+  /** Takes `value` as the answer, without asking (data pushed with a live change: liveData). */
+  set(value: V): void;
 }
 
 /**
@@ -40,5 +42,6 @@ export function resourceView<T>(resource: ResourceRef<T>, fallback: unknown): Re
     error: resource.error,
     resolved: computed(() => resource.status() === 'resolved'),
     reload: () => resource.reload(),
+    set: value => resource.set(value as T),
   };
 }

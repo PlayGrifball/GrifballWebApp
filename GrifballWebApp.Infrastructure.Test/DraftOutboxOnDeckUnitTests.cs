@@ -30,7 +30,7 @@ public class DraftOutboxOnDeckUnitTests : SqliteContextFixture
     [SetUp]
     public void Setup()
     {
-        _teams = new TeamService((IApplicationDbContext)Context, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
+        _teams = new TeamService((IApplicationDbContext)Context, Substitute.For<IDatabaseLocks>());
         _outbox = new ContextOutbox(Context);
     }
 

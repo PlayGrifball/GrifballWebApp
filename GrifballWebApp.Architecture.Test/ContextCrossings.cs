@@ -28,14 +28,14 @@ internal static class ContextCrossings
             ["LateLeague"] = ["MatchedMatch"],
             ["League"] = ["Season", "SeriesGame", "Team"],
             ["Players"] = ["User", "XboxUser"],
-            ["Shared"] = ["AggregatePartAttribute", "AggregateRootAttribute", "AuditableEntity", "GameVersion"],
+            ["Shared"] = ["AggregatePartAttribute", "AggregateRootAttribute", "AuditableEntity", "GameVersion", "IDomainEvent", "RaisesDomainEvents"],
         },
         ["Halo"] = new()
         {
             ["LateLeague"] = ["MatchedMatch"],
             ["League"] = ["SeriesGame"],
             ["Players"] = ["XboxUser"],
-            ["Shared"] = ["AggregatePartAttribute", "AggregateRootAttribute", "AuditableEntity", "ModelRules"],
+            ["Shared"] = ["AggregatePartAttribute", "AggregateRootAttribute", "AuditableEntity", "IDomainEvent", "ModelRules", "RaisesDomainEvents"],
         },
         ["LateLeague"] = new()
         {
@@ -44,7 +44,7 @@ internal static class ContextCrossings
             ["League"] = ["PlayerSeasonStatConfiguration"],
             ["Players"] = ["User"],
             ["Shared"] = ["AggregateAccessAttribute", "AggregatePartAttribute", "AggregateRootAttribute",
-                "AuditableEntity", "GameVersion", "PlayerStatTotals", "StatSheetTotals"],
+                "AuditableEntity", "GameVersion", "IDomainEvent", "PlayerStatTotals", "RaisesDomainEvents", "StatSheetTotals"],
         },
         ["League"] = new()
         {
@@ -52,15 +52,17 @@ internal static class ContextCrossings
             ["Halo"] = ["Match"],
             ["Players"] = ["User"],
             ["Shared"] = ["AggregateAccessAttribute", "AggregatePartAttribute", "AggregateRootAttribute",
-                "AuditableEntity", "AvailabilityOption", "GameVersion", "League", "ModelRules", "PlayerStatTotals", "StatSheetTotals"],
+                "AuditableEntity", "AvailabilityOption", "GameVersion", "IDomainEvent", "League", "ModelRules", "PlayerStatTotals",
+                "RaisesDomainEvents", "StatSheetTotals"],
         },
         ["Players"] = new()
         {
             ["Halo"] = ["MatchParticipant"],
-            ["LateLeague"] = ["MatchedPlayer", "QueuedPlayer"],
+            ["LateLeague"] = ["LateLeagueGameRecorded", "MatchedPlayer", "QueuedPlayer"],
             ["League"] = ["SeasonSignup", "TeamPlayer"],
             ["Shared"] = ["AggregatePartAttribute", "AggregateRootAttribute",
-                "AuditableEntity", "DiscordMessage", "GameVersion", "IAuditable", "IAuditStamp", "Region", "RegionSource"],
+                "AuditableEntity", "DiscordMessage", "GameVersion", "IAuditable", "IAuditStamp", "IDomainEvent", "IHasDomainEvents",
+                "RaisesDomainEvents", "Region", "RegionSource"],
         },
         ["Shared"] = new()
         {

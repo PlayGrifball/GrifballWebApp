@@ -6,6 +6,8 @@ import { resourceView } from '@shared/resourceView';
 import { StoreInput } from '@shared/storeInput';
 import { map } from 'rxjs';
 import { parseMatchDetails } from './matchDetailsDto';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** What the page shows: loading, the match, no such match pulled, or the request failed. */
 export type MatchDetailsState = 'loading' | 'loaded' | 'notFound' | 'error';
@@ -34,10 +36,15 @@ export class MatchDetailsStore {
    * 404); or the request failed.
    */
   readonly state = computed<MatchDetailsState>(() => {
-    if (this.match.isLoading() || this.match.status() === 'idle')
+    if (this.match.status() === 'loading' || this.match.status() === 'idle')
       return 'loading';
     if (this.match.failed())
       return 'error';
     return this.details() ? 'loaded' : 'notFound';
   });
+
+  constructor() {
+    // The match pulled again (its variant, its decoded scores): shown again, in place
+    liveReload(() => { const matchID = this.matchID.value(); return matchID ? [LiveTopics.haloMatch(matchID)] : []; }, () => this.match.reload());
+  }
 }

@@ -1,9 +1,13 @@
+using GrifballWebApp.Application.DomainEvents;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Infrastructure.Services;
 using GrifballWebApp.Historical.Import;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -25,6 +29,22 @@ internal sealed class HistoricalImportForfeitsUnitTests : ApplicationDbContextTe
     private static readonly string?[] RedAndBlue = ["Red Team", "Blue Team"];
     private static readonly string?[] RedAndNone = ["Red Team", null];
     private HistoricalImportService _service = null!;
+
+    /// <summary>What the context's commits sent, as its handlers would get them.</summary>
+    private sealed class Sent : IDomainEventDispatcher
+    {
+        public List<IDomainEvent> Events { get; } = [];
+
+        public Task Dispatch(IReadOnlyList<IDomainEvent> domainEvents, CancellationToken cancellationToken = default)
+        {
+            Events.AddRange(domainEvents);
+            return Task.CompletedTask;
+        }
+    }
+
+    private readonly Sent _sent = new();
+
+    protected override IReadOnlyList<IInterceptor> Interceptors => [new DomainEventsInterceptor(_sent)];
 
     [SetUp]
     public void SetUp()
@@ -79,6 +99,7 @@ internal sealed class HistoricalImportForfeitsUnitTests : ApplicationDbContextTe
     {
         await _service.Import(Input(Forfeit(1, "Red Team", "Blue Team"), Forfeit(2, "Gold Team", "Red Team")));
         var first = await Context.SeasonMatches.Select(m => m.SeasonMatchID).OrderBy(id => id).FirstAsync();
+        var second = await Context.SeasonMatches.Select(m => m.SeasonMatchID).OrderBy(id => id).Skip(1).FirstAsync();
         Context.ChangeTracker.Clear();
 
         var again = await _service.Import(Input(Forfeit(1, "Red Team", "Blue Team")));
@@ -87,6 +108,7 @@ internal sealed class HistoricalImportForfeitsUnitTests : ApplicationDbContextTe
         {
             Assert.That((again.SeasonMatchesCreated, again.SeasonMatchesRemoved), Is.EqualTo((0, 1)));
             Assert.That(await Context.SeasonMatches.Select(m => m.SeasonMatchID).ToListAsync(), Is.EqualTo(new[] { first }), "The same match kept, not made again");
+            Assert.That(_sent.Events.OfType<SeasonMatchCanceled>().Select(e => e.Match.SeasonMatchID), Is.EqualTo(new[] { second }), "the one gone says so: its page hears of it");
         }
     }
 

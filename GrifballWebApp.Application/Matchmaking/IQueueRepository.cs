@@ -84,6 +84,7 @@ public class QueueRepository : IQueueRepository
         return await _context.MatchedMatches
             .WithPlayerNames()
             .Where(x => x.Status == MatchedMatchStatus.Active)
+            .OrderBy(x => x.Id)
             .ToArrayAsync(ct);
     }
 
@@ -119,6 +120,7 @@ public class QueueRepository : IQueueRepository
         {
             return false;
         }
+        isInQueue.Leave();
         _context.QueuedPlayer.Remove(isInQueue);
         await _context.SaveChangesAsync(ct);
         return true;

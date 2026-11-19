@@ -20,7 +20,11 @@ public class MatchmakingPlayerStat : PlayerStatTotals
 
     /// <summary>The sheet's row of <paramref name="userID"/> for <paramref name="matchmakingSeasonID"/>.</summary>
     public static MatchmakingPlayerStat FromSheet(int matchmakingSeasonID, int userID, int gameVersionID, StatSheetTotals totals)
-        => Seed(totals, matchmakingSeasonID, userID, gameVersionID);
+    {
+        var row = Seed(totals, matchmakingSeasonID, userID, gameVersionID);
+        row.Raise(new MatchmakingPlayerStatsChanged(row));
+        return row;
+    }
 
     /// <summary>A row of saved entities by their keys, or of entities not saved yet (the navigations): for tests.</summary>
     internal static MatchmakingPlayerStat Seed(StatSheetTotals totals, int matchmakingSeasonID = 0, int userID = 0, int gameVersionID = 0,
@@ -66,5 +70,6 @@ public class MatchmakingPlayerStat : PlayerStatTotals
         if (!IsSameSlotAs(sheet))
             throw new InvalidOperationException("A sheet's row restates the row of the same player and season only");
         Record(sheet.GameVersionID, sheet.Totals);
+        Raise(new MatchmakingPlayerStatsChanged(this));
     }
 }

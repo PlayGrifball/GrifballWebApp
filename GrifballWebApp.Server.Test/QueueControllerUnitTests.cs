@@ -96,7 +96,7 @@ public class QueueControllerUnitTests
         queue.PlayerState(5, Arg.Any<CancellationToken>()).Returns(new QueuePlayerState(5, true, InQueue: false, InMatch: false, QueueCount: 0));
         queue.AddPlayerToQueue(Arg.Any<QueuedPlayer>(), Arg.Any<CancellationToken>()).Returns(true);
         queue.Count(Arg.Any<CancellationToken>()).Returns(1);
-        var membership = new QueueMembership(queue, null!, Substitute.For<IQueueNotifier>());
+        var membership = new QueueMembership(queue, null!);
         var controller = new QueueController(membership, queue, new ConfigurationBuilder().Build()).WithUser("5");
 
         var result = await controller.Join(CancellationToken.None);

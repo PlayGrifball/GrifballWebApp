@@ -1,10 +1,14 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { LeaderboardFilter, LeaderboardsDto, PlayerAllTimeRankDto } from '@api/models';
 import { LeaderboardsService } from '@api/services/leaderboards.service';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { leaderboardFormats } from '@shared/seasonFormats';
-import { catchError, EMPTY, map, of, Subject, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, interval, map, of, Subject, switchMap, tap } from 'rxjs';
+
+/** How often the open page loads the boards again: the server's cache of them (LeaderboardsService.CacheFor). */
+export const LEADERBOARDS_REFRESH_MS = 5 * 60_000;
 
 export const ALL_FORMATS: LeaderboardFilter[] = leaderboardFormats.map(f => f.value);
 
@@ -75,6 +79,11 @@ export class LeaderboardsStore {
         this._boards.set(boards);
       this._loaded.set(true);
     });
+
+    // Not live: the server keeps the boards cached for 5 minutes (computing them is the expensive part), so a game
+    // pushed at once would load the same boards. The page loads them again on that cadence instead, in place.
+    if (isPlatformBrowser(inject(PLATFORM_ID)))
+      interval(LEADERBOARDS_REFRESH_MS).pipe(takeUntilDestroyed()).subscribe(() => this.load());
   }
 
   /** Loads the boards for the formats chosen. */

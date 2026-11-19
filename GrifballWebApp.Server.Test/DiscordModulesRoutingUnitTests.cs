@@ -157,13 +157,13 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
         // In the queue already: /queue join and its button are refused; /queue leave too, as nothing is removed
         queue.PlayerState(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(c => new QueuePlayerState(c.Arg<int>(), true, InQueue: true, InMatch: false, QueueCount: 1));
         queue.PlayerStateByDiscord((long)CallerDiscordID, Arg.Any<CancellationToken>()).Returns(new QueuePlayerState(1, true, InQueue: true, InMatch: false, QueueCount: 1));
-        var membership = new QueueMembership(queue, Db, Substitute.For<IQueueNotifier>());
+        var membership = new QueueMembership(queue, Db);
         var (schedulers, history) = QuartzStore();
         var brackets = Substitute.For<IBracketService>();
         brackets.GetBracketsAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new BracketDto { WinnerRounds = [], LoserRounds = [] });
         var dataPull = Substitute.For<IDataPullService>();
         var seasonMatches = new SeasonMatchService(Db, dataPull, brackets, new ChampionshipService(Db));
-        var teams = new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
+        var teams = new TeamService(Db, Substitute.For<IDatabaseLocks>());
         var reschedules = new RescheduleService(Db, Substitute.For<IOutbox>());
         var signups = new SignupsService(Db, _time);
         var vods = new VodService(Db, null!, MsOptions.Create(new YouTubeOptions()), null!);
@@ -193,7 +193,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(new DiscordSetGamertag(Db, Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null), _setGamertag))
             .AddSingleton(new MatchmakingButtonHandler(membership, Substitute.For<IServiceScopeFactory>(), Db, null!, null!, new RecordingLogger<MatchmakingButtonHandler>()))
             .AddSingleton(new SignupButtonHandler(Db, signups, urls))
-            .AddSingleton(new MatchmakingStringMenuHandler(Db, null!, null!, null!))
+            .AddSingleton(new MatchmakingStringMenuHandler(Db, null!, null!))
             .AddSingleton(new DraftStringMenuHandler(Db, teams, new RecordingLogger<DraftStringMenuHandler>()))
             .BuildServiceProvider();
         return _services;

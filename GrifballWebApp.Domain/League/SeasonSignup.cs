@@ -44,6 +44,7 @@ public class SeasonSignup : AuditableEntity
 
         var signup = new SeasonSignup { SeasonID = season.SeasonID, UserID = userID };
         signup.Choose(choices, now);
+        signup.Raise(new PlayerSignedUp(signup));
         return new(SignupResult.SignedUp, signup);
     }
 
@@ -117,6 +118,7 @@ public class SeasonSignup : AuditableEntity
             return new(SignupResult.TimeslotsNotOffered, this, refused);
 
         Choose(choices, now);
+        Raise(new SignupChanged(this));
         return new(SignupResult.Changed, this);
     }
 
@@ -137,11 +139,19 @@ public class SeasonSignup : AuditableEntity
         };
         foreach (var availability in _signupAvailability)
             copy._signupAvailability.Add(availability.Copy());
+        copy.Raise(new PlayerSignedUp(copy));
         return copy;
     }
 
     /// <summary>A merge of accounts moves the signup to the account kept (the caller keeps one signup per season).</summary>
-    public void MoveToUser(int userID) => UserID = userID;
+    public void MoveToUser(int userID)
+    {
+        UserID = userID;
+        Raise(new SignupChanged(this));
+    }
+
+    /// <summary>The signup is about to be removed (the player withdrew, a merge kept another): the event that says so. The caller removes it.</summary>
+    public void Withdraw() => Raise(new SignupWithdrawn(this));
 
     /// <summary>The name of the team the player gets when made a captain at the draft: theirs, else "<paramref name="captainName"/>'s Team".</summary>
     public string TeamNameAtDraft(string captainName) => TeamName ?? $"{captainName}'s Team";

@@ -1,10 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import type { SeasonSummaryDto, SeasonTeamDto } from '@api/models';
+import type { SeasonSummaryDto, SeasonTeamDto, TeamsLiveDto } from '@api/models';
 import { SeasonService } from '@api/services/season.service';
 import { catchError, EMPTY, merge, Subject, switchMap, tap } from 'rxjs';
 import { SeasonSummaryService } from '../seasonSummary';
+import { liveData } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** A season's teams with their rosters, and its summary. One per page (the component provides it). */
 @Injectable()
@@ -48,6 +50,18 @@ export class SeasonTeamsStore {
       )),
       takeUntilDestroyed(),
     ).subscribe();
+    // A team formed, renamed or its roster changed, a result: the season's teams and banner as they are now come with it
+    liveData<TeamsLiveDto>(() => this.seasonID() ? [LiveTopics.teams(this.seasonID())] : [], teams => {
+      if (teams.seasonID !== this.seasonID())
+        return true;
+      // A season gone: read it, to say so as a read does
+      if (!teams.teams)
+        return false;
+      this._summary.set(teams.summary ?? null);
+      this._teams.set(teams.teams);
+      this._loading.set(false);
+      return true;
+    }, () => this.load.next(this.seasonID()));
   }
 
   /** Loads a season, forgetting the one shown before so none of it is left on the new season's page. */

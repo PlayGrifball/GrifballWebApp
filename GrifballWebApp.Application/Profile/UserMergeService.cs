@@ -402,7 +402,10 @@ public class UserMergeService : IUserMergeService
         foreach (var signup in signups)
         {
             if (targetSeasons.Contains(signup.SeasonID))
+            {
+                signup.Withdraw();
                 _context.SeasonSignups.Remove(signup);
+            }
             else
                 signup.MoveToUser(mergeToId);
         }
@@ -434,7 +437,10 @@ public class UserMergeService : IUserMergeService
 
         var queued = await _context.QueuedPlayer.FirstOrDefaultAsync(QueuedPlayer.Of(mergeFrom.Id), ct);
         if (queued is not null)
+        {
+            queued.Leave();
             _context.QueuedPlayer.Remove(queued);
+        }
     }
 
     /// <summary>

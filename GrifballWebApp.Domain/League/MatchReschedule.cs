@@ -39,6 +39,7 @@ public class MatchReschedule : AuditableEntity
             RequestedAt = requestedAt,
         };
         seasonMatch.AddReschedule(reschedule);
+        reschedule.Raise(new RescheduleRequested(reschedule));
         return new(reschedule, null);
     }
 
@@ -133,6 +134,7 @@ public class MatchReschedule : AuditableEntity
         CommissionerNotes = notes;
         if (approved && NewScheduledTime is { } time)
             SeasonMatch.ScheduleAt(time);
+        Raise(new RescheduleChanged(this));
         return approved ? RescheduleDecision.Approved : RescheduleDecision.Rejected;
     }
 
@@ -153,6 +155,7 @@ public class MatchReschedule : AuditableEntity
         ApprovedByUserID = RequestedByUserID;
         ProcessedAt = decidedAt;
         CommissionerNotes = ClosedBecauseDecided;
+        Raise(new RescheduleChanged(this));
     }
 
     /// <summary>Records the Discord thread made for it; a request has one thread, so a second is refused.</summary>

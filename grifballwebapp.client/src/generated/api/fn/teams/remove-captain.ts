@@ -11,7 +11,6 @@ import { RemoveCaptainDto } from '../../models/remove-captain-dto';
 
 export interface RemoveCaptain$Params {
   seasonID: number;
-  signalRConnectionID?: string;
       body?: RemoveCaptainDto
 }
 
@@ -19,7 +18,6 @@ export function removeCaptain(http: HttpClient, rootUrl: string, params: RemoveC
   const rb = new RequestBuilder(rootUrl, removeCaptain.PATH, 'post');
   if (params) {
     rb.path('seasonID', params.seasonID, {});
-    rb.header('signalRConnectionID', params.signalRConnectionID, {});
     rb.body(params.body, 'application/json');
   }
 

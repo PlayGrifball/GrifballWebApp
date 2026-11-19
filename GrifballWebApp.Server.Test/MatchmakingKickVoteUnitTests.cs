@@ -17,7 +17,7 @@ namespace GrifballWebApp.Server.Test;
 /// <summary>
 /// MatchmakingStringMenuHandler's vote to kick on a Late League match, past the refusals of
 /// MatchmakingStringMenuHandlerUnitTests: a 2v2 match on a temp-file SQLite GrifballContext (the match has no thread yet,
-/// so its vote message has nothing to update), the queue's notifier substituted. A majority is more than half of the
+/// so its vote message has nothing to update). A majority is more than half of the
 /// four: three votes.
 /// </summary>
 [TestFixture]
@@ -25,15 +25,14 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class MatchmakingKickVoteUnitTests : SqliteGrifballContextFixture
 {
-    private readonly IQueueNotifier _notifier = Substitute.For<IQueueNotifier>();
     private int[] _players = [];
 
     private MatchmakingStringMenuHandler Handler()
     {
         var discord = Substitute.For<IDiscordRestClient>();
         var queue = new QueueService(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = 1 }), Substitute.For<IQueueRepository>(),
-            discord, Db, Substitute.For<IDataPullService>(), Substitute.For<IOutbox>(), _notifier);
-        return new MatchmakingStringMenuHandler(Db, discord, queue, _notifier);
+            discord, Db, Substitute.For<IDataPullService>(), Substitute.For<IOutbox>());
+        return new MatchmakingStringMenuHandler(Db, discord, queue);
     }
 
     /// <summary>Alpha and Bravo against Charlie and Delta (Discord 1 to 4), with <paramref name="votesAgainstBravo"/> of Charlie's
@@ -71,7 +70,6 @@ public class MatchmakingKickVoteUnitTests : SqliteGrifballContextFixture
 
         await AssertSent(context, "Alpha has voted to kick Bravo");
         Assert.That(await VotesAgainst(_players[1]), Is.EqualTo(1));
-        await _notifier.DidNotReceiveWithAnyArgs().SendStatusChanged(default!);
     }
 
     [Test]
@@ -86,7 +84,6 @@ public class MatchmakingKickVoteUnitTests : SqliteGrifballContextFixture
         Db.ChangeTracker.Clear();
         var bravo = await Db.Set<MatchedPlayer>().SingleAsync(p => p.UserID == _players[1]);
         Assert.That(bravo.Kicked, Is.True);
-        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { _players[1] })));
     }
 
     [Test]

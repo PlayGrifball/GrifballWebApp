@@ -3,18 +3,35 @@ import { PLATFORM_ID } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { HttpTransportType, HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '@core/auth/authSession.service';
+import { LiveService, type LiveMessage } from '@core/live/live.service';
+import { LIVE_RELOAD_MS, LIVE_SPREAD_MS } from '@core/live/liveReload';
 import type { QueueStatusDto } from '@api/models';
 import { LateLeagueQueueComponent } from './lateLeagueQueue.component';
-import { QUEUE_HUB_URL } from './lateLeagueQueue.store';
+
+/** The live service as the page sees it: who watches what, and a message to send them. */
+class FakeLive {
+  readonly watching: { topics: readonly string[], listener: (message: LiveMessage) => void, stopped: boolean }[] = [];
+
+  watch(topics: readonly string[], listener: (message: LiveMessage) => void): () => void {
+    const watch = { topics, listener, stopped: false };
+    this.watching.push(watch);
+    return () => watch.stopped = true;
+  }
+
+  /** Sends `message` to those watching its topic; a null topic (the connection came back) to everyone. */
+  send(message: LiveMessage): void {
+    for (const watch of this.watching.filter(w => !w.stopped && (message.topic === null || w.topics.includes(message.topic))))
+      watch.listener(message);
+  }
+
+  get active(): (readonly string[])[] {
+    return this.watching.filter(w => !w.stopped).map(w => w.topics);
+  }
+}
 
 describe('LateLeagueQueueComponent', () => {
-  let connection: {
-    start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; onreconnected: jasmine.Spy; onclose: jasmine.Spy;
-    state: HubConnectionState;
-  };
-  let withUrl: jasmine.Spy;
+  let live: FakeLive;
   let fixture: ComponentFixture<LateLeagueQueueComponent>;
   let http: HttpTestingController;
 
@@ -25,14 +42,17 @@ describe('LateLeagueQueueComponent', () => {
   const text = () => el().textContent!.replace(/\s+/g, ' ');
   const button = () => el().querySelector<HTMLButtonElement>('button');
   const statusRequest = () => http.expectOne('/api/queue');
-  /** Lets the connection's promise callbacks run. */
-  const settled = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
-  const handlerFor = (event: string) => connection.on.calls.all().find(c => c.args[0] === event)!.args[1] as (value: unknown) => void;
+  /** The viewer's own place in the queue changed (a notice: no data comes with it), and the page's wait for more changes ran out. */
+  const liveChange = () => {
+    live.send({ topic: 'queue:me' });
+    jasmine.clock().tick(LIVE_RELOAD_MS);
+  };
 
   function create(platform = 'browser'): void {
     TestBed.configureTestingModule({
       imports: [LateLeagueQueueComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: PLATFORM_ID, useValue: platform }],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: PLATFORM_ID, useValue: platform },
+        { provide: LiveService, useValue: live }],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(LateLeagueQueueComponent);
@@ -45,20 +65,16 @@ describe('LateLeagueQueueComponent', () => {
   }
 
   beforeEach(() => {
-    connection = {
-      // Never connects, unless a spec says otherwise: a connection loads the status again
-      start: jasmine.createSpy('start').and.returnValue(new Promise(() => {})),
-      stop: jasmine.createSpy('stop').and.returnValue(Promise.resolve()),
-      on: jasmine.createSpy('on'),
-      onreconnected: jasmine.createSpy('onreconnected'),
-      onclose: jasmine.createSpy('onclose'),
-      state: HubConnectionState.Disconnected,
-    };
-    withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
-    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
+    jasmine.clock().install();
+    // No spread: a load runs LIVE_RELOAD_MS after a change
+    spyOn(Math, 'random').and.returnValue(0);
+    live = new FakeLive();
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    jasmine.clock().uninstall();
+  });
 
   it('calls itself Late League, and links to the Late League page unless told not to', () => {
     create();
@@ -70,28 +86,27 @@ describe('LateLeagueQueueComponent', () => {
     expect(el().querySelector('a[href="/late-league"]')).toBeNull();
   });
 
-  it('connects to the queue hub over a WebSocket and loads the status', async () => {
+  it("watches the queue and the viewer's own place in it, and loads the status", () => {
     create();
-    expect(withUrl.calls.mostRecent().args[0]).toBe(QUEUE_HUB_URL);
-    expect(QUEUE_HUB_URL).toBe('hub/QueueHub');
-    expect(withUrl.calls.mostRecent().args[1]).toEqual({ transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling });
-    await settled();
-    expect(connection.start).toHaveBeenCalledTimes(1);
+    expect(live.active).toEqual([['queue'], ['queue:me']]);
     expect(text()).toContain('Loading the Late League queue');
     show(anonymous);
     expect(text()).toContain('3 players in the queue');
   });
 
-  it('stops the connection when the page goes', () => {
+  it('stops watching when the page goes, and drops a load still waiting', () => {
     create();
     show(anonymous);
+    live.send({ topic: 'queue:me' });
     fixture.destroy();
-    expect(connection.stop).toHaveBeenCalledTimes(1);
+    jasmine.clock().tick(LIVE_RELOAD_MS);
+    expect(live.active).toEqual([]);
+    http.expectNone('/api/queue');
   });
 
-  it('does nothing on the server: no request, no connection', () => {
+  it('does nothing on the server: no request, nothing watched', () => {
     create('server');
-    expect(connection.start).not.toHaveBeenCalled();
+    expect(live.watching).toEqual([]);
     expect(text()).toContain('Loading the Late League queue');
   });
 
@@ -186,47 +201,51 @@ describe('LateLeagueQueueComponent', () => {
   it('keeps the queue shown when a later load fails', () => {
     create();
     show(anonymous);
-    handlerFor('QueueStatusChanged')(undefined);
+    liveChange();
     statusRequest().flush(null, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     expect(text()).toContain('3 players in the queue');
   });
 
-  it('shows the size the hub sends; a visitor needs nothing else', () => {
+  it('shows the size pushed with a change to the queue at once, with no request', () => {
     create();
     show(anonymous);
 
-    handlerFor('QueueCount')(5);
+    live.send({ topic: 'queue', data: { count: 5 } });
     fixture.detectChanges();
     expect(text()).toContain('5 players in the queue');
-  });
-
-  it('loads a queued player\'s status again when the size changes, not when it is the same', () => {
-    create();
-    show({ ...player, inQueue: true });
-
-    handlerFor('QueueCount')(3);
-    handlerFor('QueueCount')(1);
-    fixture.detectChanges();
-    expect(text()).toContain('1 player in the queue');
-    statusRequest().flush({ ...player, count: 1, inMatch: true });
-    fixture.detectChanges();
-    expect(text()).toContain('You are in a Late League match');
-  });
-
-  it('only shows the new size to a player outside the queue: their status did not change', () => {
-    create();
-    show(player);
-
-    handlerFor('QueueCount')(5);
-    fixture.detectChanges();
-    expect(text()).toContain('5 players in the queue');
+    jasmine.clock().tick(LIVE_RELOAD_MS + LIVE_SPREAD_MS);
     http.expectNone('/api/queue');
   });
 
-  it('loads when the hub sends before the status is in, and shows the newer answer', () => {
+  it('loads the status when a size is pushed before it has one', () => {
     create();
-    handlerFor('QueueCount')(7);
+    statusRequest().flush(null, { status: 502, statusText: 'Bad Gateway' });
+
+    live.send({ topic: 'queue', data: { count: 5 } });
+    jasmine.clock().tick(LIVE_RELOAD_MS);
+    show({ ...anonymous, count: 5 });
+    expect(text()).toContain('5 players in the queue');
+  });
+
+  it("loads the status again once a burst of changes to the viewer's own place settles", () => {
+    create();
+    show(player);
+
+    live.send({ topic: 'queue:me' });
+    jasmine.clock().tick(LIVE_RELOAD_MS - 1);
+    live.send({ topic: 'queue:me' });
+    jasmine.clock().tick(LIVE_RELOAD_MS - 1);
+    http.expectNone('/api/queue');
+
+    jasmine.clock().tick(1);
+    show({ ...player, inQueue: true });
+    expect(button()!.textContent).toContain('Leave the queue');
+  });
+
+  it('loads when a live change comes before the status is in, and shows the newer answer', () => {
+    create();
+    liveChange();
 
     const [first, second] = http.match('/api/queue');
     second.flush({ ...anonymous, count: 7 });
@@ -235,13 +254,13 @@ describe('LateLeagueQueueComponent', () => {
     expect(text()).toContain('7 players in the queue');
   });
 
-  it('recovers from a failed first load when the hub sends', () => {
+  it('recovers from a failed first load on a live change', () => {
     create();
     statusRequest().flush(null, { status: 502, statusText: 'Bad Gateway' });
     fixture.detectChanges();
     expect(text()).toContain('The Late League queue could not be loaded');
 
-    handlerFor('QueueCount')(2);
+    liveChange();
     show({ ...anonymous, count: 2 });
     expect(text()).toContain('2 players in the queue');
   });
@@ -250,7 +269,7 @@ describe('LateLeagueQueueComponent', () => {
     create();
     show(player);
 
-    handlerFor('QueueStatusChanged')(undefined);
+    liveChange();
     const stale = statusRequest();
     button()!.click();
     http.expectOne('/api/queue/join').flush({ ...player, count: 4, inQueue: true });
@@ -260,12 +279,12 @@ describe('LateLeagueQueueComponent', () => {
     expect(button()!.textContent).toContain('Leave the queue');
   });
 
-  it('loads once a join is done when the size changed meanwhile', () => {
+  it('loads once a join is done when the queue changed meanwhile', () => {
     create();
     show(player);
 
     button()!.click();
-    handlerFor('QueueCount')(5);
+    liveChange();
     http.expectNone('/api/queue');
     http.expectOne('/api/queue/join').flush({ ...player, count: 4, inQueue: true });
     statusRequest().flush({ ...player, count: 5, inQueue: true });
@@ -280,19 +299,19 @@ describe('LateLeagueQueueComponent', () => {
     expect(text()).toContain('Late League is off here');
     expect(button()).toBeNull();
 
-    handlerFor('QueueStatusChanged')(undefined);
+    liveChange();
     show({ ...player, open: false, inQueue: true });
     expect(button()!.textContent).toContain('Leave the queue');
   });
 
-  it('loads again after a reconnect, and after a sign-in or out', () => {
+  it('loads again after a live change, and after a sign-in or out', () => {
     create();
     show({ ...player, inQueue: true });
     button()!.click();
     http.expectOne('/api/queue/leave').flush(player);
     expect(fixture.componentInstance.message()).toBe('You have left the Late League queue');
 
-    connection.onreconnected.calls.mostRecent().args[0]();
+    liveChange();
     statusRequest().flush({ ...player, inQueue: true });
 
     TestBed.inject(AuthSession).signedInOrOut();
@@ -303,22 +322,12 @@ describe('LateLeagueQueueComponent', () => {
     expect(text()).toContain('Sign in');
   });
 
-  it('loads again once connected: a size sent before then was missed', async () => {
-    connection.start.and.returnValue(Promise.resolve());
-    create();
-    show(anonymous);
-    await settled();
-
-    show({ ...anonymous, count: 4 });
-    expect(text()).toContain('4 players in the queue');
-  });
-
-  it('loads again when the hub says this player\'s status changed', () => {
+  it("loads again when the viewer's own place changes", () => {
     create();
     show({ ...player, inMatch: true });
 
     // Their match ended: the size is the same, but their status is not
-    handlerFor('QueueStatusChanged')(undefined);
+    liveChange();
     show(player);
     expect(button()!.textContent).toContain('Join the queue');
   });

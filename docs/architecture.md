@@ -77,6 +77,56 @@ Each layer has its own unit test project (`GrifballWebApp.Domain.Test`, `.Applic
 `.Server.Test`); anything that needs a real database server, the hosted app, Discord transports or the network goes
 in `GrifballWebApp.Integration.Test`. See [ci-cd/dotnet-tests.md](ci-cd/dotnet-tests.md) for the full rules.
 
+## Domain events and live updates
+
+An aggregate's methods raise domain events as they make their changes (`Raise(new TeamRosterChanged(this, [userID]))`;
+the events are each context's `*Events.cs`, records in the past tense carrying the aggregate). A change the aggregate
+refuses raises nothing. An aggregate about to be removed says so first (`Team.Disband`, `SeasonMatch.Cancel`,
+`SeasonSignup.Withdraw`, `QueuedPlayer.Leave`): the service calls it, then removes it.
+
+- **Two phases.** `DomainEventsInterceptor` (Infrastructure, on every context) collects the saved aggregates' events:
+  - **Before the commit** (`IBeforeCommitHandler<TEvent>`): inside the change's transaction, after all its saves and as
+    it commits, in the context's own scope, so a handler reads the change as saved and what it adds (an outbox message)
+    commits with it, or not at all. A plain save whose events have such handlers gets a transaction of its own. A
+    handler's failure fails the change. The Discord posts are these: the draft's (`DraftDiscordPosts`: a pick, a pick
+    taken back or moved, the captains locked) and Late League's (`LateLeagueDiscordPosts`: a match made, decided with
+    its players' MMR, called off).
+  - **After it** (`IDomainEventHandler<TEvent>`, or of `IDomainEvent` for every event): once the save or its
+    transaction is committed, nothing for a rolled back one or a failed save, in a scope of their own; a handler's
+    failure is logged, never the save's. The live updates are these.
+- **Specific events.** An event says what happened, as specific as someone may want to hear it: `PlayerDrafted` (who,
+  which round, whose pick), `PickMoved`, `SeasonMatchDecided` (and how: games, forfeit, BYE), `SeasonMatchReopened`,
+  `LateLeagueMatchDecided`, `LateLeagueGameRecorded` (a player's MMR before and after), with general ones (`TeamRosterChanged`,
+  `SeasonEdited`) for the rest.
+- **Bulk statements raise nothing** (`ExecuteUpdate`, `ExecuteDelete`): they bypass the aggregates. Use them where no
+  page needs to hear of it at once (the import jobs' progress, which the page polls), or raise the events first: drawing
+  a bracket again cancels each old match (`SeasonMatch.Cancel`) before its bulk delete.
+- **Live updates** are one handler, `LiveUpdatesHandler` (Application/Live): `LiveChanges.Of` maps each event to the
+  topics it changes (`season:12`, `bracket:12`, `teams:12`, `team:40`, `draft:12`, `seasonmatch:55`, `player:7`, `queue`,
+  `staff:users`, …: `LiveTopics`), and `ILiveUpdates` (the Server's `LiveUpdates`) gathers them for a quarter of a second, once a topic however many
+  events changed it, and hands them to the API pods (through Redis when scaled out), where `LiveDelivery` tells the
+  connections watching each topic there (`LiveWatchers`). A topic nobody on the pod watches costs nothing.
+- **Pushed or a notice.** The topics many watch at once (a season's overview, bracket and teams page, a team's page, its
+  draft, the home page, the queue) come with their data (`Snapshot(topic, json)`, `LiveSnapshots`: the same DTOs the API
+  gives those pages, as JSON), built once a change on each pod for all its watchers (once a viewer for the home page, whose events differ for staff): a draft
+  pick is one set of reads, not one per viewer. Every other topic is a notice (`Changed(topic)`), and its pages read
+  again, each after a random delay of up to two seconds so they don't all ask at once. A change's data, or a page's
+  read, is what the API gives that viewer.
+- **Who may watch what** is `LiveTopicAccess`: a season's topics and its matches' and teams' only for a season the
+  viewer may see (one not announced yet is staff's alone), the `staff:` topics only for staff. The viewer's own queue place
+  (`queue:me`) goes to their connections alone.
+- **Pages** watch through `liveReload(topics, reload)`, or `liveData(topics, apply, reload)` for a pushed topic (client
+  `core/live`), in their store's constructor: the store loads again, in place, once a burst of changes settles, and when the connection comes back after a drop.
+
+### Who is on the site
+
+Each tab tells `LiveHub` which page it shows (`Viewing`); `PresenceTracker` keeps the API pod's tabs, with every other
+pod's through Redis when scaled out (`RedisPresenceStore`: a pod that stops answering drops out), and sends the count
+and the pages to its own tabs when they change (the footer's "N online"); another pod's changes reach them by the next
+15-second heartbeat, so a tab hears one pod's view rather than several that disagree. A member is shown by the name the site shows
+for them (`User.Named`, never their login name); a staff page, or the page of a season not announced yet or of its
+match, is `/staff` for everyone (`PresencePages`).
+
 ## The frontend
 
 The Angular client has its own boundaries (feature folders, `core`, `shared`), enforced by lint: see
@@ -84,7 +134,7 @@ The Angular client has its own boundaries (feature folders, `core`, `shared`), e
 
 ## SignalR hubs and sessions
 
-The hubs (`TeamsHub`, `QueueHub`, `ChatHub`) never trust a connection's claims beyond the moment they're checked. A connection
+The hubs (`LiveHub`, `ChatHub`) never trust a connection's claims beyond the moment they're checked. A connection
 keeps the `ClaimsPrincipal` it was made with, so the server checks it against the database (`GrifballWebApp.Server/SignalR/HubSessions.cs`):
 
 - **On every call and on connecting** (`HubSessionFilter`, registered first for every hub), `HubSessionValidator` asks
@@ -95,12 +145,12 @@ keeps the `ClaimsPrincipal` it was made with, so the server checks it against th
 
   A call is refused (`HubException`) and its connection closed when:
   - the session has ended;
-  - the roles changed since the connection was made: its groups, such as TeamsHub's staff group, were the old roles';
+  - the roles changed since the connection was made: its groups, such as the topics LiveHub let it watch, were the old roles';
   - the method's and the hub's `[Authorize]` (roles, policies, `[AllowAnonymous]`) refuse the user as they are now. ASP.NET Core's own
     `IAuthorizationService` decides this, on the connection's claims with the roles the database has now.
 
-  The user found is the call's `HubUser` (scoped). The hubs read roles there, never `Context.User`: ChatHub's tools and TeamsHub's
-  staff group follow the roles now.
+  The user found is the call's `HubUser` (scoped). The hubs read roles there, never `Context.User`: ChatHub's tools and LiveHub's
+  topics follow the roles now.
 - **Proactively**, when a save changes a user's sign-in or roles, their connections are closed on every pod.
   - `UserSessionsInterceptor` (Infrastructure, on every context) spots these saves: a new security stamp (a sign-out, a new
     password), a lockout, a deleted user, a role added or removed. It compares each property's original and current values.

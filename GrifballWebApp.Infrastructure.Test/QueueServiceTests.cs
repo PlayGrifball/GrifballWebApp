@@ -33,7 +33,6 @@ public class QueueServiceTests : SqliteContextFixture
     private static readonly string[] MatchAnnouncementSteps = [MatchOutbox.CreatedPost, MatchOutbox.ThreadCreate, MatchOutbox.ThreadInvite, MatchOutbox.VotePost];
 
     private IDiscordRestClient _discord = null!;
-    private IQueueNotifier _notifier = null!;
     private DiscordOptions _options = null!;
     private int _seq;
 
@@ -50,13 +49,17 @@ public class QueueServiceTests : SqliteContextFixture
         sent.Id.Returns(77UL);
         _discord.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(sent);
 
-        _notifier = Substitute.For<IQueueNotifier>();
         _options = new DiscordOptions { QueueChannel = QueueChannel, MatchPlayers = 2 };
     }
 
+    /// <summary>With the app's domain events: the matches' Discord posts are queued as their changes commit.</summary>
+    protected override GrifballContext CreateContext() =>
+        new(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString)
+            .AddInterceptors(AppDomainEvents.Interceptor(() => Context)).Options);
+
     private QueueService Service(IQueueRepository? repository = null, IDataPullService? dataPullService = null) => new(
         NullLogger<QueueService>.Instance, Options.Create(_options), repository ?? new QueueRepository(Context), _discord, Context,
-        dataPullService ?? Substitute.For<IDataPullService>(), new ContextOutbox(Context), _notifier);
+        dataPullService ?? Substitute.For<IDataPullService>(), new ContextOutbox(Context));
 
     private async Task<List<User>> SeedUsers(int count)
     {
@@ -81,6 +84,7 @@ public class QueueServiceTests : SqliteContextFixture
     private async Task<MatchedMatch> SeedActiveMatch(IEnumerable<User> home, IEnumerable<User> away, ulong? threadId = null)
     {
         var match = MatchedMatch.Start(home.Select(u => u.Id), away.Select(u => u.Id));
+        ((IHasDomainEvents)match).ClearDomainEvents(); // Made before this test: announced or not as the test sets it up
         if (threadId is { } thread)
         {
             match.AttachThread(thread);
@@ -91,11 +95,6 @@ public class QueueServiceTests : SqliteContextFixture
         Context.ChangeTracker.Clear();
         return match;
     }
-
-    private int[] StatusChanged() => _notifier.ReceivedCalls()
-        .Where(c => c.GetMethodInfo().Name == nameof(IQueueNotifier.SendStatusChanged))
-        .SelectMany(c => (IReadOnlyCollection<int>)c.GetArguments()[0]!)
-        .Order().ToArray();
 
     private static IDiscordRestMessage FakeMessage(ulong id, ulong author, string title, DateTimeOffset createdAt)
     {
@@ -114,7 +113,7 @@ public class QueueServiceTests : SqliteContextFixture
     {
         var options = Options.Create(new DiscordOptions());
         Assert.That(() => new QueueService(NullLogger<QueueService>.Instance, options, new QueueRepository(Context), _discord, Context,
-            Substitute.For<IDataPullService>(), new ContextOutbox(Context), _notifier), Throws.Exception.With.Message.EqualTo("Discord:QueueChannel is not set"));
+            Substitute.For<IDataPullService>(), new ContextOutbox(Context)), Throws.Exception.With.Message.EqualTo("Discord:QueueChannel is not set"));
     }
 
     [Test]
@@ -182,7 +181,6 @@ public class QueueServiceTests : SqliteContextFixture
             Assert.That(queued.Select(x => x.Kind), Is.EqualTo(MatchAnnouncementSteps));
             Assert.That(queued.Select(x => x.GroupKey), Is.All.EqualTo(MatchOutbox.Group(match.Id)));
         }
-        Assert.That(StatusChanged(), Is.EqualTo(players.Select(x => x.Id).Order().ToArray()));
     }
 
     [Test]
@@ -254,19 +252,7 @@ public class QueueServiceTests : SqliteContextFixture
     }
 
     [Test]
-    public async Task Go_EveryTick_SendsTheQueuesSize_EvenWhenNothingChanged()
-    {
-        var service = Service();
-
-        await service.Go(CancellationToken.None);
-        await service.Go(CancellationToken.None);
-
-        await _notifier.Received(2).Send(0);
-        Assert.That(StatusChanged(), Is.Empty);
-    }
-
-    [Test]
-    public async Task Go_TheSaveFails_RollsBackTheMatch_ButStillSendsTheSize()
+    public async Task Go_TheSaveFails_RollsBackTheMatch()
     {
         var players = await SeedUsers(2);
         await QueuePlayers(players);
@@ -284,22 +270,6 @@ public class QueueServiceTests : SqliteContextFixture
             Assert.That(await Context.MatchedMatches.AnyAsync(), Is.False, "Rolled back along with the outbox save that failed");
             Assert.That(await Context.QueuedPlayer.CountAsync(), Is.EqualTo(2), "Still queued: the match was rolled back too");
         }
-        await _notifier.Received(1).Send(2);
-        Assert.That(StatusChanged(), Is.Empty, "Rolled back: nobody's place changed");
-    }
-
-    [Test]
-    public async Task Go_TheQueuesSizeCannotBeRead_IsLogged_ButTheNudgesStillGo()
-    {
-        var repository = Substitute.For<IQueueRepository>();
-        repository.GetQueuePlayersWithInfo(Arg.Any<CancellationToken>()).Returns([]);
-        repository.GetActiveMatches(Arg.Any<CancellationToken>()).Returns([]);
-        repository.Count(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("database down"));
-
-        await Service(repository: repository).Go(CancellationToken.None);
-
-        await _notifier.DidNotReceiveWithAnyArgs().Send(default);
-        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.Count == 0));
     }
 
     [Test]

@@ -25,7 +25,11 @@ public class MatchmakingLadderRank : AuditableEntity
 
     /// <summary>The ladder sheet's row of <paramref name="userID"/> for <paramref name="matchmakingSeasonID"/>.</summary>
     public static MatchmakingLadderRank FromSheet(int matchmakingSeasonID, int userID, LadderStanding standing)
-        => Seed(standing, matchmakingSeasonID, userID);
+    {
+        var row = Seed(standing, matchmakingSeasonID, userID);
+        row.Raise(new LadderRankChanged(row));
+        return row;
+    }
 
     /// <summary>A row of saved entities by their keys, or of entities not saved yet (the navigations): for tests.</summary>
     internal static MatchmakingLadderRank Seed(LadderStanding standing, int matchmakingSeasonID = 0, int userID = 0,
@@ -102,6 +106,7 @@ public class MatchmakingLadderRank : AuditableEntity
         if (!IsSameSlotAs(sheet))
             throw new InvalidOperationException("A sheet's row restates the ladder row of the same player and season only");
         Record(sheet.Standing);
+        Raise(new LadderRankChanged(this));
     }
 
     /// <summary>
@@ -114,6 +119,7 @@ public class MatchmakingLadderRank : AuditableEntity
         if (UserID != fromUserID)
             return false;
         UserID = toUserID;
+        Raise(new LadderRankChanged(this));
         return true;
     }
 

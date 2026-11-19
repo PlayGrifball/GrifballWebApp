@@ -1,11 +1,13 @@
 import { effect, inject, Injectable, signal } from '@angular/core';
-import type { TeamDto, TeamPageMatchDto } from '@api/models';
+import type { TeamDto, TeamLiveDto, TeamPageMatchDto } from '@api/models';
 import { TeamService } from '@api/services/team.service';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { fromApiDate } from '@shared/apiDates';
 import { StoreInput } from '@shared/storeInput';
 import { DateTime } from 'luxon';
 import { map } from 'rxjs';
+import { liveData, liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 export interface MatchDto
 {
@@ -42,17 +44,24 @@ export class TeamStore {
   /** The matches have loaded: a backfilled or ended season without any says so. */
   private readonly _matchesLoaded = signal(false);
   readonly matchesLoaded = this._matchesLoaded.asReadonly();
+  /** Bumped by a live change: the team loaded again, in place. */
+  private readonly changes = signal(0);
 
   constructor() {
     // Another team: nothing of the previous one stays (its name would title the page), and its requests are cancelled
-    // so a late answer can't land on this one
+    // so a late answer can't land on this one. A live change loads the same team again, keeping it shown meanwhile.
+    let shown: string | undefined;
     effect(onCleanup => {
       const teamID = this.teamID.value();
-      this.seasonID.value();
+      const seasonID = this.seasonID.value();
+      this.changes();
       if (teamID === undefined)
         return;
-      this._team.set(null);
-      this._matchesLoaded.set(false);
+      if (shown !== `${teamID}:${seasonID}`) {
+        shown = `${teamID}:${seasonID}`;
+        this._team.set(null);
+        this._matchesLoaded.set(false);
+      }
       const team = this.api.team({ teamID }).pipe(nullWhenNotFound()).subscribe({
         next: v => this._team.set(v),
       });
@@ -67,5 +76,25 @@ export class TeamStore {
         matches.unsubscribe();
       });
     });
+    // A result, a roster change, a rename: the team and its matches as they are now come with it, in place
+    liveData<TeamLiveDto>(() => {
+      const teamID = this.teamID.value();
+      return teamID ? [LiveTopics.team(teamID)] : [];
+    }, team => {
+      if (team.teamID === this.teamID.value()) {
+        this._team.set(team.team ?? null);
+        this._matches.set(team.matches.map(parseTeamMatch));
+        this._matchesLoaded.set(true);
+      }
+      return true;
+    }, () => this.changes.update(n => n + 1));
+    // What team:N doesn't hear: its season edited, scheduled or announced, its champions (the title badges), an opponent
+    // renamed (the matches name it). The season's teams page topic does, so a change there reads the team again (its data
+    // is that page's, not this one's). The alternative: the server tells each of the season's teams' topics of those
+    // events, looking the teams up as it delivers them (as it looks up a changed Xbox account's profiles).
+    liveReload(() => {
+      const seasonID = this.seasonID.value();
+      return seasonID ? [LiveTopics.teams(seasonID)] : [];
+    }, () => this.changes.update(n => n + 1));
   }
 }

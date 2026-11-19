@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, signal, TemplateRef, contentChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, input, signal, TemplateRef, contentChildren, untracked } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
@@ -43,6 +43,15 @@ export class TableComponent<T, R = T> {
 
   // We default to true to allow sorting, but the parent component can override this in case there are not many sortable columns
   isSortableDefault = input<boolean>(true);
+  /** Bumped by the page to load the page of rows shown again, in place (a live change: liveReload). */
+  reloads = input(0);
+
+  constructor() {
+    effect(() => {
+      if (this.reloads() > 0)
+        untracked(() => this.paginationResource.resource.reload());
+    });
+  }
 
   onPageChange(event: PageEvent) {
     this.pageNumber.set(event.pageIndex + 1);

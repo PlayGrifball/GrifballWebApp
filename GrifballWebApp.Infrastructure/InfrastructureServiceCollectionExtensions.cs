@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.DomainEvents;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Historical.Vods;
@@ -47,13 +48,19 @@ public static class InfrastructureServiceCollectionExtensions
         // A change to a user's sign-in or roles ends their live sessions: the web host's, else none
         services.TryAddSingleton<IUserSessions, NoUserSessions>();
         services.AddScoped<UserSessionsInterceptor>();
+        // The aggregates' domain events, to their handlers: in the change's transaction before it commits, and after (none
+        // registered: nothing happens)
+        services.TryAddSingleton<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.TryAddSingleton<IBeforeCommitDispatcher, BeforeCommitDispatcher>();
+        services.AddScoped<DomainEventsInterceptor>();
 
         services.AddDbContext<GrifballContext>((provider, options) =>
         {
             options.UseGrifballDatabase(provider.GetRequiredService<IConfiguration>())
                 .AddInterceptors(provider.GetRequiredService<AuditInterceptor>(),
                     provider.GetRequiredService<OutboxSignalInterceptor>(),
-                    provider.GetRequiredService<UserSessionsInterceptor>());
+                    provider.GetRequiredService<UserSessionsInterceptor>(),
+                    provider.GetRequiredService<DomainEventsInterceptor>());
         });
 
         // Its own IDbContextFactory<GrifballContext>: the default one conflicts with the scoped context
@@ -164,7 +171,9 @@ public static class InfrastructureServiceCollectionExtensions
             moreJobs?.Invoke(jobs);
         });
 
-        services.AddTransient<IDraftChannel, OutboxDraftChannel>();
+        // The Discord posts of the draft and of Late League's matches: their domain events' handlers, queued on the outbox in the
+        // change's own transaction (DraftDiscordPosts, LateLeagueDiscordPosts)
+        services.AddDomainEvents(typeof(InfrastructureServiceCollectionExtensions).Assembly);
         services.AddTransient<IDatabaseLocks, ContextDatabaseLocks>();
         services.AddTransient<ExcelService>();
         services.AddDatabaseBackups(configuration);

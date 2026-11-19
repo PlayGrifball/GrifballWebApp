@@ -11,7 +11,6 @@ import { AddPlayerToTeamRequestDto } from '../../models/add-player-to-team-reque
 
 export interface AddPlayerToTeam$Params {
   seasonID: number;
-  signalRConnectionID?: string;
       body?: AddPlayerToTeamRequestDto
 }
 
@@ -19,7 +18,6 @@ export function addPlayerToTeam(http: HttpClient, rootUrl: string, params: AddPl
   const rb = new RequestBuilder(rootUrl, addPlayerToTeam.PATH, 'post');
   if (params) {
     rb.path('seasonID', params.seasonID, {});
-    rb.header('signalRConnectionID', params.signalRConnectionID, {});
     rb.body(params.body, 'application/json');
   }
 

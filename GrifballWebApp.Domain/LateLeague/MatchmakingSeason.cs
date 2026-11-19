@@ -31,13 +31,15 @@ public class MatchmakingSeason : AuditableEntity
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historicalSourceID);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        return new()
+        var season = new MatchmakingSeason
         {
             HistoricalSourceID = historicalSourceID,
             Name = name,
             GameVersionID = gameVersionID,
             HistoricalSourceUrl = historicalSourceUrl,
         };
+        season.Raise(new MatchmakingSeasonChanged(season));
+        return season;
     }
 
     /// <summary>A season of any kind, dated, for tests: with a key, or none of the archive's.</summary>
@@ -102,6 +104,7 @@ public class MatchmakingSeason : AuditableEntity
         Name = name;
         GameVersionID = gameVersionID;
         HistoricalSourceUrl = historicalSourceUrl;
+        Raise(new MatchmakingSeasonChanged(this));
     }
 
     /// <summary>
@@ -120,6 +123,7 @@ public class MatchmakingSeason : AuditableEntity
             end = EndsAt;
         StartsAt = start > now ? now : start;
         EndsAt = end > now ? now : end;
+        Raise(new MatchmakingSeasonChanged(this));
     }
 
     private void RequireImported()

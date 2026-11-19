@@ -7,10 +7,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
-using System.Text;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Matchmaking;
 using GrifballWebApp.Application.Outbox;
 using GrifballWebApp.Infrastructure.Discord;
@@ -40,10 +40,11 @@ public class QueueService
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
     private readonly IOutbox _outbox;
-    private readonly IQueueNotifier _notifier;
     private readonly TimeProvider _time;
+    private readonly ILiveUpdates _live;
 
     /// <param name="time">The clock a match goes stale by (two hours undecided), and the queue lock's waits between tries go by; the system's unless given.</param>
+    /// <param name="live">Told the queue every tick (<see cref="Go"/>); nobody unless given.</param>
     public QueueService(ILogger<QueueService> logger,
         IOptions<DiscordOptions> discordOptions,
         IQueueRepository queueRepository,
@@ -51,10 +52,11 @@ public class QueueService
         GrifballContext context,
         IDataPullService dataPullService,
         IOutbox outbox,
-        IQueueNotifier notifier,
-        TimeProvider? time = null)
+        TimeProvider? time = null,
+        ILiveUpdates? live = null)
     {
         _time = time ?? TimeProvider.System;
+        _live = live ?? new NoLiveUpdates();
         _logger = logger;
         _discordOptions = discordOptions;
         _queueChannel = discordOptions.Value.QueueChannel;
@@ -65,20 +67,17 @@ public class QueueService
         _context = context;
         _dataPullService = dataPullService;
         _outbox = outbox;
-        _notifier = notifier;
     }
 
     public async Task Go(CancellationToken ct)
     {
-        // Players whose own place changed this tick (matched, dropped from the queue, their match over), once saved
-        var changed = new HashSet<int>();
+        // The pages hear of what a tick changes from its domain events once committed: spots taken off the queue
+        // (PlayerLeftQueue), matches made and ended (LateLeagueMatchStarted, LateLeagueMatchEnded)
         await using (await _context.Database.AcquireLockAsync(LockName, _time, ct))
-        try
         {
             QueuedPlayer[] queuePlayers;
             MatchedMatch[] activeMatches;
             List<MatchedMatch> createdMatches;
-            QueuedPlayer[] dropped;
 
             // The queue clean up, the new matches and their announcements (queued on the outbox, which sends them to
             // Discord once committed) are committed together: a failure rolls all of them back.
@@ -88,11 +87,9 @@ public class QueueService
                 activeMatches = await _queueRepository.GetActiveMatches(ct);
 
                 queuePlayers = await RemoveActivePlayersFromQueue(queued, activeMatches, ct);
-                dropped = queued.Except(queuePlayers).ToArray();
 
+                // Each match made is announced on Discord: its LateLeagueMatchStarted's post, queued as this commits
                 createdMatches = await CreateMatches(queuePlayers, ct);
-                foreach (var match in createdMatches)
-                    await _outbox.EnqueueAnnouncementAsync(match.Id, mayBePosted: false, ct);
 
                 await AnnounceMatchesWithoutAnnouncement(activeMatches, ct);
 
@@ -102,8 +99,6 @@ public class QueueService
 
             var matchedUserIds = createdMatches.SelectMany(PlayersOf).Select(x => x.UserID).ToHashSet();
             var stillQueued = queuePlayers.Where(x => matchedUserIds.Contains(x.UserID) is false).ToArray();
-            changed.UnionWith(matchedUserIds);
-            changed.UnionWith(dropped.Select(x => x.UserID));
 
             // Not through the outbox: the message is rebuilt from the database on every tick, so a failed update is
             // made good by the next one.
@@ -116,41 +111,14 @@ public class QueueService
                 _logger.LogError(ex, "Failed to update the matchmaking queue message");
             }
 
+            // The pages hear the queue's size from its changes' events too; this puts right one they missed (a publish
+            // lost to Redis, a relay that reconnected), as the queue message above is put right
+            _live.Publish([new LiveChange(LiveTopics.Queue)]);
+
             // A match is announced once it has its vote message: until then its players can't vote.
             var finishing = activeMatches.Where(x => x.Status == MatchedMatchStatus.Active && x.VoteMessageID is not null).ToArray();
-            try
-            {
-                await FinishMatches(finishing, ct);
-            }
-            finally
-            {
-                // Ended (won, lost or canceled): its players may queue again
-                changed.UnionWith(finishing.Where(x => x.Status is not MatchedMatchStatus.Active).SelectMany(PlayersOf).Select(x => x.UserID));
-            }
+            await FinishMatches(finishing, ct);
         }
-        finally
-        {
-            // Still under the lock, so the size sent is this tick's, not one another worker is changing
-            await NotifyWatchers(changed, ct);
-        }
-    }
-
-    /// <summary>
-    /// The home page's queue panel, on every tick whatever happened in it: the true size (what was sent before may have
-    /// failed, or arrived out of order, from another process), and a nudge to the players whose place changed. Never
-    /// throws: the tick's own failure, if any, is the one that matters.
-    /// </summary>
-    private async Task NotifyWatchers(IReadOnlyCollection<int> changed, CancellationToken ct)
-    {
-        try
-        {
-            await _notifier.Send(await _queueRepository.Count(ct));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to read the matchmaking queue's size for the home page");
-        }
-        await _notifier.SendStatusChanged(changed);
     }
 
     private static IEnumerable<MatchedPlayer> PlayersOf(MatchedMatch match) => match.HomeTeam.Players.Concat(match.AwayTeam.Players);
@@ -244,9 +212,8 @@ public class QueueService
                 ?? throw new Exception("No losing team");
             var winners = winningTeam.MatchParticipants.Select(x => x.XboxUser.User!);
             var losers = losingTeam.MatchParticipants.Select(x => x.XboxUser.User!);
-            var winnerId = winningTeam.TeamID;
 
-            await HandleWinnersAndLosers(_discordOptions, _context, match, matchFound.Duration, winners, losers, winnerId, ct);
+            await HandleWinnersAndLosers(_discordOptions, _context, winners, losers, ct);
         }
         else if (voteResult is WinnerVote.Home or WinnerVote.Away)
         {
@@ -255,14 +222,12 @@ public class QueueService
             // Kicked players didn't play the match out: they neither win nor lose it (as the stats count it)
             var winners = match.VoteWinners().Select(x => x.User);
             var losers = match.VoteLosers().Select(x => x.User);
-            var winnerId = voteResult == WinnerVote.Home ? 0 : 1;
-            await HandleWinnersAndLosers(_discordOptions, _context, match, null, winners, losers, winnerId, ct);
+            await HandleWinnersAndLosers(_discordOptions, _context, winners, losers, ct);
         }
         else if (voteResult is WinnerVote.Cancel || _time.GetUtcNow().UtcDateTime - match.StartedAt > TimeSpan.FromHours(2))
         {
-            // Cancel the match: its post and thread close are queued with it.
+            // Cancel the match: its post and thread close are queued with it (LateLeagueMatchCanceled's, as it saves)
             match.Cancel();
-            await _outbox.EnqueueCanceledAsync(match.Id, unannounced: false, ct);
             await _context.SaveChangesAsync(ct); // No method calls save changes so do so here
         }
     }
@@ -276,6 +241,8 @@ public class QueueService
             return created;
 
         // Matched out of the queue
+        foreach (var spot in groupedPlayers.SelectMany(x => x))
+            spot.Leave();
         _context.QueuedPlayer.RemoveRange(groupedPlayers.SelectMany(x => x));
 
         // Create match for each group
@@ -305,6 +272,8 @@ public class QueueService
         if (playersToRemove.Length == 0)
             return queuePlayers;
 
+        foreach (var spot in playersToRemove)
+            spot.Leave();
         _context.QueuedPlayer.RemoveRange(playersToRemove);
         await _context.SaveChangesAsync(ct);
         return queuePlayers.Except(playersToRemove).ToArray();
@@ -348,30 +317,21 @@ public class QueueService
         }
     }
 
-    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Domain.Players.User> winners, IEnumerable<Domain.Players.User> losers, int winnerId, CancellationToken ct)
+    /// <summary>
+    /// The players' MMR, by the result, saved with it: the end post and its thread close are LateLeagueMatchDecided's (with each
+    /// player's LateLeagueGameRecorded), queued as it saves.
+    /// </summary>
+    private static async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, IEnumerable<Domain.Players.User> winners, IEnumerable<Domain.Players.User> losers, CancellationToken ct)
     {
-        // Adjust player MMR
-        var oldMMR = new Dictionary<long, int>();
-
         var o = discordOptions.Value;
         var rules = new LateLeagueRules(o.KFactor, o.WinThreshold, o.BonusPerWin, o.MaxBonus, o.LossThreshold, o.PenaltyPerLoss, o.MaxPenalty);
 
         foreach (var player in winners)
-        {
-            oldMMR.TryAdd(player.Id, player.MMR);
             player.RecordLateLeagueWin(rules);
-        }
 
         foreach (var player in losers)
-        {
-            oldMMR.TryAdd(player.Id, player.MMR);
             player.RecordLateLeagueLoss(rules);
-        }
 
-        // The end post is worked out now (the MMR changes can't be later) and queued, with its thread close, in the same
-        // save as the result.
-        await _outbox.EnqueueEndedAsync(new MatchEndedPayload(match.Id, winnerId, duration?.ToString() ?? "Unknown",
-            GetMMRChanges(oldMMR, match, MatchedSide.Home), GetMMRChanges(oldMMR, match, MatchedSide.Away)), ct);
         await context.SaveChangesAsync(ct);
 
         // TODO: Requeue players?
@@ -444,45 +404,6 @@ public class QueueService
                 x.Embeds = message.Embeds ?? [];
             });
         }
-    }
-
-    private static string GetMMRChanges(Dictionary<long, int> oldMMR, MatchedMatch match, MatchedSide side)
-    {
-        var sb = new StringBuilder();
-        var players = match.PlayersStillIn(side).ToList(); // Kicked players' MMR is not changed
-        foreach(var (player, index) in players.Select((player, index) => (player, index)))
-        {
-            sb.Append(player.User.DiscordUser?.DiscordUsername ?? player.User.XboxUser?.Gamertag);
-            sb.Append(": ");
-            var found = oldMMR.TryGetValue(player.UserID, out var oldMmr);
-            int? OLDMMR = found ? oldMmr : null;
-            if (OLDMMR is not null)
-                sb.Append(OLDMMR);
-            else
-                sb.Append("UNK");
-
-            sb.Append(" -> ");
-
-            sb.Append(player.User.MMR);
-
-            sb.Append(" (");
-            if (OLDMMR is null)
-            {
-                sb.Append("UNK");
-            }
-            else
-            {
-                var change = player.User.MMR - OLDMMR.Value;
-                if (change > 0)
-                    sb.Append('+');
-                sb.Append(change);
-            }
-            sb.Append(')');
-
-            if (index != players.Count - 1)
-                sb.AppendLine();
-        }
-        return sb.Length == 0 ? "No players" : sb.ToString(); // An empty embed field value is rejected by Discord
     }
 
     private static string FormatDuration(DateTime date)

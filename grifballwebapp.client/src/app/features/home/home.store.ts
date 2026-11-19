@@ -1,11 +1,13 @@
 import { inject, Injectable, signal } from '@angular/core';
-import type { SeasonListItemDto } from '@api/models';
+import type { SeasonListItemDto, SeasonsLiveDto } from '@api/models';
 import { HomeService } from '@api/services/home.service';
 import { SeasonService } from '@api/services/season.service';
 import { apiSortDirection } from '@shared/apiSort';
 import { PaginationResult } from '@shared/paginationResult';
 import { SeasonEvent } from '@shared/seasonEvents';
 import { catchError, EMPTY, Observable, tap } from 'rxjs';
+import { liveData } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** The home page's data: the current and coming season events, and the past seasons a page at a time. One per page (the component provides it). */
 @Injectable()
@@ -24,6 +26,19 @@ export class HomeStore {
   readonly pastSeasons = this._pastSeasons.asReadonly();
   private readonly _total = signal(0);
   readonly total = this._total.asReadonly();
+
+  constructor() {
+    // A season or a match of one changed: the events as they are now come with it, as this viewer may see them (the
+    // past seasons are past)
+    liveData<SeasonsLiveDto>(() => [LiveTopics.seasons], seasons => {
+      this._events.set(seasons.events);
+      this._eventsLoaded.set(true);
+      return true;
+    }, () => {
+      if (this.eventsLoaded())
+        this.loadEvents();
+    });
+  }
 
   loadEvents(): void {
     this.home.currentAndFutureEvents().subscribe({

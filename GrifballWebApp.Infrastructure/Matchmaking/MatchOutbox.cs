@@ -139,7 +139,6 @@ public abstract class MatchAnnouncementHandler<TPayload>(IDiscordRestClient disc
             return;
 
         var requeued = await MatchRequeue.CancelAndRequeueAsync(context, match, ct);
-        await outbox.EnqueueCanceledAsync(match.Id, unannounced: true, ct);
         Logger.LogWarning("Canceled match {MatchId}: it could not be announced on Discord within {Deadline}; {Count} players are back in the queue",
             match.Id, MaxAge, requeued);
     }
@@ -353,7 +352,8 @@ public static class MatchRequeue
     /// </summary>
     public static async Task<int> CancelAndRequeueAsync(GrifballContext context, MatchedMatch match, CancellationToken ct)
     {
-        match.Cancel();
+        // Never announced: its cancellation (LateLeagueMatchCanceled's post, queued as it saves) says so
+        match.Cancel(unannounced: true);
 
         var home = match.HomeTeam.Players.OrderBy(x => x.Id).ToList();
         var away = match.AwayTeam.Players.OrderBy(x => x.Id).ToList();

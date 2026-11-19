@@ -8,6 +8,8 @@ import { problemText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
 import { Observable } from 'rxjs';
 import { resourceView } from '@shared/resourceView';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /**
  * The VODs the matcher wasn't sure of, what one can be linked to (the seasons, and a season's matches and teams), and
@@ -36,6 +38,11 @@ export class VodReviewStore {
   /** An action waiting for its answer: the buttons wait too. */
   private readonly _busy = signal(false);
   readonly busy = this._busy.asReadonly();
+
+  constructor() {
+    // A VOD found, matched, linked or dismissed (here or by another sysadmin): the list again, in place
+    liveReload(() => [LiveTopics.staffVods], () => this.review.reload());
+  }
 
   /** Links a VOD; `done` runs once it is (it leaves the list). */
   link(vodID: number, request: LinkVodRequest, done: () => void): void {

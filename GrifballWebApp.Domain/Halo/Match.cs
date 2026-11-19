@@ -53,6 +53,7 @@ public class Match : AuditableEntity
             match.AddTeam(team.TeamID, team.Score, team.Outcome);
         if (match._matchTeams.Count == 0)
             throw new ArgumentException("A match without teams isn't kept", nameof(teams));
+        match.Raise(new HaloMatchChanged(match));
         return match;
     }
 
@@ -173,6 +174,7 @@ public class Match : AuditableEntity
             throw new InvalidOperationException($"Match {MatchID} has its game variant already");
         UgcGameVariantAssetID = assetID;
         UgcGameVariantVersionID = versionID;
+        Raise(new HaloMatchChanged(this));
     }
 
     /// <summary>
@@ -192,6 +194,8 @@ public class Match : AuditableEntity
         ScoreLayout = layout;
         foreach (var player in players)
             changed |= player.SetDecoded(decoded[player]);
+        if (changed)
+            Raise(new HaloMatchChanged(this));
         return changed;
     }
 }

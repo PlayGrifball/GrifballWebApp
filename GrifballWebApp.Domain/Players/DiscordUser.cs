@@ -18,7 +18,11 @@ public class DiscordUser : AuditableEntity
     /// always has a name to show. Spaces around it are trimmed.
     /// </summary>
     public static DiscordUser FromDiscord(long discordUserID, string? username)
-        => new() { DiscordUserID = discordUserID, DiscordUsername = string.IsNullOrWhiteSpace(username) ? discordUserID.ToString() : username.Trim() };
+    {
+        var account = new DiscordUser { DiscordUserID = discordUserID, DiscordUsername = string.IsNullOrWhiteSpace(username) ? discordUserID.ToString() : username.Trim() };
+        account.Raise(new DiscordUserChanged(account));
+        return account;
+    }
 
     /// <summary>A username that may be stored: not blank (CK_User_Discord_UsernameNotBlank).</summary>
     public static bool IsUsername(string? username) => !string.IsNullOrWhiteSpace(username);
@@ -50,6 +54,7 @@ public class DiscordUser : AuditableEntity
         if (DiscordUsername == trimmed)
             return DiscordRename.Unchanged;
         DiscordUsername = trimmed;
+        Raise(new DiscordUserChanged(this));
         return DiscordRename.Renamed;
     }
 }

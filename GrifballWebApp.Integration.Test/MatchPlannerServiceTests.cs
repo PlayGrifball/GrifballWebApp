@@ -79,6 +79,33 @@ public class MatchPlannerServiceTests
     }
 
     [Test]
+    public async Task CreateSeasonMatches_Again_SaysEachOldMatchIsGone_SoItsPageHearsOfIt()
+    {
+        var events = new RecordedDomainEvents();
+        var context = await TestDatabase.NewGrifballContext(events.Interceptor());
+        try
+        {
+            var service = new MatchPlannerService(context);
+            var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+            context.Seasons.Add(season);
+            await context.SaveChangesAsync();
+            context.Teams.AddRange(Team.Seed(seasonID: season.SeasonID, teamName: "Team 1"), Team.Seed(seasonID: season.SeasonID, teamName: "Team 2"));
+            await context.SaveChangesAsync();
+            await service.CreateSeasonMatches(season.SeasonID, 1, 3, CancellationToken.None);
+            var old = await context.SeasonMatches.AsNoTracking().Where(m => m.SeasonID == season.SeasonID).Select(m => m.SeasonMatchID).ToListAsync();
+            events.Sent.Clear();
+
+            await service.CreateSeasonMatches(season.SeasonID, 1, 3, CancellationToken.None);
+
+            Assert.That(events.Sent.OfType<SeasonMatchCanceled>().Select(e => e.Match.SeasonMatchID), Is.EquivalentTo(old));
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
+    }
+
+    [Test]
     public async Task GetUnscheduledMatches_Should_ReturnEmptyList_When_NoMatchesExist()
     {
         // Arrange

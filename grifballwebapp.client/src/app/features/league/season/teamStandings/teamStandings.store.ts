@@ -1,10 +1,13 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import type { SeasonLiveDto } from '@api/models';
 import { TeamStandingsService } from '@api/services/team-standings.service';
 import { StoreInput } from '@shared/storeInput';
 import { tap } from 'rxjs';
 import { resourceView } from '@shared/resourceView';
 import { AppLog } from '@core/telemetry/appLog';
+import { liveData } from '@core/live/liveReload';
+import { seasonTopics } from '@core/live/liveTopics';
 
 /** A season's standings, loaded again for each season (none for 0). One per table (the component provides it). */
 @Injectable()
@@ -22,5 +25,14 @@ export class TeamStandingsStore {
   }), []);
   readonly teamStandings = this.standings.value;
   /** The standings have loaded (or failed to, or there is no season). */
-  readonly loaded = computed(() => !this.standings.isLoading());
+  readonly loaded = computed(() => this.standings.status() !== 'loading');
+
+  constructor() {
+    // A result, a team, a forfeit: the standings as they are now come with it
+    liveData<SeasonLiveDto>(() => seasonTopics(this.seasonID.value()), season => {
+      if (season.seasonID === this.seasonID.value())
+        this.standings.set(season.standings);
+      return true;
+    }, () => this.standings.reload());
+  }
 }

@@ -306,9 +306,9 @@ EOF
   done
   echo "grif-discord runs the Discord gateway (Discord refuses the test token); the API pods don't. Both workers are ready."
 
-  # Each API pod's TeamsHub subscribes to the backplane when it starts.
+  # Each API pod's LiveHub subscribes to the backplane when it starts.
   hub_subscribers() {
-    kubectl -n "$ns" exec deploy/grif-redis -- valkey-cli PUBSUB NUMSUB "GrifballWebAppGrifballWebApp.Server.Teams.TeamsHub:all" | tail -1
+    kubectl -n "$ns" exec deploy/grif-redis -- valkey-cli PUBSUB NUMSUB "GrifballWebAppGrifballWebApp.Server.Live.LiveHub:all" | tail -1
   }
   two_subscribers() { [[ "$(hub_subscribers)" = 2 ]]; }
   wait_for 120 two_subscribers || fail "the backplane has $(hub_subscribers) hub subscribers, not 2"
@@ -333,7 +333,7 @@ EOF
   # sticky cookie it set: on the pod that negotiated (200), never the other (404 "No Connection with that ID").
   sticky_round() {
     # Traefik's websecure entrypoint (k3s serves its default certificate there, so -k), as minimal's check does
-    local base=https://traefik.kube-system/hub/QueueHub
+    local base=https://traefik.kube-system/hub/LiveHub
     kubectl -n "$ns" exec client -- env base="$base" sh -c '
       headers=$(curl -sk -D - -o /tmp/negotiate -X POST -H "Host: grifball.example" "$base/negotiate?negotiateVersion=1")
       cookie=$(printf "%s" "$headers" | sed -n "s/^[Ss]et-[Cc]ookie: \(grif-hub=[^;]*\).*/\1/p" | tr -d "\r")

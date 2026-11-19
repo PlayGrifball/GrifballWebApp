@@ -44,7 +44,7 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
     [SetUp]
     public void SetUp()
     {
-        _teams = new TeamService((IApplicationDbContext)Context, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
+        _teams = new TeamService((IApplicationDbContext)Context, Substitute.For<IDatabaseLocks>());
         _outbox = new ContextOutbox(Context);
         var me = Substitute.For<IDiscordCurrentUser>();
         me.Id.Returns(BotId);
@@ -310,25 +310,49 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
     }
 
     [Test]
-    public async Task OutboxDraftChannel_QueuesEachDraftChangesMessages_InTheSeasonsGroup()
+    public async Task DraftDiscordPosts_QueueEachDraftChangesMessages_InTheSeasonsGroup()
     {
         var season = await AddSeason();
         var captain = await AddUser("Cap");
         var player = await AddUser("Pick");
-        var channel = new OutboxDraftChannel(Context, _outbox);
+        var team = Team.Drafted(season.SeasonID, "Cap's team", captain.Id, 1);
+        var posts = new DraftDiscordPosts(Context, _outbox, _teams);
+        var commit = Array.Empty<IDomainEvent>();
 
-        await channel.PlayerAddedAsync(_teams, new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = captain.Id, PersonID = player.Id }, CancellationToken.None);
-        await channel.PlayerMovedAsync(_teams, new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = captain.Id, NewCaptainID = captain.Id, PersonID = player.Id }, CancellationToken.None);
-        await channel.PlayerRemovedAsync(_teams, new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, PersonID = player.Id }, CancellationToken.None);
-        await channel.LockChangedAsync(_teams, season.SeasonID, locked: false, CancellationToken.None);
+        await posts.Handle(new PlayerDrafted(team, player.Id, 1, captain.Id), commit, CancellationToken.None);
+        await posts.Handle(new PickMoved(team, team, player.Id, 1, captain.Id, captain.Id), commit, CancellationToken.None);
+        await posts.Handle(new PlayerUndrafted(team, player.Id, captain.Id), commit, CancellationToken.None);
+        await posts.Handle(new CaptainsLockChanged(season), commit, CancellationToken.None);
 
-        var (_, posts) = await QueuedAsync();
+        var (_, queued) = await QueuedAsync();
         var groups = await Context.Outbox.AsNoTracking().Select(m => m.GroupKey).Distinct().ToListAsync();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(posts, Is.EqualTo(ChannelPosts));
+            Assert.That(queued, Is.EqualTo(ChannelPosts));
             Assert.That(groups, Is.EqualTo(new[] { DraftOutbox.Group(season.SeasonID) }));
         }
+    }
+
+    [Test]
+    public async Task DraftDiscordPosts_ASeasonNotAnnouncedYet_PostsNothingInThePublicChannel()
+    {
+        var season = Season.Seed(seasonName: "Hidden Season");
+        var now = _time.GetUtcNow().UtcDateTime;
+        season.ScheduleSeeded(now.AddDays(10), now.AddDays(20), now.AddDays(25), now.AddDays(30), now.AddDays(90));
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+        var captain = await AddUser("Cap");
+        var player = await AddUser("Pick");
+        var team = Team.Drafted(season.SeasonID, "Cap's team", captain.Id, 1);
+        var posts = new DraftDiscordPosts(Context, _outbox, _teams, _time);
+
+        await posts.Handle(new PlayerDrafted(team, player.Id, 1, captain.Id), [], CancellationToken.None);
+        await posts.Handle(new PickMoved(team, team, player.Id, 1, captain.Id, captain.Id), [], CancellationToken.None);
+        await posts.Handle(new PlayerUndrafted(team, player.Id, captain.Id), [], CancellationToken.None);
+        await posts.Handle(new CaptainsLockChanged(season), [], CancellationToken.None);
+
+        var (_, queued) = await QueuedAsync();
+        Assert.That(queued, Is.Empty);
     }
 
     private static readonly string[] ChannelPosts =

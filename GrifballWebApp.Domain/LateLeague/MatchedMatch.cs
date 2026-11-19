@@ -23,16 +23,16 @@ public class MatchedMatch : AuditableEntity
         => Start(new MatchedTeam(homeUserIDs.Select(u => new MatchedPlayer(u))), new MatchedTeam(awayUserIDs.Select(u => new MatchedPlayer(u))), startedAt);
 
     /// <summary>The same, of sides already made: for tests, whose players carry keys and users of their own.</summary>
-    internal static MatchedMatch Start(MatchedTeam home, MatchedTeam away, DateTime? startedAt = null) => new()
+    internal static MatchedMatch Start(MatchedTeam home, MatchedTeam away, DateTime? startedAt = null) => Started(new()
     {
         HomeTeam = home,
         AwayTeam = away,
         StartedAt = startedAt ?? DateTime.UtcNow,
-    };
+    });
 
     /// <summary>An archive game of the historical import, already played: reported, its result <paramref name="game"/>, in
     /// its matchmaking season. Its players come after (<see cref="SetArchivedRoster"/>).</summary>
-    public static MatchedMatch Archive(RecordedGame game, int matchmakingSeasonID, DateTime startedAt) => new()
+    public static MatchedMatch Archive(RecordedGame game, int matchmakingSeasonID, DateTime startedAt) => Imported(new()
     {
         HomeTeam = new MatchedTeam([]),
         AwayTeam = new MatchedTeam([]),
@@ -40,7 +40,7 @@ public class MatchedMatch : AuditableEntity
         RecordedGame = game,
         MatchmakingSeasonID = matchmakingSeasonID,
         StartedAt = startedAt,
-    };
+    });
 
     // Nothing outside the match sets its state, its foreign keys or its navigations: only its own methods below, and EF
     // (which uses the private setters). The key is internal: the database makes it, and tests may give one.
@@ -97,6 +97,7 @@ public class MatchedMatch : AuditableEntity
     {
         End(MatchedMatchStatus.Reported);
         MatchID = matchID;
+        Raise(new LateLeagueMatchDecided(this, UserIDsStillIn()));
     }
 
     /// <summary>Ends the match with the winner its players voted for, no match on record.</summary>
@@ -104,6 +105,7 @@ public class MatchedMatch : AuditableEntity
     {
         End(MatchedMatchStatus.VoteDecided);
         WinnerSide = winner;
+        Raise(new LateLeagueMatchDecided(this, UserIDsStillIn()));
     }
 
     /// <summary>The players a vote-decided match counts a win for: the voted winner's side, those still in it (a kicked player
@@ -137,6 +139,7 @@ public class MatchedMatch : AuditableEntity
             throw new InvalidOperationException($"Match {Id} is already recorded game {RecordedGameID}");
         MatchmakingSeasonID = matchmakingSeasonID;
         StartedAt = startedAt;
+        Raise(new LateLeagueMatchChanged(this));
     }
 
     /// <summary>An archive game's players, these users on each side as the archive has them: added, and removed for those no
@@ -146,6 +149,7 @@ public class MatchedMatch : AuditableEntity
         EnsureArchiveGame();
         HomeTeam.SetRoster(homeUserIDs);
         AwayTeam.SetRoster(awayUserIDs);
+        Raise(new LateLeagueMatchChanged(this));
     }
 
     /// <summary>
@@ -180,6 +184,7 @@ public class MatchedMatch : AuditableEntity
         if (PlayerOf(toUserID) is null)
         {
             from.ReassignTo(toUserID);
+            Raise(new LateLeagueMatchChanged(this));
             return PlayerReassignment.Moved;
         }
         if (Status is MatchedMatchStatus.Active)
@@ -189,6 +194,7 @@ public class MatchedMatch : AuditableEntity
         _matchedKickVotes.RemoveWhere(v => Is(v.VoterMatchedPlayer, v.VoterMatchedPlayerId, from) || Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, from));
         HomeTeam.Remove(from);
         AwayTeam.Remove(from);
+        Raise(new LateLeagueMatchChanged(this));
         return PlayerReassignment.Dropped;
     }
 
@@ -299,6 +305,7 @@ public class MatchedMatch : AuditableEntity
         if (against <= majority)
             return KickDecision.ShortOfMajority;
         target.Kick();
+        Raise(new LateLeaguePlayerKicked(this, targetUserID));
         return KickDecision.Kicked;
     }
 
@@ -311,7 +318,30 @@ public class MatchedMatch : AuditableEntity
     private static bool Is(MatchedPlayer? player, int playerID, MatchedPlayer other) => player == other || (playerID != 0 && playerID == other.Id);
 
     /// <summary>Calls the match off: nobody won.</summary>
-    public void Cancel() => End(MatchedMatchStatus.Canceled);
+    /// <param name="unannounced">Its announcement on Discord was given up on: its cancellation says so.</param>
+    public void Cancel(bool unannounced = false)
+    {
+        End(MatchedMatchStatus.Canceled);
+        Raise(new LateLeagueMatchCanceled(this, UserIDsStillIn(), unannounced));
+    }
+
+    /// <summary>A match the queue made (<see cref="Start(MatchedTeam, MatchedTeam, DateTime?)"/>), with the event that says so.</summary>
+    private static MatchedMatch Started(MatchedMatch match)
+    {
+        match.Raise(new LateLeagueMatchStarted(match, match.Players.Select(p => p.UserID).ToList()));
+        return match;
+    }
+
+    /// <summary>An archive game's match (<see cref="Archive"/>): imported, not made by the queue, so nobody is matched.</summary>
+    private static MatchedMatch Imported(MatchedMatch match)
+    {
+        match.Raise(new LateLeagueMatchChanged(match));
+        return match;
+    }
+
+    /// <summary>The users still in the match, of the sides loaded (an end needs none loaded: those not loaded name nobody).</summary>
+    private List<int> UserIDsStillIn() => new[] { HomeTeam, AwayTeam }.OfType<MatchedTeam>()
+        .SelectMany(t => t.Players).Where(p => !p.Kicked).Select(p => p.UserID).ToList();
 
     private void End(MatchedMatchStatus status)
     {

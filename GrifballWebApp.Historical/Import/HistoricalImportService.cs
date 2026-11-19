@@ -610,6 +610,9 @@ public partial class HistoricalImportService : IHistoricalImportService
             team.ClearCaptain();
         await _context.SaveChangesAsync(ct);
         retired.RemoveArchivedTitlesOf(teams.Select(t => t.TeamID).ToList());
+        // Each team gone says so: its players' profiles hear of it
+        foreach (var team in teams)
+            team.Disband();
         _context.Teams.RemoveRange(teams);
         _context.Seasons.Remove(retired);
         await _context.SaveChangesAsync(ct);
@@ -885,13 +888,19 @@ public partial class HistoricalImportService : IHistoricalImportService
             game.UnlinkTeams(ids);
         season.RemoveArchivedTitlesOf(ids);
         counts.AwardsRemoved += season.RemoveArchivedAwardsOf(ids);
-        _context.SeasonMatches.RemoveRange(await _context.SeasonMatches
+        var matchesGone = await _context.SeasonMatches
             .Where(m => (m.HomeTeamID != null && ids.Contains(m.HomeTeamID.Value)) || (m.AwayTeamID != null && ids.Contains(m.AwayTeamID.Value)))
-            .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct));
+            .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct);
+        // Each match and team gone says so: its page, and its players' profiles, hear of it
+        foreach (var match in matchesGone)
+            match.Cancel();
+        _context.SeasonMatches.RemoveRange(matchesGone);
         // A team's captain is one of its players: cleared before the rosters go (with their teams)
         foreach (var team in stale)
             team.ClearCaptain();
         await _context.SaveChangesAsync(ct);
+        foreach (var team in stale)
+            team.Disband();
         _context.Teams.RemoveRange(stale);
         await _context.SaveChangesAsync(ct);
         counts.TeamsRemoved += stale.Count;
@@ -1313,6 +1322,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             foreach (var game in slot.SeriesGames.Where(l => l.MatchID != null && !listed.Contains(l.MatchID.Value)).ToList())
                 DetachSheetGame(slot, game);
         gone.RemoveAll(m => _sheetSlots.Contains(m.SeasonMatchID));
+        foreach (var match in gone)
+            match.Cancel();
         _context.SeasonMatches.RemoveRange(gone);
         await _context.SaveChangesAsync(ct);
         counts.SeasonMatchesRemoved += gone.Count;

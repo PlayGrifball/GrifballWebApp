@@ -4,6 +4,8 @@ import { LateLeagueService } from '@api/services/late-league.service';
 import { StoreInput } from '@shared/storeInput';
 import { catchError, forkJoin, of } from 'rxjs';
 import { resourceView } from '@shared/resourceView';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /**
  * Late League's players: a season's (with a season), or the queue's as it is played now and the archive's seasons
@@ -35,5 +37,13 @@ export class LateLeagueStore {
   readonly seasons = computed(() => this.overview.value()?.seasons ?? null);
   readonly detail = this.season.value;
   /** What the page shows has loaded, or failed to (not before the page has said which season it shows). */
-  readonly loaded = computed(() => this.seasonID.value() !== undefined && !this.season.isLoading() && !this.overview.isLoading());
+  readonly loaded = computed(() => this.seasonID.value() !== undefined && this.season.status() !== 'loading' && this.overview.status() !== 'loading');
+
+  constructor() {
+    // A match made or ended, a player queued, the archive's seasons: shown again, in place (a reload keeps them shown)
+    liveReload(() => [LiveTopics.lateLeague, LiveTopics.queue], () => {
+      this.season.reload();
+      this.overview.reload();
+    });
+  }
 }
