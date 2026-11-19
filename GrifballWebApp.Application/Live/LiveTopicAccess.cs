@@ -36,21 +36,11 @@ public class LiveTopicAccess(SeasonVisibility visibility, IApplicationDbContext 
             case LiveTopics.SeasonKind or LiveTopics.BracketKind or LiveTopics.TeamsKind or LiveTopics.DraftKind or LiveTopics.SignupsKind:
                 return IntKey(key) is int seasonID && topic == Keyed(kind, seasonID) && await visibility.CanSeeSeason(seasonID, viewer, ct);
             case LiveTopics.SeasonMatchKind:
-                if (IntKey(key) is not int seasonMatchID || topic != LiveTopics.SeasonMatch(seasonMatchID))
-                    return false;
-                var seasonOf = await context.SeasonMatches.AsNoTracking()
-                    .Where(m => m.SeasonMatchID == seasonMatchID)
-                    .Select(m => (int?)m.SeasonID)
-                    .FirstOrDefaultAsync(ct);
-                return seasonOf is int matchSeasonID && await visibility.CanSeeSeason(matchSeasonID, viewer, ct);
+                return IntKey(key) is int seasonMatchID && topic == LiveTopics.SeasonMatch(seasonMatchID)
+                    && await MaySee(context.SeasonMatches.Where(m => m.SeasonMatchID == seasonMatchID).Select(m => (int?)m.SeasonID), viewer, ct);
             case LiveTopics.TeamKind:
-                if (IntKey(key) is not int teamID || topic != LiveTopics.Team(teamID))
-                    return false;
-                var teamSeason = await context.Teams.AsNoTracking()
-                    .Where(t => t.TeamID == teamID)
-                    .Select(t => (int?)t.SeasonID)
-                    .FirstOrDefaultAsync(ct);
-                return teamSeason is int teamSeasonID && await visibility.CanSeeSeason(teamSeasonID, viewer, ct);
+                return IntKey(key) is int teamID && topic == LiveTopics.Team(teamID)
+                    && await MaySee(context.Teams.Where(t => t.TeamID == teamID).Select(t => (int?)t.SeasonID), viewer, ct);
             case LiveTopics.PlayerKind:
                 return IntKey(key) is int userID && topic == LiveTopics.Player(userID);
             case LiveTopics.XboxKind:
@@ -61,6 +51,10 @@ public class LiveTopicAccess(SeasonVisibility visibility, IApplicationDbContext 
                 return false;
         }
     }
+
+    /// <summary>Whether <paramref name="viewer"/> may see the season <paramref name="seasonOf"/> names (a match's, a team's); none: no such one.</summary>
+    private async Task<bool> MaySee(IQueryable<int?> seasonOf, SeasonViewer viewer, CancellationToken ct)
+        => await seasonOf.FirstOrDefaultAsync(ct) is int seasonID && await visibility.CanSeeSeason(seasonID, viewer, ct);
 
     private static int? IntKey(string? key)
         => int.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : null;
