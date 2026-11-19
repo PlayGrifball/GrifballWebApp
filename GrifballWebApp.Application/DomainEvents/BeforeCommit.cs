@@ -12,7 +12,9 @@ namespace GrifballWebApp.Application.DomainEvents;
 /// </summary>
 public interface IBeforeCommitHandler<in TEvent> where TEvent : IDomainEvent
 {
+    /// <param name="domainEvent">What happened.</param>
     /// <param name="commit">Every event of the commit, this one among them (a post may say what several did).</param>
+    /// <param name="cancellationToken">The commit's.</param>
     Task Handle(TEvent domainEvent, IReadOnlyList<IDomainEvent> commit, CancellationToken cancellationToken);
 }
 
