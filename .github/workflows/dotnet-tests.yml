@@ -89,7 +89,7 @@ jobs:
       if: env.RUN == 'true'
       run: |
         for csproj in *.Test/*.Test.csproj; do
-          dotnet build "$csproj" --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
+          dotnet build "$csproj" --no-restore --configuration Release /p:ExcludeClientProject=true
         done
       
     - name: Pack the build

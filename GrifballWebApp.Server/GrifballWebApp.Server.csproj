@@ -60,13 +60,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 
-    Honestly not sure why there is a reference to the front end here...
-    It is literally only causing problems in build process when using docker since we do not use the node image for the backend
-    Almost tempted to just delete it but for now we will just not include it when building docker
+    <!--
+    The frontend's project, for Visual Studio (it starts the Angular dev server with the backend). A build without Node
+    (the backend's Docker image, CI's .NET builds) leaves it out: /p:ExcludeClientProject=true.
     -->
     <ProjectReference Include="..\DiscordInterfaces\DiscordInterfaces.csproj" />
-    <ProjectReference Include="..\grifballwebapp.client\grifballwebapp.client.esproj" Condition="!$(DefineConstants.Contains('DOCKER'))">
+    <ProjectReference Include="..\grifballwebapp.client\grifballwebapp.client.esproj" Condition="'$(ExcludeClientProject)' != 'true'">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
     <ProjectReference Include="..\GrifballWebApp.Application\GrifballWebApp.Application.csproj" />

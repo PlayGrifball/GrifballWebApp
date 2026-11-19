@@ -103,7 +103,7 @@ RUN git clone -q --depth 1 --no-tags "file:///src" /tmp/head \
 # The backend and the converter are compiled once, here, with the same properties (BUILD_PROPS), so the projects they
 # share are compiled once too; the publish and convert stages only lay out what this built (--no-build). Each used to
 # compile everything again, with other properties, side by side with the migrations bundles.
-ENV BUILD_PROPS="/p:UseAppHost=false /p:DefineConstants=DOCKER_BUILD /p:RunAnalyzers=false"
+ENV BUILD_PROPS="/p:UseAppHost=false /p:ExcludeClientProject=true /p:RunAnalyzers=false"
 WORKDIR "/src/GrifballWebApp.Server"
 RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION $BUILD_PROPS \
  && dotnet build "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -c $BUILD_CONFIGURATION $BUILD_PROPS
