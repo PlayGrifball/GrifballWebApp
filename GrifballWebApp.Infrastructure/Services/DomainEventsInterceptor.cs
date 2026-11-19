@@ -3,6 +3,7 @@ using GrifballWebApp.Application.DomainEvents;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace GrifballWebApp.Infrastructure.Services;
 
@@ -20,7 +21,11 @@ namespace GrifballWebApp.Infrastructure.Services;
 /// back one or a failed save.
 /// </item>
 /// </list>
-/// An aggregate's events are forgotten once its save succeeds, so a save that fails keeps them for the next try. Every
+/// An aggregate's events are forgotten once its save succeeds, so a save that fails or is canceled keeps them for the
+/// next try. The events saved wait for the commit of the transaction they were saved in, and that one only: a transaction
+/// disposed without a rollback, or whose commit failed, never sends them, with a later save or transaction. A
+/// before-commit handler that fails fails the commit after EF has accepted the save: the database rolls back, but the
+/// tracked entities keep the values saved, so the scope (a request, a job) should end rather than save again. Every
 /// entity the context tracks is read, deleted ones too (an aggregate's method raises the event of its removal before the
 /// service removes it). One per context; without a scope (<paramref name="services"/>: a factory's context), no
 /// before-commit handler can run, and a save that needs one is refused.
@@ -36,6 +41,9 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
 
     /// <summary>The same, not yet handed to the before-commit handlers.</summary>
     private readonly List<IDomainEvent> _beforeCommit = [];
+
+    /// <summary>The transaction <see cref="_pending"/>'s events were saved in: null for none.</summary>
+    private DbTransaction? _pendingIn;
 
     /// <summary>The transaction this interceptor began for a save outside one, committed once the save is done.</summary>
     private bool _ownTransaction;
@@ -65,7 +73,7 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
 
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
     {
-        Saved();
+        Saved(eventData.Context!);
         if (eventData.Context!.Database.CurrentTransaction is null)
             DispatchInBackground();
         return result;
@@ -73,7 +81,7 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
 
     public override async ValueTask<int> SavedChangesAsync(SaveChangesCompletedEventData eventData, int result, CancellationToken cancellationToken = default)
     {
-        Saved();
+        Saved(eventData.Context!);
         if (_handling)
             return result;
         var database = eventData.Context!.Database;
@@ -98,24 +106,33 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
         return result;
     }
 
-    public override void SaveChangesFailed(DbContextErrorEventData eventData)
+    public override void SaveChangesFailed(DbContextErrorEventData eventData) => Unsaved(eventData.Context!);
+
+    public override void SaveChangesCanceled(DbContextEventData eventData) => Unsaved(eventData.Context!);
+
+    public override Task SaveChangesFailedAsync(DbContextErrorEventData eventData, CancellationToken cancellationToken = default)
+        => UnsavedAsync(eventData.Context!);
+
+    // EF calls this, not SaveChangesFailedAsync, for a canceled save: its own transaction mustn't be left open
+    public override Task SaveChangesCanceledAsync(DbContextEventData eventData, CancellationToken cancellationToken = default)
+        => UnsavedAsync(eventData.Context!);
+
+    /// <summary>The save failed or was canceled: the aggregates keep its events for the next try; a transaction's earlier saves wait for its end.</summary>
+    private void Unsaved(DbContext context)
     {
-        // The aggregates keep this save's events for the next try; a transaction's earlier saves wait for its end
         _saving = [];
-        if (eventData.Context!.Database.CurrentTransaction is null)
+        if (context.Database.CurrentTransaction is null)
             Forget();
     }
 
-    public override async Task SaveChangesFailedAsync(DbContextErrorEventData eventData, CancellationToken cancellationToken = default)
+    private async Task UnsavedAsync(DbContext context)
     {
-        _saving = [];
         if (_ownTransaction)
         {
             _ownTransaction = false;
-            await eventData.Context!.Database.RollbackTransactionAsync(CancellationToken.None);
+            await context.Database.RollbackTransactionAsync(CancellationToken.None);
         }
-        if (eventData.Context!.Database.CurrentTransaction is null)
-            Forget();
+        Unsaved(context);
     }
 
     private void Note(DbContext context)
@@ -136,9 +153,18 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
         return true;
     }
 
-    /// <summary>The save succeeded: its events wait for the commit, and the aggregates are rid of them.</summary>
-    private void Saved()
+    /// <summary>
+    /// The save succeeded: its events wait for the commit of its transaction, and the aggregates are rid of them. Events
+    /// still waiting from another transaction (disposed without a rollback) are dropped.
+    /// </summary>
+    private void Saved(DbContext context)
     {
+        var transaction = context.Database.CurrentTransaction?.GetDbTransaction();
+        if (!ReferenceEquals(transaction, _pendingIn))
+        {
+            Forget();
+            _pendingIn = transaction;
+        }
         foreach (var aggregate in _saving)
         {
             _pending.AddRange(aggregate.DomainEvents);
@@ -152,6 +178,14 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
     {
         _pending.Clear();
         _beforeCommit.Clear();
+        _pendingIn = null;
+    }
+
+    /// <summary>A transaction commits: events waiting for another one (disposed without a rollback) are dropped.</summary>
+    private void Only(DbTransaction transaction)
+    {
+        if (!ReferenceEquals(transaction, _pendingIn))
+            Forget();
     }
 
     /// <summary>
@@ -197,6 +231,7 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
 
     public InterceptionResult TransactionCommitting(DbTransaction transaction, TransactionEventData eventData, InterceptionResult result)
     {
+        Only(transaction);
         if (!_handling && beforeCommit is not null && beforeCommit.Handles(_beforeCommit))
             throw new InvalidOperationException("These changes' events have handlers that run before their commit: commit asynchronously");
         return result;
@@ -204,18 +239,35 @@ public sealed class DomainEventsInterceptor(IDomainEventDispatcher dispatcher, I
 
     public async ValueTask<InterceptionResult> TransactionCommittingAsync(DbTransaction transaction, TransactionEventData eventData, InterceptionResult result, CancellationToken cancellationToken = default)
     {
+        Only(transaction);
         await BeforeCommitAsync(eventData.Context!, cancellationToken);
         return result;
     }
 
-    public void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData) => DispatchInBackground();
+    public void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData)
+    {
+        Only(transaction);
+        DispatchInBackground();
+    }
 
     public Task TransactionCommittedAsync(DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
-        => DispatchAsync();
+    {
+        Only(transaction);
+        return DispatchAsync();
+    }
 
     public void TransactionRolledBack(DbTransaction transaction, TransactionEndEventData eventData) => Forget();
 
     public Task TransactionRolledBackAsync(DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
+    {
+        Forget();
+        return Task.CompletedTask;
+    }
+
+    // A commit (or another use of the transaction) that failed: its events never go out
+    public void TransactionFailed(DbTransaction transaction, TransactionErrorEventData eventData) => Forget();
+
+    public Task TransactionFailedAsync(DbTransaction transaction, TransactionErrorEventData eventData, CancellationToken cancellationToken = default)
     {
         Forget();
         return Task.CompletedTask;

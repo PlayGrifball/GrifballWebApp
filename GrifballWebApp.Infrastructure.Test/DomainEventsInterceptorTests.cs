@@ -4,7 +4,9 @@ using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Application.Outbox;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Infrastructure.Services;
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GrifballWebApp.Infrastructure.Test;
@@ -20,6 +22,7 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
 {
     private static readonly string[] OwnTransactionPost = ["\"own-transaction\""];
     private static readonly string[] TwoPosts = ["\"first-of-two\"", "\"second-of-two\""];
+    private static readonly string[] CanceledThenSaved = ["\"canceled\""];
 
     private readonly RecordingDispatcher _dispatcher = new();
     private ServiceProvider? _provider;
@@ -50,6 +53,22 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
             => throw new InvalidOperationException("the post could not be queued");
     }
 
+    /// <summary>When armed, a write is canceled as it runs, as a request that ends mid-save cancels it.</summary>
+    private sealed class CancelTheWrite : DbCommandInterceptor
+    {
+        public bool Armed { get; set; }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData,
+            InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+            => Armed ? throw new OperationCanceledException("the request ended") : base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+
+        public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(DbCommand command, CommandEventData eventData,
+            InterceptionResult<int> result, CancellationToken cancellationToken = default)
+            => Armed ? throw new OperationCanceledException("the request ended") : base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
+    }
+
+    private readonly CancelTheWrite _cancelTheWrite = new();
+
     protected override GrifballContext CreateContext()
     {
         var services = new ServiceCollection();
@@ -61,7 +80,7 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
         services.AddScoped<DomainEventsInterceptor>();
         services.AddDbContext<GrifballContext>((provider, options) => options
             .UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString)
-            .AddInterceptors(provider.GetRequiredService<DomainEventsInterceptor>()));
+            .AddInterceptors(provider.GetRequiredService<DomainEventsInterceptor>(), _cancelTheWrite));
         _provider = services.BuildServiceProvider();
         _scope = _provider.CreateAsyncScope();
         return _scope.Value.ServiceProvider.GetRequiredService<GrifballContext>();
@@ -335,5 +354,67 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
         }
 
         Assert.That(_dispatcher.Dispatched.Single(), Is.EqualTo(new IDomainEvent[] { new DiscordUserChanged(first) }));
+    }
+
+    [Test]
+    public async Task ATransactionDisposedWithoutARollback_ItsEventsNeverGoOut_WithALaterSave()
+    {
+        var stale = DiscordUser.FromDiscord(6, "disposed");
+        await using (await Context.Database.BeginTransactionAsync())
+        {
+            Context.DiscordUsers.Add(stale);
+            await Context.SaveChangesAsync();
+        }
+        Context.ChangeTracker.Clear();
+        var later = DiscordUser.FromDiscord(7, "later");
+        Context.DiscordUsers.Add(later);
+
+        await Context.SaveChangesAsync();
+
+        Assert.That(_dispatcher.Dispatched.Single(), Is.EqualTo(new IDomainEvent[] { new DiscordUserChanged(later) }));
+    }
+
+    [Test]
+    public async Task ATransactionDisposedWithoutARollback_ItsEventsNeitherPostNorGoOut_WithTheNextTransaction()
+    {
+        await using (await Context.Database.BeginTransactionAsync())
+        {
+            Context.Users.Add(User.Register("never-committed"));
+            await Context.SaveChangesAsync();
+        }
+        Context.ChangeTracker.Clear();
+        var account = DiscordUser.FromDiscord(8, "committed");
+
+        await using (var transaction = await Context.Database.BeginTransactionAsync())
+        {
+            Context.DiscordUsers.Add(account);
+            await Context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Posts(), Is.Empty);
+            Assert.That(_dispatcher.Dispatched.Single(), Is.EqualTo(new IDomainEvent[] { new DiscordUserChanged(account) }));
+        }
+    }
+
+    [Test]
+    public async Task ASaveCanceledInItsOwnTransaction_RollsItBack_AndCanBeTriedAgain()
+    {
+        Context.Users.Add(User.Register("canceled"));
+        _cancelTheWrite.Armed = true;
+
+        Assert.That(async () => await Context.SaveChangesAsync(), Throws.InstanceOf<OperationCanceledException>());
+        var openAfterTheCancel = Context.Database.CurrentTransaction is not null;
+        _cancelTheWrite.Armed = false;
+        await Context.SaveChangesAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(openAfterTheCancel, Is.False, "its own transaction rolled back");
+            Assert.That(await Posts(), Is.EqualTo(CanceledThenSaved), "posted once, by the save that was made");
+            Assert.That(_dispatcher.Dispatched, Has.Count.EqualTo(1));
+        }
     }
 }
