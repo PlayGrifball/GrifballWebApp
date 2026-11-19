@@ -157,7 +157,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _watchers.Watch(LiveTopics.Queue, "a", SeasonViewer.Public);
         _watchers.Watch(LiveTopics.Queue, "b", SeasonViewer.Staff);
 
-        await Delivery(snapshots).Deliver([LiveTopics.Queue, LiveTopics.Draft(9)]);
+        await Delivery(snapshots).Deliver([new LiveChange(LiveTopics.Queue), new LiveChange(LiveTopics.Draft(9))]);
 
         using (Assert.EnterMultipleScope())
         {
@@ -177,7 +177,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _watchers.Watch(LiveTopics.Seasons, "b", SeasonViewer.Public);
         _watchers.Watch(LiveTopics.Seasons, "c", SeasonViewer.Staff);
 
-        await Delivery(snapshots).Deliver([LiveTopics.Seasons]);
+        await Delivery(snapshots).Deliver([new LiveChange(LiveTopics.Seasons)]);
 
         using (Assert.EnterMultipleScope())
         {
@@ -196,7 +196,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _watchers.Watch(LiveTopics.Draft(4), "a", SeasonViewer.Public);
         _watchers.Watch(LiveTopics.Player(2), "a", SeasonViewer.Public);
 
-        await Delivery(snapshots).Deliver([LiveTopics.Draft(4), LiveTopics.Player(2)]);
+        await Delivery(snapshots).Deliver([new LiveChange(LiveTopics.Draft(4)), new LiveChange(LiveTopics.Player(2))]);
 
         using (Assert.EnterMultipleScope())
         {

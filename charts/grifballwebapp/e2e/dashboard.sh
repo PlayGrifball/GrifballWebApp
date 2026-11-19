@@ -116,7 +116,7 @@ kubectl -n "$ns" rollout status deploy/grif-frontend --timeout=300s
 
 # Traffic, all through the frontend (the backend takes requests only from it, NetworkPolicy): pages (server rendering,
 # which calls the API) and the API it proxies, a 404 among them, the health check that runs every check (the memory one
-# Degraded: a warning), and a SignalR connection to the queue's hub (negotiate, then a few seconds of server-sent
+# Degraded: a warning), and a SignalR connection to the live hub (negotiate, then a few seconds of server-sent
 # events) for Live connections
 kubectl -n "$ns" run traffic --image=docker.io/curlimages/curl:8.16.0 --restart=Never --command -- sleep 900
 kubectl -n "$ns" wait --for=condition=Ready pod/traffic --timeout=120s
