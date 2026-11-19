@@ -149,18 +149,18 @@ jobs:
         /d:sonar.issue.ignore.multicriteria.clientroot.resourceKey=grifballwebapp.client/Dockerfile
 
     # As in dotnet-tests.yml: the integration test project builds every backend project (the unit test projects
-    # included, for their helpers), and DOCKER_BUILD leaves out the client. The architecture tests, the Convert app's
+    # included, for their helpers), and ExcludeClientProject leaves out the client. The architecture tests, the Convert app's
     # unit tests, the migrations projects' unit tests and the analyzers' tests, which no other project references,
     # build on their own.
     - name: Build
       run: |
-        dotnet build GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
-        dotnet build GrifballWebApp.Architecture.Test/GrifballWebApp.Architecture.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
-        dotnet build GrifballWebApp.Convert.Test/GrifballWebApp.Convert.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
-        dotnet build GrifballWebApp.Migrations.Postgres.Test/GrifballWebApp.Migrations.Postgres.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
-        dotnet build GrifballWebApp.Migrations.Sqlite.Test/GrifballWebApp.Migrations.Sqlite.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
-        dotnet build GrifballWebApp.Migrations.SqlServer.Test/GrifballWebApp.Migrations.SqlServer.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
-        dotnet build GrifballWebApp.Analyzers.Test/GrifballWebApp.Analyzers.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
+        dotnet build GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --configuration Release /p:ExcludeClientProject=true
+        dotnet build GrifballWebApp.Architecture.Test/GrifballWebApp.Architecture.Test.csproj --configuration Release /p:ExcludeClientProject=true
+        dotnet build GrifballWebApp.Convert.Test/GrifballWebApp.Convert.Test.csproj --configuration Release /p:ExcludeClientProject=true
+        dotnet build GrifballWebApp.Migrations.Postgres.Test/GrifballWebApp.Migrations.Postgres.Test.csproj --configuration Release /p:ExcludeClientProject=true
+        dotnet build GrifballWebApp.Migrations.Sqlite.Test/GrifballWebApp.Migrations.Sqlite.Test.csproj --configuration Release /p:ExcludeClientProject=true
+        dotnet build GrifballWebApp.Migrations.SqlServer.Test/GrifballWebApp.Migrations.SqlServer.Test.csproj --configuration Release /p:ExcludeClientProject=true
+        dotnet build GrifballWebApp.Analyzers.Test/GrifballWebApp.Analyzers.Test.csproj --configuration Release /p:ExcludeClientProject=true
 
     # Coverage for the quality gate from every test project. dotnet-tests.yml is what gates on test results.
     # The unit tests (one project per layer and per host app) and the architecture tests: each runs (and reports its coverage), a failing one included

@@ -100,12 +100,17 @@ RUN git clone -q --depth 1 --no-tags "file:///src" /tmp/head \
  && rm -rf .git && mv /tmp/head/.git .git && rm -rf /tmp/head
 # RunAnalyzers=false here and in the stages below: the analyzers (SonarAnalyzer.CSharp, Directory.Build.props) only
 # warn, and the builds and the SonarCloud workflow already run them; they don't change what is built.
+# The backend and the converter are compiled once, here, with the same properties (BUILD_PROPS), so the projects they
+# share are compiled once too; the publish and convert stages only lay out what this built (--no-build). Each used to
+# compile everything again, with other properties, side by side with the migrations bundles.
+ENV BUILD_PROPS="/p:UseAppHost=false /p:ExcludeClientProject=true /p:RunAnalyzers=false"
 WORKDIR "/src/GrifballWebApp.Server"
-RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:DefineConstants=DOCKER_BUILD /p:RunAnalyzers=false
+RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION $BUILD_PROPS \
+ && dotnet build "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -c $BUILD_CONFIGURATION $BUILD_PROPS
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:DefineConstants=DOCKER_BUILD /p:RunAnalyzers=false
+RUN dotnet publish "./GrifballWebApp.Server.csproj" --no-build -c $BUILD_CONFIGURATION -o /app/publish $BUILD_PROPS
 
 # The converter between SQL Server and PostgreSQL (GrifballWebApp.Convert): copies a database into a
 # new one on either server, row history included. The Helm chart's migration Job runs it on a first
@@ -113,7 +118,7 @@ RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /
 # dependencies are its own publish's.
 FROM build AS convert
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -c $BUILD_CONFIGURATION -o /app/convert /p:UseAppHost=false /p:RunAnalyzers=false
+RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" --no-build -c $BUILD_CONFIGURATION -o /app/convert $BUILD_PROPS
 
 # EF Core migrations bundles: one executable per database that applies pending migrations - SQL
 # Server's at /app/efbundle, Postgres's at /app/postgres/efbundle, SQLite's at /app/sqlite/efbundle, each
