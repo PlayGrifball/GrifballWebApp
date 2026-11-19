@@ -140,7 +140,7 @@ public class ArchiveNewWorkbookTests
 
     [TestCase("2021-side-djblue-h3-stats")]
     [TestCase("2021-side-djblue-reach-stats")]
-    public async Task DjBlueSummerSeries_HasItsThirteenTeams_FourPlayersEach_AndTwentyThreeGames(string source)
+    public async Task DjBlueSummerSeries_HasItsThirteenTeams_FourPlayersEach_AndTwentyFourGames(string source)
     {
         Needs(source);
         await using var context = Archive.NewContext();
@@ -155,8 +155,10 @@ public class ArchiveNewWorkbookTests
         {
             Assert.That(teams, Is.EquivalentTo(source.Contains("h3") ? DjBlueHalo3Teams : DjBlueReachTeams));
             Assert.That(stats, Has.Count.EqualTo(13).And.All.EqualTo(4), "Each team's four players, on their team");
-            // 24 game blocks each: one has no box score (left out, a build warning)
-            Assert.That(matches, Is.EqualTo(23));
+            // 24 game blocks each, all different games (a rematch has its own host and box score). The one without a box score
+            // (Halo 3: Nightfall over 8th Place, its players with no stats; Reach: EU Squad w/o EUs over Goose's Girls, no players)
+            // is a game from its title, one the Team Statistics count too (Nightfall's 5 games, Goose's Girls' 4)
+            Assert.That(matches, Is.EqualTo(24));
         }
     }
 

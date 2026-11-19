@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.HistoricalArchive.Test;
@@ -79,5 +80,136 @@ public class ArchiveSeasonTests
             Assert.That(series.Where(s => s.Home == "THE BOYS SZN 3" || s.Away == "THE BOYS SZN 3"), Is.Empty, "THE BOYS SZN 3 didn't make the playoffs");
             Assert.That(Archive.Report.Warnings.Where(w => w.StartsWith("2022-h3-action", StringComparison.Ordinal) && w.Contains("in no slot", StringComparison.Ordinal)), Is.Empty);
         }
+    }
+
+    /// <summary>
+    /// No season has a team named by a number: FL21's "0" and "1" (both SML21 workbooks: game sides of hosts who played no
+    /// game, below the stats) and SML20's "4" and "5" (its playoff bracket's seeds, below the playoff stats) were rows outside
+    /// the stats tables.
+    /// </summary>
+    [Test]
+    public async Task NoSeason_HasATeamNamedByANumber()
+    {
+        await using var context = Archive.NewContext();
+        var teams = await context.Teams.AsNoTracking().Where(t => t.Season.HistoricalSourceID != null)
+            .Select(t => new { t.Season.SeasonName, t.TeamName })
+            .ToListAsync();
+
+        Assert.That(teams.Where(t => t.TeamName.Trim().Length > 0 && t.TeamName.Trim().All(char.IsAsciiDigit)).Select(t => $"{t.SeasonName}: {t.TeamName}"), Is.Empty);
+    }
+
+    /// <summary>Winter League 2021 (Legacy)'s playoff teams, whose Playoff Stats tab both SML21 workbooks carry a copy of.</summary>
+    private static readonly string[] Wl21LegacyPlayoffTeams = ["Fruit Gang", "Limitless", "Only in Dreams", "Rock Bottom", "Yung Humma"];
+
+    [TestCase("Summer League 2021 (Pro)")]
+    [TestCase("Summer League 2021 (Amateur)")]
+    public async Task Sml21_HasNoneOfWinterLeague2021LegacysPlayoffTeams(string seasonName)
+    {
+        await using var context = Archive.NewContext();
+        var teams = await context.Teams.AsNoTracking().Where(t => t.Season.HistoricalSourceID != null && t.Season.SeasonName == seasonName)
+            .Select(t => t.TeamName).ToListAsync();
+        if (teams.Count == 0)
+            Assert.Ignore($"{seasonName} isn't in this copy of the archive");
+
+        Assert.That(teams.Intersect(Wl21LegacyPlayoffTeams, StringComparer.OrdinalIgnoreCase), Is.Empty, "The hidden Playoff Stats tab is WL21 Legacy's");
+    }
+
+    /// <summary>The champions record spells two champions otherwise than their sheets ("Yung Hummu", "Yeji's Iced Toasted
+    /// Banana"): the titles go to the team the stats have, not a second team of the record's name.</summary>
+    [TestCase("Winter League 2021 (Legacy)", "Yung Humma")]
+    [TestCase("Summer League 2021 (Pro)", "Yeji's Toasted Banana Icey")]
+    public async Task TheChampion_IsTheStatsTeam_NotASecondTeamOfTheRecordsSpelling(string seasonName, string champion)
+    {
+        await using var context = Archive.NewContext();
+        var teams = await context.Teams.AsNoTracking().Where(t => t.Season.HistoricalSourceID != null && t.Season.SeasonName == seasonName)
+            .Select(t => new { t.TeamName, Titles = t.Season.PlayerChampionships.Count(c => c.TeamID == t.TeamID), Lines = context.PlayerSeasonStats.Count(p => p.TeamID == t.TeamID) })
+            .ToListAsync();
+        if (teams.Count == 0)
+            Assert.Ignore($"{seasonName} isn't in this copy of the archive");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams.Where(t => t.Titles > 0).Select(t => t.TeamName), Is.EqualTo(new[] { champion }), "The titles' team");
+            Assert.That(teams.Where(t => t.Lines == 0).Select(t => t.TeamName), Is.Empty, "No team of the record's name without stats");
+        }
+    }
+
+    /// <summary>The champions record's "Summer League 2022" (Junkyard Dogs) is the 2022 H3 Action League's title: its five on
+    /// the season's JUNKYARD DOGS, who won its bracket, and no titles-only Summer League 2022 left.</summary>
+    [Test]
+    public async Task H3Action2022_HasTheSummerLeague2022Title_OnJunkyardDogs()
+    {
+        await using var context = Archive.NewContext();
+        var titles = await context.Set<PlayerChampionship>().AsNoTracking()
+            .Where(c => c.Season.HistoricalSourceID != null && (c.Season.SeasonName == "2022 H3 Action League" || c.Season.SeasonName == "Summer League 2022"))
+            .Select(c => new { c.Season.SeasonName, c.Team.TeamName })
+            .ToListAsync();
+        if (titles.Count == 0)
+            Assert.Ignore("Neither 2022 H3 Action League nor the record's Summer League 2022 is in this copy of the archive");
+
+        Assert.That(titles.Select(t => $"{t.SeasonName}: {t.TeamName.ToUpperInvariant()}").ToList(), Has.Count.EqualTo(5).And.All.EqualTo("2022 H3 Action League: JUNKYARD DOGS"));
+    }
+
+    /// <summary>The game histories' sides named after a captain the season knows by another spelling: WL23's SPANKATRON
+    /// (USURPER SZN's SPANKATR0N), SL25's nkot (Junkyard Dogs) and Squirel (Murder Incorporated) are their teams.</summary>
+    [TestCase("2023-da-wl23-schedule/Game History#")]
+    [TestCase("2025-octane-sl25-bid-schedule/Game History#")]
+    public async Task AGameHistorysCaptainNamedSide_IsTheirTeam(string keys)
+    {
+        await using var context = Archive.NewContext();
+        var sides = await context.Set<GrifballWebApp.Domain.Archive.RecordedGameTeam>().AsNoTracking()
+            .Where(t => t.RecordedGame.SourceKey.StartsWith(keys))
+            .Select(t => new { t.Name, HasTeam = t.TeamID != null })
+            .ToListAsync();
+        if (sides.Count == 0)
+            Assert.Ignore($"No {keys} games in this copy of the archive");
+
+        Assert.That(sides.Where(s => !s.HasTeam).Select(s => s.Name).Distinct(), Is.Empty);
+    }
+
+    /// <summary>SL25's Team Chart names two captains by a nickname: Junkyard Dogs' "Nkot" (NKOTB4evah, owner-confirmed on
+    /// #496) and Cosmic Oblivion's "DaedricKindred" (KindredDaedric). Every SL25 team has its captain.</summary>
+    [Test]
+    public async Task Sl25_EveryTeamHasItsCaptain_TheTwoTheChartNamesByANicknameToo()
+    {
+        await using var context = Archive.NewContext();
+        var teams = await context.Teams.AsNoTracking()
+            .Where(t => t.Season.HistoricalSourceID == "2025-octane-sl25-bid-stats/Regular Season Stats Sheet stat")
+            .Select(t => new { t.TeamName, Captain = t.Captain == null ? null : t.Captain.User.UserName })
+            .ToListAsync();
+        if (teams.Count == 0)
+            Assert.Ignore("Spring League 2025 (Octane Bid) isn't in this copy of the archive");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams.Where(t => t.Captain is null).Select(t => t.TeamName), Is.Empty);
+            var captains = teams.ToDictionary(t => t.TeamName, t => t.Captain);
+            Assert.That(captains.GetValueOrDefault("Junkyard Dogs"), Does.EndWith("NKOTB4evah").IgnoreCase);
+            Assert.That(captains.GetValueOrDefault("Cosmic Oblivion"), Does.EndWith("KindredDaedric").IgnoreCase);
+        }
+    }
+
+    /// <summary>H4 Bid 2022's PLAYOFFS writes its final "Beer - Seed 1 vs (2-0) Forklift Certified - Seed 3" without a winner;
+    /// the Teams tab's playoff records say it: Beer (4-0) lost no playoff game, Forklift Certified (4-2) two. Beer won it 2-0.</summary>
+    [Test]
+    public async Task H4Bid2022_TheFinal_IsBeers()
+    {
+        await using var context = Archive.NewContext();
+        var slots = await context.SeasonMatches.AsNoTracking()
+            .Where(m => m.Season.HistoricalSourceID != null && m.Season.SeasonName == "2022 H4 Bid Season" && m.BracketMatch != null)
+            .Select(m => new
+            {
+                m.BracketMatch!.RoundNumber,
+                Home = m.HomeTeam!.TeamName, Away = m.AwayTeam!.TeamName, m.HomeTeamResult, m.AwayTeamResult, m.HomeTeamScore, m.AwayTeamScore,
+            })
+            .ToListAsync();
+        if (slots.Count == 0)
+            Assert.Ignore("2022 H4 Bid Season isn't in this copy of the archive, or has no bracket");
+
+        var final = slots.MaxBy(s => s.RoundNumber)!;
+        string? winner = final.HomeTeamResult == SeasonMatchResult.Won ? final.Home : final.AwayTeamResult == SeasonMatchResult.Won ? final.Away : null;
+        string? loser = winner is null ? null : winner == final.Home ? final.Away : final.Home;
+        var (won, lost) = winner == final.Home ? (final.HomeTeamScore, final.AwayTeamScore) : (final.AwayTeamScore, final.HomeTeamScore);
+        Assert.That((winner, loser, won, lost), Is.EqualTo(((string?)"Beer", (string?)"Forklift Certified", (int?)2, (int?)0)));
     }
 }
