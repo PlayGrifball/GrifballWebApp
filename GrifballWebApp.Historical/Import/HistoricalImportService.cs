@@ -297,13 +297,16 @@ public partial class HistoricalImportService : IHistoricalImportService
         var groups = GroupEntries(input, leagues, gameVersions, report);
         KeySeasons(groups, urls, report);
 
-        // The champions record's names for seasons it names otherwise, of whichever league the catalog files them under
+        // The champions records' names for seasons they name otherwise, of whichever league the catalog files them under:
+        // under the season's own league (a GGL or EUGBL champions table names its own), and under the AGLA record's,
+        // whose champions carry no league and name seasons of other leagues too (IGL's Summer League 2025 (Classic Pro))
         var titlesAs = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
         foreach (var group in groups.Values)
         {
-            var leagueSlug = group.League?.Slug ?? ChampionsLeagueSlug;
+            var leagueSlugs = new[] { group.League?.Slug ?? ChampionsLeagueSlug, ChampionsLeagueSlug }.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             foreach (var titles in group.Entries.Select(e => e.Titles).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
-                titlesAs.TryAdd(HistoricalKeys.FallbackSeasonSourceId(leagueSlug, titles.Trim()), group);
+                foreach (var leagueSlug in leagueSlugs)
+                    titlesAs.TryAdd(HistoricalKeys.FallbackSeasonSourceId(leagueSlug, titles.Trim()), group);
         }
         await GroupChampionships(input.Championships, groups, titlesAs, leagues, gameVersions, report, ct);
         // Every season the archive has now, before a partial run narrows it: a titles-only season not among them is left over
