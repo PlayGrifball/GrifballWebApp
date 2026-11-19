@@ -102,34 +102,42 @@ public static partial class StandingsParser
                     teams.NewBlock();
                 continue;
             }
-            if (r + 1 >= sheet.Rows.Count)
-                continue;
-            var below = sheet.Rows[r + 1];
-            var captainCol = Enumerable.Range(1, Math.Max(0, below.Length - 1))
-                .FirstOrDefault(c => FieldOf(below[c]) == Field.Captain, -1);
-            if (captainCol <= 0)
-                continue;
-            var teamCol = Enumerable.Range(0, captainCol).FirstOrDefault(c => !string.IsNullOrWhiteSpace(sheet.Cell(r, c)), -1);
-            if (teamCol < 0)
-                continue;
-            var teamName = sheet.Cell(r, teamCol).Trim();
-            var captain = Gamertag(sheet.Cell(r, captainCol));
-            var end = winsCol >= 0 ? winsCol : lossesCol >= 0 ? lossesCol : row.Length;
-            var roster = Enumerable.Range(captainCol, Math.Max(0, Math.Min(end, row.Length) - captainCol))
-                .Select(c => Gamertag(row[c]))
-                .Where(p => p.Length > 0)
-                .ToList();
-            var wins = winsCol >= 0 ? sheet.Cell(r, winsCol).Trim() : "";
-            var losses = lossesCol >= 0 ? sheet.Cell(r, lossesCol).Trim() : "";
-            teams.Add(teamName, f => f switch
-            {
-                Field.Captain => captain,
-                Field.Wins => wins,
-                Field.Losses => losses,
-                _ => "",
-            }, roster);
+            AddCaptainRow(teams, sheet, r, winsCol, lossesCol);
         }
         return teams.List;
+    }
+
+    /// <summary>The team of row <paramref name="r"/> when the row below heads its captain's column: its name, captain,
+    /// roster (from the captain's column up to the wins) and record.</summary>
+    private static void AddCaptainRow(Teams teams, SheetTable sheet, int r, int winsCol, int lossesCol)
+    {
+        if (r + 1 >= sheet.Rows.Count)
+            return;
+        var row = sheet.Rows[r];
+        var below = sheet.Rows[r + 1];
+        var captainCol = Enumerable.Range(1, Math.Max(0, below.Length - 1))
+            .FirstOrDefault(c => FieldOf(below[c]) == Field.Captain, -1);
+        if (captainCol <= 0)
+            return;
+        var teamCol = Enumerable.Range(0, captainCol).FirstOrDefault(c => !string.IsNullOrWhiteSpace(sheet.Cell(r, c)), -1);
+        if (teamCol < 0)
+            return;
+        var teamName = sheet.Cell(r, teamCol).Trim();
+        var captain = Gamertag(sheet.Cell(r, captainCol));
+        var end = winsCol >= 0 ? winsCol : lossesCol >= 0 ? lossesCol : row.Length;
+        var roster = Enumerable.Range(captainCol, Math.Max(0, Math.Min(end, row.Length) - captainCol))
+            .Select(c => Gamertag(row[c]))
+            .Where(p => p.Length > 0)
+            .ToList();
+        var wins = winsCol >= 0 ? sheet.Cell(r, winsCol).Trim() : "";
+        var losses = lossesCol >= 0 ? sheet.Cell(r, lossesCol).Trim() : "";
+        teams.Add(teamName, f => f switch
+        {
+            Field.Captain => captain,
+            Field.Wins => wins,
+            Field.Losses => losses,
+            _ => "",
+        }, roster);
     }
 
     private static bool IsPlayersHeader(string cell) => Normalize(cell) is "gamertag" or "gamertags" or "player" or "players" or "player name";

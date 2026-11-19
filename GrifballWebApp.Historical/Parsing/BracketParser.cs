@@ -94,27 +94,8 @@ public static partial class BracketParser
             if (home is null || away is null)
                 continue;
 
-            var bracket = ParseBracketKind(ArchiveCells.TableValue(row, bracketCol));
-            var round = ArchiveCells.TableInt(row, roundCol) is > 0 and var parsedRound ? parsedRound : 1;
-            var seed1 = ArchiveCells.TableValue(row, seed1Col) is { } s1 ? Seed(s1) : null;
-            var seed2 = ArchiveCells.TableValue(row, seed2Col) is { } s2 ? Seed(s2) : null;
-            var draft = new Draft
-            {
-                Bracket = bracket,
-                Round = round,
-                Home = home,
-                Away = away,
-                HomeSeed = seed1,
-                AwaySeed = seed2,
-            };
-            if (ArchiveCells.TableValue(row, winnerCol) is { } winnerText)
-                draft.Winner = SideOf(draft, winnerText);
-            if (ArchiveCells.TableInt(row, score1Col) is { } hs && ArchiveCells.TableInt(row, score2Col) is { } aws && hs + aws > 0)
-            {
-                if (draft.Winner is null || SideWithMore(hs, aws) is not { } more || more == draft.Winner)
-                    (draft.HomeWins, draft.AwayWins) = (hs, aws);
-                draft.Winner ??= SideWithMore(hs, aws);
-            }
+            var draft = TableDraft(row, home, away, bracketCol, roundCol, seed1Col, seed2Col);
+            TableResult(draft, row, winnerCol, score1Col, score2Col);
 
             if (!bySeason.TryGetValue(canonicalId, out var list))
                 bySeason[canonicalId] = list = [];
@@ -123,9 +104,45 @@ public static partial class BracketParser
 
         return bySeason.ToDictionary(
             kv => Application.Historical.HistoricalKeys.SeasonSourceId(sourceId, $"{stats.Sheet}#s{kv.Key}"),
-            kv => BuildBracket([.. kv.Value.OrderBy(d => d.Bracket is Bracket.GrandFinalSuddenDeath ? 3 : d.Bracket is Bracket.GrandFinal ? 2 : d.Bracket is Bracket.Loser ? 1 : 0).ThenBy(d => d.Round)]),
+            kv => BuildBracket([.. kv.Value.OrderBy(TableBracketOrder).ThenBy(d => d.Round)]),
             StringComparer.OrdinalIgnoreCase);
     }
+
+    /// <summary>A table row's series: its bracket, round (1 when none) and seeds.</summary>
+    private static Draft TableDraft(string[] row, string home, string away, int bracketCol, int roundCol, int seed1Col, int seed2Col)
+    {
+        var bracket = ParseBracketKind(ArchiveCells.TableValue(row, bracketCol));
+        var round = ArchiveCells.TableInt(row, roundCol) is > 0 and var parsedRound ? parsedRound : 1;
+        var seed1 = ArchiveCells.TableValue(row, seed1Col) is { } s1 ? Seed(s1) : null;
+        var seed2 = ArchiveCells.TableValue(row, seed2Col) is { } s2 ? Seed(s2) : null;
+        return new Draft
+        {
+            Bracket = bracket,
+            Round = round,
+            Home = home,
+            Away = away,
+            HomeSeed = seed1,
+            AwaySeed = seed2,
+        };
+    }
+
+    /// <summary>A table row's winner and score: the winner its column names, else the side the score gives more wins; a
+    /// score that disagrees with the named winner is left out.</summary>
+    private static void TableResult(Draft draft, string[] row, int winnerCol, int score1Col, int score2Col)
+    {
+        if (ArchiveCells.TableValue(row, winnerCol) is { } winnerText)
+            draft.Winner = SideOf(draft, winnerText);
+        if (ArchiveCells.TableInt(row, score1Col) is { } hs && ArchiveCells.TableInt(row, score2Col) is { } aws && hs + aws > 0)
+        {
+            if (draft.Winner is null || SideWithMore(hs, aws) is not { } more || more == draft.Winner)
+                (draft.HomeWins, draft.AwayWins) = (hs, aws);
+            draft.Winner ??= SideWithMore(hs, aws);
+        }
+    }
+
+    /// <summary>A table series' place in bracket order: the winners' bracket, the losers', the grand final, its sudden death.</summary>
+    private static int TableBracketOrder(Draft d)
+        => d.Bracket is Bracket.GrandFinalSuddenDeath ? 3 : d.Bracket is Bracket.GrandFinal ? 2 : d.Bracket is Bracket.Loser ? 1 : 0;
 
     private static int ColumnIndex(string[] header, params string[] candidates)
     {

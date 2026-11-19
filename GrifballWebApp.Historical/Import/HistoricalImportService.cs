@@ -497,23 +497,14 @@ public partial class HistoricalImportService : IHistoricalImportService
             .Distinct()
             .ToList();
         var imported = await _context.Seasons.Where(Season.ImportedFromArchive).Where(s => leagueIds.Contains(s.LeagueID))
-            .Select(s => new { s.LeagueID, s.HistoricalSourceID, s.SeasonName }).ToListAsync(ct);
+            .Select(s => new ImportedTitleSeason(s.LeagueID, s.HistoricalSourceID, s.SeasonName)).ToListAsync(ct);
 
         foreach (var championship in championships.Champions)
         {
-            // Late League is matchmaking: it never crowns a champion, so a title the record gives it makes no season
-            if (HistoricalKeys.IsLateLeague(championship.League, null, championship.Season))
-            {
-                Skip(report, $"{championship.Season} {championship.Tier} champions: Late League is matchmaking and has no champion");
-                continue;
-            }
-            var league = string.IsNullOrWhiteSpace(championship.League) ? defaultLeague : FindLeague(leagues, championship.League);
+            var league = ChampionshipLeague(championship, leagues, defaultLeague, report);
             if (league is null)
-            {
-                Skip(report, $"{championship.Season} {championship.Tier} champions: unknown league '{championship.League}'");
                 continue;
-            }
-            var workbook = string.IsNullOrWhiteSpace(championship.SourceId) ? defaultWorkbook : championship.SourceId.Trim();
+            var workbook = ChampionshipWorkbook(championship, defaultWorkbook);
             var names = new[] { $"{championship.Season} ({championship.Tier})", championship.Season };
             var nameKeys = names.Select(n => HistoricalKeys.FallbackSeasonSourceId(league.Slug, n)).ToArray();
             var group = nameKeys.Select(k => groups.GetValueOrDefault(k) ?? titlesAs.GetValueOrDefault(k)).FirstOrDefault(g => g is not null);
@@ -521,20 +512,13 @@ public partial class HistoricalImportService : IHistoricalImportService
             {
                 var sourceId = HistoricalKeys.SeasonSourceId(workbook, championship.Season);
                 var disambiguatedId = HistoricalKeys.SeasonSourceId(workbook, $"{league.Slug}/{championship.Season}");
-                var existing = imported.FirstOrDefault(s => s.LeagueID == league.LeagueID
-                    && (string.Equals(s.HistoricalSourceID, sourceId, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(s.HistoricalSourceID, disambiguatedId, StringComparison.OrdinalIgnoreCase)))
-                    ?? names.Select(n => imported.FirstOrDefault(s => s.LeagueID == league.LeagueID && string.Equals(s.SeasonName, n.Trim(), StringComparison.OrdinalIgnoreCase))).FirstOrDefault(s => s is not null);
+                var existing = ExistingTitleSeason(imported, league.LeagueID, sourceId, disambiguatedId, names);
                 if (existing is null && !championship.Roster.Any(r => !string.IsNullOrWhiteSpace(r)))
                 {
                     Skip(report, $"{championship.Season} {championship.Tier} champions: no roster players and no matching season");
                     continue;
                 }
-                if (groups.Values.Any(g => string.Equals(g.SourceId, sourceId, StringComparison.OrdinalIgnoreCase))
-                    || championships.Champions.Any(other => !ReferenceEquals(other, championship)
-                        && string.Equals(string.IsNullOrWhiteSpace(other.SourceId) ? defaultWorkbook : other.SourceId.Trim(), workbook, StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(other.Season.Trim(), championship.Season.Trim(), StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(other.League?.Trim(), championship.League?.Trim(), StringComparison.OrdinalIgnoreCase)))
+                if (IsTitleSourceIdShared(championships, championship, groups, workbook, defaultWorkbook, sourceId))
                     sourceId = disambiguatedId;
                 var slug = HistoricalKeys.GameVersionSlug(championship.Game);
                 group = new SeasonGroup
@@ -550,6 +534,44 @@ public partial class HistoricalImportService : IHistoricalImportService
             group.Championships.Add(championship);
         }
     }
+
+    /// <summary>A season of the titles' leagues already imported from the archive: its league, key and name.</summary>
+    private sealed record ImportedTitleSeason(int LeagueID, string HistoricalSourceID, string SeasonName);
+
+    /// <summary>The title's league (the champions record's when it names none); null, skipped, for Late League or a league not found.</summary>
+    private League? ChampionshipLeague(ArchiveChampionship championship, List<League> leagues, League defaultLeague, HistoricalImportReport report)
+    {
+        // Late League is matchmaking: it never crowns a champion, so a title the record gives it makes no season
+        if (HistoricalKeys.IsLateLeague(championship.League, null, championship.Season))
+        {
+            Skip(report, $"{championship.Season} {championship.Tier} champions: Late League is matchmaking and has no champion");
+            return null;
+        }
+        var league = string.IsNullOrWhiteSpace(championship.League) ? defaultLeague : FindLeague(leagues, championship.League);
+        if (league is null)
+            Skip(report, $"{championship.Season} {championship.Tier} champions: unknown league '{championship.League}'");
+        return league;
+    }
+
+    /// <summary>The workbook that supplied the title, else the champions record's.</summary>
+    private static string ChampionshipWorkbook(ArchiveChampionship championship, string defaultWorkbook)
+        => string.IsNullOrWhiteSpace(championship.SourceId) ? defaultWorkbook : championship.SourceId.Trim();
+
+    /// <summary>The imported season of its league a title-only season would be: by its key (plain or naming the league), else by name.</summary>
+    private static ImportedTitleSeason? ExistingTitleSeason(List<ImportedTitleSeason> imported, int leagueId, string sourceId, string disambiguatedId, string[] names)
+        => imported.FirstOrDefault(s => s.LeagueID == leagueId
+                && (string.Equals(s.HistoricalSourceID, sourceId, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(s.HistoricalSourceID, disambiguatedId, StringComparison.OrdinalIgnoreCase)))
+            ?? names.Select(n => imported.FirstOrDefault(s => s.LeagueID == leagueId && string.Equals(s.SeasonName, n.Trim(), StringComparison.OrdinalIgnoreCase))).FirstOrDefault(s => s is not null);
+
+    /// <summary>A title-only season's key is another's too: a season has it already, or another league's title of the same
+    /// season from the same workbook would; the key then names the league.</summary>
+    private static bool IsTitleSourceIdShared(ChampionsArchive championships, ArchiveChampionship championship, Dictionary<string, SeasonGroup> groups, string workbook, string defaultWorkbook, string sourceId)
+        => groups.Values.Any(g => string.Equals(g.SourceId, sourceId, StringComparison.OrdinalIgnoreCase))
+            || championships.Champions.Any(other => !ReferenceEquals(other, championship)
+                && string.Equals(ChampionshipWorkbook(other, defaultWorkbook), workbook, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(other.Season.Trim(), championship.Season.Trim(), StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(other.League?.Trim(), championship.League?.Trim(), StringComparison.OrdinalIgnoreCase));
 
     private static string ChampionsWorkbook(ChampionsArchive? championships)
         => string.IsNullOrWhiteSpace(championships?.SourceId) ? DefaultChampionsSourceId : championships.SourceId.Trim();
@@ -1920,19 +1942,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Skip(counts, $"{group.SourceId} {tier.Key} champions: no team named");
                 continue;
             }
-            var roster = championship.Roster.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
-            var captain = championship.Captain;
-            if (roster.Count == 0)
-            {
-                var matchingTeams = group.Entries.SelectMany(e => e.Teams)
-                    .Where(t => string.Equals(CleanTeamName(t.TeamName), team.TeamName, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(t.TeamName.Trim(), championship.Team.Trim(), StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                captain ??= matchingTeams.Select(t => t.Captain).FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
-                if (!string.IsNullOrWhiteSpace(captain))
-                    roster.Add(captain);
-                roster.AddRange(matchingTeams.SelectMany(t => t.Roster).Where(r => !string.IsNullOrWhiteSpace(r)));
-            }
+            var (roster, captain) = ChampionRoster(group, championship, team);
             var members = new List<ChampionMember>();
             foreach (var gamertag in roster)
             {
@@ -1957,6 +1967,24 @@ public partial class HistoricalImportService : IHistoricalImportService
             counts.ChampionshipsRemoved += changes.Removed;
         }
         return tiers;
+    }
+
+    /// <summary>The title's roster and captain: the record's, or, when it lists no one, those the season's sheets give the team.</summary>
+    private static (List<string> Roster, string? Captain) ChampionRoster(SeasonGroup group, ArchiveChampionship championship, Team team)
+    {
+        var roster = championship.Roster.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
+        var captain = championship.Captain;
+        if (roster.Count != 0)
+            return (roster, captain);
+        var matchingTeams = group.Entries.SelectMany(e => e.Teams)
+            .Where(t => string.Equals(CleanTeamName(t.TeamName), team.TeamName, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(t.TeamName.Trim(), championship.Team.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        captain ??= matchingTeams.Select(t => t.Captain).FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
+        if (!string.IsNullOrWhiteSpace(captain))
+            roster.Add(captain);
+        roster.AddRange(matchingTeams.SelectMany(t => t.Roster).Where(r => !string.IsNullOrWhiteSpace(r)));
+        return (roster, captain);
     }
 
     /// <summary>
