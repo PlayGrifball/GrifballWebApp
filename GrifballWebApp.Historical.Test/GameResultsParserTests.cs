@@ -517,6 +517,8 @@ public class GameResultsParserTests
             ["L", "Charlie", "Delta", "W", ""],
             ["Away", "Home", "Video"],
             ["Echo", "Foxtrot", "https://v/3"],
+            ["Notes", "Visitors", "Home"],
+            ["", "Golf", "Hotel"],
             ["Visitors", "Home"],
             ["Echo", "Foxtrot"]));
 

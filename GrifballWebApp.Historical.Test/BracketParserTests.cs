@@ -479,11 +479,36 @@ public class BracketParserTests
         }));
     }
 
-    private static readonly string[] BracketTableSheets = ["Missing", "Header Only", "No Teams"];
+    [Test]
+    public void ParseTable_ARoundOfNoneIsTheFirst_OneScoreIsNone_AndATiedScoreStaysBesideANamedWinner()
+    {
+        var sheet = new SheetTable
+        {
+            Name = "Brackets",
+            Rows =
+            [
+                ["season_id", "bracket", "round", "team_1", "score_1", "team_2", "score_2", "winner"],
+                ["eugbl-s17", "Winner", "-1", "Kilo", "2", "Lima", "", "Kilo"],
+                ["eugbl-s17", "Winner", "2", "Mike", "1", "November", "1", "November"],
+            ],
+        };
+
+        var series = BracketParser.ParseTable("hub", new BracketTableConfig { Sheet = "Brackets", Stats = "Player_Stats" }, EugblStats(), Workbook(sheet), _warnings)
+            ["hub/Player_Stats#seugbl-s17"].Series;
+
+        Assert.That(series.Select(s => (s.Round, s.Home, s.HomeWins, s.AwayWins, s.Winner)), Is.EqualTo(new[]
+        {
+            (1, "Kilo", (int?)null, (int?)null, (SeasonMatchSide?)SeasonMatchSide.Home),
+            (2, "Mike", 1, 1, SeasonMatchSide.Away),
+        }));
+    }
+
+    private static readonly string[] BracketTableSheets = ["Missing", "Header Only", "No Home", "No Teams"];
 
     private static readonly string[] BracketTableWarnings =
     [
         "hub: no bracket sheet 'Missing'",
+        "hub: bracket sheet 'No Home' is missing required season or team columns",
         "hub: bracket sheet 'No Teams' is missing required season or team columns",
     ];
 
@@ -492,7 +517,8 @@ public class BracketParserTests
     {
         var headerOnly = new SheetTable { Name = "Header Only", Rows = [["season_id", "team_1", "team_2"]] };
         var noTeams = new SheetTable { Name = "No Teams", Rows = [["season_id", "team_1"], ["eugbl-s17", "Alpha"]] };
-        var workbook = Workbook(headerOnly, noTeams);
+        var noHome = new SheetTable { Name = "No Home", Rows = [["season_id", "team_2"], ["eugbl-s17", "Bravo"]] };
+        var workbook = Workbook(headerOnly, noHome, noTeams);
 
         var parsed = BracketTableSheets
             .Select(name => BracketParser.ParseTable("hub", new BracketTableConfig { Sheet = name, Stats = "Player_Stats" }, EugblStats(), workbook, _warnings))

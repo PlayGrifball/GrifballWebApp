@@ -198,6 +198,7 @@ public class HistoricalArchiveParsingTests
     [TestCase("12", "Time (m)", 720)]
     [TestCase("2:05", "Minutes", 125)]
     [TestCase(null, "Time", null)]
+    [TestCase("x", "Minutes", null)]
     public void DurationSeconds(string? text, string header, int? seconds)
         => Assert.That(ArchiveCells.DurationSeconds(text, header), Is.EqualTo((decimal?)seconds));
 
@@ -1868,6 +1869,7 @@ public class HistoricalArchiveParsingTests
                 ["Season 4", "", "Bravo", "", "GGL", "Halo 4"],
                 ["", "Open", "Charlie", "PlayerTwo", "", ""],
                 ["Season 5", "Open", "", "PlayerThree", "", ""],
+                ["Season 6", "Pro", "Golf", "", "", ""],
             ],
         };
         var empty = new SheetTable { Name = "Empty", Rows = [["season_name", "champion_team"]] };
@@ -1889,6 +1891,7 @@ public class HistoricalArchiveParsingTests
             {
                 ("Season 3", "Open", "Alpha", (string?)null, (string?)null, (string?)"PlayerOne"),
                 ("Season 4", "Open", "Bravo", "GGL", "Halo 4", null),
+                ("Season 6", "Pro", "Golf", null, null, null),
             }));
             Assert.That(unread.Select(u => u.Champions.Count), Has.All.EqualTo(0));
             Assert.That(warnings, Is.EqualTo(ChampionsTableWarnings), "a table read without a warnings list warns of nothing");

@@ -1025,6 +1025,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
                 [
                     new ArchiveTeam { TeamName = "Natural Selection", Captain = "ixGingy", Roster = ["Darwin"] },
                     new ArchiveTeam { TeamName = "Other Team", Captain = "Someone", Roster = ["Nobody"] },
+                    new ArchiveTeam { TeamName = "Third Team", Roster = ["Solo"] },
                 ],
             }).Seasons,
             Championships = new ChampionsArchive
@@ -1033,6 +1034,8 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
                 Champions =
                 [
                     new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "GGL Spring League 2014", Game = "Halo 4", Tier = "Open", Team = "Natural Selection", Roster = [] },
+                    new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "GGL Spring League 2014", Game = "Halo 4", Tier = "Pro", Team = "Other Team", Captain = "Boss", Roster = [] },
+                    new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "GGL Spring League 2014", Game = "Halo 4", Tier = "Amateur", Team = "Third Team", Roster = [] },
                     new ArchiveChampionship { League = "Nope", SourceId = "history-grifballhub-db", Season = "Nope Season 1", Game = "Halo 4", Tier = "Open", Team = "Red", Roster = ["Cap1"] },
                 ],
             },
@@ -1043,7 +1046,8 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Skipped, Has.Member("Nope Season 1 Open champions: unknown league 'Nope'"));
-            Assert.That(titles.Select(t => (t.GamertagUsed, t.IsCaptain)), Is.EquivalentTo(new[] { ("ixGingy", true), ("Darwin", false) }));
+            Assert.That(titles.Select(t => (t.GamertagUsed, t.IsCaptain)), Is.EquivalentTo(new[] { ("ixGingy", true), ("Darwin", false), ("Boss", true), ("Nobody", false), ("Solo", false) }),
+                "the record's captain over the sheet's; a team with none has none");
         }
     }
 
@@ -1083,6 +1087,68 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         {
             Assert.That(report.Skipped, Has.Some.EndsWith("the league already has a season with that name that is not wl19"));
             Assert.That(await Context.Seasons.Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(new[] { $"{HistoricalKeys.Slug("Winter League 2019")}/Stats" }));
+        }
+    }
+
+    private static readonly string[] StatsSeasonThenTitlesUnderItsLeague = ["history-grifballhub-db/Spring League 2015", "history-grifballhub-db/ggl/Spring League 2015"];
+
+    [Test]
+    public async Task Import_ATitleOnlySeasonWhoseKeyASeasonHasAlready_IsKeyedUnderItsLeague()
+    {
+        await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = Input(new ArchiveSeason
+            {
+                SeasonName = "GGL Stats 2015",
+                GameVersion = "halo4",
+                League = "GGL",
+                SourceWorkbook = "history-grifballhub-db",
+                SourceSheet = "Spring League 2015",
+                Players = [Player("Cap1", team: "Red")],
+            }).Seasons,
+            Championships = new ChampionsArchive
+            {
+                SourceId = "history-grifballhub-db",
+                Champions =
+                [
+                    new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "Spring League 2015", Game = "Halo 4", Tier = "Open", Team = "Red", Roster = ["Cap1"] },
+                ],
+            },
+        });
+
+        Context.ChangeTracker.Clear();
+        var seasons = await Context.Seasons.AsNoTracking().OrderBy(s => s.SeasonName).Select(s => s.HistoricalSourceID).ToListAsync();
+        Assert.That(seasons, Is.EqualTo(StatsSeasonThenTitlesUnderItsLeague));
+    }
+
+    [Test]
+    public async Task Import_ATitleFromAnotherWorkbook_FindsItsImportedSeasonByName_InItsOwnLeague()
+    {
+        static HistoricalArchiveInput Titles(string workbook) => new()
+        {
+            Seasons = new UnifiedArchive(),
+            Championships = new ChampionsArchive
+            {
+                SourceId = "history-agla-champions",
+                Champions =
+                [
+                    new ArchiveChampionship { League = "GGL", SourceId = workbook, Season = "Winter League 2010", Game = "Halo 3", Tier = "Open", Team = "Red", Roster = ["Cap1"] },
+                    new ArchiveChampionship { League = "EUGBL", SourceId = workbook, Season = "Winter League 2010", Game = "Halo 3", Tier = "Open", Team = "Blue", Roster = ["Cap2"] },
+                ],
+            },
+        };
+        await _service.Import(Titles("history-agla-champions"));
+        Context.ChangeTracker.Clear();
+        var before = await Context.Seasons.AsNoTracking().OrderBy(s => s.SeasonID).Select(s => s.HistoricalSourceID).ToListAsync();
+
+        await _service.Import(Titles("history-grifballhub-db"));
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(before, Has.Count.EqualTo(2));
+            Assert.That(await Context.Seasons.AsNoTracking().OrderBy(s => s.SeasonID).Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(before));
+            Assert.That(await Context.Set<PlayerChampionship>().CountAsync(), Is.EqualTo(2));
         }
     }
 
