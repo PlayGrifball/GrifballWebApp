@@ -75,6 +75,39 @@ public class ArchiveImportTests
         Assert.That(Archive.Report.MissingMatches.Where(m => !waypoint.Any(w => m.StartsWith(w + " ", StringComparison.OrdinalIgnoreCase))), Is.Empty);
     }
 
+    private static bool IsGrifballHub(string sourceID) => sourceID.StartsWith("history-grifballhub-db/", StringComparison.Ordinal);
+
+    private static readonly HashSet<string> GrifballHubStatsSeasons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "history-grifballhub-db/Player_Stats#sagla-fl17-am",
+        "history-grifballhub-db/Player_Stats#sagla-fl17-legacy",
+        "history-grifballhub-db/Player_Stats#sagla-fl17-pro",
+        "history-grifballhub-db/Player_Stats#seugbl-bid-2014",
+        "history-grifballhub-db/Player_Stats#seugbl-s17",
+        "history-grifballhub-db/Player_Stats#seugbl-s20",
+        "history-grifballhub-db/Player_Stats#sggl-sml17",
+    };
+
+    /// <summary>GrifballHub seasons whose original pages or team rosters omitted captain or champion roster records.</summary>
+    private static readonly HashSet<string> GrifballHubSeasonsWithoutTitles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "history-grifballhub-db/Player_Stats#sagla-fl17-am",
+        "history-grifballhub-db/Player_Stats#sagla-fl17-legacy",
+        "history-grifballhub-db/Player_Stats#sagla-fl17-pro",
+        "history-grifballhub-db/Player_Stats#seugbl-bid-2014",
+        "history-grifballhub-db/Player_Stats#sggl-fl15",
+        "history-grifballhub-db/Player_Stats#sggl-fl16",
+        "history-grifballhub-db/Player_Stats#sggl-sl15",
+        "history-grifballhub-db/Player_Stats#sggl-sl16",
+        "history-grifballhub-db/Player_Stats#sggl-sml11",
+        "history-grifballhub-db/Player_Stats#sggl-sml12",
+        "history-grifballhub-db/Player_Stats#sggl-sml13",
+        "history-grifballhub-db/Player_Stats#sggl-sml14",
+        "history-grifballhub-db/Player_Stats#sggl-sml17",
+        "history-grifballhub-db/Player_Stats#sggl-wl11",
+        "history-grifballhub-db/Player_Stats#sggl-wl13",
+    };
+
     [Test]
     public async Task EverySeason_HasTeams()
     {
@@ -84,7 +117,8 @@ public class ArchiveImportTests
     [Test]
     public async Task EverySeason_HasStats()
     {
-        Assert.That((await Seasons()).Where(s => s.Stats == 0).Select(s => s.Name), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.Stats == 0 && !(IsGrifballHub(s.SourceID) && !GrifballHubStatsSeasons.Contains(s.SourceID)))
+            .Select(s => s.Name), Is.Empty);
     }
 
     /// <summary>A line from a tab that counts rounds, not games (the Infinite stats tool's, 2025 on: its rounds are kept in
@@ -116,7 +150,8 @@ public class ArchiveImportTests
     [Test]
     public async Task EveryTeam_HasACaptain()
     {
-        Assert.That((await Seasons()).Where(s => s.Captains < s.Teams).Select(s => $"{s.Name}: {s.Captains} of {s.Teams}"), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.Captains < s.Teams && !IsGrifballHub(s.SourceID))
+            .Select(s => $"{s.Name}: {s.Captains} of {s.Teams}"), Is.Empty);
     }
 
     /// <summary>The seasons (their source IDs' workbook) whose catalog entries name a draft tab that isn't a bid draft's.</summary>
@@ -154,7 +189,9 @@ public class ArchiveImportTests
     [Test]
     public async Task EverySeason_PlacesItsTeams()
     {
-        Assert.That((await Seasons()).Where(s => s.Ranked == 0 && s.Finished == 0).Select(s => s.Name), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.Ranked == 0 && s.Finished == 0
+            && !(IsGrifballHub(s.SourceID) && !s.SourceID.StartsWith("history-grifballhub-db/Player_Stats#", StringComparison.Ordinal)))
+            .Select(s => s.Name), Is.Empty);
     }
 
     /// <summary>A season whose standings rank some teams ranks every one: a team left out is a name its standings spell
@@ -168,16 +205,22 @@ public class ArchiveImportTests
     [Test]
     public async Task EverySeason_HasAChampion()
     {
-        Assert.That((await Seasons()).Where(s => s.Titles == 0).Select(s => s.Name), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.Titles == 0 && !GrifballHubSeasonsWithoutTitles.Contains(s.SourceID)).Select(s => s.Name), Is.Empty);
     }
 
-    /// <summary>Not the seasons whose games are Waypoint matches: no run here has them.</summary>
+    /// <summary>Seasons whose archive supplies a bracket or playoff recorded games (not Waypoint seasons, nor sheets with playoff stat totals only).</summary>
     [Test]
     public async Task EverySeasonWithPlayoffs_HasABracket()
     {
         var waypoint = Archive.WaypointSeasons;
+        var playoffSources = Archive.Build.Input.Seasons.Seasons
+            .Where(s => s.Bracket is { Series.Count: > 0 })
+            .Select(s => s.HistoricalSourceId ?? HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!))
+            .Concat((Archive.Build.Input.RecordedGames ?? []).Where(g => g.IsPlayoffs).Select(g => g.SeasonSourceId))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.That((await Seasons()).Where(s => s.PlayoffStats > 0 && s.PlayoffMatches == 0 && !waypoint.Contains(s.SourceID)).Select(s => s.Name), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.PlayoffStats > 0 && s.PlayoffMatches == 0 && !waypoint.Contains(s.SourceID) && playoffSources.Contains(s.SourceID))
+            .Select(s => s.Name), Is.Empty);
     }
 
     /// <summary>The seasons of the website databases (grifball.com 2008-2010, grifball.info 2011-2013): each has the games

@@ -24,6 +24,9 @@ public class GameResultsParserTests
     private static readonly string[] NoScoreNotRead = ["fl20/Game Results: results not read: A over B"];
     private static readonly string[] NoWinnerNotRead = ["fl20/Game History: results not read: Smurf v Mungo: FF, no winner"];
     private static readonly string[] NoHeaderNotRead = ["fl20/Game History: results not read: no Home and Away header"];
+    private static readonly bool[] SideBySidePlayoffs = [false, false, false, true, true, true];
+    private static readonly Outcomes[] WonThenLost = [Outcomes.Won, Outcomes.Lost];
+    private static readonly Outcomes[] LostThenWon = [Outcomes.Lost, Outcomes.Won];
     private static readonly string[] SeriesCellKeys = ["fl20/Game Results#1:0", "fl20/Game Results#2:0", "fl20/Game Results#3:3", "fl20/Game Results#4:3", "fl20/Game Results#5:1", "fl20/Game Results#5:2"];
     private static readonly string[] HistorySeries = ["fl20/Game History#1", "fl20/Game History#4", "fl20/Game History#4", "fl20/Game History#6", "fl20/Game History#7"];
 
@@ -402,4 +405,74 @@ public class GameResultsParserTests
     [TestCase("Team Rocket", "Team U.S.A.", false)]
     public void Abbreviates(string abbreviation, string name, bool abbreviates)
         => Assert.That(HistoricalArchiveBuilder.Abbreviates(abbreviation, name), Is.EqualTo(abbreviates));
+
+    [Test]
+    public void Table_SideBySideFixturesAndVisitorsHomeSchedule_AreParsed()
+    {
+        var fixtures = Parse(new ResultsTab { Sheet = "Results", Layout = ResultsLayout.Table }, Sheet(
+            ["Week 1", "", "", "", "", "", "Week 2"],
+            ["Team 1:", "Score:", "Score:", "Team 2:", "Game Link:", "", "Team 1:", "Score:", "Score:", "Team 2:", "Game Link:"],
+            ["Legendary", "5", "1", "Underrated", "Game Link", "", "Oblivion", "W", "L", "Eclipse", "FORFEIT"]));
+
+        var visitors = Parse(new ResultsTab { Sheet = "Schedule", Layout = ResultsLayout.Table }, Sheet(
+            ["", "W/L", "Goals", "Visitors", "Home", "Goals", "W/L", "NH", "Link"],
+            ["", "W", "5", "WTF", "EDG", "0", "L", "Regresser", "https://www.twitch.tv/videos/1"],
+            ["", "L", "", "FTN", "DYN", "", "W", "FF", "FF"]));
+
+        var seriesForfeit = Parse(new ResultsTab { Sheet = "SR", Layout = ResultsLayout.Series }, Sheet(
+            ["Reflex over Bad Intentions FF"]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(fixtures.Select(Sides), Is.EqualTo(new[]
+            {
+                ((string?)"Legendary", Outcomes.Won, (int?)5, (string?)"Underrated", Outcomes.Lost, (int?)1),
+                ("Oblivion", Outcomes.Won, (int?)null, "Eclipse", Outcomes.Lost, (int?)null),
+            }));
+            Assert.That(fixtures[1].IsForfeit, Is.True);
+            Assert.That(visitors.Select(Sides), Is.EqualTo(new[]
+            {
+                ((string?)"WTF", Outcomes.Won, (int?)5, (string?)"EDG", Outcomes.Lost, (int?)0),
+                ("FTN", Outcomes.Lost, (int?)null, "DYN", Outcomes.Won, (int?)null),
+            }));
+            Assert.That((visitors[0].Host, visitors[0].Vod, visitors[1].IsForfeit), Is.EqualTo(("Regresser", "https://www.twitch.tv/videos/1", true)));
+            Assert.That((seriesForfeit.Single().Teams[0].Name, seriesForfeit.Single().IsForfeit), Is.EqualTo(("Reflex", true)));
+        }
+    }
+
+    [Test]
+    public void Table_SideBySideBlocksPreserveSeries_SetPerBlockPhase_GuardMissingScore_AndHandleZeroForfeitWithWl()
+    {
+        var sheet = Sheet(
+            ["Week 1", "", "", "", "", "", "Semi Final"],
+            ["Home Team:", "Score:", "Score:", "Away Team:", "Game Link:", "", "Team 1:", "Score:", "Score:", "Team 2:", "Game Link:"],
+            ["Alpha", "5", "1", "Bravo", "", "", "Charlie", "5", "2", "Delta", ""],
+            ["Alpha", "5", "2", "Bravo", "", "", "Charlie", "5", "3", "Delta", ""],
+            ["Week 2", "", "", "", "", "", "Final"],
+            ["Alpha", "5", "4", "Bravo", "", "", "Alpha", "5", "0", "Charlie", ""]);
+
+        var games = Parse(new ResultsTab { Sheet = "Results", Layout = ResultsLayout.Table }, sheet);
+
+        var visitorsNoScores = Parse(new ResultsTab { Sheet = "Schedule", Layout = ResultsLayout.Table }, Sheet(
+            ["W/L", "Visitors", "Home", "Link"],
+            ["W", "Alpha", "Bravo", "FF"]));
+
+        var zeroForfeit = Parse(new ResultsTab { Sheet = "Forfeits", Layout = ResultsLayout.Table }, Sheet(
+            ["W/L", "Goals", "Visitors", "Home", "Goals", "W/L"],
+            ["L", "0", "Alpha", "Bravo", "0", "W"]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games, Has.Count.EqualTo(6));
+            // Left block: rows 2 & 3 share Week 1 series; row 5 under Week 2 starts new series; right block rows 2 & 3 share Semi Final series
+            Assert.That(games[0].Series, Is.EqualTo(games[1].Series), "Consecutive rows in Block 0 stay in one series");
+            Assert.That(games[2].Series, Is.Not.EqualTo(games[0].Series), "Week 2 divider inside Block 0 ends the Week 1 series");
+            Assert.That(games[3].Series, Is.EqualTo(games[4].Series), "Consecutive rows in Block 1 stay in one series");
+            Assert.That(games.Select(g => g.IsPlayoffs), Is.EqualTo(SideBySidePlayoffs),
+                "Semi Final / Final banners in Block 1 mark Block 1 games as playoffs without polluting Block 0");
+            Assert.That(visitorsNoScores.Single().Teams.Select(t => t.Outcome), Is.EqualTo(WonThenLost));
+            Assert.That(zeroForfeit.Single().Teams.Select(t => t.Outcome), Is.EqualTo(LostThenWon));
+            Assert.That(zeroForfeit.Single().IsForfeit, Is.True);
+        }
+    }
 }

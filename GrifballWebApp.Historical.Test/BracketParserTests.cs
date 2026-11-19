@@ -358,4 +358,48 @@ public class BracketParserTests
     {
         Assert.That(BracketParser.Seed(cell), Is.EqualTo(seed));
     }
+
+    private static readonly string[] ExpectedParsedTableKeys = ["hub/Player_Stats#seugbl-s17"];
+
+    [Test]
+    public void ParseTable_ReadsNormalizedBracketRows_GroupedByCanonicalSeason()
+    {
+        var stats = new StatsTable
+        {
+            Sheet = "Player_Stats",
+            Game = "halo4",
+            SeasonColumn = "season_id",
+            Seasons = new()
+            {
+                ["eugbl-s17"] = new() { Name = "EUGBL Season 17", League = "EUGBL" },
+            },
+        };
+        var sheet = new SheetTable
+        {
+            Name = "Brackets",
+            Rows =
+            [
+                ["season_id", "bracket", "round", "seed_1", "team_1", "score_1", "seed_2", "team_2", "score_2", "winner"],
+                ["eugbl-s17", "GrandFinal", "2", "1", "Alpha", "2", "2", "Bravo", "1", "Alpha"],
+                ["eugbl-s17", "Winner", "1", "1", "Alpha", "2", "4", "Charlie", "0", "Alpha"],
+                ["eugbl-s17", "Loser", "1", "2", "Bravo", "", "3", "Delta", "", "Bravo"],
+                ["other-season", "Winner", "1", "1", "X", "2", "2", "Y", "0", "X"],
+            ],
+        };
+
+        var parsed = BracketParser.ParseTable("hub", new BracketTableConfig { Sheet = "Brackets", Stats = "Player_Stats" }, stats, Workbook(sheet), _warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_warnings, Is.Empty);
+            Assert.That(parsed.Keys, Is.EqualTo(ExpectedParsedTableKeys));
+            var series = parsed["hub/Player_Stats#seugbl-s17"].Series;
+            Assert.That(series.Select(s => (s.Bracket, s.Round, s.Number, s.Home, s.Away, s.HomeWins, s.AwayWins, s.Winner)), Is.EqualTo(new[]
+            {
+                (Bracket.Winner, 1, 1, "Alpha", "Charlie", (int?)2, (int?)0, (SeasonMatchSide?)SeasonMatchSide.Home),
+                (Bracket.Loser, 1, 1, "Bravo", "Delta", null, null, (SeasonMatchSide?)SeasonMatchSide.Home),
+                (Bracket.GrandFinal, 2, 2, "Alpha", "Bravo", 2, 1, (SeasonMatchSide?)SeasonMatchSide.Home),
+            }), "Winners/Losers/GrandFinal ordering and per-side numbering match BracketParser");
+        }
+    }
 }

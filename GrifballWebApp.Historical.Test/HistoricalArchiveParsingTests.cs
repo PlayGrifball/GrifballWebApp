@@ -303,6 +303,63 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void ChampionsTable_AndBracketTable_MergeIntoChampionsArchiveAndAttachNormalizedBrackets()
+    {
+        var aglaChampions = new HistoricalSourceConfig { ChampionsSheet = "AGLA Champions" };
+        var hubConfig = new HistoricalSourceConfig
+        {
+            Season = new() { Name = "Hub", League = "AGLA", Game = "multi" },
+            ChampionsTable = new() { Sheet = "Champions" },
+            BracketTable = new() { Sheet = "Brackets", Stats = "Player_Stats" },
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "Player_Stats",
+                    Game = "halo4",
+                    SeasonColumn = "season_id",
+                    StandingsSheet = "Standings",
+                    Seasons = new()
+                    {
+                        ["eugbl-s17"] = new() { Name = "EUGBL Season 17", League = "EUGBL", Year = 2014 },
+                    },
+                },
+            ],
+        };
+
+        var build = HistoricalArchiveBuilder.Build([
+            Source("history-agla-champions", aglaChampions, Workbook(("AGLA Champions", [Row("AGLA"), Row("Season", "Game", "League", "Team"), Row("Winter League 2019", "Halo 3", "Open", "Tuna", "Rayzyr")]))),
+            Source("history-grifballhub-db", hubConfig, Workbook(
+                ("Champions", [
+                    Row("league", "season_name", "game", "tier", "champion_team", "p1", "p2"),
+                    Row("EUGBL", "EUGBL Season 17", "Halo 4", "Open", "Alpha Squad", "Cap1", "Mate2"),
+                ]),
+                ("Player_Stats", [Row("season_id", "gamertag", "team", "games played")]),
+                ("Standings", [
+                    Row("season_id", "team_name", "rank", "wins", "losses"),
+                    Row("eugbl-s17", "Alpha Squad", 1, 5, 0),
+                    Row("eugbl-s17", "Bravo", 2, 3, 2),
+                ]),
+                ("Brackets", [
+                    Row("season_id", "bracket", "round", "seed_1", "team_1", "score_1", "seed_2", "team_2", "score_2", "winner"),
+                    Row("eugbl-s17", "Winner", 1, 1, "Alpha Squad (Cap1)", 2, 2, "Bravo", 0, "Alpha Squad (Cap1)"),
+                ]))),
+        ]);
+
+        var champions = build.Input.Championships!;
+        var season = build.Input.Seasons!.Seasons.Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Is.Empty);
+            Assert.That(champions.Champions, Has.Count.EqualTo(2));
+            Assert.That((champions.Champions[1].League, champions.Champions[1].SourceId, champions.Champions[1].Captain),
+                Is.EqualTo(("EUGBL", "history-grifballhub-db", "Cap1")));
+            Assert.That(season.Bracket!.Series.Select(s => (s.Home, s.Away, s.Winner)),
+                Is.EqualTo(new[] { ("Alpha Squad", "Bravo", (Domain.League.SeasonMatchSide?)Domain.League.SeasonMatchSide.Home) }));
+        }
+    }
+
+    [Test]
     public void WaypointGames_AreSplitIntoRegularAndPlayoffs_ByTheFirstColumn()
     {
         var a = Guid.NewGuid();
@@ -1558,7 +1615,7 @@ public class HistoricalArchiveParsingTests
                 Is.SubsetOf(sources.Where(s => s.Config?.Tabs.Count > 0).Select(s => s.HistoricalSourceID)));
             Assert.That(sources.Count(s => s.Config?.ChampionsSheet is not null), Is.EqualTo(1));
             Assert.That(sources.Single(s => s.Kind == HistoricalSourceKind.YouTubeChannel).Enabled, Is.True, "Kept for the VODs to come");
-            Assert.That(stats, Has.Count.EqualTo(54), "The seasons the Node compiler made, and the DJBluePDX Summer Series since");
+            Assert.That(stats, Has.Count.EqualTo(69), "All configured stats tabs across the archive catalog");
         }
     }
 
@@ -1576,6 +1633,42 @@ public class HistoricalArchiveParsingTests
             Assert.That(back.PlayersSheet, Is.EqualTo("Player Masterlist"));
             Assert.That(HistoricalSourceConfig.FromJson(null), Is.Null);
             Assert.That(config.ToJson(), Does.Contain("\"Carnage\""), "Enums as names");
+        }
+    }
+
+    [Test]
+    public void ChampionsParser_SetsSourceOnItems_AndParseTableWarnsWhenRequiredColumnsMissing()
+    {
+        var listSheet = new SheetTable
+        {
+            Name = "AGLA Champions",
+            Rows =
+            [
+                ["Season", "Game", "Tier", "Team", "Captain"],
+                [],
+                ["Summer League 2016", "Halo 5", "Open", "Impulse", "KID TONGA 1"],
+            ],
+        };
+        var tableSheet = new SheetTable
+        {
+            Name = "Champions",
+            Rows =
+            [
+                ["league", "tier", "p1"],
+                ["GGL", "Open", "PlayerOne"],
+            ],
+        };
+
+        var warnings = new List<string>();
+        var parsedList = ChampionsParser.Parse("history-agla-champions", "https://example.test/champs", listSheet);
+        var parsedTable = ChampionsParser.ParseTable("history-grifballhub-db", "https://example.test/hub", tableSheet, warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(parsedList.Champions.Single().SourceId, Is.EqualTo("history-agla-champions"));
+            Assert.That(parsedList.Champions.Single().SourceUrl, Is.EqualTo("https://example.test/champs"));
+            Assert.That(parsedTable.Champions, Is.Empty);
+            Assert.That(warnings, Has.Some.Contains("missing required season or team columns"));
         }
     }
 }

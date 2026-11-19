@@ -479,4 +479,56 @@ public class StandingsParserTests
     {
         Assert.That(StandingsParser.WithoutNote(name), Is.EqualTo(expected));
     }
+
+    [Test]
+    public void Rows_WonLossAndPsHeaders_ReadRankAndRecords()
+    {
+        var sheet = Sheet(
+            ["PS", "Team", "Played", "Won", "Loss", "Net Goals"],
+            ["2", "Legendary", "16", "14", "2", "49"],
+            ["6", "Zero Gravity", "16", "8", "8", "8"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Rank, t.Wins, t.Losses)),
+            Is.EqualTo(new[] { ("Legendary", (int?)2, (int?)14, (int?)2), ("Zero Gravity", (int?)6, (int?)8, (int?)8) }));
+    }
+
+    [Test]
+    public void CaptainRows_ReadsTeamsCaptainsRostersAndRecordsAcrossBlocks()
+    {
+        var sheet = Sheet(
+            ["", "Sword Division", "", "", "", "", "Wins", "", "Losses"],
+            ["", "ThunderCats", "", "ixLiono", "ixSnarf", "ixGingy", "9", "", "1"],
+            ["", "", "", "Captain"],
+            ["", "Hammer Division", "", "", "", "", "Wins", "", "Losses"],
+            ["", "JankYard Doogs", "", "Nkotb4evah", "Menz", "", "10", "", "0"],
+            ["", "", "", "Captain"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings", Layout = StandingsLayout.CaptainRows, Ranked = true });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain, t.Rank, t.Wins, t.Losses, string.Join(",", t.Roster))),
+            Is.EqualTo(new[]
+            {
+                ("ThunderCats", (string?)"ixLiono", (int?)1, (int?)9, (int?)1, "ixLiono,ixSnarf,ixGingy"),
+                ("JankYard Doogs", (string?)"Nkotb4evah", (int?)1, (int?)10, (int?)0, "Nkotb4evah,Menz"),
+            }));
+    }
+
+    [Test]
+    public void RosterParser_CaptainRows_StopsAtWinsColumnAndIgnoresTrailingNotes()
+    {
+        var sheet = Sheet(
+            ["", "Sword Division", "", "", "", "Wins", "Losses", "Record"],
+            ["", "ThunderCats", "", "ixLiono (c)", "ixSnarf", "9", "1", "9-1"],
+            ["", "", "", "Captain"]);
+
+        var byPlayer = RosterParser.Parse(sheet);
+
+        Assert.That(byPlayer, Is.EqualTo(new Dictionary<string, string>
+        {
+            ["IXLIONO"] = "ThunderCats",
+            ["IXSNARF"] = "ThunderCats",
+        }));
+    }
 }

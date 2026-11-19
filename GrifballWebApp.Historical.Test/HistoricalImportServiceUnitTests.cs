@@ -867,6 +867,148 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
 
     private static readonly (string, string, string)[] TierMovedResult = [("Pro", "Hens", "Hen")];
 
+    [Test]
+    public async Task Import_MultiLeagueChampionships_GoToTheirOwnLeagues_AndAdoptPlaceholdersWhenStatsArrive()
+    {
+        await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive(),
+            Championships = new ChampionsArchive
+            {
+                SourceId = "history-agla-champions",
+                Champions =
+                [
+                    new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "GGL Fall League 2012", Game = "Halo 4", Tier = "Open", Team = "Red", Roster = ["Cap1"] },
+                    new ArchiveChampionship { League = "EUGBL", SourceId = "history-grifballhub-db", Season = "EUGBL Season 20", Game = "Halo 4", Tier = "Open", Team = "Blue", Roster = ["Cap2"] },
+                ],
+            },
+        });
+
+        await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = Input(new ArchiveSeason
+            {
+                SeasonName = "GGL Fall League 2012",
+                GameVersion = "halo4",
+                League = "GGL",
+                SourceWorkbook = "later-ggl",
+                SourceSheet = "Stats",
+                Players = [Player("Cap1", team: "Red")],
+            }).Seasons,
+            Championships = new ChampionsArchive
+            {
+                SourceId = "history-agla-champions",
+                Champions =
+                [
+                    new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "GGL Fall League 2012", Game = "Halo 4", Tier = "Open", Team = "Red", Roster = ["Cap1"] },
+                    new ArchiveChampionship { League = "EUGBL", SourceId = "history-grifballhub-db", Season = "EUGBL Season 20", Game = "Halo 4", Tier = "Open", Team = "Blue", Roster = ["Cap2"] },
+                ],
+            },
+        });
+
+        Context.ChangeTracker.Clear();
+        var seasons = await Context.Seasons.AsNoTracking().Include(s => s.League).OrderBy(s => s.LeagueID).ToListAsync();
+        var titles = await Context.Set<PlayerChampionship>().AsNoTracking().Include(c => c.Season).ThenInclude(s => s.League).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons.Select(s => (s.League.Slug, s.SeasonName, s.HistoricalSourceID)), Is.EqualTo(new[]
+            {
+                ("ggl", "GGL Fall League 2012", "later-ggl/Stats"),
+                ("eugbl", "EUGBL Season 20", "history-grifballhub-db/EUGBL Season 20"),
+            }));
+            Assert.That(titles.Select(t => (t.Season.League.Slug, t.GamertagUsed)).OrderBy(x => x.Slug), Is.EqualTo(new[]
+            {
+                ("eugbl", "Cap2"),
+                ("ggl", "Cap1"),
+            }));
+        }
+    }
+
+    [Test]
+    public async Task Import_KeySeasonsPrefersStatsEntry_FallsBackChampionshipsToArchiveTeamCaptain_AndSkipsEmptyOrphans()
+    {
+        await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = Input(
+                new ArchiveSeason
+                {
+                    SeasonName = "Summer League 2015",
+                    GameVersion = "halo3",
+                    League = "AGLA",
+                    SourceWorkbook = "history-grifballhub-db",
+                    SourceSheet = "Player_Stats#sagla-sml15",
+                    Teams = [new ArchiveTeam { TeamName = "One Hit Wonders", Captain = "Rage More Nerd" }],
+                },
+                new ArchiveSeason
+                {
+                    SeasonName = "Summer League 2015",
+                    GameVersion = "halo3",
+                    League = "AGLA",
+                    SourceWorkbook = "2015-sml15-statistics",
+                    SourceSheet = "Sheet1",
+                    Players = [Player("Rage More Nerd", team: "One Hit Wonders")],
+                },
+                new ArchiveSeason
+                {
+                    SeasonName = "GGL Spring League 2014",
+                    GameVersion = "halo4",
+                    League = "GGL",
+                    SourceWorkbook = "history-grifballhub-db",
+                    SourceSheet = "Player_Stats#sggl-sl14",
+                    Teams = [new ArchiveTeam { TeamName = "Natural Selection", Captain = "ixGingy" }],
+                }).Seasons,
+            Championships = new ChampionsArchive
+            {
+                SourceId = "history-grifballhub-db",
+                Champions =
+                [
+                    new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "GGL Spring League 2014", Game = "Halo 4", Tier = "Open", Team = "Natural Selection", Roster = [] },
+                    new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "GGL Fall League 2009", Game = "Halo 3", Tier = "Open", Team = "Woot Woot", Roster = [] },
+                ],
+            },
+        });
+
+        Context.ChangeTracker.Clear();
+        var seasons = await Context.Seasons.AsNoTracking().OrderBy(s => s.SeasonName).ToListAsync();
+        var titles = await Context.Set<PlayerChampionship>().AsNoTracking().Include(c => c.Season).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons.Select(s => (s.SeasonName, s.HistoricalSourceID)), Is.EqualTo(new[]
+            {
+                ("GGL Spring League 2014", "history-grifballhub-db/Player_Stats#sggl-sl14"),
+                ("Summer League 2015", "2015-sml15-statistics/Sheet1"),
+            }), "0-stat Hub entry does not shadow dedicated stats sheet, and empty-roster orphan title creates no empty season");
+            Assert.That(titles.Select(t => (t.Season.SeasonName, t.GamertagUsed, t.IsCaptain)),
+                Is.EqualTo(new[] { ("GGL Spring League 2014", "ixGingy", true) }));
+        }
+    }
+
+    [Test]
+    public async Task Import_MultiLeagueChampionshipsSharingSeasonName_DisambiguatesPlaceholderSourceIds()
+    {
+        await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive(),
+            Championships = new ChampionsArchive
+            {
+                SourceId = "history-grifballhub-db",
+                Champions =
+                [
+                    new ArchiveChampionship { League = "GGL", SourceId = "history-grifballhub-db", Season = "Spring League 2015", Game = "Halo 4", Tier = "Open", Team = "Red", Roster = ["Cap1"] },
+                    new ArchiveChampionship { League = "EUGBL", SourceId = "history-grifballhub-db", Season = "Spring League 2015", Game = "Halo 4", Tier = "Open", Team = "Blue", Roster = ["Cap2"] },
+                ],
+            },
+        });
+
+        Context.ChangeTracker.Clear();
+        var seasons = await Context.Seasons.AsNoTracking().Include(s => s.League).OrderBy(s => s.League.Slug).ToListAsync();
+        Assert.That(seasons.Select(s => (s.League.Slug, s.HistoricalSourceID)), Is.EqualTo(new[]
+        {
+            ("eugbl", "history-grifballhub-db/eugbl/Spring League 2015"),
+            ("ggl", "history-grifballhub-db/ggl/Spring League 2015"),
+        }));
+    }
+
     // ---------- A season's dates, from its sheet's timestamps, its name's year or its source's ----------
 
     [Test]
