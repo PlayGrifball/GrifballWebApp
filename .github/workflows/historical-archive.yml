@@ -19,6 +19,7 @@ on:
   #     - 'GrifballWebApp.Infrastructure/Excel/**'
   #     - '.github/workflows/historical-archive*.yml'
   #     - '.github/scripts/historical-archive-compare.sh'
+  #     - '.github/scripts/historical-archive-regressions.sh'
 
 concurrency:
   group: historical-archive-${{ github.ref }}
