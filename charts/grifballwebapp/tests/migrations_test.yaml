@@ -43,6 +43,13 @@ tests:
       - matchRegex:
           path: spec.template.spec.initContainers[0].args[0]
           pattern: 'DATABASEPROPERTYEX\(N.\\\$\$\(DB_NAME\)., .Status.\)'
+      # Its status reads ONLINE before SQL Server has started it after a restart: a query in it has to answer too
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].args[0]
+          pattern: 'QUOTENAME\(N.\\\$\$\(DB_NAME\).\) \+ N.\.sys\.objects'
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].args[0]
+          pattern: 'IF DB_ID\(N.\\\$\$\(DB_NAME\).\) IS NOT NULL EXEC \(@probe\)'
       - matchRegex:
           path: spec.template.spec.initContainers[0].args[0]
           pattern: '\[ "\$state" = ONLINE \]'
