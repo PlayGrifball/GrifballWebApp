@@ -12,8 +12,17 @@ public static class LiveTopics
     /// <summary>The seasons: their list, the home page's events, and what a season's matches add to it.</summary>
     public const string Seasons = "seasons";
 
-    /// <summary>A season's pages: its overview, standings, schedule and bracket, teams and team pages, stats.</summary>
+    /// <summary>A season's overview tabs: its summary, standings, schedule and this week, its players' stats.</summary>
     public static string Season(int seasonID) => Keyed(SeasonKind, seasonID);
+
+    /// <summary>A season's playoff bracket: its matches, their teams and results.</summary>
+    public static string Bracket(int seasonID) => Keyed(BracketKind, seasonID);
+
+    /// <summary>A season's teams page: its teams, their rosters and records, and the season's banner.</summary>
+    public static string Teams(int seasonID) => Keyed(TeamsKind, seasonID);
+
+    /// <summary>A team's page: its roster, record and titles, its matches, its players' stats.</summary>
+    public static string Team(int teamID) => Keyed(TeamKind, teamID);
 
     /// <summary>A season's draft: its teams and their rosters, its captains and their lock, its player pool.</summary>
     public static string Draft(int seasonID) => Keyed(DraftKind, seasonID);
@@ -60,7 +69,8 @@ public static class LiveTopics
     /// <summary>Staff: the reschedule requests (the commissioner dashboard).</summary>
     public const string StaffReschedules = "staff:reschedules";
 
-    public const string SeasonKind = "season", DraftKind = "draft", SignupsKind = "signups", SeasonMatchKind = "seasonmatch",
+    public const string SeasonKind = "season", BracketKind = "bracket", TeamsKind = "teams", TeamKind = "team", DraftKind = "draft",
+        SignupsKind = "signups", SeasonMatchKind = "seasonmatch",
         HaloMatchKind = "match", PlayerKind = "player", XboxKind = "xbox", StaffKind = "staff";
 
     /// <summary>The longest topic a client may name: a kind and a GUID with room to spare.</summary>

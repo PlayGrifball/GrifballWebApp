@@ -511,13 +511,14 @@ public class SeasonMatch : AuditableEntity
             throw new InvalidOperationException($"Season match {SeasonMatchID}'s {side} side is a BYE: no team plays there");
         if (TeamOf(Other(side)) == teamID)
             throw new InvalidOperationException($"Team {teamID} can't play itself in season match {SeasonMatchID}");
-        if (TeamOf(side) == teamID)
+        var replaced = TeamOf(side);
+        if (replaced == teamID)
             return false;
         if (side is SeasonMatchSide.Home)
             HomeTeamID = teamID;
         else
             AwayTeamID = teamID;
-        Raise(new SeasonMatchTeamsChanged(this));
+        Raise(new SeasonMatchTeamsChanged(this, replaced));
         return true;
     }
 
@@ -572,6 +573,7 @@ public class SeasonMatch : AuditableEntity
     {
         if (DecidedBy is SeasonMatchDecision.Games or SeasonMatchDecision.Forfeit)
             throw new InvalidOperationException($"Season match {SeasonMatchID} is decided ({DecidedBy}): undo it first");
+        var cleared = TeamOf(side);
         if (side is SeasonMatchSide.Home)
         {
             HomeTeamID = null;
@@ -588,7 +590,7 @@ public class SeasonMatch : AuditableEntity
             if (HomeTeamResult is SeasonMatchResult.Won)
                 HomeTeamResult = null;
         }
-        Raise(new SeasonMatchTeamsChanged(this));
+        Raise(new SeasonMatchTeamsChanged(this, cleared));
         Raise(new SeasonMatchResultChanged(this));
     }
 }

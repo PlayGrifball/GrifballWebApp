@@ -7,10 +7,10 @@ using Microsoft.EntityFrameworkCore;
 namespace GrifballWebApp.Application.Live;
 
 /// <summary>
-/// Who may watch a topic (<see cref="LiveTopics"/>): what they may see. A season's topics, and its matches', only for one
+/// Who may watch a topic (<see cref="LiveTopics"/>): what they may see. A season's topics, and its matches' and teams', only for one
 /// they may see (one not announced yet: staff alone, #435), so a change never tells the public a hidden season exists; the
-/// staff's topics only for staff. A topic not spelt as the app spells it is no topic. A change carries no data (the page
-/// loads it, as the viewer may), so the rest is anyone's.
+/// staff's topics only for staff. A topic not spelt as the app spells it is no topic. The rest carry no data that isn't
+/// public (a notice, or the queue's size; the home page's events are built per viewer), so they are anyone's.
 /// </summary>
 public class LiveTopicAccess(SeasonVisibility visibility, IApplicationDbContext context)
 {
@@ -33,7 +33,7 @@ public class LiveTopicAccess(SeasonVisibility visibility, IApplicationDbContext 
         var (kind, key) = LiveTopics.Split(topic);
         switch (kind)
         {
-            case LiveTopics.SeasonKind or LiveTopics.DraftKind or LiveTopics.SignupsKind:
+            case LiveTopics.SeasonKind or LiveTopics.BracketKind or LiveTopics.TeamsKind or LiveTopics.DraftKind or LiveTopics.SignupsKind:
                 return IntKey(key) is int seasonID && topic == Keyed(kind, seasonID) && await visibility.CanSeeSeason(seasonID, viewer, ct);
             case LiveTopics.SeasonMatchKind:
                 if (IntKey(key) is not int seasonMatchID || topic != LiveTopics.SeasonMatch(seasonMatchID))
@@ -43,6 +43,14 @@ public class LiveTopicAccess(SeasonVisibility visibility, IApplicationDbContext 
                     .Select(m => (int?)m.SeasonID)
                     .FirstOrDefaultAsync(ct);
                 return seasonOf is int matchSeasonID && await visibility.CanSeeSeason(matchSeasonID, viewer, ct);
+            case LiveTopics.TeamKind:
+                if (IntKey(key) is not int teamID || topic != LiveTopics.Team(teamID))
+                    return false;
+                var teamSeason = await context.Teams.AsNoTracking()
+                    .Where(t => t.TeamID == teamID)
+                    .Select(t => (int?)t.SeasonID)
+                    .FirstOrDefaultAsync(ct);
+                return teamSeason is int teamSeasonID && await visibility.CanSeeSeason(teamSeasonID, viewer, ct);
             case LiveTopics.PlayerKind:
                 return IntKey(key) is int userID && topic == LiveTopics.Player(userID);
             case LiveTopics.XboxKind:
@@ -60,6 +68,8 @@ public class LiveTopicAccess(SeasonVisibility visibility, IApplicationDbContext 
     private static string Keyed(string kind, int seasonID) => kind switch
     {
         LiveTopics.SeasonKind => LiveTopics.Season(seasonID),
+        LiveTopics.BracketKind => LiveTopics.Bracket(seasonID),
+        LiveTopics.TeamsKind => LiveTopics.Teams(seasonID),
         LiveTopics.DraftKind => LiveTopics.Draft(seasonID),
         _ => LiveTopics.Signups(seasonID),
     };

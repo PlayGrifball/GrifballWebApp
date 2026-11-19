@@ -148,7 +148,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _hubContext.Clients.Clients(Arg.Is<IReadOnlyList<string>>(c => c.SequenceEqual(SevensConnection))).Returns(player);
         _hubContext.Clients.Clients(Arg.Is<IReadOnlyList<string>>(c => c.SequenceEqual(WatchingConnection))).Returns(watchers);
         _watchers.Watch(LiveTopics.Player(5), "conn", SeasonViewer.Public);
-        var live = new LiveUpdates(NullLogger<LiveUpdates>.Instance, delivery: Delivery(Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!)));
+        var live = new LiveUpdates(NullLogger<LiveUpdates>.Instance, delivery: Delivery(Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!)));
 
         live.Publish([new LiveChange(LiveTopics.Player(5)), new LiveChange(LiveTopics.MyQueue, 7)]);
         live.Publish([new LiveChange(LiveTopics.Player(5))]);
@@ -179,7 +179,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         return new LiveDelivery(_watchers, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance);
     }
 
-    private static LiveSnapshots NoSnapshots() => Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+    private static LiveSnapshots NoSnapshots() => Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
 
     [Test]
     public async Task Delivery_AnXboxAccountsChange_TellsTheProfileWatchedHere_OfItsUser_AndNoneOfAnAccountNoUserHas()
@@ -256,7 +256,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Delivery_BuildsATopicsDataOnce_ForAllItsWatchers_AndNothingForATopicNobodyWatches()
     {
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
         snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(3));
         var watchers = Substitute.For<ILiveHubClient>();
         _hubContext.Clients.Clients(Arg.Is<IReadOnlyList<string>>(c => c.Count == 2)).Returns(watchers);
@@ -276,7 +276,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Delivery_BuildsTheHomePagesData_OnceAViewer()
     {
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
         snapshots.For(LiveTopics.Seasons, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new SeasonsLiveDto([]));
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(Substitute.For<ILiveHubClient>());
         _watchers.Watch(LiveTopics.Seasons, "a", SeasonViewer.Public);
@@ -295,7 +295,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Delivery_ANoticeTopic_OrDataThatFailsToBuild_TellsItsPagesToReadAgain()
     {
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
         snapshots.For(LiveTopics.Draft(4), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns<object?>(_ => throw new InvalidOperationException("down"));
         var watchers = Substitute.For<ILiveHubClient>();
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
@@ -315,7 +315,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Delivery_DataThereIsNoneOf_TellsItsPagesToReadAgain()
     {
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
         snapshots.For(LiveTopics.Draft(4), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns((object?)null);
         var watchers = Substitute.For<ILiveHubClient>();
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
@@ -331,7 +331,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     {
         using var canceled = new CancellationTokenSource();
         await canceled.CancelAsync();
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
         snapshots.For(LiveTopics.Draft(4), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns<object?>(_ => throw new OperationCanceledException(canceled.Token));
         var watchers = Substitute.For<ILiveHubClient>();
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);

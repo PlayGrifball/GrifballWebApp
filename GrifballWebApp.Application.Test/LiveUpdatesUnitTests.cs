@@ -34,10 +34,11 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     private static readonly string[] ASpot = ["queue", "queue:me@7"];
     private static readonly string[] HandlersInOrder = ["failing", "own", "every", "failing", "own", "every"];
     private static readonly string[] MembersByName = ["amy", "Zed"];
+    private static readonly string[] Reds = ["Reds"];
     private static readonly int[] UnnamedFirst = [3, 4];
     private static readonly string[] ATeam = ["season:5", "draft:5"];
     private static readonly string[] OnlySeasons = ["seasons"];
-    private static readonly string[] PushedTopics = ["seasons", "season:1", "draft:1", "queue"];
+    private static readonly string[] PushedTopics = ["seasons", "season:1", "bracket:1", "teams:1", "team:1", "draft:1", "queue"];
     private FakeTimeProvider _time = null!;
 
     [SetUp]
@@ -120,12 +121,15 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         var shown = await AddSeason(2, announced: true);
         var match = SeasonMatch.Seed(hidden.SeasonID, null, null);
         Context.SeasonMatches.Add(match);
+        var team = Team.Seed("Hidden team", seasonID: hidden.SeasonID);
+        Context.Teams.Add(team);
         await Context.SaveChangesAsync();
         var access = Access();
 
         using (Assert.EnterMultipleScope())
         {
-            foreach (var topic in new[] { LiveTopics.Season(1), LiveTopics.Draft(1), LiveTopics.Signups(1), LiveTopics.SeasonMatch(match.SeasonMatchID) })
+            foreach (var topic in new[] { LiveTopics.Season(1), LiveTopics.Bracket(1), LiveTopics.Teams(1), LiveTopics.Draft(1), LiveTopics.Signups(1),
+                LiveTopics.SeasonMatch(match.SeasonMatchID), LiveTopics.Team(team.TeamID) })
             {
                 Assert.That(await access.MayWatch(topic, NoRoles), Is.False, topic);
                 Assert.That(await access.MayWatch(topic, Commissioner), Is.True, topic);
@@ -133,6 +137,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
             Assert.That(await access.MayWatch(LiveTopics.Season(shown.SeasonID), NoRoles), Is.True);
             Assert.That(await access.MayWatch(LiveTopics.Season(99), Commissioner), Is.False, "no such season");
             Assert.That(await access.MayWatch(LiveTopics.SeasonMatch(999), Commissioner), Is.False, "no such match");
+            Assert.That(await access.MayWatch(LiveTopics.Team(999), Commissioner), Is.False, "no such team");
         }
     }
 
@@ -145,6 +150,9 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     [TestCase("match:0F8FAD5B-D9CB-469F-A165-70867728950E")]
     [TestCase("seasonmatch:x")]
     [TestCase("seasonmatch:07")]
+    [TestCase("team:x")]
+    [TestCase("team:07")]
+    [TestCase("bracket:07")]
     [TestCase("xbox:x")]
     [TestCase("xbox:07")]
     [TestCase("match:x")]
@@ -235,6 +243,9 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
 
     [TestCase("draft:5", ExpectedResult = true)]
     [TestCase("season:5", ExpectedResult = true)]
+    [TestCase("bracket:5", ExpectedResult = true)]
+    [TestCase("teams:5", ExpectedResult = true)]
+    [TestCase("team:5", ExpectedResult = true)]
     [TestCase("seasons", ExpectedResult = true)]
     [TestCase("queue", ExpectedResult = true)]
     [TestCase("queue:me", ExpectedResult = false)]
@@ -252,7 +263,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     {
         var queue = Substitute.For<GrifballWebApp.Application.Matchmaking.IQueueRepository>();
         queue.Count(Arg.Any<CancellationToken>()).Returns(4);
-        var snapshots = new LiveSnapshots(null!, null!, null!, null!, null!, queue);
+        var snapshots = new LiveSnapshots(null!, null!, null!, null!, null!, queue, null!, null!);
 
         using (Assert.EnterMultipleScope())
         {
@@ -287,6 +298,15 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         return match;
     }
 
+    /// <summary>A recorded game of season 5: team 3 on one side, no team on the other.</summary>
+    private static RecordedGame TeamsGame()
+    {
+        var game = RecordedGame.Seed("game-3", seasonID: 5);
+        game.SeedSide(0, teamID: 3);
+        game.SeedSide(1);
+        return game;
+    }
+
     /// <summary>
     /// Every domain event the Domain raises, with the topics it changes (space-separated; "topic@user" for a user's own).
     /// The season is 5, its match 11, the player 7.
@@ -310,36 +330,37 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
 
         // League: the season
         yield return Case(new SeasonCreated(season), "seasons season:5");
-        yield return Case(new SeasonEdited(season), "seasons season:5 draft:5");
-        yield return Case(new SeasonScheduled(season), "seasons season:5 draft:5 signups:5");
-        yield return Case(new SeasonAnnounced(season), "seasons season:5");
+        yield return Case(new SeasonEdited(season), "seasons season:5 teams:5 draft:5");
+        yield return Case(new SeasonScheduled(season), "seasons season:5 teams:5 draft:5 signups:5");
+        yield return Case(new SeasonAnnounced(season), "seasons season:5 teams:5");
         yield return Case(new SeasonTimeslotsChanged(season), "season:5 signups:5");
         yield return Case(new CaptainsLockChanged(season), "draft:5");
-        yield return Case(new SeasonCopiedFrom(season), "season:5 draft:5 signups:5");
-        yield return Case(new SeasonChampionsChanged(season), "seasons season:5");
-        yield return Case(new SeasonAwardsChanged(season), "season:5");
+        yield return Case(new SeasonCopiedFrom(season), "season:5 teams:5 draft:5 signups:5");
+        yield return Case(new SeasonChampionsChanged(season), "seasons season:5 teams:5");
+        yield return Case(new SeasonAwardsChanged(season), "season:5 teams:5");
 
         // Its teams
-        yield return Case(new TeamFormed(team), "season:5 draft:5");
-        yield return Case(new TeamDisbanded(team, [7, 8]), "season:5 draft:5 player:7 player:8");
-        yield return Case(new TeamRenamed(team), "season:5 draft:5");
-        yield return Case(new TeamCaptainChanged(team), "season:5 draft:5");
-        yield return Case(new TeamRosterChanged(team, [7, 7]), "season:5 draft:5 player:7");
-        yield return Case(new PlayerDrafted(team, 7, 1, 2), "season:5 draft:5 player:7");
-        yield return Case(new PlayerUndrafted(team, 7, 2), "season:5 draft:5 player:7");
-        yield return Case(new PickMoved(team, other, 7, 1, 2, 3), "season:5 draft:5 player:7");
-        yield return Case(new TeamTimeslotsChanged(team), "season:5");
-        yield return Case(new TeamArchiveRecorded(team), "season:5");
+        yield return Case(new TeamFormed(team), "season:5 teams:5 team:3 bracket:5 draft:5");
+        yield return Case(new TeamDisbanded(team, [7, 8]), "season:5 teams:5 team:3 bracket:5 draft:5 player:7 player:8");
+        yield return Case(new TeamRenamed(team), "season:5 teams:5 team:3 bracket:5 draft:5");
+        yield return Case(new TeamCaptainChanged(team), "season:5 teams:5 team:3 bracket:5 draft:5");
+        yield return Case(new TeamRosterChanged(team, [7, 7]), "season:5 teams:5 team:3 bracket:5 draft:5 player:7");
+        yield return Case(new PlayerDrafted(team, 7, 1, 2), "season:5 teams:5 team:3 bracket:5 draft:5 player:7");
+        yield return Case(new PlayerUndrafted(team, 7, 2), "season:5 teams:5 team:3 bracket:5 draft:5 player:7");
+        yield return Case(new PickMoved(team, other, 7, 1, 2, 3), "season:5 teams:5 team:3 bracket:5 draft:5 player:7 team:4");
+        yield return Case(new TeamTimeslotsChanged(team), "season:5 team:3");
+        yield return Case(new TeamArchiveRecorded(team), "season:5 teams:5 team:3");
 
         // Its matches
-        yield return Case(new SeasonMatchCreated(match), "seasons season:5 seasonmatch:11");
-        yield return Case(new SeasonMatchCanceled(match), "seasons season:5 seasonmatch:11");
-        yield return Case(new SeasonMatchScheduled(match), "seasons season:5 seasonmatch:11");
-        yield return Case(new SeasonMatchTeamsChanged(match), "seasons season:5 seasonmatch:11");
-        yield return Case(new SeasonMatchResultChanged(match), "seasons season:5 seasonmatch:11");
-        yield return Case(new SeasonMatchDecided(match, SeasonMatchDecision.Games), "seasons season:5 seasonmatch:11");
-        yield return Case(new SeasonMatchReopened(match), "seasons season:5 seasonmatch:11");
-        yield return Case(new SeriesGamesChanged(match), "seasons season:5 seasonmatch:11");
+        yield return Case(new SeasonMatchCreated(match), "seasons season:5 bracket:5 teams:5 seasonmatch:11 team:3 team:4");
+        yield return Case(new SeasonMatchCanceled(match), "seasons season:5 bracket:5 teams:5 seasonmatch:11 team:3 team:4");
+        yield return Case(new SeasonMatchScheduled(match), "seasons season:5 bracket:5 teams:5 seasonmatch:11 team:3 team:4");
+        yield return Case(new SeasonMatchTeamsChanged(match), "seasons season:5 bracket:5 teams:5 seasonmatch:11 team:3 team:4");
+        yield return Case(new SeasonMatchTeamsChanged(match, ReplacedTeamID: 9), "seasons season:5 bracket:5 teams:5 seasonmatch:11 team:3 team:4 team:9", "SeasonMatchTeamsChanged replacing a team");
+        yield return Case(new SeasonMatchResultChanged(match), "seasons season:5 bracket:5 teams:5 seasonmatch:11 team:3 team:4");
+        yield return Case(new SeasonMatchDecided(match, SeasonMatchDecision.Games), "seasons season:5 bracket:5 teams:5 seasonmatch:11 team:3 team:4");
+        yield return Case(new SeasonMatchReopened(match), "seasons season:5 bracket:5 teams:5 seasonmatch:11 team:3 team:4");
+        yield return Case(new SeriesGamesChanged(match), "seasons season:5 bracket:5 teams:5 seasonmatch:11 team:3 team:4");
 
         // Its signups, reschedules, VODs, stats and schedules
         yield return Case(new PlayerSignedUp(signup), "signups:5 draft:5 season:5 player:7");
@@ -350,6 +371,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         yield return Case(new VodChanged(Vod.Seed("v1", "Reds v Blues", Now, VodMatchStatus.Confirmed, seasonID: 5, seasonMatchID: 11)), "staff:vods season:5 seasonmatch:11", "VodChanged of a match");
         yield return Case(new VodChanged(Vod.Seed("v2", "Something else", Now, VodMatchStatus.NeedsReview)), "staff:vods", "VodChanged of no match");
         yield return Case(new PlayerSeasonStatsChanged(PlayerSeasonStat.Seed(totals, seasonID: 5, userID: 7)), "season:5 player:7");
+        yield return Case(new PlayerSeasonStatsChanged(PlayerSeasonStat.Seed(totals, seasonID: 5, userID: 7, teamID: 3)), "season:5 player:7 team:3", "PlayerSeasonStatsChanged of a team");
         yield return Case(new SchedulingRulesChanged(SeasonSchedulingRules.Defaults(5)), "season:5");
         yield return Case(new ScheduleRecommendationChanged(ScheduleRecommendation.Propose(5, null, 0.5, 1, [])), "season:5");
 
@@ -385,6 +407,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         yield return Case(new HistoricalSourceChanged(null!), "staff:imports");
         yield return Case(new RecordedGameChanged(RecordedGame.Seed("game-1", seasonID: 5)), "season:5", "RecordedGameChanged of a season");
         yield return Case(new RecordedGameChanged(RecordedGame.Seed("game-2")), "lateleague", "RecordedGameChanged of Late League");
+        yield return Case(new RecordedGameChanged(TeamsGame()), "season:5 team:3", "RecordedGameChanged of a season's team");
     }
 
     [TestCaseSource(nameof(EveryEvent))]
@@ -419,7 +442,10 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     private LiveSnapshots Snapshots() => new(new GrifballWebApp.Application.Teams.TeamService(Context, Substitute.For<GrifballWebApp.Application.Database.IDatabaseLocks>()),
         new SeasonService(Context, new GrifballWebApp.Application.Stats.SeasonStatsService(Context, _time), new SeasonVisibility(Context, _time), _time),
         new GrifballWebApp.Application.TeamStandings.TeamStandingsService(Context), new GrifballWebApp.Application.MatchPlanner.MatchPlannerService(Context),
-        new GrifballWebApp.Application.Home.HomeEventsService(new SeasonVisibility(Context, _time), _time), Substitute.For<GrifballWebApp.Application.Matchmaking.IQueueRepository>());
+        new GrifballWebApp.Application.Home.HomeEventsService(new SeasonVisibility(Context, _time), _time), Substitute.For<GrifballWebApp.Application.Matchmaking.IQueueRepository>(),
+        new GrifballWebApp.Application.Brackets.BracketService(Context, new GrifballWebApp.Application.TeamStandings.TeamStandingsService(Context),
+            new GrifballWebApp.Application.Championships.ChampionshipService(Context)),
+        new GrifballWebApp.Application.TeamPage.TeamPageService(Context, _time));
 
     [Test]
     public async Task TheDraftsData_IsItsTeams_ItsPool_AndItsLock()
@@ -458,6 +484,66 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
             Assert.That(season.PlayerStats, Is.Empty);
         }
     }
+
+    [Test]
+    public async Task ABracketsData_IsWhatBracketsViewerDraws_AndNoneForASeasonThatIsGone()
+    {
+        await AddSeason(5, announced: true);
+        var snapshots = Snapshots();
+
+        var bracket = (BracketLiveDto?)await snapshots.For(LiveTopics.Bracket(5), SeasonViewer.Public);
+        var gone = (BracketLiveDto?)await snapshots.For(LiveTopics.Bracket(99), SeasonViewer.Public);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bracket!.SeasonID, Is.EqualTo(5));
+            Assert.That(bracket.ViewerData, Is.Not.Null);
+            Assert.That(gone!.ViewerData, Is.Null);
+        }
+    }
+
+    [Test]
+    public async Task ATeamsPagesData_IsTheSeasonsBanner_AndItsTeams()
+    {
+        await AddSeason(5, announced: true);
+        Context.Teams.Add(Team.Seed("Reds", seasonID: 5));
+        await Context.SaveChangesAsync();
+
+        var teams = (TeamsLiveDto?)await Snapshots().For(LiveTopics.Teams(5), SeasonViewer.Public);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams!.SeasonID, Is.EqualTo(5));
+            Assert.That(teams.Summary, Is.Not.Null);
+            Assert.That(teams.Teams!.Select(t => t.TeamName), Is.EqualTo(Reds));
+        }
+    }
+
+    [Test]
+    public async Task ATeamsData_IsItsPage_ItsMatches_AndItsPlayersStats_AndNoneOnceItIsGone()
+    {
+        await AddSeason(5, announced: true);
+        var reds = Team.Seed("Reds", seasonID: 5);
+        Context.Teams.Add(reds);
+        await Context.SaveChangesAsync();
+        var snapshots = Snapshots();
+
+        var team = (TeamLiveDto?)await snapshots.For(LiveTopics.Team(reds.TeamID), SeasonViewer.Public);
+        var gone = (TeamLiveDto?)await snapshots.For(LiveTopics.Team(999), SeasonViewer.Public);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((team!.TeamID, team.Team!.TeamName), Is.EqualTo((reds.TeamID, "Reds")));
+            Assert.That(team.Matches, Is.Empty);
+            Assert.That(team.PlayerStats, Is.Empty);
+            Assert.That(gone!.Team, Is.Null);
+            Assert.That(gone.PlayerStats, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task ATopicWithNoNumber_HasNoData()
+        => Assert.That(await Snapshots().For("team:x", SeasonViewer.Public), Is.Null);
 
     [Test]
     public async Task TheHomePagesData_IsTheEventsItsViewerMaySee()

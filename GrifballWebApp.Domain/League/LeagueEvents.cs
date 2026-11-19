@@ -78,8 +78,11 @@ public sealed record SeasonMatchCanceled(SeasonMatch Match) : IDomainEvent;
 /// <summary>The match was moved to another time, or back to unscheduled.</summary>
 public sealed record SeasonMatchScheduled(SeasonMatch Match) : IDomainEvent;
 
-/// <summary>Who plays the match changed: a team or a BYE placed on a side, or a side emptied.</summary>
-public sealed record SeasonMatchTeamsChanged(SeasonMatch Match) : IDomainEvent;
+/// <summary>
+/// Who plays the match changed: a team or a BYE placed on a side, or a side emptied. <paramref name="ReplacedTeamID"/>: the
+/// team that was on the side (its page no longer shows the match).
+/// </summary>
+public sealed record SeasonMatchTeamsChanged(SeasonMatch Match, int? ReplacedTeamID = null) : IDomainEvent;
 
 /// <summary>The match was decided (or decided again, by an import): by its games, a forfeit, or a BYE.</summary>
 public sealed record SeasonMatchDecided(SeasonMatch Match, SeasonMatchDecision DecidedBy) : IDomainEvent;

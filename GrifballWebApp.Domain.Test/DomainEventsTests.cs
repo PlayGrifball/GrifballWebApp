@@ -169,6 +169,19 @@ public class DomainEventsTests
     }
 
     [Test]
+    public void SeasonMatch_ASidesTeamReplacedOrCleared_NamesTheTeamThatLeft()
+    {
+        var match = SeasonMatch.Seed(1, homeTeamID: 10, awayTeamID: null);
+
+        match.PlaceTeam(SeasonMatchSide.Away, 20);
+        match.PlaceTeam(SeasonMatchSide.Away, 30);
+        match.ClearSide(SeasonMatchSide.Away);
+
+        Assert.That(Events(match).OfType<SeasonMatchTeamsChanged>().Select(e => e.ReplacedTeamID), Is.EqualTo(new int?[] { null, 20, 30 }),
+            "the team that left the side hears of it: its page no longer shows the match");
+    }
+
+    [Test]
     public void SeasonSignup_SignedUp_AndWithdrawn_RefusedRaisesNothing()
     {
         var season = Season.Seed(seasonName: "Signups", seasonID: 5)
