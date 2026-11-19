@@ -255,9 +255,9 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
         var watched = watchers.Players();
         if (watched.Count == 0)
             return [];
+        await using var scope = scopes.CreateAsyncScope();
         try
         {
-            await using var scope = scopes.CreateAsyncScope();
             var users = await scope.ServiceProvider.GetRequiredService<IApplicationDbContext>().Users.AsNoTracking()
                 .Where(u => watched.Contains(u.Id) && u.XboxUserID != null && accounts.Contains(u.XboxUserID.Value))
                 .Select(u => u.Id)

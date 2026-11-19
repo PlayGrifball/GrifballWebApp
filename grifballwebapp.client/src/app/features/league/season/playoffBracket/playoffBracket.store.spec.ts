@@ -4,6 +4,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { LiveService, type LiveMessage } from '@core/live/live.service';
+import { LIVE_RELOAD_MS } from '@core/live/liveReload';
 import { PlayoffBracketStore } from './playoffBracket.store';
 
 const data = (participants: number) => ({ stages: [], matches: [], matchGames: [], participants: Array.from({ length: participants }, (_, id) => ({ id })) });
@@ -112,5 +113,21 @@ describe('PlayoffBracketStore', () => {
     store.seasonID.use(signal(0));
     TestBed.tick();
     expect(live.watching).toEqual([]);
+  });
+
+  it('reads the bracket again on a change without its data', () => {
+    store.seasonID.use(signal(6));
+    TestBed.tick();
+    request(6).flush(data(2));
+    jasmine.clock().install();
+    spyOn(Math, 'random').and.returnValue(0);
+    try {
+      live.send({ topic: 'bracket:6' });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+    } finally {
+      jasmine.clock().uninstall();
+    }
+    request(6).flush(data(4));
+    expect(store.viewerData()!.participants).toHaveSize(4);
   });
 });

@@ -84,6 +84,14 @@ describe('SeasonTeamsStore', () => {
     expect(store.teams().map(t => t.teamName)).toEqual(['Beta']);
   });
 
+  it('watches no teams page for no season', () => {
+    store.show(0);
+    TestBed.tick();
+    http.expectOne('/api/seasons/0/summary').flush(summary);
+    http.expectOne('/api/seasons/0/teams').flush([]);
+    expect(live.watching).toEqual([]);
+  });
+
   describe('live', () => {
     const newer = { isHistorical: false } as SeasonSummaryDto;
 

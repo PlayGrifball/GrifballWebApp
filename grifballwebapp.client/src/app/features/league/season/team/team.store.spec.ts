@@ -5,6 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import type { TeamDto, TeamPageMatchDto } from '@api/models';
 import { DateTime } from 'luxon';
 import { LiveService, type LiveMessage } from '@core/live/live.service';
+import { LIVE_RELOAD_MS } from '@core/live/liveReload';
 import { TeamStore } from './team.store';
 
 const team = { teamID: 7, teamName: 'Red Team' } as unknown as TeamDto;
@@ -108,5 +109,25 @@ describe('TeamStore', () => {
     expect(store.matchesLoaded()).toBeTrue();
     TestBed.tick();
     http.expectNone(() => true);
+  });
+
+  it('reads the team again on a change without its data', () => {
+    store.teamID.use(signal(7));
+    store.seasonID.use(signal(2));
+    TestBed.tick();
+    http.expectOne('/api/teams/7').flush(team);
+    http.expectOne('/api/teams/7/matches').flush([]);
+    jasmine.clock().install();
+    spyOn(Math, 'random').and.returnValue(0);
+    try {
+      live.send({ topic: 'team:7' });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+    } finally {
+      jasmine.clock().uninstall();
+    }
+    TestBed.tick();
+    http.expectOne('/api/teams/7').flush(team);
+    http.expectOne('/api/teams/7/matches').flush([match]);
+    expect(store.matches()).toHaveSize(1);
   });
 });

@@ -65,6 +65,12 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
         public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(DbCommand command, CommandEventData eventData,
             InterceptionResult<int> result, CancellationToken cancellationToken = default)
             => Armed ? throw new OperationCanceledException("the request ended") : base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result)
+            => Armed ? throw new OperationCanceledException("the request ended") : base.ReaderExecuting(command, eventData, result);
+
+        public override InterceptionResult<int> NonQueryExecuting(DbCommand command, CommandEventData eventData, InterceptionResult<int> result)
+            => Armed ? throw new OperationCanceledException("the request ended") : base.NonQueryExecuting(command, eventData, result);
     }
 
     private readonly CancelTheWrite _cancelTheWrite = new();
@@ -415,6 +421,22 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
             Assert.That(openAfterTheCancel, Is.False, "its own transaction rolled back");
             Assert.That(await Posts(), Is.EqualTo(CanceledThenSaved), "posted once, by the save that was made");
             Assert.That(_dispatcher.Dispatched, Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public void ASynchronousSaveCanceled_DispatchesNothing_AndTheAggregateKeepsItsEvents()
+    {
+        var account = DiscordUser.FromDiscord(9, "canceled");
+        Context.DiscordUsers.Add(account);
+        _cancelTheWrite.Armed = true;
+
+        Assert.That(() => Context.SaveChanges(), Throws.InstanceOf<OperationCanceledException>());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_dispatcher.Dispatched, Is.Empty);
+            Assert.That(((IHasDomainEvents)account).DomainEvents, Is.Not.Empty, "kept for the next try");
         }
     }
 }
