@@ -98,7 +98,7 @@ describe('TeamStore', () => {
     http.expectOne('/api/teams/7/matches').flush([]);
     const renamed = { ...team, teamName: 'Red Rampage' } as TeamDto;
 
-    expect(live.watching.map(w => w.topics)).toEqual([['team:7']]);
+    expect(live.watching.map(w => w.topics)).toEqual([['team:7'], ['teams:2']]);
     live.send({ topic: 'team:7', data: { teamID: 8, team: renamed, matches: [match], playerStats: [] } });
     expect(store.team()).toEqual(team);
     live.send({ topic: 'team:7', data: { teamID: 7, team: renamed, matches: [match], playerStats: [] } });
@@ -129,5 +129,25 @@ describe('TeamStore', () => {
     http.expectOne('/api/teams/7').flush(team);
     http.expectOne('/api/teams/7/matches').flush([match]);
     expect(store.matches()).toHaveSize(1);
+  });
+
+  it("reads the team again on a change to its season's teams page: its season, its titles, an opponent renamed", () => {
+    store.teamID.use(signal(7));
+    store.seasonID.use(signal(2));
+    TestBed.tick();
+    http.expectOne('/api/teams/7').flush(team);
+    http.expectOne('/api/teams/7/matches').flush([]);
+    jasmine.clock().install();
+    spyOn(Math, 'random').and.returnValue(0);
+    try {
+      live.send({ topic: 'teams:2', data: { seasonID: 2, summary: null, teams: [] } });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+    } finally {
+      jasmine.clock().uninstall();
+    }
+    TestBed.tick();
+    http.expectOne('/api/teams/7').flush({ ...team, titles: ['Gold'] });
+    http.expectOne('/api/teams/7/matches').flush([]);
+    expect(store.team()!.titles).toEqual(['Gold']);
   });
 });

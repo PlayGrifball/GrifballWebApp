@@ -6,7 +6,7 @@ import { fromApiDate } from '@shared/apiDates';
 import { StoreInput } from '@shared/storeInput';
 import { DateTime } from 'luxon';
 import { map } from 'rxjs';
-import { liveData } from '@core/live/liveReload';
+import { liveData, liveReload } from '@core/live/liveReload';
 import { LiveTopics } from '@core/live/liveTopics';
 
 export interface MatchDto
@@ -87,6 +87,14 @@ export class TeamStore {
         this._matchesLoaded.set(true);
       }
       return true;
+    }, () => this.changes.update(n => n + 1));
+    // What team:N doesn't hear: its season edited, scheduled or announced, its champions (the title badges), an opponent
+    // renamed (the matches name it). The season's teams page topic does, so a change there reads the team again (its data
+    // is that page's, not this one's). The alternative: the server tells each of the season's teams' topics of those
+    // events, looking the teams up as it delivers them (as it looks up a changed Xbox account's profiles).
+    liveReload(() => {
+      const seasonID = this.seasonID.value();
+      return seasonID ? [LiveTopics.teams(seasonID)] : [];
     }, () => this.changes.update(n => n + 1));
   }
 }
