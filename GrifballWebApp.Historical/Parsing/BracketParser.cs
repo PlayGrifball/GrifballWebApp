@@ -153,6 +153,7 @@ public static partial class BracketParser
         return Bracket.Winner;
     }
 
+    /// <param name="drafts">The series as read, in bracket order.</param>
     /// <param name="decideMore">What else decides a series, once the cells have (a tab's records sheet).</param>
     private static ArchiveBracket BuildBracket(List<Draft> drafts, Action<List<Draft>>? decideMore = null)
     {
