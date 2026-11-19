@@ -4,7 +4,6 @@ using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Infrastructure.Redis;
 using GrifballWebApp.Server.Live;
-using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -145,7 +144,7 @@ public class LiveRedisTests
         hub.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watching);
         var watchers = new LiveWatchers();
         watchers.Watch(LiveTopics.Player(5), "conn", SeasonViewer.Public);
-        var delivery = new LiveDelivery(watchers, new HubConnections(), hub, new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
+        var delivery = new LiveDelivery(watchers, hub, new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             NullLogger<LiveDelivery>.Instance);
         var apiRedis = Process();
         var listener = new LiveRelayListener(delivery, apiRedis);

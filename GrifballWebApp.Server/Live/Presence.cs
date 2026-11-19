@@ -80,9 +80,10 @@ public partial class PresencePages(SeasonVisibility visibility, IApplicationDbCo
 /// <summary>
 /// Who is on the site (<see cref="PresenceSnapshot"/>): this process's tabs (<see cref="LiveHub"/>'s connections and the page
 /// each shows), with every other API process's through <see cref="IPresenceStore"/>. A change waits <see cref="Settle"/>
-/// (tabs come and go in bursts: a page load, a rollout), then the snapshot goes to every tab if it changed; every
-/// <see cref="Heartbeat"/> this process's tabs are stored again, which keeps them alive there and drops those of a process
-/// that stopped.
+/// (tabs come and go in bursts: a page load, a rollout), then the snapshot goes to this process's tabs if it changed; every
+/// <see cref="Heartbeat"/> this process's tabs are stored again, which keeps them alive there, drops those of a process
+/// that stopped, and brings in what the others' tabs did. Each process tells its own tabs alone: through the backplane,
+/// every tab would hear every process's snapshot, each as of what that process last read, and the count would flicker.
 /// </summary>
 public sealed class PresenceTracker(IPresenceStore store, IHubContext<LiveHub, ILiveHubClient> hub, IServiceScopeFactory scopes,
     TimeProvider time, ILogger<PresenceTracker> logger) : BackgroundService
@@ -163,7 +164,9 @@ public sealed class PresenceTracker(IPresenceStore store, IHubContext<LiveHub, I
             if (json == _sent)
                 return;
             _sent = json;
-            await hub.Clients.All.Presence(snapshot);
+            var here = _tabs.Keys.ToList();
+            if (here.Count > 0)
+                await hub.Clients.Clients(here).Presence(snapshot);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {

@@ -29,6 +29,8 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     private static readonly string[] StaffConnection = ["conn:Staff"];
     private static readonly string[] SevensConnection = ["seven"];
     private static readonly string[] WatchingConnection = ["conn"];
+    private static readonly string[] BothTabs = ["a", "b"];
+    private static readonly string[] OnlyB = ["b"];
 
     private readonly IHubContext<LiveHub, ILiveHubClient> _hubContext = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
 
@@ -95,6 +97,25 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task ASignedInConnection_IsItsUsers_UntilItLeaves_AndAGuestsIsNobodys()
+    {
+        var signedIn = Hub(SiteRoles.Player);
+        var guest = Hub();
+
+        await signedIn.OnConnectedAsync();
+        await guest.OnConnectedAsync();
+        var whileThere = _watchers.OfUser(1);
+        await signedIn.OnDisconnectedAsync(null);
+        await guest.OnDisconnectedAsync(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(whileThere, Is.EqualTo(WatchingConnection));
+            Assert.That(_watchers.OfUser(1), Is.Empty);
+        }
+    }
+
+    [Test]
     public async Task Watch_UpToTheMost_AndUnwatchAndLeaving_StopWatching()
     {
         var hub = Hub();
@@ -119,9 +140,11 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     {
         var player = Substitute.For<ILiveHubClient>();
         var watchers = Substitute.For<ILiveHubClient>();
-        var seven = Substitute.For<HubCallerContext>();
-        seven.ConnectionId.Returns("seven");
-        _connections.Add(seven, new HubUserState(7, []));
+        // Seven's live connection, and their chat connection (another hub's: never sent LiveHub's messages)
+        _watchers.Connected("seven", 7);
+        var chat = Substitute.For<HubCallerContext>();
+        chat.ConnectionId.Returns("seven-chat");
+        _connections.Add(chat, new HubUserState(7, []));
         _hubContext.Clients.Clients(Arg.Is<IReadOnlyList<string>>(c => c.SequenceEqual(SevensConnection))).Returns(player);
         _hubContext.Clients.Clients(Arg.Is<IReadOnlyList<string>>(c => c.SequenceEqual(WatchingConnection))).Returns(watchers);
         _watchers.Watch(LiveTopics.Player(5), "conn", SeasonViewer.Public);
@@ -136,6 +159,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         {
             await player.Received(1).Changed(LiveTopics.MyQueue);
             await watchers.Received(1).Changed(LiveTopics.Player(5));
+            _ = _hubContext.Clients.DidNotReceive().Clients(Arg.Is<IReadOnlyList<string>>(c => c.Contains("seven-chat")));
         }
     }
 
@@ -152,7 +176,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         services.AddScoped(_ => snapshots);
         services.AddScoped<IApplicationDbContext>(_ => new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString).Options));
-        return new LiveDelivery(_watchers, _connections, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance);
+        return new LiveDelivery(_watchers, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance);
     }
 
     private static LiveSnapshots NoSnapshots() => Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
@@ -200,7 +224,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
         _watchers.Watch(LiveTopics.Xbox(100), "a", SeasonViewer.Public);
 
-        await new LiveDelivery(_watchers, _connections, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
+        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
 
         using (Assert.EnterMultipleScope())
         {
@@ -219,7 +243,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _watchers.Watch(LiveTopics.Xbox(100), "a", SeasonViewer.Public);
         _watchers.Watch(LiveTopics.Player(5), "b", SeasonViewer.Public);
 
-        await new LiveDelivery(_watchers, _connections, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
+        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
 
         using (Assert.EnterMultipleScope())
         {
@@ -365,10 +389,15 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         => Assert.That(PresencePages.Route("/" + new string('a', PresencePages.MaxLength)), Is.EqualTo("/"));
 
     [Test]
-    public async Task TheTracker_SendsWhoIsOn_OnlyWhenItChanged()
+    public async Task TheTracker_SendsWhoIsOn_OnlyWhenItChanged_ToThisProcesssTabsAlone()
     {
-        var everyone = Substitute.For<ILiveHubClient>();
-        _hubContext.Clients.All.Returns(everyone);
+        var tabs = Substitute.For<ILiveHubClient>();
+        var sentTo = new List<string[]>();
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(call =>
+        {
+            sentTo.Add([.. call.Arg<IReadOnlyList<string>>().Order(StringComparer.Ordinal)]);
+            return tabs;
+        });
         var tracker = Tracker();
 
         await tracker.Viewing("a", null, "/seasons");
@@ -377,12 +406,16 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         await tracker.SendAsync();
         tracker.Left("a");
         await tracker.SendAsync();
+        tracker.Left("b");
+        await tracker.SendAsync();
 
         using (Assert.EnterMultipleScope())
         {
-            await everyone.Received(1).Presence(Arg.Is<PresenceSnapshot>(s => s.Online == 2 && s.Guests == 2));
-            await everyone.Received(1).Presence(Arg.Is<PresenceSnapshot>(s => s.Online == 1));
-            Assert.That(tracker.Current.Pages.Single().Path, Is.EqualTo("/seasons"));
+            await tabs.Received(1).Presence(Arg.Is<PresenceSnapshot>(s => s.Online == 2 && s.Guests == 2));
+            await tabs.Received(1).Presence(Arg.Is<PresenceSnapshot>(s => s.Online == 1));
+            Assert.That(sentTo, Is.EqualTo(new[] { BothTabs, OnlyB }), "each process tells its own tabs (none when it has none), not every process's through the backplane");
+            _ = _hubContext.Clients.DidNotReceive().All;
+            Assert.That(tracker.Current.Online, Is.Zero);
         }
     }
 
@@ -390,7 +423,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     public async Task TheTracker_AStoreThatFails_IsLogged_NotThrown()
     {
         var everyone = Substitute.For<ILiveHubClient>();
-        _hubContext.Clients.All.Returns(everyone);
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(everyone);
         var store = Substitute.For<IPresenceStore>();
         store.Exchange(Arg.Any<IReadOnlyList<PresenceTab>>(), Arg.Any<CancellationToken>()).Returns<IReadOnlyList<PresenceTab>>(_ => throw new InvalidOperationException("down"));
         var tracker = Tracker(store);

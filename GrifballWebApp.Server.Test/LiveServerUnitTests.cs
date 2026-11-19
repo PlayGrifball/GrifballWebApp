@@ -33,7 +33,7 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
     private readonly LiveWatchers _watchers = new();
 
     [SetUp]
-    public void SetUp() => _hubContext.Clients.All.Returns(_everyone);
+    public void SetUp() => _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(_everyone);
 
     /// <summary>Scopes whose IApplicationDbContext is a context of their own on the test's database, as a request's is.</summary>
     private IServiceScopeFactory Scopes()
@@ -167,7 +167,7 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
     }
 
     private LiveDelivery Delivery()
-        => new(_watchers, new HubConnections(), _hubContext, new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
+        => new(_watchers, _hubContext, new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             NullLogger<LiveDelivery>.Instance);
 
     /// <summary>The pages watching player:5 here, told through <paramref name="told"/> once they are.</summary>

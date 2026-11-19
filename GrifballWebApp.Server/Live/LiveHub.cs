@@ -73,9 +73,17 @@ public class LiveHub(LiveTopicAccess access, HubUser user, LiveWatchers watchers
         return presence.Current;
     }
 
+    public override Task OnConnectedAsync()
+    {
+        // A signed-in user's own changes (their queue place) come to their connections of this hub
+        watchers.Connected(Context.ConnectionId, user.State.UserId);
+        return base.OnConnectedAsync();
+    }
+
     public override Task OnDisconnectedAsync(Exception? exception)
     {
         presence.Left(Context.ConnectionId);
+        watchers.Disconnected(Context.ConnectionId);
         foreach (var topic in Watched)
             watchers.Unwatch(topic, Context.ConnectionId);
         return base.OnDisconnectedAsync(exception);

@@ -5,7 +5,6 @@ using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Infrastructure.Redis;
-using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
@@ -123,11 +122,46 @@ public sealed class LiveRelayListener(LiveDelivery delivery, AppRedis? redis = n
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
-/// <summary>This process's connections watching each topic (<see cref="LiveHub.Watch"/>), and as which viewer.</summary>
+/// <summary>
+/// This process's <see cref="LiveHub"/> connections: those watching each topic (<see cref="LiveHub.Watch"/>), and as which
+/// viewer, and each signed-in user's (a user's own changes go to theirs, not to their other hubs' connections).
+/// </summary>
 public sealed class LiveWatchers
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<string, Dictionary<string, SeasonViewer>> _byTopic = new(StringComparer.Ordinal);
+    private readonly Dictionary<int, HashSet<string>> _byUser = [];
+    private readonly Dictionary<string, int> _userOf = new(StringComparer.Ordinal);
+
+    /// <summary>A connection opened, <paramref name="userID"/>'s when signed in.</summary>
+    public void Connected(string connectionID, int? userID)
+    {
+        if (userID is not int id)
+            return;
+        lock (_gate)
+        {
+            _userOf[connectionID] = id;
+            if (!_byUser.TryGetValue(id, out var theirs))
+                _byUser[id] = theirs = new(StringComparer.Ordinal);
+            theirs.Add(connectionID);
+        }
+    }
+
+    public void Disconnected(string connectionID)
+    {
+        lock (_gate)
+        {
+            if (_userOf.Remove(connectionID, out var id) && _byUser.TryGetValue(id, out var theirs) && theirs.Remove(connectionID) && theirs.Count == 0)
+                _byUser.Remove(id);
+        }
+    }
+
+    /// <summary>A signed-in user's connections here.</summary>
+    public IReadOnlyList<string> OfUser(int userID)
+    {
+        lock (_gate)
+            return _byUser.TryGetValue(userID, out var theirs) ? [.. theirs] : [];
+    }
 
     public void Watch(string topic, string connectionID, SeasonViewer viewer)
     {
@@ -171,7 +205,7 @@ public sealed class LiveWatchers
 /// the API gives it (<see cref="ApiJson"/>); the rest are notices, and their pages read again. A topic nobody here watches
 /// costs nothing. Data that can't be built is a notice instead.
 /// </summary>
-public sealed class LiveDelivery(LiveWatchers watchers, HubConnections connections, IHubContext<LiveHub, ILiveHubClient> hub, IServiceScopeFactory scopes,
+public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILiveHubClient> hub, IServiceScopeFactory scopes,
     ILogger<LiveDelivery> logger)
 {
     private static readonly JsonSerializerOptions Json = ApiJson.Options();
@@ -181,7 +215,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, HubConnections connectio
         // A user's own: to their connections here (each API process tells its own, so each connection hears it once)
         foreach (var change in changes.Where(c => c.UserID is not null))
         {
-            var theirs = connections.SignedIn().Where(c => c.User.UserId == change.UserID).Select(c => c.Context.ConnectionId).ToList();
+            var theirs = watchers.OfUser(change.UserID!.Value);
             if (theirs.Count > 0)
                 await Send(theirs, change.Topic, null);
         }

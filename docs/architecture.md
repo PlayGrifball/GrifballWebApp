@@ -121,7 +121,8 @@ refuses raises nothing. An aggregate about to be removed says so first (`Team.Di
 
 Each tab tells `LiveHub` which page it shows (`Viewing`); `PresenceTracker` keeps the API pod's tabs, with every other
 pod's through Redis when scaled out (`RedisPresenceStore`: a pod that stops answering drops out), and sends the count
-and the pages to every tab when they change (the footer's "N online"). A member is shown by the name the site shows
+and the pages to its own tabs when they change (the footer's "N online"); another pod's changes reach them by the next
+15-second heartbeat, so a tab hears one pod's view rather than several that disagree. A member is shown by the name the site shows
 for them (`User.Named`, never their login name); a staff page, or the page of a season not announced yet or of its
 match, is `/staff` for everyone (`PresencePages`).
 
