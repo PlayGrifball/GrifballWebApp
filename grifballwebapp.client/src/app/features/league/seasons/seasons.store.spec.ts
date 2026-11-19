@@ -3,18 +3,45 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import type { SeasonListItemDto } from '@api/models';
 import { SEASONS_PAGE_SIZE, SeasonsStore } from './seasons.store';
+import { LiveService, type LiveMessage } from '@core/live/live.service';
+import { LIVE_RELOAD_MS } from '@core/live/liveReload';
 
 const season = (seasonID: number, leagueID: number, year: number, gameVersionID: number | null) =>
   ({ seasonID, leagueID, leagueName: `League ${leagueID}`, year, gameVersionID, gameVersionName: gameVersionID ? `Game ${gameVersionID}` : null }) as SeasonListItemDto;
 const page = (...results: SeasonListItemDto[]) => ({ results });
 const all = { leagueID: null, gameVersionID: null, format: null, year: null };
 
+/** The live service as the store sees it: who watches what, and a message to send them. */
+class FakeLive {
+  readonly watching: { topics: readonly string[], listener: (message: LiveMessage) => void, stopped: boolean }[] = [];
+
+  watch(topics: readonly string[], listener: (message: LiveMessage) => void): () => void {
+    const watch = { topics, listener, stopped: false };
+    this.watching.push(watch);
+    return () => watch.stopped = true;
+  }
+
+  /** Sends `message` to those watching its topic; a null topic (the connection came back) to everyone. */
+  send(message: LiveMessage): void {
+    for (const watch of this.watching.filter(w => !w.stopped && (message.topic === null || w.topics.includes(message.topic))))
+      watch.listener(message);
+  }
+
+  get active(): (readonly string[])[] {
+    return this.watching.filter(w => !w.stopped).map(w => w.topics);
+  }
+}
+
 describe('SeasonsStore', () => {
   let store: SeasonsStore;
   let http: HttpTestingController;
+  let live: FakeLive;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [SeasonsStore, provideHttpClient(withXhr()), provideHttpClientTesting()] });
+    live = new FakeLive();
+    TestBed.configureTestingModule({
+      providers: [SeasonsStore, provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: LiveService, useValue: live }],
+    });
     store = TestBed.inject(SeasonsStore);
     http = TestBed.inject(HttpTestingController);
   });
@@ -66,5 +93,36 @@ describe('SeasonsStore', () => {
     request.flush(page(season(1, 2, 2024, 6)));
     expect(store.leagues()).toEqual([{ id: 2, name: 'League 2' }]);
     expect(store.seasons()).toEqual([]);
+  });
+
+  describe('live', () => {
+    beforeEach(() => {
+      jasmine.clock().install();
+      // No spread: a reload runs LIVE_RELOAD_MS after a change
+      spyOn(Math, 'random').and.returnValue(0);
+      TestBed.tick();
+    });
+    afterEach(() => jasmine.clock().uninstall());
+
+    it('loads nothing on a change to the seasons before a list is shown', () => {
+      expect(live.active).toEqual([['seasons']]);
+      live.send({ topic: 'seasons' });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+      http.expectNone(() => true);
+    });
+
+    it('loads the list shown again, in place, with its filter and its choices', () => {
+      store.load({ leagueID: 1, gameVersionID: null }, true);
+      list().flush(page(season(1, 1, 2024, 6)));
+
+      live.send({ topic: 'seasons' });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+      expect(store.loaded()).toBeTrue();
+      const again = list();
+      expect(again.request.params.get('leagueID')).toBe('1');
+      again.flush(page(season(1, 1, 2024, 6), season(2, 2, 2026, null)));
+      expect(store.seasons()).toHaveSize(2);
+      expect(store.years()).toEqual([2026, 2024]);
+    });
   });
 });

@@ -180,4 +180,58 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
 
         Assert.That(await Posts(), Is.Empty);
     }
+
+    [Test]
+    public void ASynchronousSave_DispatchesItsEvents_WithoutWaitingForThem()
+    {
+        var account = DiscordUser.FromDiscord(1, "synchronous");
+        Context.DiscordUsers.Add(account);
+
+        Context.SaveChanges();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_dispatcher.Dispatched.Single(), Is.EqualTo(new IDomainEvent[] { new DiscordUserChanged(account) }));
+            Assert.That(((IHasDomainEvents)account).DomainEvents, Is.Empty);
+        }
+    }
+
+    [Test]
+    public void ASynchronousSave_WhoseEventsHaveABeforeCommitHandler_IsRefused()
+    {
+        Context.Users.Add(User.Register("synchronous"));
+
+        Assert.That(() => Context.SaveChanges(), Throws.InstanceOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public async Task AFailedSave_DispatchesAndPostsNothing_AndTheAggregateKeepsItsEvents()
+    {
+        Context.Users.Add(User.Seed(userName: "one", normalizedUserName: "SAME"));
+        await Context.SaveChangesAsync();
+        var twin = User.Seed(userName: "two", normalizedUserName: "SAME");
+        twin.Rename("Twin");
+        Context.Users.Add(twin);
+
+        Assert.That(async () => await Context.SaveChangesAsync(), Throws.InstanceOf<DbUpdateException>());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_dispatcher.Dispatched, Is.Empty);
+            Assert.That(Pending(twin), Is.Not.Empty, "kept for the next try");
+            Assert.That(await Posts(), Is.Empty);
+            Assert.That(Context.Database.CurrentTransaction, Is.Null, "its own transaction rolled back");
+        }
+    }
+
+    [Test]
+    public async Task AContextWithoutAScope_RefusesASaveThatNeedsBeforeCommitHandlers()
+    {
+        var interceptor = new DomainEventsInterceptor(_dispatcher, _provider!.GetRequiredService<IBeforeCommitDispatcher>(), services: null);
+        await using var unscoped = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString).AddInterceptors(interceptor).Options);
+        unscoped.Users.Add(User.Register("unscoped"));
+
+        Assert.That(async () => await unscoped.SaveChangesAsync(), Throws.InstanceOf<InvalidOperationException>());
+    }
 }

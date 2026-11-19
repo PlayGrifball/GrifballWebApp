@@ -6,19 +6,45 @@ import type { LetterDto, SeasonSummaryDto } from '@api/models';
 import { Observable, of, Subject, throwError } from 'rxjs';
 import { SeasonSummaryService } from '../seasonSummary';
 import { PlayerGradesStore } from './playerGrades.store';
+import { LiveService, type LiveMessage } from '@core/live/live.service';
+import { LIVE_RELOAD_MS } from '@core/live/liveReload';
 
 const grade = (gamertag: string) => ({ gamertag }) as LetterDto;
 const grades = (...letters: LetterDto[]) => ({ totals: [], perMinutes: [], letters });
+
+/** The live service as the store sees it: who watches what, and a message to send them. */
+class FakeLive {
+  readonly watching: { topics: readonly string[], listener: (message: LiveMessage) => void, stopped: boolean }[] = [];
+
+  watch(topics: readonly string[], listener: (message: LiveMessage) => void): () => void {
+    const watch = { topics, listener, stopped: false };
+    this.watching.push(watch);
+    return () => watch.stopped = true;
+  }
+
+  /** Sends `message` to those watching its topic; a null topic (the connection came back) to everyone. */
+  send(message: LiveMessage): void {
+    for (const watch of this.watching.filter(w => !w.stopped && (message.topic === null || w.topics.includes(message.topic))))
+      watch.listener(message);
+  }
+
+  get active(): (readonly string[])[] {
+    return this.watching.filter(w => !w.stopped).map(w => w.topics);
+  }
+}
 
 describe('PlayerGradesStore', () => {
   let store: PlayerGradesStore;
   let http: HttpTestingController;
   let summary: Observable<Partial<SeasonSummaryDto>>;
+  let live: FakeLive;
 
   beforeEach(() => {
+    live = new FakeLive();
     summary = of({ isHistorical: false, hasEnded: false, matchCount: 3, bracketMatchCount: 0 });
     TestBed.configureTestingModule({
-      providers: [PlayerGradesStore, provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: SeasonSummaryService, useValue: { get: () => summary } }],
+      providers: [PlayerGradesStore, provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: SeasonSummaryService, useValue: { get: () => summary } },
+        { provide: LiveService, useValue: live }],
     });
     store = TestBed.inject(PlayerGradesStore);
     http = TestBed.inject(HttpTestingController);
@@ -96,5 +122,36 @@ describe('PlayerGradesStore', () => {
     pending.next({ isHistorical: false, hasEnded: false, matchCount: 1, bracketMatchCount: 0 });
     http.expectOne('/api/seasons/7/grades').flush(grades());
     expect(store.gradesDone()).toBeTrue();
+  });
+
+  describe('live', () => {
+    beforeEach(() => {
+      jasmine.clock().install();
+      // No spread: a reload runs LIVE_RELOAD_MS after a change
+      spyOn(Math, 'random').and.returnValue(0);
+    });
+    afterEach(() => jasmine.clock().uninstall());
+
+    it('watches nothing without a season', () => {
+      TestBed.tick();
+      expect(live.active).toEqual([]);
+    });
+
+    it("loads the grades again, in place, when the season's games or its signups change", () => {
+      store.seasonID.use(signal(7));
+      TestBed.tick();
+      http.expectOne('/api/seasons/7/grades').flush(grades(grade('Player1')));
+      expect(live.active).toEqual([['season:7', 'signups:7']]);
+
+      live.send({ topic: 'signups:7' });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+      expect(store.summaryDone()).toBeTrue();
+      http.expectOne('/api/seasons/7/grades').flush(grades(grade('Player1'), grade('Player2')));
+      expect(store.letters().map(l => l.gamertag)).toEqual(['Player1', 'Player2']);
+
+      live.send({ topic: 'season:7' });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+      http.expectOne('/api/seasons/7/grades').flush(grades());
+    });
   });
 });

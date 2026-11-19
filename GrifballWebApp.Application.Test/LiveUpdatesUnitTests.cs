@@ -3,14 +3,18 @@ using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Test.TestDoubles;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
 using Microsoft.Extensions.Time.Testing;
+using HaloMatch = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -245,5 +249,210 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         await new LiveUpdatesHandler(live, Context).Handle(new TeamRenamed(team), CancellationToken.None);
 
         live.Received(1).Publish(Arg.Is<IEnumerable<LiveChange>>(c => c.Select(x => x.Topic).SequenceEqual(ATeam)));
+    }
+
+    private static readonly Guid HaloMatchID = new("0f8fad5b-d9cb-469f-a165-70867728950e");
+
+    /// <summary>A Halo game of xbox:100 against xbox:200 and xbox:300.</summary>
+    private static HaloMatch HaloGame()
+    {
+        var match = HaloMatch.Seed(HaloMatchID);
+        match.AddTeam(0, 5, Outcomes.Won);
+        match.AddTeam(1, 3, Outcomes.Lost);
+        match.AddParticipant(0, 100, new MatchParticipantStats());
+        match.AddParticipant(1, 200, new MatchParticipantStats());
+        match.AddParticipant(1, 300, new MatchParticipantStats());
+        return match;
+    }
+
+    /// <summary>
+    /// Every domain event the Domain raises, with the topics it changes (space-separated; "topic@user" for a user's own).
+    /// The season is 5, its match 11, the player 7.
+    /// </summary>
+    private static IEnumerable<TestCaseData> EveryEvent()
+    {
+        var season = Season.Seed(seasonName: "S5", seasonID: 5);
+        var team = Team.Seed("Reds", seasonID: 5, teamID: 3);
+        var other = Team.Seed("Blues", seasonID: 5, teamID: 4);
+        var match = SeasonMatch.Seed(5, 3, 4);
+        match.SeasonMatchID = 11;
+        var signup = SeasonSignup.Seed(5, 7);
+        var reschedule = MatchReschedule.Request(11, null, Now, "Busy", 7, Now);
+        var player = User.Seed(userName: "player7", id: 7);
+        var spot = QueuedPlayer.Seed(7, Now);
+        var lateLeague = MatchedMatch.Start([7], [8], Now);
+        var totals = new StatSheetTotals { Gamertag = "Seven" };
+
+        TestCaseData Case(IDomainEvent domainEvent, string topics, string? name = null)
+            => new TestCaseData(domainEvent, topics).SetArgDisplayNames(name ?? domainEvent.GetType().Name);
+
+        // League: the season
+        yield return Case(new SeasonCreated(season), "seasons season:5");
+        yield return Case(new SeasonEdited(season), "seasons season:5 draft:5");
+        yield return Case(new SeasonScheduled(season), "seasons season:5 draft:5 signups:5");
+        yield return Case(new SeasonAnnounced(season), "seasons season:5");
+        yield return Case(new SeasonTimeslotsChanged(season), "season:5 signups:5");
+        yield return Case(new CaptainsLockChanged(season), "draft:5");
+        yield return Case(new SeasonCopiedFrom(season), "season:5 draft:5 signups:5");
+        yield return Case(new SeasonChampionsChanged(season), "seasons season:5");
+        yield return Case(new SeasonAwardsChanged(season), "season:5");
+
+        // Its teams
+        yield return Case(new TeamFormed(team), "season:5 draft:5");
+        yield return Case(new TeamDisbanded(team, [7, 8]), "season:5 draft:5 player:7 player:8");
+        yield return Case(new TeamRenamed(team), "season:5 draft:5");
+        yield return Case(new TeamCaptainChanged(team), "season:5 draft:5");
+        yield return Case(new TeamRosterChanged(team, [7, 7]), "season:5 draft:5 player:7");
+        yield return Case(new PlayerDrafted(team, 7, 1, 2), "season:5 draft:5 player:7");
+        yield return Case(new PlayerUndrafted(team, 7, 2), "season:5 draft:5 player:7");
+        yield return Case(new PickMoved(team, other, 7, 1, 2, 3), "season:5 draft:5 player:7");
+        yield return Case(new TeamTimeslotsChanged(team), "season:5");
+        yield return Case(new TeamArchiveRecorded(team), "season:5");
+
+        // Its matches
+        yield return Case(new SeasonMatchCreated(match), "seasons season:5 seasonmatch:11");
+        yield return Case(new SeasonMatchCanceled(match), "seasons season:5 seasonmatch:11");
+        yield return Case(new SeasonMatchScheduled(match), "seasons season:5 seasonmatch:11");
+        yield return Case(new SeasonMatchTeamsChanged(match), "seasons season:5 seasonmatch:11");
+        yield return Case(new SeasonMatchResultChanged(match), "seasons season:5 seasonmatch:11");
+        yield return Case(new SeasonMatchDecided(match, SeasonMatchDecision.Games), "seasons season:5 seasonmatch:11");
+        yield return Case(new SeasonMatchReopened(match), "seasons season:5 seasonmatch:11");
+        yield return Case(new SeriesGamesChanged(match), "seasons season:5 seasonmatch:11");
+
+        // Its signups, reschedules, VODs, stats and schedules
+        yield return Case(new PlayerSignedUp(signup), "signups:5 draft:5 season:5 player:7");
+        yield return Case(new SignupChanged(signup), "signups:5 draft:5 season:5 player:7");
+        yield return Case(new SignupWithdrawn(signup), "signups:5 draft:5 season:5 player:7");
+        yield return Case(new RescheduleRequested(reschedule), "seasonmatch:11 staff:reschedules");
+        yield return Case(new RescheduleChanged(reschedule), "seasonmatch:11 staff:reschedules");
+        yield return Case(new VodChanged(Vod.Seed("v1", "Reds v Blues", Now, VodMatchStatus.Confirmed, seasonID: 5, seasonMatchID: 11)), "staff:vods season:5 seasonmatch:11", "VodChanged of a match");
+        yield return Case(new VodChanged(Vod.Seed("v2", "Something else", Now, VodMatchStatus.NeedsReview)), "staff:vods", "VodChanged of no match");
+        yield return Case(new PlayerSeasonStatsChanged(PlayerSeasonStat.Seed(totals, seasonID: 5, userID: 7)), "season:5 player:7");
+        yield return Case(new SchedulingRulesChanged(SeasonSchedulingRules.Defaults(5)), "season:5");
+        yield return Case(new ScheduleRecommendationChanged(ScheduleRecommendation.Propose(5, null, 0.5, 1, [])), "season:5");
+
+        // Late League
+        yield return Case(new PlayerQueued(spot), "queue queue:me@7");
+        yield return Case(new PlayerLeftQueue(spot), "queue queue:me@7");
+        yield return Case(new LateLeagueMatchStarted(lateLeague, [7, 8]), "queue lateleague queue:me@7 queue:me@8");
+        yield return Case(new LateLeagueMatchDecided(lateLeague, [7, 8]), "queue lateleague queue:me@7 queue:me@8");
+        yield return Case(new LateLeagueMatchCanceled(lateLeague, [7], Unannounced: true), "queue lateleague queue:me@7");
+        yield return Case(new LateLeagueGameRecorded(player, Won: true, MmrBefore: 1000), "player:7");
+        yield return Case(new LateLeaguePlayerKicked(lateLeague, 7), "lateleague queue:me@7");
+        yield return Case(new LateLeagueMatchChanged(lateLeague), "lateleague");
+        yield return Case(new MatchmakingSeasonChanged(MatchmakingSeason.Seed("Late League 1")), "lateleague");
+        yield return Case(new MatchmakingPlayerStatsChanged(MatchmakingPlayerStat.Seed(totals, userID: 7)), "lateleague player:7");
+        yield return Case(new LadderRankChanged(MatchmakingLadderRank.Seed(new LadderStanding { Gamertag = "Seven" }, userID: 7)), "lateleague player:7");
+
+        // Halo
+        yield return Case(new HaloMatchChanged(HaloGame()), $"match:{HaloMatchID:D} xbox:100 xbox:200 xbox:300");
+
+        // Players
+        yield return Case(new UserChanged(player), "player:7 staff:users");
+        yield return Case(new XboxUserChanged(XboxUser.FromXbox(100, "Hundred")), "xbox:100 staff:users");
+        yield return Case(new DiscordUserChanged(DiscordUser.FromDiscord(1, "disc")), "staff:users");
+        // Its topics name nothing of the merge: none is needed
+        yield return Case(new UserMergeChanged(null!), "staff:merges staff:users");
+        yield return Case(new DuplicateDismissed(DuplicateDismissal.Dismiss(1, 2, Now, null)), "staff:merges");
+
+        // Archive
+        yield return Case(new GamertagClaimChanged(GamertagClaim.ClaimedByUser(7, "Seven", "seven")), "staff:claims player:7", "GamertagClaimChanged of a claimant");
+        yield return Case(new GamertagClaimChanged(GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 100, "Seven", "seven", 9)), "staff:claims", "GamertagClaimChanged suggested");
+        yield return Case(new HistoricalImportJobChanged(HistoricalImportJob.Refresh()), "staff:imports");
+        // Its topics name nothing of the source: none is needed
+        yield return Case(new HistoricalSourceChanged(null!), "staff:imports");
+        yield return Case(new RecordedGameChanged(RecordedGame.Seed("game-1", seasonID: 5)), "season:5", "RecordedGameChanged of a season");
+        yield return Case(new RecordedGameChanged(RecordedGame.Seed("game-2")), "lateleague", "RecordedGameChanged of Late League");
+    }
+
+    [TestCaseSource(nameof(EveryEvent))]
+    public void EveryDomainEvent_ChangesTheTopicsOfThePagesThatShowIt(IDomainEvent domainEvent, string topics)
+        => Assert.That(Topics(domainEvent), Is.EquivalentTo(topics.Split(' ')));
+
+    [Test]
+    public void EveryDomainEvent_HasItsTopics_InTheseTests()
+    {
+        var raised = typeof(Season).Assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IDomainEvent).IsAssignableFrom(t))
+            .Select(t => t.Name);
+        var tested = EveryEvent().Select(c => c.Arguments[0]!.GetType().Name).Distinct();
+
+        Assert.That(tested, Is.EquivalentTo(raised), "A new event needs its arm in LiveChanges, and its case here");
+    }
+
+    [Test]
+    public async Task TheHandler_TellsTheProfilesOfAHaloGamesPlayers_WhoseAccountsAreUsers()
+    {
+        var hundred = User.Seed(userName: "hundred", xboxUser: XboxUser.FromXbox(100, "Hundred"));
+        var twoHundred = User.Seed(userName: "twohundred", xboxUser: XboxUser.FromXbox(200, "TwoHundred"));
+        Context.Users.AddRange(hundred, twoHundred, User.Seed(userName: "noxbox"));
+        await Context.SaveChangesAsync();
+        var published = new List<LiveChange>();
+        var live = Substitute.For<ILiveUpdates>();
+        live.When(l => l.Publish(Arg.Any<IEnumerable<LiveChange>>())).Do(c => published.AddRange(c.Arg<IEnumerable<LiveChange>>()));
+
+        await new LiveUpdatesHandler(live, Context).Handle(new HaloMatchChanged(HaloGame()), CancellationToken.None);
+
+        Assert.That(published.Select(c => c.Topic).Where(t => t.StartsWith("player:", StringComparison.Ordinal)),
+            Is.EquivalentTo(new[] { LiveTopics.Player(hundred.Id), LiveTopics.Player(twoHundred.Id) }));
+    }
+
+    private LiveSnapshots Snapshots() => new(new GrifballWebApp.Application.Teams.TeamService(Context, Substitute.For<GrifballWebApp.Application.Database.IDatabaseLocks>()),
+        new SeasonService(Context, new GrifballWebApp.Application.Stats.SeasonStatsService(Context, _time), new SeasonVisibility(Context, _time), _time),
+        new GrifballWebApp.Application.TeamStandings.TeamStandingsService(Context), new GrifballWebApp.Application.MatchPlanner.MatchPlannerService(Context),
+        new GrifballWebApp.Application.Home.HomeEventsService(new SeasonVisibility(Context, _time), _time), Substitute.For<GrifballWebApp.Application.Matchmaking.IQueueRepository>());
+
+    [Test]
+    public async Task TheDraftsData_IsItsTeams_ItsPool_AndItsLock()
+    {
+        await AddSeason(5, announced: true);
+        Context.Users.Add(User.Seed(userName: "seven", displayName: "Seven", id: 7));
+        await Context.SaveChangesAsync();
+        Context.SeasonSignups.Add(SeasonSignup.Seed(5, 7));
+        await Context.SaveChangesAsync();
+
+        var draft = (DraftLiveDto?)await Snapshots().For(LiveTopics.Draft(5), SeasonViewer.Public);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(draft!.SeasonID, Is.EqualTo(5));
+            Assert.That(draft.Teams, Is.Empty);
+            Assert.That(draft.Pool, Has.Count.EqualTo(1));
+            Assert.That(draft.CaptainsLocked, Is.False);
+        }
+    }
+
+    [Test]
+    public async Task ASeasonsData_IsWhatItsPageShows()
+    {
+        await AddSeason(5, announced: true);
+
+        var season = (SeasonLiveDto?)await Snapshots().For(LiveTopics.Season(5), SeasonViewer.Public);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season!.SeasonID, Is.EqualTo(5));
+            Assert.That(season.Summary, Is.Not.Null);
+            Assert.That(season.Standings, Is.Empty);
+            Assert.That(season.Scheduled, Is.Empty);
+            Assert.That(season.Unscheduled, Is.Empty);
+            Assert.That(season.PlayerStats, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task TheHomePagesData_IsTheEventsItsViewerMaySee()
+    {
+        await AddSeason(1, announced: false);
+        var snapshots = Snapshots();
+
+        var forEveryone = (SeasonsLiveDto?)await snapshots.For(LiveTopics.Seasons, SeasonViewer.Public);
+        var forStaff = (SeasonsLiveDto?)await snapshots.For(LiveTopics.Seasons, SeasonViewer.Staff);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(forEveryone!.Events, Is.Empty, "a season not announced yet");
+            Assert.That(forStaff!.Events, Is.Not.Empty);
+        }
     }
 }

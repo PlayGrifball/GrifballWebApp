@@ -3,13 +3,41 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { HomeStore } from './home.store';
+import type { SeasonsLiveDto } from '@api/models';
+import { LiveService, type LiveMessage } from '@core/live/live.service';
+import { LIVE_RELOAD_MS, LIVE_SPREAD_MS } from '@core/live/liveReload';
+
+/** The live service as the store sees it: who watches what, and a message to send them. */
+class FakeLive {
+  readonly watching: { topics: readonly string[], listener: (message: LiveMessage) => void, stopped: boolean }[] = [];
+
+  watch(topics: readonly string[], listener: (message: LiveMessage) => void): () => void {
+    const watch = { topics, listener, stopped: false };
+    this.watching.push(watch);
+    return () => watch.stopped = true;
+  }
+
+  /** Sends `message` to those watching its topic; a null topic (the connection came back) to everyone. */
+  send(message: LiveMessage): void {
+    for (const watch of this.watching.filter(w => !w.stopped && (message.topic === null || w.topics.includes(message.topic))))
+      watch.listener(message);
+  }
+
+  get active(): (readonly string[])[] {
+    return this.watching.filter(w => !w.stopped).map(w => w.topics);
+  }
+}
 
 describe('HomeStore', () => {
   let store: HomeStore;
   let http: HttpTestingController;
+  let live: FakeLive;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [HomeStore, provideHttpClient(withXhr()), provideHttpClientTesting()] });
+    live = new FakeLive();
+    TestBed.configureTestingModule({
+      providers: [HomeStore, provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: LiveService, useValue: live }],
+    });
     store = TestBed.inject(HomeStore);
     http = TestBed.inject(HttpTestingController);
   });
@@ -127,6 +155,40 @@ describe('HomeStore', () => {
       expect(failed).not.toHaveBeenCalled();
       expect(store.pastSeasons()).toEqual([shown]);
       expect(store.total()).toBe(11);
+    });
+  });
+
+  describe('live', () => {
+    const pushed: SeasonsLiveDto = { events: [{ seasonID: 7, name: 'Winter', eventType: 'Season', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z' }] };
+
+    beforeEach(() => {
+      jasmine.clock().install();
+      // No spread: a reload runs LIVE_RELOAD_MS after a change
+      spyOn(Math, 'random').and.returnValue(0);
+      TestBed.tick();
+    });
+    afterEach(() => jasmine.clock().uninstall());
+
+    it('shows the events pushed with a change to the seasons, with no request', () => {
+      expect(live.active).toEqual([['seasons']]);
+      live.send({ topic: 'seasons', data: pushed });
+      expect(store.events()).toEqual(pushed.events);
+      expect(store.eventsLoaded()).toBeTrue();
+      jasmine.clock().tick(LIVE_RELOAD_MS + LIVE_SPREAD_MS);
+      http.expectNone('/api/events');
+    });
+
+    it('loads the events again on a change without data, once it has them', () => {
+      live.send({ topic: 'seasons' });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+      http.expectNone('/api/events');
+
+      store.loadEvents();
+      http.expectOne('/api/events').flush([]);
+      live.send({ topic: 'seasons' });
+      jasmine.clock().tick(LIVE_RELOAD_MS);
+      http.expectOne('/api/events').flush(pushed.events);
+      expect(store.events()).toEqual(pushed.events);
     });
   });
 });

@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import {
   HttpClient, HttpRequest, HttpResponse, HubConnectionBuilder, IHttpConnectionOptions,
 } from '@microsoft/signalr';
+import { AuthSession } from '../auth/authSession.service';
+import { AppLog } from '../telemetry/appLog';
 import { LiveService } from './live.service';
 import { LiveTopics } from './liveTopics';
 
@@ -21,12 +23,22 @@ class FakeLiveHub {
   readonly sockets: FakeSocket[] = [];
   readonly handshakes: unknown[] = [];
   readonly fromClient: { type: number }[] = [];
+  /** The topics Watch refuses (as LiveHub does a staff topic for a player). */
+  readonly refusing: string[] = [];
+  /** The hub methods that fail (a completion with an error). */
+  readonly failing = new Set<string>();
 
   /** The completion LiveHub sends for an invocation the client waits on (with an ID): Watch refuses none, Viewing says who is on. */
   completion(message: { type: number, target?: string, invocationId?: string }): string | null {
     if (message.type !== 1 || message.invocationId === undefined)
       return null;
-    const results: Record<string, unknown> = { Watch: [], Viewing: SNAPSHOT };
+    if (message.target !== undefined && this.failing.has(message.target))
+      return JSON.stringify({ type: 3, invocationId: message.invocationId, error: 'An unexpected error occurred invoking it on the server.' }) + RS;
+    const watched = (message as { arguments?: unknown[] }).arguments?.[0];
+    const results: Record<string, unknown> = {
+      Watch: Array.isArray(watched) ? watched.filter(topic => this.refusing.includes(topic)) : [],
+      Viewing: SNAPSHOT,
+    };
     const result = message.target === undefined ? undefined : results[message.target];
     return JSON.stringify({ type: 3, invocationId: message.invocationId, result }) + RS;
   }
@@ -325,5 +337,138 @@ describe('LiveService where WebSockets don\'t get through', () => {
     hub.invoke('Changed', 'seasons');
     await waitFor(() => changed.length === 1, 'the invocation, delivered over the poll');
     expect(changed).toEqual(['seasons']);
+  });
+});
+
+describe('LiveService when something goes wrong, or the app goes', () => {
+  const fake = useFakeHub();
+  let hub: FakeLiveHub;
+  let service: LiveService;
+  let log: jasmine.SpyObj<AppLog>;
+  beforeEach(() => {
+    hub = fake.hub;
+    service = fake.service;
+    const appLog = TestBed.inject(AppLog);
+    log = appLog as jasmine.SpyObj<AppLog>;
+    spyOn(appLog, 'debug');
+    spyOn(appLog, 'warn');
+    spyOn(appLog, 'error');
+  });
+
+  const connect = async () => {
+    void service.connect();
+    await waitFor(() => service.presence() !== null, 'the connection');
+  };
+
+  it('logs the topics the hub refuses, watched before it connected and after', async () => {
+    hub.refusing.push('staff:users', 'staff:claims');
+    service.watch(['staff:users', 'season:5'], () => undefined);
+    await connect();
+    expect(log.debug).toHaveBeenCalledWith('Live hub: not watching', ['staff:users']);
+
+    service.watch(['staff:claims'], () => undefined);
+    await waitFor(() => log.debug.calls.count() === 2, 'the second refusal');
+    expect(log.debug).toHaveBeenCalledWith('Live hub: not watching', ['staff:claims']);
+  });
+
+  it('delivers data that won\'t parse as a change without it, and says so', async () => {
+    const got: unknown[] = [];
+    service.watch(['queue'], message => got.push(message));
+    await connect();
+
+    hub.invoke('Snapshot', 'queue', '{not json');
+    await waitFor(() => got.length === 1, 'the change');
+
+    expect(got).toEqual([{ topic: 'queue' }]);
+    expect(log.warn).toHaveBeenCalledWith('Live hub: queue\'s data did not parse', jasmine.any(SyntaxError));
+  });
+
+  it('logs a watcher that throws, and still calls the others', async () => {
+    const changed: string[] = [];
+    service.watch(['season:5'], () => { throw new Error('broken page'); });
+    service.watch(['season:5'], () => changed.push('second'));
+    await connect();
+
+    hub.invoke('Changed', 'season:5');
+    await waitFor(() => changed.length === 1, 'the second watcher');
+
+    expect(log.error).toHaveBeenCalledWith('Live hub: a page failed to take a change', jasmine.any(Error));
+  });
+
+  it('stops telling a watcher of the viewer\'s own queue place once it stops, and never watches that on the hub', async () => {
+    const changed: string[] = [];
+    const stop = service.watch([LiveTopics.myQueue], () => changed.push('mine'));
+    service.watch(['season:5'], () => changed.push('season'));
+    await connect();
+    stop();
+
+    hub.invoke('Changed', 'queue:me');
+    hub.invoke('Changed', 'season:5');
+    await waitFor(() => changed.length === 1, 'the season\'s change');
+
+    expect(changed).toEqual(['season']);
+    expect(called(hub).filter(([target]) => target === 'Watch' || target === 'Unwatch')).toEqual([['Watch', ['season:5']]]);
+  });
+
+  it('tells every watcher, its own queue place\'s too, when it connects again: what changed meanwhile was missed', async () => {
+    const got: unknown[] = [];
+    service.watch(['season:5'], message => got.push(message));
+    service.watch([LiveTopics.myQueue], message => got.push(message));
+    await connect();
+    expect(got).toEqual([]);
+
+    // A sign-in or out makes the connection again
+    TestBed.inject(AuthSession).signedInOrOut();
+    await waitFor(() => got.length === 2, 'the watchers told');
+
+    expect(got).toEqual([{ topic: null }, { topic: null }]);
+    // Watched again on the new connection
+    expect(called(hub).filter(([target]) => target === 'Watch')).toEqual([['Watch', ['season:5']], ['Watch', ['season:5']]]);
+  });
+
+  it('says the page without its query or fragment, and the home page for none', async () => {
+    await connect();
+
+    service.viewing('/season/5/standings?tab=all#top');
+    service.viewing('?x=1');
+    await waitFor(() => called(hub).filter(([target]) => target === 'Viewing').length === 3, 'the pages said');
+
+    expect(called(hub).filter(([target]) => target === 'Viewing')).toEqual([['Viewing', '/'], ['Viewing', '/season/5/standings'], ['Viewing', '/']]);
+  });
+
+  it('logs a hub call that fails, and does not throw', async () => {
+    await connect();
+    hub.failing.add('Viewing');
+
+    service.viewing('/seasons');
+    await waitFor(() => log.warn.calls.count() > 0, 'the failure logged');
+
+    expect(log.warn).toHaveBeenCalledWith('Live hub: a call failed', jasmine.any(Error));
+  });
+
+  it('says nothing to the hub before it connects', async () => {
+    service.viewing('/seasons');
+    service.watch(['season:5'], () => undefined)();
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    expect(hub.httpRequests).toEqual([]);
+  });
+
+  it('connects once however often it is asked', async () => {
+    void service.connect();
+    void service.connect();
+    await waitFor(() => service.presence() !== null, 'the connection');
+
+    expect(hub.httpRequests.filter(r => r.url?.includes('/negotiate')).length).toBe(1);
+  });
+
+  it('opens nothing when the app is gone before the connection\'s code has loaded', async () => {
+    const connecting = service.connect();
+    TestBed.resetTestingModule();
+    await connecting;
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    expect(hub.httpRequests).toEqual([]);
+    expect(hub.sockets).toEqual([]);
   });
 });

@@ -261,4 +261,24 @@ describe('TableComponent API responses', () => {
     await fixture.whenStable();
     expect(component.current().results.map(r => r.name)).toEqual(['ALPHA', 'BETA']);
   });
+
+  it('loads the page shown again, in place, each time the page bumps reloads', async () => {
+    pending().flush({ totalCount: 1, results: [{ id: 1, name: 'alpha' }] });
+    await fixture.whenStable();
+
+    fixture.componentRef.setInput('reloads', 1);
+    fixture.detectChanges();
+    // Kept shown while it loads again
+    expect(component.current().results).toEqual([{ id: 1, name: 'alpha' }]);
+    const again = pending();
+    expect(again.request.params.get('pageNumber')).toBe('1');
+    again.flush({ totalCount: 2, results: [{ id: 1, name: 'alpha' }, { id: 2, name: 'beta' }] });
+    await fixture.whenStable();
+    expect(component.current().totalCount).toBe(2);
+
+    fixture.componentRef.setInput('reloads', 2);
+    fixture.detectChanges();
+    pending().flush({ totalCount: 2, results: [] });
+    await fixture.whenStable();
+  });
 });
