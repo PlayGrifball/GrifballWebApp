@@ -4730,6 +4730,22 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             LeagueName = "Community/Side",
                             ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Slug = "side"
+                        },
+                        new
+                        {
+                            LeagueID = 6,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            LeagueName = "GGL",
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Slug = "ggl"
+                        },
+                        new
+                        {
+                            LeagueID = 7,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            LeagueName = "EUGBL",
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Slug = "eugbl"
                         });
                 });
 
