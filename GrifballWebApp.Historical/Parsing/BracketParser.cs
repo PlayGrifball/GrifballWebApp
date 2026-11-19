@@ -40,7 +40,16 @@ public static partial class BracketParser
     public static ArchiveBracket? Parse(string sourceId, BracketTab tab, SheetWorkbook workbook, List<string> warnings)
     {
         var drafts = tab.Rounds.Count > 0 ? FromRounds(sourceId, tab, workbook, warnings) : FromCells(sourceId, tab, workbook, warnings);
-        return drafts is null ? null : BuildBracket(drafts);
+        return drafts is null ? null : BuildBracket(drafts, decided =>
+        {
+            // A final no cell decides: the side whose playoff record could not have lost it (#534)
+            if (tab.RecordsSheet is not { } recordsSheet)
+                return;
+            if (workbook.Sheet(recordsSheet) is { } records)
+                DecideByPlayoffLosses(decided, PlayoffLosses(records, tab.Aliases));
+            else
+                warnings.Add($"{sourceId}: no records sheet '{recordsSheet}'");
+        });
     }
 
     /// <summary>Normalized playoff brackets from a database table (<see cref="BracketTableConfig"/>), keyed by each season's
@@ -144,16 +153,11 @@ public static partial class BracketParser
         return Bracket.Winner;
     }
 
-    private static ArchiveBracket BuildBracket(List<Draft> drafts)
+    /// <param name="decideMore">What else decides a series, once the cells have (a tab's records sheet).</param>
+    private static ArchiveBracket BuildBracket(List<Draft> drafts, Action<List<Draft>>? decideMore = null)
     {
         Decide(drafts);
-        if (tab.RecordsSheet is { } recordsSheet)
-        {
-            if (workbook.Sheet(recordsSheet) is { } records)
-                DecideByPlayoffLosses(drafts, PlayoffLosses(records, tab.Aliases));
-            else
-                warnings.Add($"{sourceId}: no records sheet '{recordsSheet}'");
-        }
+        decideMore?.Invoke(drafts);
         foreach (var draft in drafts.Where(d => d.Unplaced is not null && d.Winner is not null))
             (draft.HomeWins, draft.AwayWins) = draft.Winner is SeasonMatchSide.Home ? (draft.Unplaced!.Value.Winner, draft.Unplaced.Value.Loser) : (draft.Unplaced!.Value.Loser, draft.Unplaced.Value.Winner);
         var winners = 0;
