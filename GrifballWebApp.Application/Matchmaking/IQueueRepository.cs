@@ -84,6 +84,7 @@ public class QueueRepository : IQueueRepository
         return await _context.MatchedMatches
             .WithPlayerNames()
             .Where(x => x.Status == MatchedMatchStatus.Active)
+            .OrderBy(x => x.Id)
             .ToArrayAsync(ct);
     }
 

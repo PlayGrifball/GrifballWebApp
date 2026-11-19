@@ -2,6 +2,7 @@ using System.Text.Json;
 using DiscordInterface.Generated;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Matchmaking;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
@@ -305,6 +306,7 @@ public class QueueServiceFinishTests : SqliteContextFixture
             Assert.That((await Context.MatchedMatches.AsNoTracking().SingleAsync(m => m.Id == broken.Id)).Status, Is.EqualTo(MatchedMatchStatus.Active));
             Assert.That((await Context.MatchedMatches.AsNoTracking().SingleAsync(m => m.Id == voted.Id)).Status, Is.EqualTo(MatchedMatchStatus.VoteDecided));
             Assert.That((await Reload(a1)).MMR, Is.EqualTo(User.StartingMMR), "nothing of the failed ending was saved");
+            Assert.That(await Queued(broken.Id), Is.Empty, "nor posted: its ending's events went with it, not out with the next match's save");
         }
     }
 
@@ -343,6 +345,18 @@ public class QueueServiceFinishTests : SqliteContextFixture
             Assert.That((await Queued(match.Id)).Select(x => x.Kind), Is.EqualTo(CanceledSteps));
             Assert.That((await Reload(home)).MMR, Is.EqualTo(User.StartingMMR));
         }
+    }
+
+    [Test]
+    public async Task Go_TellsThePagesTheQueue_EveryTick_SoASizeTheyMissed_IsPutRight()
+    {
+        var live = Substitute.For<ILiveUpdates>();
+        var service = new QueueService(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = QueueChannel, MatchPlayers = 2 }),
+            new QueueRepository(Context), _discord, Context, _dataPull, new ContextOutbox(Context), _time, live);
+
+        await service.Go(CancellationToken.None);
+
+        live.Received(1).Publish(Arg.Is<IEnumerable<LiveChange>>(c => c.Single() == new LiveChange(LiveTopics.Queue, null)));
     }
 
     [Test]

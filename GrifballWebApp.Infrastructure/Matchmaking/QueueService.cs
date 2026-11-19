@@ -10,6 +10,7 @@ using NetCord.Rest;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Matchmaking;
 using GrifballWebApp.Application.Outbox;
 using GrifballWebApp.Infrastructure.Discord;
@@ -40,8 +41,10 @@ public class QueueService
     private readonly IDataPullService _dataPullService;
     private readonly IOutbox _outbox;
     private readonly TimeProvider _time;
+    private readonly ILiveUpdates _live;
 
     /// <param name="time">The clock a match goes stale by (two hours undecided), and the queue lock's waits between tries go by; the system's unless given.</param>
+    /// <param name="live">Told the queue every tick (<see cref="Go"/>); nobody unless given.</param>
     public QueueService(ILogger<QueueService> logger,
         IOptions<DiscordOptions> discordOptions,
         IQueueRepository queueRepository,
@@ -49,9 +52,11 @@ public class QueueService
         GrifballContext context,
         IDataPullService dataPullService,
         IOutbox outbox,
-        TimeProvider? time = null)
+        TimeProvider? time = null,
+        ILiveUpdates? live = null)
     {
         _time = time ?? TimeProvider.System;
+        _live = live ?? new NoLiveUpdates();
         _logger = logger;
         _discordOptions = discordOptions;
         _queueChannel = discordOptions.Value.QueueChannel;
@@ -105,6 +110,10 @@ public class QueueService
             {
                 _logger.LogError(ex, "Failed to update the matchmaking queue message");
             }
+
+            // The pages hear the queue's size from its changes' events too; this puts right one they missed (a publish
+            // lost to Redis, a relay that reconnected), as the queue message above is put right
+            _live.Publish([new LiveChange(LiveTopics.Queue)]);
 
             // A match is announced once it has its vote message: until then its players can't vote.
             var finishing = activeMatches.Where(x => x.Status == MatchedMatchStatus.Active && x.VoteMessageID is not null).ToArray();
