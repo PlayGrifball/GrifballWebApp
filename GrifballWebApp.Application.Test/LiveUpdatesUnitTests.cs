@@ -268,7 +268,7 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         var live = Substitute.For<ILiveUpdates>();
         var team = Team.Seed("Reds", seasonID: 5, teamID: 3);
 
-        await new LiveUpdatesHandler(live, Context).Handle(new TeamRenamed(team), CancellationToken.None);
+        await new LiveUpdatesHandler(live).Handle(new TeamRenamed(team), CancellationToken.None);
 
         live.Received(1).Publish(Arg.Is<IEnumerable<LiveChange>>(c => c.Select(x => x.Topic).SequenceEqual(ATeam)));
     }
@@ -403,20 +403,17 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public async Task TheHandler_TellsTheProfilesOfAHaloGamesPlayers_WhoseAccountsAreUsers()
+    public async Task TheHandler_AHaloGame_PublishesItsAccounts_LookingNobodyUp_OnTheSavesPath()
     {
-        var hundred = User.Seed(userName: "hundred", xboxUser: XboxUser.FromXbox(100, "Hundred"));
-        var twoHundred = User.Seed(userName: "twohundred", xboxUser: XboxUser.FromXbox(200, "TwoHundred"));
-        Context.Users.AddRange(hundred, twoHundred, User.Seed(userName: "noxbox"));
-        await Context.SaveChangesAsync();
         var published = new List<LiveChange>();
         var live = Substitute.For<ILiveUpdates>();
         live.When(l => l.Publish(Arg.Any<IEnumerable<LiveChange>>())).Do(c => published.AddRange(c.Arg<IEnumerable<LiveChange>>()));
+        var game = new HaloMatchChanged(HaloGame());
 
-        await new LiveUpdatesHandler(live, Context).Handle(new HaloMatchChanged(HaloGame()), CancellationToken.None);
+        await new LiveUpdatesHandler(live).Handle(game, CancellationToken.None);
 
-        Assert.That(published.Select(c => c.Topic).Where(t => t.StartsWith("player:", StringComparison.Ordinal)),
-            Is.EquivalentTo(new[] { LiveTopics.Player(hundred.Id), LiveTopics.Player(twoHundred.Id) }));
+        // The profiles watching those accounts' users are told where they are watched (LiveDelivery), once a batch
+        Assert.That(published, Is.EqualTo(LiveChanges.Of(game)));
     }
 
     private LiveSnapshots Snapshots() => new(new GrifballWebApp.Application.Teams.TeamService(Context, Substitute.For<GrifballWebApp.Application.Database.IDatabaseLocks>()),

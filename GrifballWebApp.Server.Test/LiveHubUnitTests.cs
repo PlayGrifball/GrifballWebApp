@@ -1,10 +1,14 @@
+using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Live;
 using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -143,9 +147,86 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
 
     private LiveDelivery Delivery(LiveSnapshots snapshots)
     {
+        var connectionString = Db.Database.GetConnectionString()!;
         var services = new ServiceCollection();
         services.AddScoped(_ => snapshots);
+        services.AddScoped<IApplicationDbContext>(_ => new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString).Options));
         return new LiveDelivery(_watchers, _connections, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance);
+    }
+
+    private static LiveSnapshots NoSnapshots() => Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!);
+
+    [Test]
+    public async Task Delivery_AnXboxAccountsChange_TellsTheProfileWatchedHere_OfItsUser_AndNoneOfAnAccountNoUserHas()
+    {
+        var player = User.Seed(userName: "hundred", xboxUser: XboxUser.FromXbox(100, "Hundred"));
+        var other = User.Seed(userName: "other", xboxUser: XboxUser.FromXbox(300, "Other"));
+        Db.Users.AddRange(player, other);
+        await Db.SaveChangesAsync();
+        var watchers = Substitute.For<ILiveHubClient>();
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
+        _watchers.Watch(LiveTopics.Player(player.Id), "a", SeasonViewer.Public);
+        _watchers.Watch(LiveTopics.Player(other.Id), "b", SeasonViewer.Public);
+        _watchers.Watch("player:x", "c", SeasonViewer.Public); // no user: never looked up
+
+        await Delivery(NoSnapshots()).Deliver([new LiveChange(LiveTopics.Xbox(100)), new LiveChange(LiveTopics.Xbox(200)), new LiveChange("xbox:x")]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            await watchers.Received(1).Changed(LiveTopics.Player(player.Id));
+            await watchers.DidNotReceive().Changed(LiveTopics.Player(other.Id));
+        }
+    }
+
+    /// <summary>Counts the scopes made: a lookup makes one.</summary>
+    private sealed class CountedScopes : IServiceScopeFactory
+    {
+        private readonly IServiceScopeFactory _inner = new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+        public int Made { get; private set; }
+
+        public IServiceScope CreateScope()
+        {
+            Made++;
+            return _inner.CreateScope();
+        }
+    }
+
+    [Test]
+    public async Task Delivery_AnXboxAccountsChange_WithNoProfileWatchedHere_LooksNobodyUp()
+    {
+        var scopes = new CountedScopes();
+        var watchers = Substitute.For<ILiveHubClient>();
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
+        _watchers.Watch(LiveTopics.Xbox(100), "a", SeasonViewer.Public);
+
+        await new LiveDelivery(_watchers, _connections, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            await watchers.Received(1).Changed(LiveTopics.Xbox(100));
+            Assert.That(scopes.Made, Is.Zero, "no lookup made");
+        }
+    }
+
+    [Test]
+    public async Task Delivery_ALookupOfWhoseAccountsChangedThatFails_StillTellsTheAccountsWatchers()
+    {
+        // Scopes with no database: the lookup throws, and is logged
+        var scopes = new CountedScopes();
+        var watchers = Substitute.For<ILiveHubClient>();
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
+        _watchers.Watch(LiveTopics.Xbox(100), "a", SeasonViewer.Public);
+        _watchers.Watch(LiveTopics.Player(5), "b", SeasonViewer.Public);
+
+        await new LiveDelivery(_watchers, _connections, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(scopes.Made, Is.EqualTo(1), "a lookup tried");
+            await watchers.Received(1).Changed(LiveTopics.Xbox(100));
+            await watchers.DidNotReceive().Changed(LiveTopics.Player(5));
+        }
     }
 
     [Test]

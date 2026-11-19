@@ -1,4 +1,3 @@
-using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.DomainEvents;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
@@ -6,28 +5,21 @@ using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
-using Microsoft.EntityFrameworkCore;
 using T = GrifballWebApp.Application.Live.LiveTopics;
 
 namespace GrifballWebApp.Application.Live;
 
 /// <summary>
 /// Every committed domain event, to the pages that show what it changed (<see cref="LiveChanges.Of"/>). A Halo game's
-/// players' profiles too: who plays as its Xbox accounts is the users' to say, so they are looked up.
+/// players' profiles hear of it where they are watched (the hub's delivery looks up whose its accounts are, once a
+/// batch), not here on the save's path.
 /// </summary>
-public sealed class LiveUpdatesHandler(ILiveUpdates live, IApplicationDbContext context) : IDomainEventHandler<IDomainEvent>
+public sealed class LiveUpdatesHandler(ILiveUpdates live) : IDomainEventHandler<IDomainEvent>
 {
-    public async Task Handle(IDomainEvent domainEvent, CancellationToken cancellationToken)
+    public Task Handle(IDomainEvent domainEvent, CancellationToken cancellationToken)
     {
         live.Publish(LiveChanges.Of(domainEvent));
-        if (domainEvent is not HaloMatchChanged halo)
-            return;
-        var xboxUserIDs = halo.Match.Participants.Select(p => p.XboxUserID).Distinct().ToList();
-        var userIDs = await context.Users.AsNoTracking()
-            .Where(u => u.XboxUserID != null && xboxUserIDs.Contains(u.XboxUserID.Value))
-            .Select(u => u.Id)
-            .ToListAsync(cancellationToken);
-        live.Publish(userIDs.Select(id => new LiveChange(T.Player(id))));
+        return Task.CompletedTask;
     }
 }
 

@@ -1,10 +1,13 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Threading.Channels;
+using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Infrastructure.Redis;
 using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 
 namespace GrifballWebApp.Server.Live;
@@ -151,6 +154,15 @@ public sealed class LiveWatchers
         lock (_gate)
             return _byTopic.TryGetValue(topic, out var watching) ? [.. watching.Select(w => (w.Key, w.Value))] : [];
     }
+
+    /// <summary>The users whose profiles (<see cref="LiveTopics.Player"/>) are watched here.</summary>
+    public IReadOnlyList<int> Players()
+    {
+        lock (_gate)
+            return [.. _byTopic.Keys.Select(LiveTopics.Split)
+                .Where(t => t.Kind == LiveTopics.PlayerKind && int.TryParse(t.Key, NumberStyles.None, CultureInfo.InvariantCulture, out _))
+                .Select(t => int.Parse(t.Key!, NumberStyles.None, CultureInfo.InvariantCulture))];
+    }
 }
 
 /// <summary>
@@ -173,7 +185,9 @@ public sealed class LiveDelivery(LiveWatchers watchers, HubConnections connectio
             if (theirs.Count > 0)
                 await Send(theirs, change.Topic, null);
         }
-        foreach (var topic in changes.Where(c => c.UserID is null).Select(c => c.Topic).Distinct(StringComparer.Ordinal))
+        var topics = changes.Where(c => c.UserID is null).Select(c => c.Topic).ToList();
+        topics.AddRange(await ProfilesOfAccounts(topics, ct));
+        foreach (var topic in topics.Distinct(StringComparer.Ordinal))
         {
             var watching = watchers.Of(topic);
             if (watching.Count == 0)
@@ -188,6 +202,38 @@ public sealed class LiveDelivery(LiveWatchers watchers, HubConnections connectio
                 : [(watching[0].Viewer, watching.Select(w => w.ConnectionID).ToList())];
             foreach (var (viewer, connections) in byViewer)
                 await Send(connections, topic, await Build(topic, viewer, ct));
+        }
+    }
+
+    /// <summary>
+    /// The profiles watched here (<see cref="LiveTopics.Player"/>) of the users whose Xbox accounts changed (a Halo game of
+    /// theirs, an account's gamertag): who plays as an account is the users' to say. One lookup for the batch, none when
+    /// no profile is watched here; one that fails is logged, and those profiles hear of it on their next change.
+    /// </summary>
+    private async Task<IEnumerable<string>> ProfilesOfAccounts(IReadOnlyCollection<string> topics, CancellationToken ct)
+    {
+        var accounts = topics.Select(LiveTopics.Split)
+            .Where(t => t.Kind == LiveTopics.XboxKind && long.TryParse(t.Key, NumberStyles.None, CultureInfo.InvariantCulture, out _))
+            .Select(t => long.Parse(t.Key!, NumberStyles.None, CultureInfo.InvariantCulture))
+            .ToList();
+        if (accounts.Count == 0)
+            return [];
+        var watched = watchers.Players();
+        if (watched.Count == 0)
+            return [];
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var users = await scope.ServiceProvider.GetRequiredService<IApplicationDbContext>().Users.AsNoTracking()
+                .Where(u => watched.Contains(u.Id) && u.XboxUserID != null && accounts.Contains(u.XboxUserID.Value))
+                .Select(u => u.Id)
+                .ToListAsync(ct);
+            return users.Select(LiveTopics.Player);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Could not look up whose Xbox accounts changed: their profiles hear of it on their next change");
+            return [];
         }
     }
 
