@@ -459,7 +459,7 @@ describe('LiveService when something goes wrong, or the app goes', () => {
     void service.connect();
     await waitFor(() => service.presence() !== null, 'the connection');
 
-    expect(hub.httpRequests.filter(r => r.url?.includes('/negotiate')).length).toBe(1);
+    expect(hub.httpRequests.filter(r => r.url?.includes('/negotiate'))).toHaveSize(1);
   });
 
   it('opens nothing when the app is gone before the connection\'s code has loaded', async () => {

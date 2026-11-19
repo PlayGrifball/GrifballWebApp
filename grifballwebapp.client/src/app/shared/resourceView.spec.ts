@@ -114,6 +114,6 @@ describe('resourceView', () => {
     expect(view.value()).toEqual([7, 8]);
     expect(view.hasValue()).toBeTrue();
     expect(view.isLoading()).toBeFalse();
-    expect(answers.length).toBe(1);
+    expect(answers).toHaveSize(1);
   });
 });

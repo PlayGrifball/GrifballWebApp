@@ -136,7 +136,9 @@ describe('SeasonPlayerStatsStore', () => {
       live.send({ topic: 'season:4' });
       jasmine.clock().tick(LIVE_RELOAD_MS);
       TestBed.tick();
-      request(4).flush([row('Grif')]);
+      const read = request(4);
+      expect(read.request.method).toBe('GET');
+      read.flush([row('Grif')]);
     });
   });
 });
