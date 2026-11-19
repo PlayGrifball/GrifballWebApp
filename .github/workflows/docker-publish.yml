@@ -485,17 +485,16 @@ jobs:
           push-to-registry: true
 
       # Master builds both amd64 and arm64; verify the arm64 backend image with a smoke test before release.
-      # Skipped on pull requests to keep preview and check runs fast.
-      - name: Build the arm64 backend image to run it
+      # Skipped on pull requests to keep preview and check runs fast. The image smoke-tested is the one just pushed,
+      # pulled by its digest: building it again to load it compiled the whole app a second time (about five minutes).
+      - name: Pull the arm64 backend image to run it
         if: github.ref == 'refs/heads/master'
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: GrifballWebApp.Server/Dockerfile
-          platforms: linux/arm64
-          load: true
-          push: false
-          tags: backend-arm64
+        env:
+          IMAGE: ${{ env.REGISTRY }}/playgrifball/grifballwebappserver@${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker pull --platform linux/arm64 "$IMAGE"
+          docker tag "$IMAGE" backend-arm64
 
       - name: Smoke-test the arm64 backend image
         if: github.ref == 'refs/heads/master'
