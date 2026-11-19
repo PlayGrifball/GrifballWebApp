@@ -137,6 +137,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
 
     [TestCase(null, ExpectedResult = 0)]
     [TestCase("not json", ExpectedResult = 0)]
+    [TestCase("null", ExpectedResult = 0)]
     [TestCase("[{\"Topic\":\"season:1\",\"UserID\":null},{\"Topic\":\"queue:me\",\"UserID\":7}]", ExpectedResult = 2)]
     public int TheRelaysMessage_IsTheChanges(string? message) => LiveUpdates.Parse(message).Count;
 
@@ -225,6 +226,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         var hidden = await HiddenSeason();
         var match = await AddSeasonMatch(hidden, await AddTeam(hidden, "Home"), await AddTeam(hidden, "Away"));
         var shown = await AddSeason("Shown");
+        var shownMatch = await AddSeasonMatch(shown, await AddTeam(shown, "Home"), await AddTeam(shown, "Away"));
         var pages = new PresencePages(new SeasonVisibility(Db), Db);
 
         using (Assert.EnterMultipleScope())
@@ -233,6 +235,8 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
             Assert.That(await pages.Shown($"/seasonmatch/{match.SeasonMatchID}"), Is.EqualTo(PresenceSnapshot.StaffArea));
             Assert.That(await pages.Shown("/seasonmatch/99999"), Is.EqualTo(PresenceSnapshot.StaffArea), "no such match");
             Assert.That(await pages.Shown($"/season/{shown.SeasonID}/draft"), Is.EqualTo($"/season/{shown.SeasonID}/draft"));
+            Assert.That(await pages.Shown($"/seasonmatch/{shownMatch.SeasonMatchID}"), Is.EqualTo($"/seasonmatch/{shownMatch.SeasonMatchID}"));
+            Assert.That(await pages.Shown("/leaderboards"), Is.EqualTo("/leaderboards"));
         }
     }
 

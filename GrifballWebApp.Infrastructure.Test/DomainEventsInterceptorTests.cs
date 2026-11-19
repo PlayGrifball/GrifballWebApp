@@ -43,6 +43,13 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
             => outbox.EnqueueAsync("test.post", domainEvent.User.UserName, null, cancellationToken);
     }
 
+    /// <summary>A before-commit handler that fails: the change must not be made.</summary>
+    private sealed class FailToPost : IBeforeCommitHandler<XboxUserChanged>
+    {
+        public Task Handle(XboxUserChanged domainEvent, IReadOnlyList<IDomainEvent> commit, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("the post could not be queued");
+    }
+
     protected override GrifballContext CreateContext()
     {
         var services = new ServiceCollection();
@@ -50,6 +57,7 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
         services.AddSingleton<IBeforeCommitDispatcher>(provider => new BeforeCommitDispatcher(provider.GetRequiredService<IServiceProviderIsService>()));
         services.AddScoped<IOutbox>(provider => new ContextOutbox(provider.GetRequiredService<GrifballContext>()));
         services.AddScoped<IBeforeCommitHandler<UserChanged>, QueueAPost>();
+        services.AddScoped<IBeforeCommitHandler<XboxUserChanged>, FailToPost>();
         services.AddScoped<DomainEventsInterceptor>();
         services.AddDbContext<GrifballContext>((provider, options) => options
             .UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString)
@@ -233,5 +241,79 @@ public class DomainEventsInterceptorTests : SqliteContextFixture
         unscoped.Users.Add(User.Register("unscoped"));
 
         Assert.That(async () => await unscoped.SaveChangesAsync(), Throws.InstanceOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public async Task ABeforeCommitHandlerFailing_OnASaveOutsideATransaction_RollsItsTransactionBack_AndDispatchesNothing()
+    {
+        Context.XboxUsers.Add(XboxUser.FromXbox(1, "never-saved"));
+
+        Assert.That(async () => await Context.SaveChangesAsync(), Throws.InstanceOf<InvalidOperationException>());
+
+        await using var fresh = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString).Options);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Context.Database.CurrentTransaction, Is.Null, "rolled back");
+            Assert.That(_dispatcher.Dispatched, Is.Empty);
+            Assert.That(await fresh.XboxUsers.CountAsync(), Is.Zero);
+        }
+    }
+
+    [Test]
+    public void ASynchronousTransaction_DispatchesOnceItCommits()
+    {
+        var account = DiscordUser.FromDiscord(2, "synchronous-transaction");
+
+        using (var transaction = Context.Database.BeginTransaction())
+        {
+            Context.DiscordUsers.Add(account);
+            Context.SaveChanges();
+            Assert.That(_dispatcher.Dispatched, Is.Empty, "not before the commit");
+            transaction.Commit();
+        }
+
+        Assert.That(_dispatcher.Dispatched.Single(), Is.EqualTo(new IDomainEvent[] { new DiscordUserChanged(account) }));
+    }
+
+    [Test]
+    public void ASynchronousRollback_DispatchesNothing()
+    {
+        using (var transaction = Context.Database.BeginTransaction())
+        {
+            Context.DiscordUsers.Add(DiscordUser.FromDiscord(3, "rolled-back"));
+            Context.SaveChanges();
+            transaction.Rollback();
+        }
+
+        Assert.That(_dispatcher.Dispatched, Is.Empty);
+    }
+
+    [Test]
+    public async Task ASynchronousCommit_OfEventsWithBeforeCommitHandlers_IsRefused()
+    {
+        await using var transaction = await Context.Database.BeginTransactionAsync();
+        Context.Users.Add(User.Register("committed-synchronously"));
+        await Context.SaveChangesAsync();
+
+        Assert.That(() => transaction.Commit(), Throws.InstanceOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public void AFailedSynchronousSave_DispatchesNothing_AndTheAggregateKeepsItsEvents()
+    {
+        Context.DiscordUsers.Add(DiscordUser.FromDiscord(4, "first"));
+        Context.SaveChanges();
+        _dispatcher.Dispatched.Clear();
+        Context.ChangeTracker.Clear();
+        var twin = DiscordUser.FromDiscord(4, "twin");
+        Context.DiscordUsers.Add(twin);
+
+        Assert.That(() => Context.SaveChanges(), Throws.InstanceOf<DbUpdateException>());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_dispatcher.Dispatched, Is.Empty);
+            Assert.That(((IHasDomainEvents)twin).DomainEvents, Is.Not.Empty, "kept for the next try");
+        }
     }
 }

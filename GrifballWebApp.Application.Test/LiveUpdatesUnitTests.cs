@@ -142,6 +142,11 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
     [TestCase("player:x")]
     [TestCase("queue:me")]
     [TestCase("match:0F8FAD5B-D9CB-469F-A165-70867728950E")]
+    [TestCase("seasonmatch:x")]
+    [TestCase("seasonmatch:07")]
+    [TestCase("xbox:x")]
+    [TestCase("xbox:07")]
+    [TestCase("match:x")]
     [TestCase("whatever:1")]
     public async Task ATopicNotSpeltAsTheAppSpellsIt_IsNoTopic(string topic)
     {
@@ -166,6 +171,20 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
             return Task.CompletedTask;
         }
     }
+
+    [Test]
+    public void NoLiveUpdates_TakesChanges_AndTellsNobody()
+        => Assert.That(() => new NoLiveUpdates().Publish([new LiveChange(LiveTopics.Player(1))]), Throws.Nothing);
+
+    /// <summary>Scopes that can't be made: a dispatch that makes one fails.</summary>
+    private sealed class NoScopes : IServiceScopeFactory
+    {
+        public IServiceScope CreateScope() => throw new InvalidOperationException("no scope expected");
+    }
+
+    [Test]
+    public void TheDispatcher_GivenNoEvents_MakesNoScope()
+        => Assert.That(async () => await new DomainEventDispatcher(new NoScopes(), new FakeLogger<DomainEventDispatcher>()).Dispatch([]), Throws.Nothing);
 
     [Test]
     public async Task TheDispatcher_RunsTheEventsHandlers_ThenEveryEventsOnes_AFailureLoggedAndTheRestRun()

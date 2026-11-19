@@ -60,8 +60,6 @@ public sealed class DomainEventDispatcher(IServiceScopeFactory scopes, ILogger<D
     {
         foreach (var handler in services.GetServices<IDomainEventHandler<TEvent>>())
             yield return Run(() => handler.Handle((TEvent)domainEvent, cancellationToken));
-        if (typeof(TEvent) == typeof(IDomainEvent))
-            yield break;
         foreach (var handler in services.GetServices<IDomainEventHandler<IDomainEvent>>())
             yield return Run(() => handler.Handle(domainEvent, cancellationToken));
     }

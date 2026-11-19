@@ -53,6 +53,20 @@ public class DomainEventsTests
     }
 
     [Test]
+    public void AMerge_OfAUserWithNoTitlesOrAwards_MovesNothing_AndRaisesNothing()
+    {
+        var season = Season.Organized("Season 1", Shared.League.DefaultLeagueID, null);
+        Clear(season);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.MergeTitles(1, 2), Is.Zero);
+            Assert.That(season.MergeAwards(1, 2), Is.Zero);
+            Assert.That(Events(season), Is.Empty);
+        }
+    }
+
+    [Test]
     public void AnImportedSeason_RefusesAnEdit_AndRaisesNothing()
     {
         var season = Season.Imported("wb:sheet", "Old", Shared.League.DefaultLeagueID, null, null!, null!, SeasonFormat.LeagueSeason);

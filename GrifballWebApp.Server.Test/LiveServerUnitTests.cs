@@ -182,4 +182,16 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
 
         await watching.Received(1).Changed(LiveTopics.Player(5));
     }
+
+    [Test]
+    public async Task APageThatCantBeTold_IsLogged_AndTheDeliveryGoesOn()
+    {
+        var watching = Substitute.For<ILiveHubClient>();
+        watching.Changed(Arg.Any<string>()).Returns(Task.FromException(new IOException("connection gone")));
+        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watching);
+        _watchers.Watch(LiveTopics.Player(5), "conn", SeasonViewer.Public);
+
+        Assert.That(async () => await Delivery().Deliver([new LiveChange(LiveTopics.Player(5))], CancellationToken.None), Throws.Nothing);
+        await watching.Received(1).Changed(LiveTopics.Player(5));
+    }
 }
