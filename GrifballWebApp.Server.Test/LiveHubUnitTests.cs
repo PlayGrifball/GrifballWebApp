@@ -23,6 +23,8 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     private static readonly DateTime Now = DateTime.UtcNow;
     private static readonly string[] PublicConnection = ["conn:Public"];
     private static readonly string[] StaffConnection = ["conn:Staff"];
+    private static readonly string[] SevensConnection = ["seven"];
+    private static readonly string[] WatchingConnection = ["conn"];
 
     private readonly IHubContext<LiveHub, ILiveHubClient> _hubContext = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
 
@@ -40,6 +42,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         => new(store ?? new MemoryPresenceStore(), _hubContext, Substitute.For<IServiceScopeFactory>(), TimeProvider.System, NullLogger<PresenceTracker>.Instance);
 
     private readonly LiveWatchers _watchers = new();
+    private readonly HubConnections _connections = new();
 
     private LiveHub Hub(params string[] roles)
     {
@@ -108,14 +111,17 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task LiveUpdates_SendsAUsersToThemAlone_AndTheTopicsOnceToThisProcesssPages()
+    public async Task LiveUpdates_SendsAUsersToTheirConnectionsHere_AndTheTopicsOnceToThisProcesssPages()
     {
         var player = Substitute.For<ILiveHubClient>();
         var watchers = Substitute.For<ILiveHubClient>();
-        _hubContext.Clients.User("7").Returns(player);
-        _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
+        var seven = Substitute.For<HubCallerContext>();
+        seven.ConnectionId.Returns("seven");
+        _connections.Add(seven, new HubUserState(7, []));
+        _hubContext.Clients.Clients(Arg.Is<IReadOnlyList<string>>(c => c.SequenceEqual(SevensConnection))).Returns(player);
+        _hubContext.Clients.Clients(Arg.Is<IReadOnlyList<string>>(c => c.SequenceEqual(WatchingConnection))).Returns(watchers);
         _watchers.Watch(LiveTopics.Player(5), "conn", SeasonViewer.Public);
-        var live = new LiveUpdates(_hubContext, NullLogger<LiveUpdates>.Instance, delivery: Delivery(Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!)));
+        var live = new LiveUpdates(NullLogger<LiveUpdates>.Instance, delivery: Delivery(Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!)));
 
         live.Publish([new LiveChange(LiveTopics.Player(5)), new LiveChange(LiveTopics.MyQueue, 7)]);
         live.Publish([new LiveChange(LiveTopics.Player(5))]);
@@ -131,14 +137,14 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
 
     [TestCase(null, ExpectedResult = 0)]
     [TestCase("not json", ExpectedResult = 0)]
-    [TestCase("[\"season:1\",\"queue\"]", ExpectedResult = 2)]
-    public int TheRelaysMessage_IsTheTopics(string? message) => LiveUpdates.Parse(message).Count;
+    [TestCase("[{\"Topic\":\"season:1\",\"UserID\":null},{\"Topic\":\"queue:me\",\"UserID\":7}]", ExpectedResult = 2)]
+    public int TheRelaysMessage_IsTheChanges(string? message) => LiveUpdates.Parse(message).Count;
 
     private LiveDelivery Delivery(LiveSnapshots snapshots)
     {
         var services = new ServiceCollection();
         services.AddScoped(_ => snapshots);
-        return new LiveDelivery(_watchers, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance);
+        return new LiveDelivery(_watchers, _connections, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance);
     }
 
     [Test]

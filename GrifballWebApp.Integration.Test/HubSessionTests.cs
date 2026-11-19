@@ -199,6 +199,8 @@ public class HubSessionTests
         }
         var (connection, closed) = await Connect(LiveHub.Path, cookie);
         Assert.That(connection.State, Is.EqualTo(HubConnectionState.Connected));
+        // The server has the connection, with the user as they are: a call answered (a start returns before it does)
+        await Joined(connection);
 
         await RemoveRoleBehindTheAppsBack(id, "Commissioner");
 

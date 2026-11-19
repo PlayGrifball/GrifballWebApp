@@ -1,9 +1,9 @@
-using System.Globalization;
 using System.Text.Json;
 using System.Threading.Channels;
 using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Infrastructure.Redis;
+using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using StackExchange.Redis;
 
@@ -11,19 +11,18 @@ namespace GrifballWebApp.Server.Live;
 
 /// <summary>
 /// The pages are told what changed (<see cref="ILiveUpdates"/>), from any process. Changes wait <see cref="Window"/> and go
-/// out once a topic: a save that changes a season twice, or an import that changes it a thousand times, is one. A user's
-/// own (their queue place) goes straight to their connections, through the backplane. The rest go to the API processes,
-/// where the pages' connections are (<see cref="LiveDelivery"/>): through Redis when scaled out (<see cref="RelayChannel"/>,
-/// <see cref="LiveRelayListener"/>), else to this process's own. Publishing never waits; a failure to send is logged: the
+/// out once a topic: a save that changes a season twice, or an import that changes it a thousand times, is one. They go to
+/// the API processes, where the pages' connections are (<see cref="LiveDelivery"/>), a user's own (their queue place)
+/// with them: through Redis when scaled out (<see cref="RelayChannel"/>, <see cref="LiveRelayListener"/>), else to this
+/// process's own. Nothing here uses the hub, so a worker never joins its backplane channels. Publishing never waits; a failure to send is logged: the
 /// change is made, and a page loads it again whenever its connection comes back.
 /// </summary>
-public sealed class LiveUpdates(IHubContext<LiveHub, ILiveHubClient> hub, ILogger<LiveUpdates> logger, AppRedis? redis = null,
-    LiveDelivery? delivery = null) : BackgroundService, ILiveUpdates
+public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = null, LiveDelivery? delivery = null) : BackgroundService, ILiveUpdates
 {
     /// <summary>How long changes gather before they go out.</summary>
     public static readonly TimeSpan Window = TimeSpan.FromMilliseconds(250);
 
-    /// <summary>The channel (under the app's prefix) the changed topics are published on, for every API process.</summary>
+    /// <summary>The channel (under the app's prefix) the changes are published on, for every API process.</summary>
     public static readonly RedisChannel RelayChannel = RedisChannel.Literal("live-changed");
 
     private readonly Lock _gate = new();
@@ -52,7 +51,7 @@ public sealed class LiveUpdates(IHubContext<LiveHub, ILiveHubClient> hub, ILogge
         }
     }
 
-    /// <summary>Sends what gathered so far: each user's to their connections, the topics to the API processes.</summary>
+    /// <summary>Sends what gathered so far to the API processes.</summary>
     public async Task SendPendingAsync(CancellationToken ct = default)
     {
         HashSet<LiveChange> changes;
@@ -61,43 +60,32 @@ public sealed class LiveUpdates(IHubContext<LiveHub, ILiveHubClient> hub, ILogge
             changes = _pending;
             _pending = [];
         }
-        foreach (var change in changes.Where(c => c.UserID is not null))
-        {
-            try
-            {
-                await hub.Clients.User(change.UserID!.Value.ToString(CultureInfo.InvariantCulture)).Changed(change.Topic);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Could not tell user {UserID} that {Topic} changed", change.UserID, change.Topic);
-            }
-        }
-        var topics = changes.Where(c => c.UserID is null).Select(c => c.Topic).Distinct(StringComparer.Ordinal).ToList();
-        if (topics.Count == 0)
+        if (changes.Count == 0)
             return;
+        var list = changes.ToList();
         if (redis is not null)
         {
             try
             {
-                await (await redis.ConnectAsync()).GetSubscriber().PublishAsync(RelayChannel, JsonSerializer.Serialize(topics));
+                await (await redis.ConnectAsync()).GetSubscriber().PublishAsync(RelayChannel, JsonSerializer.Serialize(list));
                 return;
             }
             catch (Exception ex) when (ex is RedisException or TimeoutException)
             {
                 // This process's own pages, at least
-                logger.LogWarning(ex, "Could not tell the other processes that {Topics} changed", topics);
+                logger.LogWarning(ex, "Could not tell the other processes that {Topics} changed", list.Select(c => c.Topic));
             }
         }
         if (delivery is not null)
-            await delivery.Deliver(topics, ct);
+            await delivery.Deliver(list, ct);
     }
 
-    /// <summary>The topics in a message of <see cref="RelayChannel"/>; none for one that isn't a list of them.</summary>
-    public static List<string> Parse(string? message)
+    /// <summary>The changes in a message of <see cref="RelayChannel"/>; none for one that isn't a list of them.</summary>
+    public static List<LiveChange> Parse(string? message)
     {
         try
         {
-            return message is null ? [] : JsonSerializer.Deserialize<List<string>>(message) ?? [];
+            return message is null ? [] : JsonSerializer.Deserialize<List<LiveChange>>(message) ?? [];
         }
         catch (JsonException)
         {
@@ -106,7 +94,7 @@ public sealed class LiveUpdates(IHubContext<LiveHub, ILiveHubClient> hub, ILogge
     }
 }
 
-/// <summary>Scaled out, on an API process: the topics any process published (<see cref="LiveUpdates.RelayChannel"/>), to this one's pages.</summary>
+/// <summary>Scaled out, on an API process: the changes any process published (<see cref="LiveUpdates.RelayChannel"/>), to this one's pages.</summary>
 public sealed class LiveRelayListener(LiveDelivery delivery, ILogger<LiveRelayListener> logger, AppRedis? redis = null) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
@@ -167,13 +155,21 @@ public sealed class LiveWatchers
 /// the API gives it (<see cref="ApiJson"/>); the rest are notices, and their pages read again. A topic nobody here watches
 /// costs nothing. Data that can't be built is a notice instead.
 /// </summary>
-public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILiveHubClient> hub, IServiceScopeFactory scopes, ILogger<LiveDelivery> logger)
+public sealed class LiveDelivery(LiveWatchers watchers, HubConnections connections, IHubContext<LiveHub, ILiveHubClient> hub, IServiceScopeFactory scopes,
+    ILogger<LiveDelivery> logger)
 {
     private static readonly JsonSerializerOptions Json = ApiJson.Options();
 
-    public async Task Deliver(IReadOnlyCollection<string> topics, CancellationToken ct = default)
+    public async Task Deliver(IReadOnlyCollection<LiveChange> changes, CancellationToken ct = default)
     {
-        foreach (var topic in topics.Distinct(StringComparer.Ordinal))
+        // A user's own: to their connections here (each API process tells its own, so each connection hears it once)
+        foreach (var change in changes.Where(c => c.UserID is not null))
+        {
+            var theirs = connections.SignedIn().Where(c => c.User.UserId == change.UserID).Select(c => c.Context.ConnectionId).ToList();
+            if (theirs.Count > 0)
+                await Send(theirs, change.Topic, null);
+        }
+        foreach (var topic in changes.Where(c => c.UserID is null).Select(c => c.Topic).Distinct(StringComparer.Ordinal))
         {
             var watching = watchers.Of(topic);
             if (watching.Count == 0)
