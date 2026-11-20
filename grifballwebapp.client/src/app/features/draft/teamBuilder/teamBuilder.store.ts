@@ -161,6 +161,7 @@ export class TeamBuilderStore {
     this.taken++;
     this.teams.set(draft.teams);
     this.playerPool.set(draft.pool);
+    this.loaded.set(true);
     this.captainLocked.set(draft.captainsLocked);
     return true;
   }
