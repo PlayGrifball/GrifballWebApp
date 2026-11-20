@@ -54,7 +54,7 @@ tests:
         documentIndex: 1
       - contains:
           path: "spec.template.spec.containers[0].env"
-          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX"]' }
+          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX","speaches-ai/piper-en_US-amy-medium"]' }
         documentIndex: 1
       - contains:
           path: "spec.template.spec.containers[0].env"
@@ -96,7 +96,7 @@ tests:
           count: 1
           any: true
 
-  - it: preloads the extra models beside the two it uses, each once
+  - it: preloads the extra models beside the two it uses, each once; none with an empty list
     template: templates/speech.yaml
     documentIndex: 1
     set:
@@ -106,3 +106,14 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX","speaches-ai/piper-en_US-amy-medium"]' }
+
+  - it: preloads Kokoro and Piper both by default, and only the two models with no extras
+    template: templates/speech.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+      speech.extraModels: []
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX"]' }
