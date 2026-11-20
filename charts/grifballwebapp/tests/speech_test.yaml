@@ -1,6 +1,7 @@
 suite: the voice chat's speech (speech)
 templates:
   - templates/speech.yaml
+  - templates/speech-ui.yaml
   - templates/backend.yaml
   - templates/networkpolicy.yaml
 release:
@@ -54,7 +55,7 @@ tests:
         documentIndex: 1
       - contains:
           path: "spec.template.spec.containers[0].env"
-          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX"]' }
+          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX","Systran/faster-whisper-base.en","speaches-ai/piper-en_US-amy-medium"]' }
         documentIndex: 1
       - contains:
           path: "spec.template.spec.containers[0].env"
@@ -95,6 +96,83 @@ tests:
             ports: [{ protocol: UDP, port: 1024, endPort: 65535 }, { protocol: TCP, port: 2053 }, { protocol: TCP, port: 2083 }, { protocol: TCP, port: 2087 }, { protocol: TCP, port: 2096 }, { protocol: TCP, port: 8443 }]
           count: 1
           any: true
+
+  - it: preloads the extra models beside the two it uses, each once; none with an empty list
+    template: templates/speech.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+      speech.extraModels: [speaches-ai/piper-en_US-amy-medium, speaches-ai/Kokoro-82M-v1.0-ONNX]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX","speaches-ai/piper-en_US-amy-medium"]' }
+
+  - it: preloads Kokoro and Piper both by default, and only the two models with no extras
+    template: templates/speech.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+      speech.extraModels: []
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX"]' }
+
+  - it: has the web UI off by default, with no route to it
+    template: templates/speech.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ENABLE_UI, value: "false" } }
+
+  - it: serves the web UI on a Traefik IngressRoute behind the given middlewares, the login's callback route first
+    template: templates/speech-ui.yaml
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      speech.ui.ingressRoute.enabled: true
+      speech.ui.ingressRoute.host: speech.example.com
+      speech.ui.ingressRoute.entryPoints: [websecure]
+      speech.ui.ingressRoute.middlewares: [{ name: authentik-forwardauth, namespace: authentik }]
+      speech.ui.ingressRoute.extraRoutes:
+        - match: "Host(`speech.example.com`) && PathPrefix(`/outpost.goauthentik.io/`)"
+          kind: Rule
+          priority: 300
+          services:
+            - { name: authentik-server, namespace: authentik, port: 80 }
+    asserts:
+      - isKind: { of: IngressRoute }
+      - equal: { path: "spec.routes[0].priority", value: 300 }
+      - equal: { path: "spec.routes[1].match", value: "Host(`speech.example.com`)" }
+      - equal: { path: "spec.routes[1].middlewares[0].name", value: authentik-forwardauth }
+      - equal: { path: "spec.routes[1].services[0].name", value: grif-speech }
+
+  - it: serves the web UI on an Ingress, and turns it on in the server
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      speech.ui.ingress.enabled: true
+      speech.ui.ingress.hosts: [speech.example.com]
+    asserts:
+      - isKind: { of: Ingress }
+        template: templates/speech-ui.yaml
+      - equal: { path: "spec.rules[0].host", value: speech.example.com }
+        template: templates/speech-ui.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ENABLE_UI, value: "true" } }
+        template: templates/speech.yaml
+        documentIndex: 1
+
+  - it: needs a host for the UI's route
+    template: templates/speech-ui.yaml
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      speech.ui.ingressRoute.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: "speech.ui.ingressRoute.host is required"
 
   - it: gives the backend the end-of-line wait, 700 ms unless set
     template: templates/backend.yaml
