@@ -568,6 +568,11 @@ speech:
   # best of the CPU's (about 1 s for a short line on a few cores); Kokoro's 82M voice model is quick on a CPU.
   transcriptionModel: Systran/faster-whisper-small.en
   speechModel: speaches-ai/Kokoro-82M-v1.0-ONNX
+  # More models to download and keep ready beside the two in use, so speechModel and
+  # transcriptionModel can be switched without a download. Whisper base (faster than the small default) and Piper (a faster, plainer voice than Kokoro) are ready by default: set speechModel to it to use it.
+  extraModels:
+    - Systran/faster-whisper-base.en
+    - speaches-ai/piper-en_US-amy-medium
   image:
     repository: ghcr.io/speaches-ai/speaches
     # The CPU image, pinned by digest; Renovate updates it.
@@ -587,7 +592,31 @@ speech:
     storageClass: ""
     accessModes: [ReadWriteOnce]
     annotations: {}
+  # speaches' web UI (Gradio, at the server's root: try Whisper, Kokoro and Piper by hand), off. Reach it with kubectl
+  # port-forward, or put it on an Ingress or a Traefik IngressRoute below. It and the API share one port, so put a login on the
+  # route (middlewares) and allow the traffic in with networkPolicy.speech.extraIngress.
+  ui:
+    enabled: false
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      hosts: []
+      tls: []
+    ingressRoute:
+      enabled: false
+      name: grif-speech-ui
+      entryPoints: []
+      host: ""
+      # Ex: a forward-auth Middleware:  [{ name: authentik-forwardauth, namespace: authentik }]
+      middlewares: []
+      # More routes ahead of the UI's (a login's callback path that must stay public, with its own match, priority, services).
+      extraRoutes: []
+      tls:
+        secretName: ""
+      annotations: {}
   # The server's other settings (speaches' own environment variables).
+  # OpenTelemetry (off): OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317 sends its traces, metrics and logs over OTLP gRPC.
   env: {}
   # On the CPU: both models loaded (about 1.5 GB) and a few cores for Whisper. Limited, so it never takes a node.
   resources:
