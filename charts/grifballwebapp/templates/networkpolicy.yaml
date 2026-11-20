@@ -45,16 +45,6 @@ spec:
       from:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-    {{- if and .Values.speech.ui.enabled .Values.ollama.enabled }}
-    # The web UI's Audio Chat tab asks the chart's Ollama for its models.
-    - to:
-        - podSelector:
-            matchLabels:
-              app: grif-ollama
-      ports:
-        - protocol: TCP
-          port: {{ .Values.ollama.port }}
-    {{- end }}
     {{- with $np.frontend.extraIngress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -362,6 +352,16 @@ spec:
       to:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+    {{- if and .Values.speech.ui.enabled .Values.ollama.enabled }}
+    # The web UI's Audio Chat tab asks the chart's Ollama for its models.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: grif-ollama
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ollama.port }}
+    {{- end }}
 ---
 {{- end }}
 {{- if and .Values.mssql.enabled (not $pg) }}
