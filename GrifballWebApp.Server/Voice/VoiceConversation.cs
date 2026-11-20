@@ -23,6 +23,7 @@ namespace GrifballWebApp.Server.Voice;
 /// <param name="log">Where a line that couldn't be answered, or a consent that couldn't be read, is logged.</param>
 /// <param name="play">Plays an answer (48 kHz stereo) in the channel.</param>
 /// <param name="optedIn">Whether a speaker opted in; null: <see cref="VoiceConsents"/>, in a scope of its own.</param>
+/// <param name="endOfLine">How long a speaker is quiet before their line ends; null: <see cref="VoiceLines.Silence"/>.</param>
 public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat, IChatSpeech speech, TimeProvider time,
     ILogger<VoiceConversation> log, Func<short[], CancellationToken, Task> play, Func<ulong, Task<bool>>? optedIn = null,
     TimeSpan? endOfLine = null)
