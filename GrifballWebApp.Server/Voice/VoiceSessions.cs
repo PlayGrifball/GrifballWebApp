@@ -104,6 +104,7 @@ public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider se
     {
         if (!_guilds.TryRemove(new KeyValuePair<ulong, Entry>(guildId, entry)))
             return;
+        log.LogInformation("Voice: session in {Guild} over", guildId);
         await entry.Session!.DisposeAsync();
         entry.Dispose();
         await connector.DisconnectAsync(guildId);
