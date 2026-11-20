@@ -1,0 +1,9 @@
+# The images deployed to prod with this chart (env-deploy.sh), by digest.
+backend:
+  image:
+    repository: ghcr.io/playgrifball/grifballwebappserver
+    tag: prod@sha256:939da32857abd010ebfb228762f09c3de76e2e6eef5fc7ce86aa0f9a58798be3
+frontend:
+  image:
+    repository: ghcr.io/playgrifball/grifballwebappclient
+    tag: prod@sha256:80973ded9700cfd4fc697566fca4ccd4c74b5a2f415eaa614951f5093ead03e6
