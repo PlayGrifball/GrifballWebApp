@@ -1,0 +1,64 @@
+<section class="dh" aria-labelledby="dh-title">
+  <h2 id="dh-title" class="hud-h2">Draft helper</h2>
+  <p class="hud-muted dh-how">
+    Picks are scored by past performance against the rest of the pool (half), the timeslots the team is short of that the player
+    can play (35%), and sharing the captain's region (15%).
+  </p>
+
+  @if (suggestions(); as picks) {
+  <h3 class="hud-label">Suggested picks for {{ picks.captainName }} ({{ picks.teamName }})</h3>
+  <ol class="dh-picks">
+    @for (pick of picks.picks; track pick.userID) {
+    <li>
+      <span class="dh-pick-name">{{ pick.name }}</span>
+      <span class="hud-muted"> · score {{ pick.score | percent:'1.0-0' }}</span>
+      <ul class="dh-reasons">
+        @for (reason of pick.reasons; track $index) {
+        <li>{{ reason }}</li>
+        }
+      </ul>
+    </li>
+    } @empty {
+    <li class="hud-muted">No one left to pick.</li>
+    }
+  </ol>
+  }
+
+  @if (pool().length > 0) {
+  <div class="dh-table-wrap" tabindex="0" role="region" aria-label="The pool in detail"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+    <table class="dh-pool">
+      <caption class="hud-label">The pool in detail</caption>
+      <thead>
+        <tr>
+          <th scope="col">Player</th>
+          <th scope="col">Region</th>
+          <th scope="col">Timeslots</th>
+          <th scope="col">Games</th>
+          <th scope="col">Win %</th>
+          <th scope="col">Goals/game</th>
+          <th scope="col">Kills/game</th>
+          <th scope="col">Titles</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (player of pool(); track player.userID) {
+        <tr>
+          <th scope="row">{{ player.name }}@if (player.willCaptain) {<span class="hud-muted"> · Would captain</span>}</th>
+          <td>{{ player.region ?? '-' }}</td>
+          <td>{{ timeslots(player.timeslots) || '-' }}</td>
+          @if (player.career; as career) {
+          <td>{{ career.games }}</td>
+          <td>{{ career.winPercent === null ? '-' : (career.winPercent | number:'1.0-1') + '%' }}</td>
+          <td>{{ career.goalsPerGame === null ? '-' : (career.goalsPerGame | number:'1.0-2') }}</td>
+          <td>{{ career.killsPerGame === null ? '-' : (career.killsPerGame | number:'1.0-2') }}</td>
+          <td>{{ career.titles }}</td>
+          } @else {
+          <td colspan="5" class="hud-muted">No recorded games</td>
+          }
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</section>

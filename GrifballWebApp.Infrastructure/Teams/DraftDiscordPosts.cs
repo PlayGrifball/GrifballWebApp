@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.DomainEvents;
+using GrifballWebApp.Application.Draft;
 using GrifballWebApp.Application.Outbox;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Domain.League;
@@ -13,7 +14,7 @@ namespace GrifballWebApp.Infrastructure.Teams;
 /// with the on-deck pick menus as the change left the draft. The channel is public, so a season not announced yet posts
 /// nothing there: staff run its draft unseen (#435).
 /// </summary>
-public sealed class DraftDiscordPosts(GrifballContext context, IOutbox outbox, TeamService teams, TimeProvider? time = null)
+public sealed class DraftDiscordPosts(GrifballContext context, IOutbox outbox, TeamService teams, TimeProvider? time = null, DraftHelperService? helper = null)
     : IBeforeCommitHandler<PlayerDrafted>, IBeforeCommitHandler<PlayerUndrafted>, IBeforeCommitHandler<PickMoved>, IBeforeCommitHandler<CaptainsLockChanged>
 {
     private readonly TimeProvider _time = time ?? TimeProvider.System;
@@ -27,7 +28,7 @@ public sealed class DraftDiscordPosts(GrifballContext context, IOutbox outbox, T
                 SeasonID = seasonID,
                 CaptainID = domainEvent.CaptainUserID ?? 0,
                 PersonID = domainEvent.UserID,
-            }, cancellationToken);
+            }, helper, cancellationToken);
     }
 
     public async Task Handle(PlayerUndrafted domainEvent, IReadOnlyList<IDomainEvent> commit, CancellationToken cancellationToken)
@@ -39,7 +40,7 @@ public sealed class DraftDiscordPosts(GrifballContext context, IOutbox outbox, T
                 SeasonID = seasonID,
                 CaptainID = domainEvent.CaptainUserID ?? 0,
                 PersonID = domainEvent.UserID,
-            }, cancellationToken);
+            }, helper, cancellationToken);
     }
 
     public async Task Handle(PickMoved domainEvent, IReadOnlyList<IDomainEvent> commit, CancellationToken cancellationToken)
@@ -53,14 +54,14 @@ public sealed class DraftDiscordPosts(GrifballContext context, IOutbox outbox, T
                 NewCaptainID = domainEvent.ToCaptainUserID ?? 0,
                 PersonID = domainEvent.UserID,
                 RoundNumber = domainEvent.Round,
-            }, cancellationToken);
+            }, helper, cancellationToken);
     }
 
     public async Task Handle(CaptainsLockChanged domainEvent, IReadOnlyList<IDomainEvent> commit, CancellationToken cancellationToken)
     {
         var season = domainEvent.Season;
         if (await IsPublic(season.SeasonID, cancellationToken))
-            await outbox.EnqueueLockChangedAsync(context, teams, season.SeasonID, season.CaptainsLocked, cancellationToken);
+            await outbox.EnqueueLockChangedAsync(context, teams, season.SeasonID, season.CaptainsLocked, helper, cancellationToken);
     }
 
     private Task<bool> IsPublic(int seasonId, CancellationToken ct)

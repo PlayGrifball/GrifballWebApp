@@ -132,6 +132,7 @@ public static class GrifTools
     [
         "who_am_i", "get_current_time", "search", "list_seasons", "get_season", "get_season_standings", "get_season_schedule", "get_team",
         "get_player", "get_player_rank", "get_season_match", "get_recent_games", "get_leaderboards", "pull_season_match_games", "pull_xbox_account_games",
+        "suggest_draft_picks",
     ];
 
     /// <summary>

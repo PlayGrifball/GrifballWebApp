@@ -186,7 +186,11 @@ public class TeamService
         await transaction.CommitAsync(ct);
     }
 
-    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, int requestorId, CancellationToken ct = default)
+    /// <summary>
+    /// Drafts the player onto the captain's team. <paramref name="onDeckOnly"/>: the pick is from an on-deck menu, which is
+    /// refused (a commissioner's too) once that captain is no longer on deck.
+    /// </summary>
+    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, int requestorId, bool onDeckOnly = false, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         // One pick at a time per season: without it two picks of one player (or two picks in one turn) both pass the
@@ -201,6 +205,11 @@ public class TeamService
             throw new TeamServiceException("This player has not signed up");
 
         var team = await CaptainsTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct) ?? throw new TeamServiceException("Team not found");
+
+        // A menu is for the captain on deck when it was posted: one from an earlier pick would put the player on that team.
+        // Checked here, under the season's draft lock, so two picks from one menu can't both pass it.
+        if (onDeckOnly && await OnDeck(dto.SeasonID, ct) is { } current && !current.IsCaptainedBy(dto.CaptainID))
+            throw new TeamServiceException($"that menu is from an earlier pick: it is {await CaptainName(current, ct)}'s turn now, so pick from the latest on-deck message.");
 
         // Need check that player is captain and is their turn
         var isCommissioner = await _context.Users
@@ -225,9 +234,7 @@ public class TeamService
             Team onDeck = await OnDeck(dto.SeasonID, ct) ?? throw new TeamServiceException("Failed to find on deck team");
 
             if (!onDeck.IsCaptainedBy(requestorId))
-            {
-                throw new TeamServiceException($"It is not your turn to be making a draft pick. It is {onDeck.Captain.UserID}'s turn");
-            }
+                throw new TeamServiceException($"It is not your turn to pick: it is {await CaptainName(onDeck, ct)}'s.");
         }
 
         // Always added at the end, or round 1 (a player on a team of the season was refused above)
@@ -237,6 +244,10 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }
+
+    /// <summary>The name the app shows for <paramref name="team"/>'s captain (gamertag, Discord name or display name).</summary>
+    public async Task<string> CaptainName(Team team, CancellationToken ct = default)
+        => await _context.Users.Where(u => u.Id == team.Captain.UserID).Select(User.Named).Select(n => n.Name).FirstOrDefaultAsync(ct) ?? "another captain";
 
     /// <summary>The id of the team <paramref name="captainID"/> captains in the season; 0 when none.</summary>
     public Task<int> CaptainsTeamID(int seasonID, int captainID, CancellationToken ct = default)
@@ -250,12 +261,7 @@ public class TeamService
 
     public async Task<Team?> OnDeck(int seasonId, CancellationToken ct)
     {
-        return await _context.Teams
-                        .Include(t => t.Captain)
-                        .Where(t => t.SeasonID == seasonId)
-                        .OrderBy(t => t.TeamPlayers.Count)
-                        .ThenBy(t => t.Captain.DraftCaptainOrder)
-                        .FirstOrDefaultAsync(ct);
+        return await _context.Teams.Include(t => t.Captain).PickOrder(seasonId).FirstOrDefaultAsync(ct);
     }
 
     public async Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto, CancellationToken ct = default)

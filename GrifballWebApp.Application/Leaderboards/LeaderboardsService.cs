@@ -247,6 +247,14 @@ public class LeaderboardsService
         return new Careers(data.Names, data.AcrossGames);
     }
 
+    /// <summary>Each player's career across every format (the boards' "all", cached as they are) and their titles, by user ID.</summary>
+    public async Task<IReadOnlyDictionary<int, PlayerCareerSummary>> CareersAsync(CancellationToken ct = default)
+    {
+        var careers = await GetCareersAsync(AllFormats, ct);
+        var rings = await GetRingCountsAsync(AllFormats, ct);
+        return careers.ByUser.ToDictionary(c => c.Key, c => new PlayerCareerSummary(c.Value, rings.Counts.GetValueOrDefault(c.Key)));
+    }
+
     /// <summary>How many titles each player holds, of seasons of the scope's season formats.</summary>
     private async Task<RingCounts> GetRingCountsAsync(LeaderboardFilter[] scope, CancellationToken ct)
     {
@@ -427,3 +435,6 @@ public class LeaderboardsService
 
     private sealed record RingCounts(Dictionary<int, int> Counts, List<long> Ranked);
 }
+
+/// <summary>A player's career across every format (<see cref="LeaderboardsService.CareersAsync"/>), and the titles they hold.</summary>
+public sealed record PlayerCareerSummary(GameCareerSummaryDto Totals, int Titles);

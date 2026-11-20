@@ -89,7 +89,7 @@ describe('TeamBuilderStore', () => {
     expect(store.teams().map(t => t.captain.name)).toEqual(['Cap']);
     expect(store.playerPool().map(p => p.name)).toEqual(['Pool']);
     expect(store.captainLocked()).toBeFalse();
-    expect(store.onDeck()!.name).toBe('Cap');
+    expect(store.onDeck()).withContext('No one on deck before the captains are locked').toBeNull();
   });
 
   it('lets only the store change the season shown', () => {
@@ -290,6 +290,19 @@ describe('TeamBuilderStore', () => {
 
     saving.complete();
     expect(api.getTeams).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts a pushed draft as loaded, when it comes before the first load: that load is dropped', () => {
+    const loading = new Subject<TeamResponseDto[]>();
+    api.getTeams.and.returnValue(loading);
+    store.show(5);
+    TestBed.tick();
+    expect(store.loaded()).toBeFalse();
+
+    push(pushed());
+    loading.next([team(9, 'Old')]);
+    loading.complete();
+    expect(store.loaded()).toBeTrue();
   });
 
   it('drops a load that was on its way when a draft was pushed: the pushed one is newer', () => {

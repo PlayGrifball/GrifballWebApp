@@ -91,4 +91,8 @@
   }
 </mat-list>
 
+@if (shownSeasonID() > 0 && draftLoaded()) {
+<app-draft-helper [seasonID]="shownSeasonID()" [draftKey]="draftKey()" />
+}
+
 </div>

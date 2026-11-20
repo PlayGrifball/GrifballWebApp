@@ -10,6 +10,7 @@ import { AccountService } from '@core/auth/account.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { SeasonTabsComponent } from '../../league';
+import { DraftHelperComponent } from '../draftHelper/draftHelper.component';
 import { TeamBuilderStore } from './teamBuilder.store';
 import { AppLog } from '@core/telemetry/appLog';
 
@@ -23,6 +24,7 @@ import { AppLog } from '@core/telemetry/appLog';
         MatButtonModule,
         MatCardModule,
         RouterLink,
+        DraftHelperComponent,
     ],
     templateUrl: './teamBuilder.component.html',
     styleUrl: './teamBuilder.component.scss',
@@ -44,6 +46,15 @@ export class TeamBuilderComponent {
   readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
   /** The season shown: the route's, or the current season's ID once known. */
   protected readonly shownSeasonID = this.store.shownSeasonID;
+  /** The draft as the helper's suggestions depend on it (the lock, each team's captain, order and roster, the pool): the helper
+   * loads again when it changes (a pick made, undone or moved, the order or the lock changed). */
+  protected readonly draftKey = computed(() => [
+    this.captainLocked(),
+    this.teams().map(t => `${t.captain.personID}@${t.captain.order}:${t.players.map(p => p.personID).join(',')}`).join(';'),
+    this.playerPool().map(p => p.personID).join(','),
+  ].join('|'));
+  /** Whether the draft is in: the helper waits for it, so it loads once with it, not first with an empty one. */
+  protected readonly draftLoaded = this.store.loaded;
   readonly captainLocked = this.store.captainLocked;
   readonly teams = this.store.teams;
   readonly playerPool = this.store.playerPool;
@@ -57,7 +68,8 @@ export class TeamBuilderComponent {
       return "No Teams Added";
     if (this.playerPool().length === 0)
       return "Player pool is empty";
-    return this.onDeck()!.name + " is on deck";
+    const onDeck = this.onDeck();
+    return onDeck ? onDeck.name + " is on deck" : "The draft starts once the captains are locked";
   });
 
   /** The drag data for each pick (team and player), built once per change instead of per render. */

@@ -57,7 +57,8 @@ public class DraftStringMenuHandler
         };
         try
         {
-            await _teamService.AddPlayerToTeam(dto, user.Id);
+            // A menu is for the captain on deck when it was posted: one from an earlier pick is refused
+            await _teamService.AddPlayerToTeam(dto, user.Id, onDeckOnly: true);
             var id = discordContext.User.Id;
             var username = new UserId(id).ToString();
             await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent($"{username}, " + "your pick was made successfully"));

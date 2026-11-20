@@ -338,6 +338,33 @@ public class TeamServiceDraftTests
     }
 
     [Test]
+    public async Task CaptainName_OfACaptainWithNoName_IsAnotherCaptain()
+    {
+        var season = await _context.AddSeason(captainsLocked: true);
+        var team = await _context.AddTeam(season, "Nameless", await _context.AddUser("nameless"), 1);
+
+        Assert.That(await _service.CaptainName(team), Is.EqualTo("another captain"), "Never their login name");
+    }
+
+    [Test]
+    public async Task AddPlayerToTeam_FromAnOnDeckMenu_RefusesAnEarlierPicksMenu_EvenForACommissioner()
+    {
+        var (season, _, capB, _, teamB) = await TwoTeamDraft();
+        var commish = await _context.AddUser("commish", "Commish", commissioner: true);
+        var p = await _context.AddUser("p", "P");
+        await _context.AddSignup(season, p);
+
+        // Cap A is on deck: Cap B's menu is from an earlier pick, checked under the season's draft lock
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() => _service.AddPlayerToTeam(
+            new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, commish.Id, onDeckOnly: true));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Does.Contain("an earlier pick").And.Contain("Cap A"));
+            Assert.That(await TeamPlayersOf(teamB.TeamID), Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test]
     public async Task AddPlayerToTeam_Should_Throw_When_PlayerAlreadyOnATeam()
     {
         var (season, capA, capB, _, _) = await TwoTeamDraft();
@@ -405,7 +432,7 @@ public class TeamServiceDraftTests
             _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, capB.Id));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(ex!.Message, Is.EqualTo($"It is not your turn to be making a draft pick. It is {capA.Id}'s turn"));
+            Assert.That(ex!.Message, Is.EqualTo("It is not your turn to pick: it is Cap A's."), "The captain by name, not their user ID");
             Assert.That(await TeamPlayersOf(teamB.TeamID), Has.Count.EqualTo(1));
         }
     }
@@ -472,6 +499,21 @@ public class TeamServiceDraftTests
             Assert.That(onDeck!.Captain.UserID, Is.EqualTo(c3.Id));
             Assert.That(onDeck.TeamName, Is.EqualTo("T3"));
         }
+    }
+
+    [Test]
+    public async Task OnDeck_Should_SkipATeamWithNoCaptain()
+    {
+        // A team whose captain was removed: no one to pick for it, and fewest players of all
+        var season = await _context.AddSeason();
+        var c1 = await _context.AddUser("c1");
+        await _context.AddTeam(season, "T1", c1, 1);
+        _context.Teams.Add(Team.Seed(seasonID: season.SeasonID, teamName: "Leaderless"));
+        await _context.SaveChangesAsync();
+
+        var onDeck = await _service.OnDeck(season.SeasonID, CancellationToken.None);
+
+        Assert.That(onDeck!.TeamName, Is.EqualTo("T1"));
     }
 
     // ---------------- MovePlayerToTeam ----------------

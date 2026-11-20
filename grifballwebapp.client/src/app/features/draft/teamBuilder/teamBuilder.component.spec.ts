@@ -17,6 +17,16 @@ import { GrabbedThing, GrabbedThingTypes } from './personStatus';
 import { DndDropEvent } from 'ngx-drag-drop';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Component, input } from '@angular/core';
+import { By } from '@angular/platform-browser';
+import { DraftHelperComponent } from '../draftHelper/draftHelper.component';
+
+/** The draft helper (tested on its own): here only that the page gives it the season and the draft's state. */
+@Component({ selector: 'app-draft-helper', template: '' })
+class StubDraftHelper {
+  readonly seasonID = input<number>();
+  readonly draftKey = input<string>();
+}
 
 /** The live service as the page sees it: who watches what, and a message to send them. */
 class FakeLive {
@@ -84,7 +94,7 @@ describe('TeamBuilderComponent', () => {
         { provide: AccountService, useValue: mockAccountService },
         { provide: LiveService, useValue: live }
       ]
-    }).compileComponents();
+    }).overrideComponent(TeamBuilderComponent, { remove: { imports: [DraftHelperComponent] }, add: { imports: [StubDraftHelper] } }).compileComponents();
 
     fixture = TestBed.createComponent(TeamBuilderComponent);
     component = fixture.componentInstance;
@@ -94,6 +104,33 @@ describe('TeamBuilderComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it("gives the draft helper the season and the draft's state once loaded, to reload as picks, moves, the order or the lock change", () => {
+    const teams = new Subject<TeamResponseDto[]>();
+    mockDraft.getTeams.and.returnValue(teams);
+    mockDraft.getPlayerPool.and.returnValue(of([{ name: 'A', personID: 3, pick: null, round: null, region: null }, { name: 'B', personID: 4, pick: null, round: null, region: null }]));
+    fixture.detectChanges();
+    const helper = () => fixture.debugElement.query(By.directive(StubDraftHelper))?.componentInstance as StubDraftHelper | undefined;
+    // Not before the draft is in: it would load once for nothing
+    expect(helper()).toBeUndefined();
+
+    const captain = (personID: number, order: number): CaptainDto => ({ name: `C${personID}`, order, personID, region: null });
+    const player = (personID: number): TeamsPlayerDto => ({ name: `P${personID}`, personID, pick: null, round: null, region: null });
+    teams.next([{ teamID: 1, teamName: 'A', captain: captain(1, 1), players: [player(1), player(5)] }, { teamID: 2, teamName: 'B', captain: captain(2, 2), players: [player(2)] }]);
+    teams.complete();
+    fixture.detectChanges();
+    expect(helper()!.seasonID()).toBe(5);
+    const loaded = helper()!.draftKey();
+
+    // A move from A to B: the pool is the same, the team on deck is not
+    component.store.teams.update(ts => [{ ...ts[0], players: [player(1)] }, { ...ts[1], players: [player(2), player(5)] }]);
+    fixture.detectChanges();
+    const moved = helper()!.draftKey();
+    component.store.captainLocked.set(false);
+    fixture.detectChanges();
+
+    expect(new Set([loaded, moved, helper()!.draftKey()]).size).toBe(3);
   });
 
   it('watches the draft only once the page initialises, in the pass that sets its season', () => {
@@ -346,6 +383,14 @@ describe('TeamBuilderComponent', () => {
       expect(component.onDeck()).toBeNull();
     });
 
+    it('should return null before the captains are locked, when no one may pick yet', () => {
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1, region: null }, players: [] }]);
+      component.playerPool.set([{ name: 'Player', personID: 4, pick: null, round: null, region: null }]);
+      component.captainLocked.set(false);
+
+      expect(component.onDeck()).toBeNull();
+    });
+
     it('should return captain with fewest players', () => {
       component.teams.set([
         { teamID: 0, teamName: 'Team 1', captain: { name: 'Cap 1', personID: 1, order: 1, region: null }, players: [{ name: 'P1', personID: 3, pick: 1, round: 1, region: null }] },
@@ -379,6 +424,14 @@ describe('TeamBuilderComponent', () => {
       component.playerPool.set([{ name: 'Player', personID: 2, pick: null, round: null, region: null }]);
 
       expect(component.statusText()).toBe('Captain Name is on deck');
+    });
+
+    it('should say the draft starts at the lock, before it', () => {
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Captain Name', personID: 1, order: 1, region: null }, players: [] }]);
+      component.playerPool.set([{ name: 'Player', personID: 4, pick: null, round: null, region: null }]);
+      component.captainLocked.set(false);
+
+      expect(component.statusText()).toBe('The draft starts once the captains are locked');
     });
   });
 
@@ -1154,7 +1207,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
         { provide: AccountService, useValue: mockAccountService },
         { provide: LiveService, useValue: new FakeLive() }
       ]
-    }).compileComponents();
+    }).overrideComponent(TeamBuilderComponent, { remove: { imports: [DraftHelperComponent] }, add: { imports: [StubDraftHelper] } }).compileComponents();
 
     httpTesting = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TeamBuilderComponent);

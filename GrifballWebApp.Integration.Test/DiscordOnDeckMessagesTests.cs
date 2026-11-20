@@ -47,7 +47,7 @@ public class DiscordOnDeckMessagesTests
     /// <summary>The on-deck messages queued as a draft change queues them, then sent.</summary>
     private async Task SendOnDeck(int seasonId)
     {
-        await new ContextOutbox(_context).EnqueueOnDeckAsync(_context, _teams, seasonId, CancellationToken.None);
+        await new ContextOutbox(_context).EnqueueOnDeckAsync(_context, _teams, seasonId, null, CancellationToken.None);
         await _context.SaveChangesAsync();
         await _outbox.DrainAsync();
     }

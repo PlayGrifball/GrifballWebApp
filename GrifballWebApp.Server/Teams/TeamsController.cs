@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using GrifballWebApp.Application.Draft;
 using GrifballWebApp.Application.Teams;
 
 namespace GrifballWebApp.Server.Teams;
@@ -36,6 +37,39 @@ public class TeamsController : ControllerBase
     {
         return _teamService.GetPlayerPool(seasonID, ct);
     }
+
+    /// <summary>The 404's reason for suggestions with no team to make them for.</summary>
+    public const string NoTeamOnDeck = "There is no team to suggest picks for: no captains yet, or no such team in the season.";
+
+    /// <summary>The most suggested picks one call gives.</summary>
+    public const int MaxSuggestions = 25;
+
+    /// <summary>How many picks to suggest for <paramref name="count"/> asked for: 1 to <see cref="MaxSuggestions"/>; none asked, the default.</summary>
+    public static int HowManyPicks(int? count) => Math.Clamp(count ?? DraftHelperService.DefaultSuggestions, 1, MaxSuggestions);
+
+    /// <summary>
+    /// A season's remaining player pool with what a captain weighs: each player's region, whether they'd captain, the timeslots they
+    /// signed up for and their career (null for one who never played).
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("seasons/{seasonID:int}/draft/pool-details", Name = "GetDraftPoolDetails")]
+    [ProducesResponseType<List<DraftPoolPlayer>>(StatusCodes.Status200OK)]
+    public async Task<IReadOnlyList<DraftPoolPlayer>> GetDraftPoolDetails([FromRoute] int seasonID, [FromServices] DraftHelperService helper, CancellationToken ct)
+        => await helper.PoolAsync(seasonID, ct);
+
+    /// <summary>
+    /// The picks suggested for a team (the one on deck unless <paramref name="teamID"/> is given), best first, each with its score and
+    /// reasons: how the player has played against the pool, the team's short timeslots they fill, and the captain's region.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("seasons/{seasonID:int}/draft/suggestions", Name = "GetDraftSuggestions")]
+    [ProducesResponseType<DraftSuggestions>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<IActionResult> GetDraftSuggestions([FromRoute] int seasonID, [FromQuery] int? teamID, [FromQuery] int? count,
+        [FromServices] DraftHelperService helper, CancellationToken ct)
+        => await helper.SuggestAsync(seasonID, teamID, HowManyPicks(count), ct) is { } suggestions
+            ? Ok(suggestions)
+            : this.NotFoundProblem(NoTeamOnDeck);
 
     /// <summary>Makes a signup a captain, with a team of their own: answers the team.</summary>
     [Authorize(Roles = "Commissioner")]
@@ -121,7 +155,7 @@ public class TeamsController : ControllerBase
         if (userID == 0)
             return this.UnauthorizedProblem("You must be logged in to add a player to a team");
 
-        await _teamService.AddPlayerToTeam(dto, userID, ct);
+        await _teamService.AddPlayerToTeam(dto, userID, ct: ct);
         return NoContent();
     }
 

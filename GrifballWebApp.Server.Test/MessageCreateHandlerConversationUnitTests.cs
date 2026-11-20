@@ -93,6 +93,11 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddTransient<GrifballWebApp.Application.Signups.SignupsService>()
             .AddSingleton(Substitute.For<GrifballWebApp.Application.Brackets.IBracketService>())
             .AddSingleton<IChatWaiting, MemoryChatWaiting>()
+            // The season tools' draft helper, with the leaderboards' careers it reads
+            .AddTransient<GrifballWebApp.Application.Draft.DraftHelperService>()
+            .AddTransient<GrifballWebApp.Application.Leaderboards.LeaderboardsService>()
+            .AddTransient<GrifballWebApp.Application.LateLeague.MatchmakingStatsService>()
+            .AddSingleton<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())))
             .BuildServiceProvider();
         var chatClients = Substitute.For<IChatClientFactory>();
         chatClients.Available.Returns(_modelConfigured);

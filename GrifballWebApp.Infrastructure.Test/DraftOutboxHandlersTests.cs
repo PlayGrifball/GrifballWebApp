@@ -87,7 +87,7 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
         var captain = await AddUser("Cap", discordId: 4242);
         var player = await AddUser("Pick");
 
-        await _outbox.EnqueuePlayerAddedAsync(Context, _teams, new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = captain.Id, PersonID = player.Id }, CancellationToken.None);
+        await _outbox.EnqueuePlayerAddedAsync(Context, _teams, new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = captain.Id, PersonID = player.Id }, null, CancellationToken.None);
 
         var (kinds, posts) = await QueuedAsync();
         using (Assert.EnterMultipleScope())
@@ -103,7 +103,7 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
         var season = await AddSeason();
         var player = await AddUser("Pick");
 
-        await _outbox.EnqueuePlayerRemovedAsync(Context, _teams, new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, PersonID = player.Id }, CancellationToken.None);
+        await _outbox.EnqueuePlayerRemovedAsync(Context, _teams, new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, PersonID = player.Id }, null, CancellationToken.None);
 
         var (kinds, posts) = await QueuedAsync();
         using (Assert.EnterMultipleScope())
@@ -122,7 +122,7 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
         var player = await AddUser("Pick");
 
         await _outbox.EnqueuePlayerMovedAsync(Context, _teams,
-            new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = from.Id, NewCaptainID = to.Id, PersonID = player.Id }, CancellationToken.None);
+            new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = from.Id, NewCaptainID = to.Id, PersonID = player.Id }, null, CancellationToken.None);
 
         var (kinds, posts) = await QueuedAsync();
         using (Assert.EnterMultipleScope())
@@ -137,7 +137,7 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
     {
         var season = await AddSeason();
 
-        await _outbox.EnqueueLockChangedAsync(Context, _teams, season.SeasonID, locked: true, CancellationToken.None);
+        await _outbox.EnqueueLockChangedAsync(Context, _teams, season.SeasonID, locked: true, null, CancellationToken.None);
 
         var (kinds, posts) = await QueuedAsync();
         using (Assert.EnterMultipleScope())
@@ -152,7 +152,7 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
     {
         var season = await AddSeason();
 
-        await _outbox.EnqueueLockChangedAsync(Context, _teams, season.SeasonID, locked: false, CancellationToken.None);
+        await _outbox.EnqueueLockChangedAsync(Context, _teams, season.SeasonID, locked: false, null, CancellationToken.None);
 
         var (kinds, posts) = await QueuedAsync();
         using (Assert.EnterMultipleScope())

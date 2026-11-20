@@ -5,6 +5,7 @@ using NetCord.Rest;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Outbox;
+using GrifballWebApp.Application.Draft;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Infrastructure.Discord;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,13 @@ public static class DraftOutbox
     public const string Post = "draft.post";
     public const string OnDeck = "draft.on-deck";
 
+    /// <summary>The suggested picks' menu: its placeholder, and its index in its pick menus' IDs (the pool's count from 0).</summary>
+    public const string SuggestedPlaceholder = "Pick a suggested player";
+    private const int SuggestedMenuIndex = 99;
+
+    /// <summary>The text of the pool's first message after the suggested picks: a retry finds a message Discord has by its text.</summary>
+    public const string RestOfThePool = "Or pick from the whole pool:";
+
     public static string Group(int seasonId) => $"draft:{seasonId}";
 
     public static IServiceCollection AddDraftOutboxHandlers(this IServiceCollection services)
@@ -31,30 +39,30 @@ public static class DraftOutbox
     public static Task EnqueuePostAsync(this IOutbox outbox, int seasonId, string content, CancellationToken ct)
         => outbox.EnqueueAsync(Post, new DraftPostPayload(seasonId, content), Group(seasonId), ct);
 
-    public static async Task EnqueuePlayerAddedAsync(this IOutbox outbox, GrifballContext context, TeamService teams, AddPlayerToTeamRequestDto dto, CancellationToken ct)
+    public static async Task EnqueuePlayerAddedAsync(this IOutbox outbox, GrifballContext context, TeamService teams, AddPlayerToTeamRequestDto dto, DraftHelperService? helper, CancellationToken ct)
     {
         await outbox.EnqueuePostAsync(dto.SeasonID, $"{await Name(context, dto.PersonID, ct)} has been added to {await Name(context, dto.CaptainID, ct)}'s team", ct);
-        await outbox.EnqueueOnDeckAsync(context, teams, dto.SeasonID, ct);
+        await outbox.EnqueueOnDeckAsync(context, teams, dto.SeasonID, helper, ct);
     }
 
-    public static async Task EnqueuePlayerRemovedAsync(this IOutbox outbox, GrifballContext context, TeamService teams, RemovePlayerFromTeamRequestDto dto, CancellationToken ct)
+    public static async Task EnqueuePlayerRemovedAsync(this IOutbox outbox, GrifballContext context, TeamService teams, RemovePlayerFromTeamRequestDto dto, DraftHelperService? helper, CancellationToken ct)
     {
         await outbox.EnqueuePostAsync(dto.SeasonID, $"{await Name(context, dto.PersonID, ct)} has returned to the player pool", ct);
-        await outbox.EnqueueOnDeckAsync(context, teams, dto.SeasonID, ct);
+        await outbox.EnqueueOnDeckAsync(context, teams, dto.SeasonID, helper, ct);
     }
 
-    public static async Task EnqueuePlayerMovedAsync(this IOutbox outbox, GrifballContext context, TeamService teams, MovePlayerToTeamRequestDto dto, CancellationToken ct)
+    public static async Task EnqueuePlayerMovedAsync(this IOutbox outbox, GrifballContext context, TeamService teams, MovePlayerToTeamRequestDto dto, DraftHelperService? helper, CancellationToken ct)
     {
         await outbox.EnqueuePostAsync(dto.SeasonID, $"{await Name(context, dto.PersonID, ct)} has been moved from {await Name(context, dto.PreviousCaptainID, ct)}'s team to {await Name(context, dto.NewCaptainID, ct)}'s team", ct);
-        await outbox.EnqueueOnDeckAsync(context, teams, dto.SeasonID, ct);
+        await outbox.EnqueueOnDeckAsync(context, teams, dto.SeasonID, helper, ct);
     }
 
-    public static async Task EnqueueLockChangedAsync(this IOutbox outbox, GrifballContext context, TeamService teams, int seasonId, bool locked, CancellationToken ct)
+    public static async Task EnqueueLockChangedAsync(this IOutbox outbox, GrifballContext context, TeamService teams, int seasonId, bool locked, DraftHelperService? helper, CancellationToken ct)
     {
         if (locked)
         {
             await outbox.EnqueuePostAsync(seasonId, "Captains are now locked", ct);
-            await outbox.EnqueueOnDeckAsync(context, teams, seasonId, ct);
+            await outbox.EnqueueOnDeckAsync(context, teams, seasonId, helper, ct);
         }
         else
         {
@@ -63,10 +71,11 @@ public static class DraftOutbox
     }
 
     /// <summary>
-    /// Who is on deck, and the pick menus of the player pool (25 players a menu, 5 menus a message), as the saved changes
+    /// Who is on deck, the draft helper's suggested picks (with <paramref name="helper"/>), and the pick menus of the player pool (25
+    /// players a menu, 5 menus a message), as the saved changes
     /// of <paramref name="context"/> have them; or that the draft is over, or no team was found.
     /// </summary>
-    public static async Task EnqueueOnDeckAsync(this IOutbox outbox, GrifballContext context, TeamService teams, int seasonId, CancellationToken ct)
+    public static async Task EnqueueOnDeckAsync(this IOutbox outbox, GrifballContext context, TeamService teams, int seasonId, DraftHelperService? helper, CancellationToken ct)
     {
         var onDeck = await teams.OnDeck(seasonId, ct);
         if (onDeck is null)
@@ -102,13 +111,23 @@ public static class DraftOutbox
             })
             .ToList();
 
-        // Split menus into groups of 5: the first message says who is on deck
+        // The draft helper's picks first (who is on deck, then each with its reasons, and a menu of them), then the pool's menus
+        // in groups of 5; the pool's first message says who is on deck without suggestions, else that the rest is the pool (text a
+        // retry finds it by)
         var onDeckName = await Name(context, onDeck.Captain.UserID, ct);
-        var messages = menus
+        var messages = new List<DraftMessage>();
+        if (helper is not null && await helper.SuggestAsync(seasonId, onDeck.TeamID, DraftHelperService.DefaultSuggestions, ct) is { Picks.Count: > 0 } suggested)
+        {
+            var lines = suggested.Picks.Select((p, i) => $"{i + 1}. {p.Name}: {string.Join("; ", p.Reasons.Take(2))}");
+            messages.Add(new DraftMessage($"{onDeckName} is on deck. Suggested picks:\n{string.Join('\n', lines)}",
+                [new DraftMenu(DiscordStringMenuContants.DraftPickWithParams(seasonId, onDeck.Captain.UserID, SuggestedMenuIndex), SuggestedPlaceholder,
+                    [.. suggested.Picks.Select(p => new DraftMenuOption(p.Name, p.UserID.ToString()))])]));
+        }
+        var poolFirst = messages.Count == 0 ? $"{onDeckName} is on deck" : RestOfThePool;
+        messages.AddRange(menus
             .Select((menu, index) => new { menu, index })
             .GroupBy(x => x.index / 5)
-            .Select((g, index) => new DraftMessage(index == 0 ? $"{onDeckName} is on deck" : null, [.. g.Select(x => x.menu)]))
-            .ToList();
+            .Select((g, index) => new DraftMessage(index == 0 ? poolFirst : null, [.. g.Select(x => x.menu)])));
         await outbox.EnqueueAsync(OnDeck, new DraftOnDeckPayload(seasonId, messages), Group(seasonId), ct);
     }
 

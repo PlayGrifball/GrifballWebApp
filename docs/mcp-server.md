@@ -51,6 +51,7 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 | `get_season_player_stats` | Each player's stats, or one team's |
 | `get_season_grades` | Players' totals, per-minute rates and letter grades |
 | `get_season_signups` | Who signed up |
+| `suggest_draft_picks` | The draft's suggested picks for a team (the one on deck by default; the next season to start), each with its score and why |
 | `get_season_bracket` | The playoff bracket |
 | `get_team` | A team's season, record, titles and roster |
 | `get_team_matches` | A team's matches and results |

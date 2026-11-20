@@ -37,7 +37,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     private SeasonService Seasons() => new(Db, new SeasonStatsService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time);
 
     private SeasonTools SeasonTools() => new(ToolCaller.Anonymous, Seasons(), new SeasonVisibility(Db, _time), new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db),
-        new SignupsService(Db, _time), Substitute.For<IBracketService>());
+        new SignupsService(Db, _time), Substitute.For<IBracketService>(), null!);
 
     private SeasonMatchService SeasonMatches() => new(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db));
 
@@ -119,7 +119,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         // Starts in 40 days, announced in 10
         var secret = await SeasonEnded("Secret", daysAgo: -100);
         SeasonTools As(ToolCaller caller) => new(caller, Seasons(), new SeasonVisibility(Db, _time), new TeamStandingsService(Db), new MatchPlannerService(Db),
-            new GradesService(Db), new SignupsService(Db, _time), Substitute.For<IBracketService>());
+            new GradesService(Db), new SignupsService(Db, _time), Substitute.For<IBracketService>(), null!);
         var staff = new ToolCaller(1, [GrifballWebApp.Application.Identity.SiteRoles.Commissioner]);
 
         var anonymous = await Assert.ThrowsAsync<ToolException>(() => As(ToolCaller.Anonymous).GetSeason(secret.SeasonID));

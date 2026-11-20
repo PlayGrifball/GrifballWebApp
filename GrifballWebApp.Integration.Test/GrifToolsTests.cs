@@ -79,7 +79,7 @@ public class GrifToolsTests
     }
 
     private SeasonTools SeasonTools(ToolCaller? caller = null) => new(caller ?? ToolCaller.Anonymous, _seasons, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), new TeamStandingsService(_context), new MatchPlannerService(_context), new GradesService(_context),
-        new SignupsService(_context, _time), Substitute.For<IBracketService>());
+        new SignupsService(_context, _time), Substitute.For<IBracketService>(), new GrifballWebApp.Application.Draft.DraftHelperService(_context, Leaderboards()));
 
     private VodService Vods() => new(_context, new YouTubeClient(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))),
         Options.Create(new YouTubeOptions()), NullLogger<VodService>.Instance);
@@ -95,6 +95,19 @@ public class GrifToolsTests
         new SeasonMatchService(_context, Substitute.For<IDataPullService>(),
             new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context)), new ChampionshipService(_context)),
         new MatchDetailsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), new GrifballWebApp.Application.Scheduling.SchedulingService(_context, _time));
+
+    [Test]
+    public async Task ASeasonTool_SuggestsDraftPicks_ForATeam_AndRefusesAnUnknownSeasonOrTeam()
+    {
+        var suggestions = await SeasonTools().SuggestDraftPicks(_season.SeasonID, teamID: _team.TeamID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(suggestions.TeamID, Is.EqualTo(_team.TeamID));
+            await Assert.ThrowsAsync<ToolException>(() => SeasonTools().SuggestDraftPicks(999_999));
+            await Assert.ThrowsAsync<ToolException>(() => SeasonTools().SuggestDraftPicks(_season.SeasonID, teamID: 999_999));
+        }
+    }
 
     [Test]
     public async Task ASeasonTool_UsesTheRunningSeason_WhenGivenNone()
