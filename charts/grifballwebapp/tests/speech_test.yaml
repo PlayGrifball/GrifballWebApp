@@ -192,3 +192,61 @@ tests:
     asserts:
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__EndOfLineMilliseconds, value: "400" } }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__TranscriptionModel, value: Systran/faster-whisper-base.en } }
+
+  - it: leaves the UI's extras off while the UI is off
+    template: templates/speech.yaml
+    documentSelector: { path: "kind", value: Deployment }
+    set:
+      speech.enabled: true
+    asserts:
+      - notExists: { path: "spec.template.spec.initContainers" }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: LOOPBACK_HOST_URL, value: "http://localhost:8000" } }
+
+  - it: has the UI call its own API inside the pod, ask the chart's Ollama for chat models, and write Gradio's seed on a copy of its package
+    template: templates/speech.yaml
+    documentSelector: { path: "kind", value: Deployment }
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      ollama.enabled: true
+      ollama.model: m
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: LOOPBACK_HOST_URL, value: "http://localhost:8000" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: CHAT_COMPLETION_BASE_URL, value: "http://grif-ollama:11434/v1" } }
+      - equal: { path: "spec.template.spec.initContainers[0].name", value: gradio-copy }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: gradio, mountPath: /home/ubuntu/speaches/.venv/lib/python3.12/site-packages/gradio } }
+
+  - it: leaves the chat server alone when there is no chart Ollama
+    template: templates/speech.yaml
+    documentSelector: { path: "kind", value: Deployment }
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+    asserts:
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: CHAT_COMPLETION_BASE_URL }, any: true }
+
+  - it: lets the UI's speech pod reach the chart's Ollama
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: "metadata.name", value: grif-speech }
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      ollama.enabled: true
+      ollama.model: m
+    asserts:
+      - contains:
+          path: "spec.egress"
+          content: { to: [{ podSelector: { matchLabels: { app: grif-ollama } } }], ports: [{ protocol: TCP, port: 11434 }] }
+
+  - it: lets the chart's Ollama take the UI's speech pod
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: "metadata.name", value: grif-ollama }
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      ollama.enabled: true
+      ollama.model: m
+    asserts:
+      - contains:
+          path: "spec.ingress"
+          content: { from: [{ podSelector: { matchLabels: { app: grif-speech } } }], ports: [{ protocol: TCP, port: 11434 }] }
