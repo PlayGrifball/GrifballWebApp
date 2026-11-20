@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using NetCord.Gateway;
 using NetCord.Gateway.Voice;
+using NetCord.Gateway.Voice.JsonModels;
 using NetCord.Logging;
 
 namespace GrifballWebApp.Server.Voice;
@@ -17,7 +18,7 @@ public sealed class NetCordVoiceConnector(GatewayClient client, ILogger<NetCordV
 {
     public async Task<IVoiceLink> ConnectAsync(ulong guildId, ulong channelId, CancellationToken cancellationToken)
     {
-        var voice = await client.JoinVoiceChannelAsync(guildId, channelId, new VoiceClientConfiguration { Logger = new NetCordLog(log) }, cancellationToken: cancellationToken);
+        var voice = await client.JoinVoiceChannelAsync(guildId, channelId, new VoiceClientConfiguration { Logger = new NetCordLog(log), CacheProvider = KnownMembers(guildId, channelId) }, cancellationToken: cancellationToken);
         var link = new Link(voice, log);
         if (log.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
             log.LogInformation("Voice: connected to {Channel} in {Guild}", channelId, guildId);
@@ -38,6 +39,21 @@ public sealed class NetCordVoiceConnector(GatewayClient client, ILogger<NetCordV
         if (log.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
             log.LogInformation("Voice: leaving the channel in {Guild}", guildId);
         await client.UpdateVoiceStateAsync(new(guildId, null));
+    }
+
+    // DAVE only accepts an MLS welcome listing users the voice client knows, and NetCord learns of them only from connect events
+    // after joining: members already in the channel are seeded from the gateway's voice states
+    private ImmutableVoiceClientCacheProvider KnownMembers(ulong guildId, ulong channelId)
+    {
+        var members = client.Cache.Guilds.TryGetValue(guildId, out var guild)
+            ? guild.VoiceStates.Values.Where(s => s.ChannelId == channelId).Select(s => s.UserId).ToArray()
+            : [];
+        return ImmutableVoiceClientCacheProvider.FromJson(new JsonVoiceClientCache
+        {
+            Users = members,
+            UserSsrcs = new Dictionary<ulong, uint>(),
+            SsrcUsers = new Dictionary<uint, ulong>(),
+        });
     }
 
     // NetCord's own voice log (decryption, MLS, UDP failures): warnings and up
