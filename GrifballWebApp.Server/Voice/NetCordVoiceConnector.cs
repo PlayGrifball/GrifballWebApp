@@ -19,7 +19,8 @@ public sealed class NetCordVoiceConnector(GatewayClient client, ILogger<NetCordV
     {
         var voice = await client.JoinVoiceChannelAsync(guildId, channelId, new VoiceClientConfiguration { Logger = new NetCordLog(log) }, cancellationToken: cancellationToken);
         var link = new Link(voice, log);
-        log.LogInformation("Voice: connected to {Channel} in {Guild}", channelId, guildId);
+        if (log.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+            log.LogInformation("Voice: connected to {Channel} in {Guild}", channelId, guildId);
         try
         {
             await voice.StartAsync(cancellationToken);
@@ -34,7 +35,8 @@ public sealed class NetCordVoiceConnector(GatewayClient client, ILogger<NetCordV
 
     public async Task DisconnectAsync(ulong guildId)
     {
-        log.LogInformation("Voice: leaving the channel in {Guild}", guildId);
+        if (log.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+            log.LogInformation("Voice: leaving the channel in {Guild}", guildId);
         await client.UpdateVoiceStateAsync(new(guildId, null));
     }
 
@@ -86,7 +88,8 @@ public sealed class NetCordVoiceConnector(GatewayClient client, ILogger<NetCordV
             };
             voice.Disconnect += args =>
             {
-                log.LogInformation("Voice: disconnected, status {Status} {Description}, reconnecting: {Reconnect}", args.CloseStatus, args.CloseStatusDescription, args.Reconnect);
+                if (log.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                    log.LogInformation("Voice: disconnected, status {Status} {Description}, reconnecting: {Reconnect}", args.CloseStatus, args.CloseStatusDescription, args.Reconnect);
                 if (!args.Reconnect)
                     Closed?.Invoke();
                 return default;
