@@ -204,7 +204,7 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
             cancellationToken: cancellationToken);
         var model = reply.Model.Id;
         var signedIn = caller.SignedIn;
-        log.LogInformation("Voice: {Speaker} (signed in: {SignedIn}) is answered by {Model}", speaker, signedIn, model);
+        Answerer(log, speaker, signedIn, model);
         var answer = new StringBuilder();
         await foreach (var text in reply.StreamAsync(cancellationToken))
             answer.Append(text);
@@ -213,4 +213,7 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Voice: answered {Speaker} in {Transcribe} ms transcribing, {Reply} ms replying, {Speak} ms speaking, {Play} ms playing")]
     private static partial void Timings(ILogger log, ulong speaker, int transcribe, int reply, int speak, int play);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Voice: {Speaker} (signed in: {SignedIn}) is answered by {Model}")]
+    private static partial void Answerer(ILogger log, ulong speaker, bool signedIn, string model);
 }
