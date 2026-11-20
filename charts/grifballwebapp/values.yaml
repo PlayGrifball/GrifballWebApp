@@ -1323,7 +1323,7 @@ networkPolicy:
           except: [fc00::/7, fe80::/10]
     extraIngress: []
   # Discord voice (the bot's /voice), from the pod that runs the Discord gateway (grif-discord, or the backend
-  # without workers): UDP to Discord's voice servers, ports 50000-65535, to (default: the internet, not private
+  # without workers): UDP to Discord's voice servers, ports 1024-65535 (seen on 19xxx as well as 50000 and up), to (default: the internet, not private
   # networks). On whenever speech is (speech.enabled or speech.external.url); enabled false turns it off.
   voice:
     enabled: true

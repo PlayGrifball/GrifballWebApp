@@ -780,9 +780,10 @@ spec:
 {{- $np := .Values.networkPolicy -}}
 {{- if and $np.voice.enabled (or .Values.speech.enabled .Values.speech.external.url) }}
 # Discord voice: its voice servers' UDP ports (networkPolicy.voice).
+# Not only 50000 and up: Discord voice servers are also seen on ports like 19298.
 - ports:
     - protocol: UDP
-      port: 50000
+      port: 1024
       endPort: 65535
   {{- with $np.voice.to }}
   to:

@@ -82,3 +82,16 @@ tests:
       speech.external.url: http://speaches.example:8000/
     asserts:
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__Url, value: "http://speaches.example:8000/" } }
+
+  - it: lets the Discord gateway pod's voice reach Discord's voice servers on any unprivileged UDP port
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      speech.external.url: http://speaches.example:8000/
+    asserts:
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: UDP, port: 1024, endPort: 65535 }]
+          count: 1
+          any: true
