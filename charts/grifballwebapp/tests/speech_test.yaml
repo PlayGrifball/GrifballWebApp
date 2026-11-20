@@ -195,7 +195,7 @@ tests:
 
   - it: leaves the UI's extras off while the UI is off
     template: templates/speech.yaml
-    documentSelector: { path: "metadata.name", value: grif-speech, skipEmptyTemplates: true }
+    documentSelector: { path: "kind", value: Deployment }
     set:
       speech.enabled: true
     asserts:
@@ -225,8 +225,9 @@ tests:
     asserts:
       - notContains: { path: "spec.template.spec.containers[0].env", content: { name: CHAT_COMPLETION_BASE_URL }, any: true }
 
-  - it: lets the UI's speech pod and the chart's Ollama reach each other
-    templates: [templates/networkpolicy.yaml]
+  - it: lets the UI's speech pod reach the chart's Ollama
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: "metadata.name", value: grif-speech }
     set:
       speech.enabled: true
       speech.ui.enabled: true
@@ -236,8 +237,16 @@ tests:
       - contains:
           path: "spec.egress"
           content: { to: [{ podSelector: { matchLabels: { app: grif-ollama } } }], ports: [{ protocol: TCP, port: 11434 }] }
-        documentSelector: { path: "metadata.name", value: grif-speech }
+
+  - it: lets the chart's Ollama take the UI's speech pod
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: "metadata.name", value: grif-ollama }
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      ollama.enabled: true
+      ollama.model: m
+    asserts:
       - contains:
           path: "spec.ingress"
           content: { from: [{ podSelector: { matchLabels: { app: grif-speech } } }], ports: [{ protocol: TCP, port: 11434 }] }
-        documentSelector: { path: "metadata.name", value: grif-ollama }
