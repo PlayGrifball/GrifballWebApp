@@ -45,8 +45,9 @@ public sealed class NetCordVoiceConnector(GatewayClient client, ILogger<NetCordV
 
         public void Log<TState>(NetCord.Logging.LogLevel logLevel, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            if (IsEnabled(logLevel))
-                log.Log(logLevel == NetCord.Logging.LogLevel.Warning ? Microsoft.Extensions.Logging.LogLevel.Warning : Microsoft.Extensions.Logging.LogLevel.Error, exception, "Voice (NetCord): {Message}", formatter(state, exception));
+            var level = logLevel == NetCord.Logging.LogLevel.Warning ? Microsoft.Extensions.Logging.LogLevel.Warning : Microsoft.Extensions.Logging.LogLevel.Error;
+            if (IsEnabled(logLevel) && log.IsEnabled(level))
+                log.Log(level, exception, "Voice (NetCord): {Message}", formatter(state, exception));
         }
     }
 
