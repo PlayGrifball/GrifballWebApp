@@ -100,18 +100,20 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Games = [new GamesTab { Sheet = "Games", Season = "src/1", Game = "infinite" }],
             RosterSheets = ["Rosters"],
             Rosters = [new RosterTab { Sheet = "DraftSheet", Season = "src/1" }],
+            Results = [new ResultsTab { Sheet = " Results " }],
             Drafts = [new DraftTab { Sheet = " Draft Board " }],
             ChampionsSheet = "Champions",
             PlayersSheet = "Players",
-            Brackets = [new BracketTab { Sheet = "Playoffs" }, new BracketTab { Rounds = [new BracketRoundTab { Sheet = "Round 1" }] }],
+            Brackets = [new BracketTab { Sheet = "Playoffs", RecordsSheet = "Teams" }, new BracketTab { Rounds = [new BracketRoundTab { Sheet = "Round 1" }] }],
         };
 
         var names = config.SheetNames();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names, Has.Count.EqualTo(14));
+            Assert.That(names, Has.Count.EqualTo(16));
             Assert.That(names, Does.Contain("Playoffs"));
+            Assert.That(names, Does.Contain("Teams"), "A bracket's records tab");
             Assert.That(names, Does.Contain("Round 1"));
             Assert.That(names, Does.Contain("Draft Board"));
             Assert.That(names, Does.Contain("Match History"));
@@ -125,6 +127,7 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Assert.That(names, Does.Contain("DraftSheet"));
             Assert.That(names, Does.Contain("Champions"));
             Assert.That(names, Does.Contain("Players"));
+            Assert.That(names, Does.Contain("Results"));
             // Case-insensitive: "stats" (any case) is the same entry as "Stats" - names' own comparer decides
             // this, not NUnit's Does.Contain (which wouldn't consult it), so the check goes through Contains directly.
             var hasStatsAnyCase = names.Contains("STATS");
@@ -154,4 +157,30 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
     }
 
     private static readonly HashSet<string> JustStats = new(StringComparer.OrdinalIgnoreCase) { "Stats" };
+
+    private static HistoricalSourceConfig Config(string id) => HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == id).Config!;
+
+    /// <summary>Both SML21 workbooks carry a hidden copy of Winter League 2021 (Legacy)'s Playoff Stats tab (its teams, its
+    /// #REF! cells): read, it put WL21 Legacy's five playoff teams in each SML21 season.</summary>
+    [TestCase("2021-sml21-pro-stats")]
+    [TestCase("2021-sml21-ammy-stats")]
+    public void Sml21_DoesNotRead_ItsCopyOfWinterLeague2021LegacysPlayoffStats(string id)
+    {
+        var names = Config(id).SheetNames();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(names, Does.Not.Contain("Playoff Stats"));
+            Assert.That(names, Does.Contain("FL21_PlayoffStats"), "Its own FL21 playoff tab stays");
+        }
+    }
+
+    /// <summary>The champions record's "Summer League 2022" title (Junkyard Dogs: NKOTb4evah, ACE B S1lentND1, Rage More Nerd,
+    /// AtoneMilitant, AwareMosquito) is the 2022 H3 Action League's: its JUNKYARD DOGS won the bracket. Without the name it was
+    /// a titles-only season of its own.</summary>
+    [Test]
+    public void H3Action2022_TakesTheRecordsSummerLeague2022Title()
+    {
+        Assert.That(Config("2022-h3-action-stats").Season!.Titles, Is.EqualTo("Summer League 2022"));
+    }
 }

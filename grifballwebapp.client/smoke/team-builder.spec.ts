@@ -3,7 +3,8 @@ import { drag, expect, hydrated, secondBrowser, test, watchConsole } from './fix
 import { createLeague, teamName, type League } from './league';
 
 // The team builder (/season/:id/draft) against the real server, from two signed-in browsers at
-// once: every drop is saved by the API and pushed to the other browser over the Teams SignalR hub.
+// once: every drop is saved by the API, and the live hub (LiveHub) pushes the draft as it is now to the other browser,
+// which shows it without reading it.
 
 const teamCard = (page: Page, name: string) =>
   page.locator('mat-card.item:not(.dndPlaceholder)').filter({ has: page.locator('mat-card-title', { hasText: name }) });
@@ -32,19 +33,35 @@ async function draft(page: Page): Promise<{ titles: string[]; rosters: string[][
 }
 
 /**
- * Resolves once the page's Teams hub is connected: the server's answer to SignalR's handshake ("{}" and the record
- * separator) on a WebSocket of the hub. Any of them: the app makes its connection again as the signed-in user once the
- * session is known (hubLifecycle), which on a preview behind Cloudflare can close the first socket before its handshake
- * is answered. The app logs nothing when it connects.
+ * Resolves once the page watches `topic` on the live hub: the server's answer (a completion) to a Watch that names it,
+ * on a WebSocket of the hub. Any of them: the app makes its connection again as the signed-in user once the session is
+ * known (hubLifecycle), which on a preview behind Cloudflare can close the first socket before it is answered. The app
+ * logs nothing when it connects.
  */
-async function hubConnected(page: Page, timeout: number): Promise<void> {
+async function watching(page: Page, topic: string, timeout: number): Promise<void> {
+  type Message = { type?: number, invocationId?: string, target?: string, arguments?: unknown[] };
+  // JSON Hub Protocol messages, each ending in the record separator; anything else is not one of ours
+  const messages = (payload: string | Buffer): Message[] => String(payload).split('\u001e').filter(m => m.trim())
+    .flatMap(m => {
+      try {
+        return [JSON.parse(m) as Message];
+      } catch {
+        return [];
+      }
+    });
   await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`No Teams hub handshake within ${timeout} ms`)), timeout);
+    const timer = setTimeout(() => reject(new Error(`Not watching ${topic} on the live hub within ${timeout} ms`)), timeout);
     page.on('websocket', ws => {
-      if (!/\/hub\/TeamsHub/i.test(ws.url()))
+      if (!/\/hub\/LiveHub/i.test(ws.url()))
         return;
+      const asked = new Set<string>();
+      ws.on('framesent', frame => {
+        for (const m of messages(frame.payload))
+          if (m.type === 1 && m.target === 'Watch' && m.invocationId !== undefined && (m.arguments?.[0] as string[]).includes(topic))
+            asked.add(m.invocationId);
+      });
       ws.on('framereceived', frame => {
-        if (frame.payload === '{}\u001e') {
+        if (messages(frame.payload).some(m => m.type === 3 && m.invocationId !== undefined && asked.has(m.invocationId))) {
           clearTimeout(timer);
           resolve();
         }
@@ -53,11 +70,11 @@ async function hubConnected(page: Page, timeout: number): Promise<void> {
   });
 }
 
-/** Opens the team builder; `hub: false` for a page whose Teams hub is cut off on purpose. */
+/** Opens the team builder; `hub: false` for a page whose live hub is cut off on purpose. */
 async function openTeamBuilder(page: Page, league: League, { hub = true } = {}): Promise<void> {
-  // Changes reach the other browser over the Teams hub: one made before its connection is up is
+  // Changes reach the other browser over the live hub: one made before it watches the draft is
   // never sent to it (seen in CI: the first drop came 0.6 s before the other page connected).
-  const connected = hub && hubConnected(page, 30_000);
+  const connected = hub && watching(page, `draft:${league.seasonID}`, 30_000);
   await page.goto(`/season/${league.seasonID}/draft`);
   await expect(teamCard(page, teamName(league, 0))).toBeVisible();
   // The last player is never drafted: the pool has loaded.
@@ -88,29 +105,23 @@ test.describe('team builder', () => {
     const b = other.page;
     try {
       await openTeamBuilder(a, league);
-      // The other browser's hub connection is held back until after the first pick: it loads the
-      // board without it, so that pick is never sent to it. Its WebSocket (after its negotiate) stays
-      // connecting until released, then goes through to the server.
-      let release!: () => void;
-      const held = new Promise<void>(resolve => release = resolve);
-      await b.routeWebSocket(/\/hub\/TeamsHub/, async ws => { await held; ws.connectToServer(); });
-      const bConnected = hubConnected(b, 60_000);
-      await openTeamBuilder(b, league, { hub: false });
+      await openTeamBuilder(b, league);
       await b.evaluate(() => { (window as unknown as { notReloaded: boolean }).notReloaded = true; });
+      // The other browser's reads of the draft from here on: none for a draft the live hub pushes
+      const bLoads: string[] = [];
+      b.on('request', r => { if (r.method() === 'GET' && /\/api\/seasons\/\d+\/draft\/teams/i.test(r.url())) bLoads.push(r.url()); });
 
-      // 1. Draft a pool player onto a team, before the other browser is connected. Once it is, it
-      //    loads the board again and shows the pick, without a page reload.
+      // 1. Draft a pool player onto a team. The live hub pushes the draft as it is now: the other browser
+      //    shows the pick without reading the draft, and without a page reload.
       const pickSaved = a.waitForResponse(r => /\/api\/seasons\/\d+\/draft\/picks/i.test(r.url()));
       await drag(poolItem(a, p3.name), playersArea(a, team1));
       await expect.poll(() => roster(a, team1)).toEqual([`1 ${p3.name}`]);
       await expect(poolItem(a, p3.name)).toHaveCount(0);
       expect((await pickSaved).ok()).toBe(true);
-      expect(await roster(b, team1)).toEqual([]);
-      release();
-      await bConnected;
       await expect.poll(() => roster(b, team1)).toEqual([`1 ${p3.name}`]);
       await expect(poolItem(b, p3.name)).toHaveCount(0);
       expect(await b.evaluate(() => (window as unknown as { notReloaded?: boolean }).notReloaded)).toBe(true);
+      expect(bLoads, 'the pushed draft is shown as it came, with no read').toEqual([]);
 
       // 2. A pool player dropped among the teams becomes a captain, of a team named after them.
       await drag(poolItem(a, p4.name), teamsZone(a));
@@ -134,7 +145,7 @@ test.describe('team builder', () => {
       const stale = await other.context.newPage();
       const staleErrors = watchConsole(stale);
       // Its hub can't connect, on purpose.
-      staleErrors.allow(/hub\/TeamsHub|WebSocket|negotiat|Failed to complete negotiation|Error: Failed to start/i);
+      staleErrors.allow(/hub\/(LiveHub|ChatHub)|WebSocket|negotiat|Failed to complete negotiation|Error: Failed to start/i);
       // The refused save: the browser logs the failed request.
       staleErrors.allow(/status of (400|409|500).*\/draft\/picks/i);
       await stale.route('**/hub/**', route => route.abort());

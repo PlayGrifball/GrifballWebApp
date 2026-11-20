@@ -9,6 +9,8 @@ import { TeamService } from '@api/services/team.service';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { errorText } from '@shared/errorText';
 import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -29,6 +31,8 @@ export class SeasonMatchStore {
 
   /** The match shown, set by {@link open}. */
   private seasonMatchID = 0;
+  /** The match shown, for the live topic it watches (0: none yet). */
+  private readonly shownID = signal(0);
 
   private readonly _seasonMatch = signal<SeasonMatchPageDto | null>(null);
   readonly seasonMatch = this._seasonMatch.asReadonly();
@@ -67,6 +71,8 @@ export class SeasonMatchStore {
   constructor() {
     effect(() => this.loadRoster(this.homeTeamID(), this.homeLoaded));
     effect(() => this.loadRoster(this.awayTeamID(), this.awayLoaded));
+    // Reported, decided, rescheduled, its time or teams changed, a VOD linked: the match again, in place
+    liveReload(() => this.shownID() ? [LiveTopics.seasonMatch(this.shownID())] : [], () => this.reload());
   }
 
   /**
@@ -75,6 +81,7 @@ export class SeasonMatchStore {
    */
   open(seasonMatchID: number): Subscription {
     this.seasonMatchID = seasonMatchID;
+    this.shownID.set(seasonMatchID);
     this._seasonMatch.set(null);
     const page = this.reload();
     this.getPossibleMatches();

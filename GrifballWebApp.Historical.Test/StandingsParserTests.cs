@@ -14,9 +14,11 @@ public class StandingsParserTests
     private static readonly string[] AlphaOnly = ["Alpha"];
     private static readonly (string, string?)[] NamesAndCaptains = [("Alpha", "Ace"), ("Bravo", "Bee")];
     private static readonly (string, int?, int?)[] RecordsOfAlphaAndBravo = [("Alpha", 5, 3), ("Bravo", 4, 4)];
+    private static readonly (string, int?, int?)[] AlphaBlankBravoCharlie = [("Alpha", 5, 3), ("Bravo", null, null), ("Charlie", 4, 4)];
 
     private static readonly (string, int?, int?)[] SecondBlockOwnRanks = [("Charlie", 2, null), ("Delta", 1, null)];
     private static readonly (string, int?, int?)[] LegacyWithoutProSeeds = [("Legacy A", null, 7), ("Legacy B", null, 3)];
+    private static readonly (string, string?, string)[] RosterTeams = [("No Way Out", "Ire Paroxysm (Hide)", "oDhmon,l Copilot l"), ("Oblivion", null, "Skiyttles")];
 
     private static SheetTable Sheet(params string[][] rows) => new() { Name = "Standings", Rows = [.. rows] };
 
@@ -32,6 +34,18 @@ public class StandingsParserTests
         var legacy = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "S", Anchor = "Team", AnchorNumber = 2 });
 
         Assert.That(legacy!.Select(t => (t.TeamName, t.Rank, t.Wins)), Is.EqualTo(LegacyWithoutProSeeds));
+    }
+
+    [TestCase("Gamertag")]
+    [TestCase("Gamertags")]
+    [TestCase("Player")]
+    [TestCase("Players")]
+    [TestCase("Player Name")]
+    public void Rows_APlayersTablesHeaderInTheTeamColumn_EndsTheTable(string header)
+    {
+        var sheet = Sheet(["Team", "Wins", "Losses"], ["Alpha", "9", "1"], [header, "2", "3"], ["Someone", "1", "1"]);
+
+        Assert.That(StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" })!.Select(t => t.TeamName), Is.EqualTo(AlphaOnly));
     }
 
     [Test]
@@ -97,6 +111,34 @@ public class StandingsParserTests
         {
             ("Junkyard Dogs", 1, null, 8, 0, null), ("High Voltage", 2, null, 5, 3, null), ("Impulse", 3, null, 3, 5, null),
         }));
+    }
+
+    [Test]
+    public void Rows_ARosterTable_GivesEachTeamItsCaptainAndPlayers_WithoutNicknames_AndEndsAtAPlayersTable()
+    {
+        // SL20 Console Reach's Rosters: Team, Captain, Player 1-5 (a nickname in brackets after some), then a table of
+        // gamertags and their restrictions
+        var sheet = Sheet(
+            ["Team", "Captain", "Player 1", "Player 2", "Player 3"],
+            ["No Way Out", "Ire Paroxysm (Hide)", "oDhmon", "l Copilot l (MvRetrograder)"],
+            ["Oblivion", "", "Skiyttles"],
+            ["Gamertag", "Regular Season Restrictions", "Playoff Restrictions"],
+            ["Someone", "None", "None"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Rosters" });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain, string.Join(",", t.Roster))), Is.EqualTo(RosterTeams));
+    }
+
+    [Test]
+    public void Rows_WithNoAnchor_ATeamAndPlayersBlockAbove_IsNoStandingsTable()
+    {
+        // A roster block (Team | Player 1) above the standings: the standings are the table found, not the roster
+        var sheet = Sheet(["Team", "Player 1"], ["Alpha", "Ace"], ["Team", "Wins", "Losses"], ["Alpha", "9", "1"]);
+
+        var team = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" })!.Single();
+
+        Assert.That((team.TeamName, team.Wins, team.Losses), Is.EqualTo(("Alpha", (int?)9, (int?)1)));
     }
 
     [Test]
@@ -180,6 +222,60 @@ public class StandingsParserTests
         {
             ("Junkyard Dogs (Winners)", null, null, 12, 8, null), ("Alpha", null, null, 14, 6, null),
         }));
+    }
+
+    [Test]
+    public void Columns_ATeamNamedTeamName_IsATeam_AndATableBesideTheTeamsEndsThem()
+    {
+        // H3 Action 2022's Teams: a team is named "Team Name" (I), and a chart of points and a list of records sit in M-O
+        var sheet = Sheet(
+            ["Team Name", "Junkyard Dogs (Winners)", "Alpha", "Zeg", "Gaslight", "Like Clockwork", "42 Dugga’s (Yeah, aight)", "The Boys Szn 3", "Team Name", "The Smurfs", "sPeCiAl ReAsOnS", "12 Inches of Tommy", "Am I Close to Playoffs?", "", "Record"],
+            ["Record", "12-8 (7-2)", "14-6 (5-3)", "6-14", "3-17", "14-6 (0-2)", "17-3 (0-2)", "4-16", "12-8 (0-2)", "14-6 (1-2)", "7-13", "5-15", "81", "42 Dugga’s (Yeah, aight)", "17-3"],
+            ["Points", "59", "66", "17", "2", "87", "91", "5", "50", "60", "26", "41", "77", "Like Clockwork", "14-6"],
+            ["Captain", "NKOTB4EVAH", "x Zeg x", "TheAlphaTurtle", "KGod Online", "yLuxe", "oDhmon", "AJ DaJuiceMayne", "RDG NHL", "I robot9000", "Mavbrid", "Priest XYZ", "48", "Team Name", "2022-12-08"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns });
+
+        Assert.That(Rows(teams).Skip(5), Is.EqualTo(new (string, int?, int?, int?, int?, string?)[]
+        {
+            ("42 Dugga’s (Yeah, aight)", null, null, 17, 3, "oDhmon"), ("The Boys Szn 3", null, null, 4, 16, "AJ DaJuiceMayne"),
+            ("Team Name", null, null, 12, 8, "RDG NHL"), ("The Smurfs", null, null, 14, 6, "I robot9000"),
+            ("sPeCiAl ReAsOnS", null, null, 7, 13, "Mavbrid"), ("12 Inches of Tommy", null, null, 5, 15, "Priest XYZ"),
+        }), "All 11 teams, \"Team Name\" too, up to 12 Inches of Tommy: not the chart beside them");
+    }
+
+    [Test]
+    public void Columns_AnotherTablesTeamHeaderBeside_EndsTheTeams_BeforeAnyStandings()
+    {
+        // A draft sheet before the season: no standings yet, and another table's names row beside it
+        var sheet = Sheet(
+            ["Team Name:", "Alpha", "Bravo", "", "Team Name:", "Charlie"],
+            ["Season Standings", "", "", "", "", ""]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Draft Sheet", Layout = StandingsLayout.Columns, Anchor = "Team Name:" });
+
+        Assert.That(teams!.Select(t => t.TeamName), Is.EqualTo(AlphaAndBravo));
+    }
+
+    [Test]
+    public void Columns_ATeamWithoutARecord_AmongTeamsWithOne_IsStillATeam()
+    {
+        var sheet = Sheet(["Team Name", "Alpha", "Bravo", "Charlie"], ["Record", "5-3", "", "4-4"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Wins, t.Losses)), Is.EqualTo(AlphaBlankBravoCharlie), "Only columns after the last team with a record are another table's");
+    }
+
+    [Test]
+    public void Columns_ALabelOfTheTablesBesideTheTeams_EndsThem()
+    {
+        // H3 Action 2022's list of records beside its teams, without the chart between them
+        var sheet = Sheet(["Team Name", "Alpha", "Bravo", "", "Record"], ["Record", "5-3", "4-4", "", "17-3"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns });
+
+        Assert.That(teams!.Select(t => t.TeamName), Is.EqualTo(AlphaAndBravo));
     }
 
     [Test]
@@ -382,5 +478,93 @@ public class StandingsParserTests
     public void WithoutNote_TakesOffTheBracketAtTheEnd_UnlessTheNameIsAllBracket(string name, string expected)
     {
         Assert.That(StandingsParser.WithoutNote(name), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Rows_WonLossAndPsHeaders_ReadRankAndRecords()
+    {
+        var sheet = Sheet(
+            ["PS", "Team", "Played", "Won", "Loss", "Net Goals"],
+            ["2", "Legendary", "16", "14", "2", "49"],
+            ["6", "Zero Gravity", "16", "8", "8", "8"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Rank, t.Wins, t.Losses)),
+            Is.EqualTo(new[] { ("Legendary", (int?)2, (int?)14, (int?)2), ("Zero Gravity", (int?)6, (int?)8, (int?)8) }));
+    }
+
+    [Test]
+    public void CaptainRows_ReadsTeamsCaptainsRostersAndRecordsAcrossBlocks()
+    {
+        var sheet = Sheet(
+            ["", "Sword Division", "", "", "", "", "Wins", "", "Losses"],
+            ["", "ThunderCats", "", "ixLiono", "ixSnarf", "ixGingy", "9", "", "1"],
+            ["", "", "", "Captain"],
+            ["", "Hammer Division", "", "", "", "", "Wins", "", "Losses"],
+            ["", "JankYard Doogs", "", "Nkotb4evah", "Menz", "", "10", "", "0"],
+            ["", "", "", "Captain"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings", Layout = StandingsLayout.CaptainRows, Ranked = true });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain, t.Rank, t.Wins, t.Losses, string.Join(",", t.Roster))),
+            Is.EqualTo(new[]
+            {
+                ("ThunderCats", (string?)"ixLiono", (int?)1, (int?)9, (int?)1, "ixLiono,ixSnarf,ixGingy"),
+                ("JankYard Doogs", (string?)"Nkotb4evah", (int?)1, (int?)10, (int?)0, "Nkotb4evah,Menz"),
+            }));
+    }
+
+    [Test]
+    public void RosterParser_CaptainRows_StopsAtWinsColumnAndIgnoresTrailingNotes()
+    {
+        var sheet = Sheet(
+            ["", "Sword Division", "", "", "", "Wins", "Losses", "Record"],
+            ["", "ThunderCats", "", "ixLiono (c)", "ixSnarf", "9", "1", "9-1"],
+            ["", "", "", "Captain"]);
+
+        var byPlayer = RosterParser.Parse(sheet);
+
+        Assert.That(byPlayer, Is.EqualTo(new Dictionary<string, string>
+        {
+            ["IXLIONO"] = "ThunderCats",
+            ["IXSNARF"] = "ThunderCats",
+        }));
+    }
+
+    [Test]
+    public void CaptainRows_ARosterRunsToTheLossesColumnOrTheRowsEnd_AndARowNamingNoTeamIsSkipped()
+    {
+        var sheet = Sheet(
+            ["", "ThunderCats", "", "ixLiono", "ixSnarf"],
+            ["", "", "", "Captain"],
+            ["", "", "", "Lonely"],
+            ["", "", "", "Captain"],
+            ["", "Sword Division", "", "", "", "Losses", "Note"],
+            ["", "Bears", "", "Menz", "Nkotb4evah", "2", "late"],
+            ["", "", "", "Captain"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings", Layout = StandingsLayout.CaptainRows });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain, t.Wins, t.Losses, string.Join(",", t.Roster))),
+            Is.EqualTo(new[]
+            {
+                ("ThunderCats", (string?)"ixLiono", (int?)null, (int?)null, "ixLiono,ixSnarf"),
+                ("Bears", (string?)"Menz", (int?)null, (int?)2, "Menz,Nkotb4evah"),
+            }));
+    }
+
+    private static readonly string[][] TeamStatRows = [["Impulse"], [], ["iGalvanator", "Totals:"], ["Goals:", "11"], ["Totals"], ["Goals:", "57"]];
+
+    [Test]
+    public void RosterParser_TeamStatBlocks_SkipTotalsRows_AndTabsNamedForNoTeam()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(RosterParser.Parse(new SheetTable { Name = "Impulse", Rows = [.. TeamStatRows] }),
+                Is.EqualTo(new Dictionary<string, string> { ["IGALVANATOR"] = "Impulse" }));
+            Assert.That(RosterParser.Parse(new SheetTable { Name = "Subs", Rows = [.. TeamStatRows] }), Is.Empty);
+            Assert.That(RosterParser.Parse(new SheetTable { Name = " ", Rows = [.. TeamStatRows] }), Is.Empty);
+        }
     }
 }

@@ -7,8 +7,8 @@ using GrifballWebApp.Application.Teams;
 namespace GrifballWebApp.Server.Teams;
 
 /// <summary>
-/// A season's draft: its teams and player pool, the captains (placed, resorted, removed, locked) and the picks. Every
-/// change is also sent to the draft's other viewers over TeamsHub (all but the connection that made it).
+/// A season's draft: its teams and player pool, the captains (placed, resorted, removed, locked) and the picks. Its pages
+/// hear of every change once it is committed, through LiveHub (the teams' and the season's domain events).
 /// </summary>
 [ApiController]
 public class TeamsController : ControllerBase
@@ -78,10 +78,10 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
-    public async Task<ActionResult<CaptainAddedResponseDto>> AddCaptain([FromRoute] int seasonID, [FromBody] CaptainPlacementDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<ActionResult<CaptainAddedResponseDto>> AddCaptain([FromRoute] int seasonID, [FromBody] CaptainPlacementDto dto, CancellationToken ct)
     {
         dto.SeasonID = seasonID;
-        var teamName = await _teamService.AddCaptain(dto, resortOnly: false, signalRConnectionID, ct);
+        var teamName = await _teamService.AddCaptain(dto, resortOnly: false, ct);
         return new CaptainAddedResponseDto { TeamName = teamName!, TeamID = await _teamService.CaptainsTeamID(dto.SeasonID, dto.PersonID, ct) };
     }
 
@@ -92,10 +92,10 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
-    public async Task<IActionResult> ResortCaptain([FromRoute] int seasonID, [FromBody] CaptainPlacementDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<IActionResult> ResortCaptain([FromRoute] int seasonID, [FromBody] CaptainPlacementDto dto, CancellationToken ct)
     {
         dto.SeasonID = seasonID;
-        await _teamService.AddCaptain(dto, resortOnly: true, signalRConnectionID, ct);
+        await _teamService.AddCaptain(dto, resortOnly: true, ct);
         return NoContent();
     }
 
@@ -106,10 +106,10 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
-    public async Task<IActionResult> RemoveCaptain([FromRoute] int seasonID, [FromBody] RemoveCaptainDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<IActionResult> RemoveCaptain([FromRoute] int seasonID, [FromBody] RemoveCaptainDto dto, CancellationToken ct)
     {
         dto.SeasonID = seasonID;
-        await _teamService.RemoveCaptain(dto, signalRConnectionID, ct);
+        await _teamService.RemoveCaptain(dto, ct);
         return NoContent();
     }
 
@@ -120,10 +120,10 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
-    public async Task<IActionResult> RemovePlayerFromTeam([FromRoute] int seasonID, [FromBody] RemovePlayerFromTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<IActionResult> RemovePlayerFromTeam([FromRoute] int seasonID, [FromBody] RemovePlayerFromTeamRequestDto dto, CancellationToken ct)
     {
         dto.SeasonID = seasonID;
-        await _teamService.RemovePlayerFromTeam(dto, signalRConnectionID, ct);
+        await _teamService.RemovePlayerFromTeam(dto, ct);
         return NoContent();
     }
 
@@ -134,10 +134,10 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
-    public async Task<IActionResult> MovePlayerToTeam([FromRoute] int seasonID, [FromBody] MovePlayerToTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<IActionResult> MovePlayerToTeam([FromRoute] int seasonID, [FromBody] MovePlayerToTeamRequestDto dto, CancellationToken ct)
     {
         dto.SeasonID = seasonID;
-        await _teamService.MovePlayerToTeam(dto, signalRConnectionID, ct);
+        await _teamService.MovePlayerToTeam(dto, ct);
         return NoContent();
     }
 
@@ -148,14 +148,14 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
-    public async Task<IActionResult> AddPlayerToTeam([FromRoute] int seasonID, [FromBody] AddPlayerToTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<IActionResult> AddPlayerToTeam([FromRoute] int seasonID, [FromBody] AddPlayerToTeamRequestDto dto, CancellationToken ct)
     {
         dto.SeasonID = seasonID;
         var userID = GetUserID();
         if (userID == 0)
             return this.UnauthorizedProblem("You must be logged in to add a player to a team");
 
-        await _teamService.AddPlayerToTeam(dto, userID, signalRConnectionID, ct: ct);
+        await _teamService.AddPlayerToTeam(dto, userID, ct: ct);
         return NoContent();
     }
 
@@ -165,9 +165,9 @@ public class TeamsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
-    public async Task<IActionResult> LockCaptains([FromRoute] int seasonID, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<IActionResult> LockCaptains([FromRoute] int seasonID, CancellationToken ct)
     {
-        await _teamService.LockCaptains(seasonID, @lock: true, signalRConnectionID, ct);
+        await _teamService.LockCaptains(seasonID, @lock: true, ct);
         return NoContent();
     }
 
@@ -177,9 +177,9 @@ public class TeamsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
-    public async Task<IActionResult> UnlockCaptains([FromRoute] int seasonID, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<IActionResult> UnlockCaptains([FromRoute] int seasonID, CancellationToken ct)
     {
-        await _teamService.LockCaptains(seasonID, @lock: false, signalRConnectionID, ct);
+        await _teamService.LockCaptains(seasonID, @lock: false, ct);
         return NoContent();
     }
 

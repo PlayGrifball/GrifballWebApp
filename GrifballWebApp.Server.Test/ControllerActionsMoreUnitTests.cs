@@ -143,7 +143,7 @@ public class ControllerActionsMoreUnitTests : SqliteGrifballContextFixture
     }
 
     private static QueueController Queue(IQueueRepository queue, string? userID = "5")
-        => new QueueController(new QueueMembership(queue, null!, Substitute.For<IQueueNotifier>()), queue, new ConfigurationBuilder().Build()).WithUser(userID);
+        => new QueueController(new QueueMembership(queue, null!), queue, new ConfigurationBuilder().Build()).WithUser(userID);
 
     [Test]
     public async Task Queue_Leave_LeavesIt_AndIsThePlayersStatusReadAgain()

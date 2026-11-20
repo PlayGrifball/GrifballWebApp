@@ -4,14 +4,12 @@ using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Application.TeamPage;
-using GrifballWebApp.Application.Teams.Handlers;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Server.Commands;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Teams.Handlers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -25,7 +23,7 @@ using NSubstitute;
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
-/// A season not announced yet on the server's side (#435): the site's filter, the draft hub's staff group and its broadcasts,
+/// A season not announced yet on the server's side (#435): the site's filter,
 /// the Discord caller's viewer, the commands' typed lookups and the team tools. On a temp-file SQLite GrifballContext.
 /// </summary>
 [TestFixture]
@@ -96,47 +94,6 @@ public class SeasonVisibilityServerUnitTests : SqliteGrifballContextFixture
             Assert.That(staff.Ran, Is.True);
             Assert.That(other.Ran, Is.True, "a user's ID or a string names no season");
         }
-    }
-
-    [Test]
-    public async Task TheDraftHub_PutsStaffsConnections_InTheStaffGroup_AndNoOneElses()
-    {
-        async Task<IGroupManager> Connect(ClaimsPrincipal user)
-        {
-            var groups = Substitute.For<IGroupManager>();
-            var context = Substitute.For<HubCallerContext>();
-            context.User.Returns(user);
-            context.ConnectionId.Returns("conn");
-            // Their roles as HubSessionFilter finds them in the database
-            var now = new GrifballWebApp.Server.SignalR.HubUser();
-            now.Set(new GrifballWebApp.Server.SignalR.HubUserState(1, user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList()));
-            var hub = new TeamsHub(null!, new SeasonVisibility(Db), now) { Context = context, Groups = groups };
-            await hub.OnConnectedAsync();
-            return groups;
-        }
-
-        var staff = await Connect(As(SiteRoles.Sysadmin));
-        var player = await Connect(As(SiteRoles.Player));
-
-        await staff.Received(1).AddToGroupAsync("conn", TeamsHub.StaffGroup, Arg.Any<CancellationToken>());
-        await player.DidNotReceiveWithAnyArgs().AddToGroupAsync(default!, default!, default);
-    }
-
-    [Test]
-    public async Task AChangeToAHiddenSeason_MadeWithoutAConnection_GoesToTheWholeStaffGroup()
-    {
-        var (season, _, _) = await Hidden();
-        var hub = Substitute.For<IHubContext<TeamsHub, ITeamsHubClient>>();
-        var staff = Substitute.For<ITeamsHubClient>();
-        hub.Clients.Group(TeamsHub.StaffGroup).Returns(staff);
-
-        var scopes = new Microsoft.Extensions.DependencyInjection.ServiceCollection().AddSingleton(new SeasonVisibility(Db)).BuildServiceProvider()
-            .GetRequiredService<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>();
-
-        await new LockChangeHandler(hub, scopes).Handle(new LockChanged(true, season.SeasonID, null), CancellationToken.None);
-
-        await staff.Received(1).LockCaptains(season.SeasonID);
-        _ = hub.Clients.DidNotReceive().All;
     }
 
     [Test]

@@ -3,6 +3,8 @@ import type { SeasonListItemDto } from '@api/models';
 import { SeasonService } from '@api/services/season.service';
 import { Subscription } from 'rxjs';
 import type { SeasonListFilter } from '../api/seasons';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** A filter's choice: a league or game, by ID. */
 export interface Option { id: number; name: string; }
@@ -15,6 +17,8 @@ export const SEASONS_PAGE_SIZE = 250;
 export class SeasonsStore {
   private readonly api = inject(SeasonService);
   private request?: Subscription;
+  /** The list shown: its filter, and whether it is every season (the choices come from it). */
+  private shown?: { filter: SeasonListFilter; options: boolean };
 
   private readonly _seasons = signal<SeasonListItemDto[]>([]);
   readonly seasons = this._seasons.asReadonly();
@@ -30,13 +34,23 @@ export class SeasonsStore {
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.request?.unsubscribe());
+    // A season made, changed or announced: the list shown again, in place
+    liveReload(() => [LiveTopics.seasons], () => {
+      if (this.shown)
+        this.fetch(this.shown.filter, this.shown.options);
+    });
   }
 
   /** Loads the seasons the filter picks; `options`: they are every season, so the choices come from them too. */
   load(filter: SeasonListFilter, options: boolean): void {
+    this.shown = { filter, options };
+    this._loaded.set(false);
+    this.fetch(filter, options);
+  }
+
+  private fetch(filter: SeasonListFilter, options: boolean): void {
     // Only the latest filters' list is shown: an older answer arriving late is dropped
     this.request?.unsubscribe();
-    this._loaded.set(false);
     this.request = this.api.getSeasonList(listParams(filter)).subscribe({
       next: page => {
         this._seasons.set(page.results);

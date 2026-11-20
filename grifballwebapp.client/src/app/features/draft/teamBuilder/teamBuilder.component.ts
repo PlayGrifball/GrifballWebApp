@@ -1,6 +1,6 @@
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, input, numberAttribute, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, numberAttribute, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { TeamResponseDto } from '@api/models';
 import type { TeamsPlayerDto } from '@api/models';
@@ -35,7 +35,7 @@ import { AppLog } from '@core/telemetry/appLog';
     // the server's over (the rest of the page, the header with the user, still is).
     host: { ngSkipHydration: 'true' },
 })
-export class TeamBuilderComponent implements OnInit {
+export class TeamBuilderComponent {
   private readonly log = inject(AppLog);
   /** The draft: loaded, kept up to date, and changed a move at a time. */
   readonly store = inject(TeamBuilderStore);
@@ -83,12 +83,6 @@ export class TeamBuilderComponent implements OnInit {
       const seasonID = this.seasonID();
       untracked(() => this.store.show(seasonID));
     });
-  }
-
-  ngOnInit(): void {
-    // Other users' changes, for as long as the page is open: from its first change detection, the pass in which the
-    // effect above sets its season, so a reconnect never loads the draft of season 0
-    this.store.listen();
   }
 
   /** Loads the draft from the server again. */
@@ -248,6 +242,5 @@ export class TeamBuilderComponent implements OnInit {
   DisableDraggingPlayerFromPool(playerDto: TeamsPlayerDto): boolean {
     return false; // Should only be true if has EventManager, OR has Player role & is captain & is their turn to pick
   }
-
 
 }

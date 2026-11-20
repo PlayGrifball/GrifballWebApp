@@ -12,6 +12,12 @@ export interface HistoricalSeasonRemoval {
    */
   awardsBefore: number;
   awardsRemoved: number;
+
+  /**
+   * A Late League season's ladder rows (MatchmakingLadderRank), measured apart from its stat rows.
+   */
+  ladderBefore: number;
+  ladderRemoved: number;
   removesAnything: boolean;
   seasonKey: string;
   seasonName: string | null;

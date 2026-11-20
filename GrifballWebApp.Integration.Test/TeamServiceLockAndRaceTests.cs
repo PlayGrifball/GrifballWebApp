@@ -5,7 +5,6 @@ using NSubstitute;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Application.Teams;
-using GrifballWebApp.Application.Teams.Handlers;
 using GrifballWebApp.Infrastructure.Teams;
 
 namespace GrifballWebApp.Integration.Test;
@@ -20,15 +19,13 @@ namespace GrifballWebApp.Integration.Test;
 public class TeamServiceLockAndRaceTests
 {
     private GrifballContext _context = null!;
-    private IPublisher _publisher = null!;
     private TeamService _service = null!;
 
     [SetUp]
     public async Task SetUp()
     {
-        _context = await TestDatabase.NewGrifballContext();
-        _publisher = Substitute.For<IPublisher>();
-        _service = new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
+        _context = await TestDatabase.NewGrifballContext(AppDomainEvents.Interceptor(() => _context));
+        _service = new TeamService(_context, new ContextDatabaseLocks(_context));
     }
 
     [TearDown]
@@ -51,7 +48,6 @@ public class TeamServiceLockAndRaceTests
         {
             Assert.That(new[] { add!.Message, resort!.Message, remove!.Message }, Is.All.EqualTo("Captains are locked for this season. Unlock them to change the captains"));
             Assert.That(await _context.NewContextLike().Teams.CountAsync(), Is.EqualTo(1));
-            Assert.That(_publisher.ReceivedCalls(), Is.Empty);
         }
     }
 
@@ -93,7 +89,7 @@ public class TeamServiceLockAndRaceTests
         var contexts = Enumerable.Range(0, 6).Select(_ => _context.NewContextLike()).ToList();
         var results = await Task.WhenAll(contexts.Select(async (ctx, i) =>
         {
-            var service = new TeamService(ctx, Substitute.For<IPublisher>(), new OutboxDraftChannel(ctx, new ContextOutbox(ctx)), new ContextDatabaseLocks(ctx));
+            var service = new TeamService(ctx, new ContextDatabaseLocks(ctx));
             try
             {
                 await service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = i % 2 == 0 ? capA.Id : capB.Id, PersonID = player.Id }, commish.Id);
@@ -130,26 +126,5 @@ public class TeamServiceLockAndRaceTests
 
         Assert.That(returned, Does.Match("^The Thirty Character Team [0-9a-f]{4}$"));
         Assert.That(returned, Has.Length.LessThanOrEqualTo(30));
-    }
-
-    [Test]
-    public async Task AddCaptain_Broadcast_NamesTheCaptainAsTheDraftDoes_WithTheRealTeamId()
-    {
-        var season = await _context.AddSeason();
-        var cap = await _context.AddUser("capuser", displayName: null, gamertag: "CapGT");
-        await _context.AddSignup(season, cap);
-
-        await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = cap.Id, OrderNumber = 1 }, resortOnly: false);
-
-        var note = (Notification<CaptainAddedDto>)_publisher.ReceivedCalls().Single().GetArguments()[0]!;
-        var teamId = await _service.CaptainsTeamID(season.SeasonID, cap.Id);
-        var teams = await _service.GetTeams(season.SeasonID);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(note.Value.CaptainName, Is.EqualTo("CapGT"));
-            Assert.That(note.Value.CaptainName, Is.EqualTo(teams.Single().Captain.Name));
-            Assert.That(note.Value.TeamID, Is.Not.Zero.And.EqualTo(teamId));
-            Assert.That(teams.Single().TeamID, Is.EqualTo(teamId));
-        }
     }
 }

@@ -1,12 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
-using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.Preview;
-using GrifballWebApp.Server.Teams;
+using GrifballWebApp.Server.Live;
+using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Identity;
@@ -23,7 +23,7 @@ namespace GrifballWebApp.Integration.Test;
 /// <summary>
 /// Hub connections stay only as long as their user may have them: real SignalR connections (WebSockets, signed in by the browser's
 /// cookie) to the real <see cref="ServerProgram"/> in preview mode, each test with users of its own. A sign-out, a role removed, an
-/// expired cookie: the connection is closed, its next call refused, and a staff group's pushes stop reaching it. The other pods'
+/// expired cookie: the connection is closed, its next call refused. The other pods'
 /// connections (through Redis): SignalRBackplaneTests. Non-parallelizable: Program.Main swaps the static Serilog logger.
 /// </summary>
 [TestFixture]
@@ -32,6 +32,7 @@ public class HubSessionTests
 {
     private const string Password = "Hub-Session-Password-1";
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(20);
+    private static readonly string[] CommissionerRole = ["Commissioner"];
 
     private string _connectionString = null!;
     private WebApplicationFactory<ServerProgram> _factory = null!;
@@ -147,19 +148,12 @@ public class HubSessionTests
     }
 
     /// <summary>
-    /// Once the hub has finished connecting the TeamsHub connection (its groups joined): StartAsync returns at the handshake, before
+    /// Once the hub has finished connecting the connection: StartAsync returns at the handshake, before
     /// OnConnectedAsync has run, and the hub takes a call only after it.
     /// </summary>
     private static async Task Joined(HubConnection connection)
     {
-        try
-        {
-            await connection.InvokeAsync<List<TeamResponseDto>>("GetTeams", 0);
-        }
-        catch (HubException)
-        {
-            // No such season: answered, which is all this waits for
-        }
+        await connection.InvokeAsync<List<string>>(nameof(ILiveHubServer.Watch), new List<string>());
     }
 
     /// <summary>Whether <paramref name="closed"/> happens within <see cref="Wait"/>.</summary>
@@ -171,14 +165,14 @@ public class HubSessionTests
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<GrifballContext>();
         var roleId = await db.Roles.Where(r => r.Name == role).Select(r => r.Id).SingleAsync();
-        await db.UserRoles.Where(r => r.UserId == userId && r.RoleId == roleId).ExecuteDeleteAsync();
+        Assert.That(await db.UserRoles.Where(r => r.UserId == userId && r.RoleId == roleId).ExecuteDeleteAsync(), Is.EqualTo(1), "the role was the user's, and is gone");
     }
 
     [Test]
     public async Task SigningOut_ClosesTheUsersConnection()
     {
         var (_, cookie) = await SignedIn([]);
-        var (_, closed) = await Connect("QueueHub", cookie);
+        var (_, closed) = await Connect(LiveHub.Path, cookie);
 
         using var browser = Browser();
         using var logout = new HttpRequestMessage(HttpMethod.Post, "/identity/logout");
@@ -198,38 +192,40 @@ public class HubSessionTests
     public async Task ARoleRemovedBehindTheAppsBack_FailsTheNextCall_AndClosesTheConnection()
     {
         var (id, cookie) = await SignedIn(["Commissioner"]);
-        var (connection, closed) = await Connect("TeamsHub", cookie);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+            Assert.That(await users.GetRolesAsync((await users.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture)))!), Is.EqualTo(CommissionerRole), "a commissioner before connecting");
+        }
+        var (connection, closed) = await Connect(LiveHub.Path, cookie);
         Assert.That(connection.State, Is.EqualTo(HubConnectionState.Connected));
+        // The server has the connection, with the user as they are: a call answered (a start returns before it does)
+        await Joined(connection);
 
         await RemoveRoleBehindTheAppsBack(id, "Commissioner");
 
-        Assert.That(async () => await connection.InvokeAsync("LockCaptains", 1), Throws.Exception);
+        // What the call's check compares: the roles the connection was made with, and the user's now
+        var connected = _factory.Services.GetRequiredService<HubConnections>().SignedIn().Single(c => c.User.UserId == id).User;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+            var now = await users.GetRolesAsync((await users.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture)))!);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(connected.Roles, Is.EqualTo(CommissionerRole), "connected as a commissioner");
+                Assert.That(now, Is.Empty, "the role is gone");
+            }
+        }
+        Assert.That(async () => await connection.InvokeAsync<List<string>>(nameof(ILiveHubServer.Watch), new List<string>()), Throws.Exception);
         Assert.That(await ClosesSoon(closed), Is.True);
     }
 
     [Test]
-    public async Task ARoleRemoved_BeforeConnecting_WithTheOldCookie_IsNoRoleForTheHub()
-    {
-        // The cookie still says Commissioner (it's checked against the database every few minutes only): the hub asks the database
-        var (id, cookie) = await SignedIn(["Commissioner"]);
-        await RemoveRoleBehindTheAppsBack(id, "Commissioner");
-        var (connection, closed) = await Connect("TeamsHub", cookie);
-
-        Assert.That(async () => await connection.InvokeAsync("LockCaptains", 1), Throws.Exception);
-        Assert.That(await ClosesSoon(closed), Is.True);
-    }
-
-    [Test]
-    public async Task ARemovedStaffMember_StopsGettingTheStaffGroupsPushes()
+    public async Task ARemovedStaffMember_TheirConnectionIsClosed()
     {
         var (id, cookie) = await SignedIn(["Commissioner"]);
-        var hub = _factory.Services.GetRequiredService<IHubContext<TeamsHub, ITeamsHubClient>>();
-        var (staff, closed) = await Connect("TeamsHub", cookie);
-        var pushed = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        staff.On<int>(nameof(ITeamsHubClient.LockCaptains), seasonID => pushed.TrySetResult(seasonID));
+        var (staff, closed) = await Connect(LiveHub.Path, cookie);
         await Joined(staff);
-        await hub.Clients.Group(TeamsHub.StaffGroup).LockCaptains(41);
-        Assert.That(await pushed.Task.WaitAsync(Wait), Is.EqualTo(41), "staff get the staff group's pushes");
 
         // Through Identity, as the user management page does: the save ends their connections at once
         using (var scope = _factory.Services.CreateScope())
@@ -238,28 +234,9 @@ public class HubSessionTests
             Assert.That((await users.RemoveFromRoleAsync((await users.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture)))!, "Commissioner")).Succeeded, Is.True);
         }
         Assert.That(await ClosesSoon(closed), Is.True, "a connection that only listens is closed too");
-
-        // Back with the same cookie, which still says Commissioner: in no staff group
-        var (again, _) = await Connect("TeamsHub", cookie);
-        var pushedAgain = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        again.On<int>(nameof(ITeamsHubClient.LockCaptains), seasonID => pushedAgain.TrySetResult(seasonID));
-        var everyone = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        again.On<int>(nameof(ITeamsHubClient.UnlockCaptains), seasonID => everyone.TrySetResult(seasonID));
-        await Joined(again);
-        await hub.Clients.Group(TeamsHub.StaffGroup).LockCaptains(42);
-        // Sent after the staff group's: by the time it arrives, the staff group's would have
-        await hub.Clients.All.UnlockCaptains(44);
-
-        var everyonesPush = await everyone.Task.WaitAsync(Wait);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(everyonesPush, Is.EqualTo(44), "connected, and gets everyone's pushes");
-            Assert.That(pushedAgain.Task.IsCompleted, Is.False, "not the staff group's");
-        }
     }
 
-    [TestCase("TeamsHub")]
-    [TestCase("QueueHub")]
+    [TestCase("LiveHub")]
     [TestCase("ChatHub")]
     public async Task AnExpiredCookie_ClosesTheConnection_OnEveryHub(string hub)
     {

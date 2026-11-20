@@ -58,7 +58,7 @@ public class NotificationsTests
         }
     }
 
-    /// <summary>Like SignalRHandler and DiscordHandler: abstract, so not registered itself.</summary>
+    /// <summary>An abstract handler: not registered itself.</summary>
     public abstract class AbstractPongHandler : INotificationHandler<Pong>
     {
         public abstract Task Handle(Pong notification, CancellationToken cancellationToken);
@@ -180,7 +180,7 @@ public class NotificationsTests
     [Test]
     public async Task Publish_Should_BuildTheHandlers_InThePublishersScope()
     {
-        // TeamService gets IPublisher in a request: its handlers must come from that request's scope.
+        // A service gets IPublisher in a request: its handlers must come from that request's scope.
         FirstPingHandler? seen = null;
         await using var provider = Build(services =>
         {

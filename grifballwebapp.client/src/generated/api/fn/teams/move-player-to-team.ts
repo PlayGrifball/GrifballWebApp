@@ -11,7 +11,6 @@ import { MovePlayerToTeamRequestDto } from '../../models/move-player-to-team-req
 
 export interface MovePlayerToTeam$Params {
   seasonID: number;
-  signalRConnectionID?: string;
       body?: MovePlayerToTeamRequestDto
 }
 
@@ -19,7 +18,6 @@ export function movePlayerToTeam(http: HttpClient, rootUrl: string, params: Move
   const rb = new RequestBuilder(rootUrl, movePlayerToTeam.PATH, 'post');
   if (params) {
     rb.path('seasonID', params.seasonID, {});
-    rb.header('signalRConnectionID', params.signalRConnectionID, {});
     rb.body(params.body, 'application/json');
   }
 

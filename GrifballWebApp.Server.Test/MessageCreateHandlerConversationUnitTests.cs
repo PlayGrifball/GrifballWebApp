@@ -54,6 +54,9 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private readonly IDiscordRestClient _rest = Substitute.For<IDiscordRestClient>();
     private readonly FakeRestRequestHandler _discord = new() { EchoContent = true, UniqueIds = true };
     private ServiceProvider _services = null!;
+    /// <summary>The chat's models, as <see cref="Handler"/> gives the factory; the single Ollama model unless a test sets more.</summary>
+    private IReadOnlyList<ChatModelOption>? _configuredModels;
+    private IChatClientFactory _chatClients = null!;
 
     [TearDown]
     public async Task TearDownServices()
@@ -98,10 +101,11 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .BuildServiceProvider();
         var chatClients = Substitute.For<IChatClientFactory>();
         chatClients.Available.Returns(_modelConfigured);
-        chatClients.Models.Returns([new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b")]);
+        chatClients.Models.Returns(_configuredModels ?? [new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b")]);
         if (_modelsFail is { } fail)
             chatClients.Models.Returns(_ => throw fail);
         chatClients.Create(Arg.Any<ChatModelOption>()).Returns(models.Length == 1 ? models[0] : new ChatClientSequence(models));
+        _chatClients = chatClients;
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
         return new MessageCreateHandler(_rest, config, scopes, _ambient, _logger, new GrifChat(new ChatModel(chatClients, NullLoggerFactory.Instance), scopes, _limits,
@@ -215,6 +219,64 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             _ambient.UserId = user.Id;
             _ambient.End();
         });
+    }
+
+    [Test]
+    public async Task HandleAsync_InAChannel_ALinkedAuthorWithAGamertag_GetsTheSignedInOnlyModel()
+    {
+        await AddUser(AuthorId, "Linked");
+        var signedInOnly = new ChatModelOption("claude-haiku", "Claude Haiku", ChatProvider.Anthropic, "claude-haiku-5-5") { SignedIn = true };
+        var free = new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b");
+        _configuredModels = [signedInOnly, free];
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi there"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            _chatClients.Received(1).Create(signedInOnly);
+            _chatClients.DidNotReceive().Create(free);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_InAChannel_ALinkedAuthorWithNoGamertag_StillGetsTheSignedInOnlyModel()
+    {
+        // A real account, linked only through /setgamertag or a site sign-in with Discord: either signs them in on the
+        // site too, so they count as signed in here whether or not they ever set a gamertag (unlike a dummy placeholder).
+        await AddDiscordOnlyUser(AuthorId);
+        var signedInOnly = new ChatModelOption("claude-haiku", "Claude Haiku", ChatProvider.Anthropic, "claude-haiku-5-5") { SignedIn = true };
+        var free = new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b");
+        _configuredModels = [signedInOnly, free];
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi there"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            _chatClients.Received(1).Create(signedInOnly);
+            _chatClients.DidNotReceive().Create(free);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_InAChannel_AnUnlinkedAuthor_GetsTheOpenModel_NeverTheSignedInOnlyOne()
+    {
+        var signedInOnly = new ChatModelOption("claude-haiku", "Claude Haiku", ChatProvider.Anthropic, "claude-haiku-5-5") { SignedIn = true };
+        var free = new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b");
+        _configuredModels = [signedInOnly, free];
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi there"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            _chatClients.Received(1).Create(free);
+            _chatClients.DidNotReceive().Create(signedInOnly);
+        }
     }
 
     [Test]

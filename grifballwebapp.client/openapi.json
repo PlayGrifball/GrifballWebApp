@@ -7431,13 +7431,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -7513,13 +7506,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -7587,13 +7573,6 @@
             "schema": {
               "type": "integer",
               "format": "int32"
-            }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -7663,13 +7642,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -7737,13 +7709,6 @@
             "schema": {
               "type": "integer",
               "format": "int32"
-            }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -7813,13 +7778,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -7888,13 +7846,6 @@
               "type": "integer",
               "format": "int32"
             }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -7939,13 +7890,6 @@
             "schema": {
               "type": "integer",
               "format": "int32"
-            }
-          },
-          {
-            "name": "signalRConnectionID",
-            "in": "header",
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -9811,6 +9755,29 @@
         },
         "additionalProperties": false
       },
+      "BracketLiveDto": {
+        "required": [
+          "seasonID",
+          "viewerData"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "viewerData": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ViewerDataDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season's playoff bracket as brackets-viewer draws it; null for a season with none."
+      },
       "BracketsMatch": {
         "required": [
           "child_count",
@@ -9879,42 +9846,6 @@
           "child_count": {
             "type": "integer",
             "description": "The count of match games this match has. Can be `0` if it's a simple match, or a positive number for \"Best Of\" matches.",
-            "format": "int32"
-          }
-        },
-        "additionalProperties": false
-      },
-      "CaptainAddedDto": {
-        "required": [
-          "captainName",
-          "orderNumber",
-          "personID",
-          "seasonID",
-          "teamID",
-          "teamName"
-        ],
-        "type": "object",
-        "properties": {
-          "seasonID": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "personID": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "teamID": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "teamName": {
-            "type": "string"
-          },
-          "captainName": {
-            "type": "string"
-          },
-          "orderNumber": {
-            "type": "integer",
             "format": "int32"
           }
         },
@@ -10706,6 +10637,38 @@
         },
         "additionalProperties": false,
         "description": "A player's career across every format: seasons, games, wins, goals and kills a game, and titles."
+      },
+      "DraftLiveDto": {
+        "required": [
+          "captainsLocked",
+          "pool",
+          "seasonID",
+          "teams"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamResponseDto"
+            }
+          },
+          "pool": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamsPlayerDto"
+            }
+          },
+          "captainsLocked": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season's draft as its page shows it: what its three reads give (the teams, the player pool, the lock)."
       },
       "DraftPoolPlayer": {
         "required": [
@@ -11745,6 +11708,9 @@
           "errors",
           "gamesLinked",
           "importJobID",
+          "ladderRanksInserted",
+          "ladderRanksRemoved",
+          "ladderRanksUpdated",
           "manualReplacedByWaypoint",
           "matchmakingSeasonsCreated",
           "matchmakingSeasonsUpdated",
@@ -11818,6 +11784,19 @@
             "format": "int32"
           },
           "statsUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ladderRanksInserted": {
+            "type": "integer",
+            "description": "Late League ladder rows (a player's place on a matchmaking season's ladder) added, updated and removed (no longer\n            on the ladder).",
+            "format": "int32"
+          },
+          "ladderRanksUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ladderRanksRemoved": {
             "type": "integer",
             "format": "int32"
           },
@@ -12009,6 +11988,8 @@
         "required": [
           "awardsBefore",
           "awardsRemoved",
+          "ladderBefore",
+          "ladderRemoved",
           "removesAnything",
           "seasonKey",
           "seasonName",
@@ -12051,6 +12032,15 @@
             "format": "int32"
           },
           "titlesRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ladderBefore": {
+            "type": "integer",
+            "description": "A Late League season's ladder rows (MatchmakingLadderRank), measured apart from its stat rows.",
+            "format": "int32"
+          },
+          "ladderRemoved": {
             "type": "integer",
             "format": "int32"
           },
@@ -13301,6 +13291,76 @@
         "additionalProperties": false,
         "description": "brackets-model's MatchGame extends MatchResults (status, opponent1, opponent2), like Match."
       },
+      "MatchmakingLadderRankDto": {
+        "required": [
+          "division",
+          "gamertag",
+          "league",
+          "leaguePoints",
+          "losses",
+          "mmr",
+          "position",
+          "rank",
+          "streak",
+          "userID",
+          "wins"
+        ],
+        "type": "object",
+        "properties": {
+          "userID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gamertag": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "division": {
+            "type": "string",
+            "nullable": true
+          },
+          "league": {
+            "type": "string",
+            "nullable": true
+          },
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "leaguePoints": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "streak": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "mmr": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "wins": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "losses": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A player's place on a matchmaking season's ladder (GrifballWebApp.Domain.LateLeague.MatchmakingLadderRank), as its sheet gives it."
+      },
       "MatchmakingPlayerStatDto": {
         "required": [
           "assists",
@@ -13445,6 +13505,7 @@
       },
       "MatchmakingSeasonDetailDto": {
         "required": [
+          "ladder",
           "players",
           "season"
         ],
@@ -13463,6 +13524,13 @@
             "items": {
               "$ref": "#/components/schemas/MatchmakingPlayerStatDto"
             }
+          },
+          "ladder": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchmakingLadderRankDto"
+            },
+            "description": "The season's ladder (its ranked standings), top first; empty when the archive has none."
           }
         },
         "additionalProperties": false
@@ -13476,6 +13544,7 @@
           "gameVersionSlug",
           "historicalSourceUrl",
           "isHistorical",
+          "ladderCount",
           "matchmakingSeasonID",
           "name",
           "playerCount",
@@ -13517,6 +13586,11 @@
           },
           "playerCount": {
             "type": "integer",
+            "format": "int32"
+          },
+          "ladderCount": {
+            "type": "integer",
+            "description": "How many players its ladder ranks (GrifballWebApp.Domain.LateLeague.MatchmakingLadderRank).",
             "format": "int32"
           },
           "isHistorical": {
@@ -14706,6 +14780,81 @@
         },
         "additionalProperties": false
       },
+      "PresenceMember": {
+        "required": [
+          "name",
+          "userID"
+        ],
+        "type": "object",
+        "properties": {
+          "userID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A member on a page: the name the site shows for them (never their login name; null when they have none)."
+      },
+      "PresencePage": {
+        "required": [
+          "guests",
+          "members",
+          "path"
+        ],
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "guests": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PresenceMember"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A page and who is on it: the members by name, and how many guests."
+      },
+      "PresenceSnapshot": {
+        "required": [
+          "guests",
+          "members",
+          "online",
+          "pages"
+        ],
+        "type": "object",
+        "properties": {
+          "online": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "members": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "guests": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PresencePage"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "Who is on the site now, as the footer shows it: how many (members, each counted once however many tabs they have open,\nand guests, a tab each), and the pages they are on, the busiest first, with the members on each by name. A page is its\nroute; a staff page, or the page of a season not announced yet, is the staff area alone (GrifballWebApp.Application.Live.PresenceSnapshot.StaffArea)."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -14890,6 +15039,20 @@
           }
         },
         "additionalProperties": false
+      },
+      "QueueLiveDto": {
+        "required": [
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "The matchmaking queue's size."
       },
       "QueueStatusDto": {
         "required": [
@@ -16160,6 +16323,58 @@
         "additionalProperties": false,
         "description": "A season in the season list: every season that has started, imported or played in the app alike."
       },
+      "SeasonLiveDto": {
+        "required": [
+          "playerStats",
+          "scheduled",
+          "seasonID",
+          "standings",
+          "summary",
+          "unscheduled"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "summary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonSummaryDto"
+              }
+            ],
+            "description": "A season's page header: what it is, its champions, and how much of each kind of data it has, so the page can say\nwhat is missing (a season backfilled from the historical archive has teams and stats but no signups or schedule;\none with Waypoint matches has those too).",
+            "nullable": true
+          },
+          "standings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamStandingDto"
+            }
+          },
+          "scheduled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduledMatchDto"
+            }
+          },
+          "unscheduled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnscheduledMatchDto"
+            }
+          },
+          "playerStats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonPlayerStatDto"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season's page as it shows it: its summary (header, champions, awards), standings, scheduled and unscheduled matches\n(this week's are the scheduled ones), and its players' stats, the season's whole. Its bracket, teams page and team\npages have topics of their own."
+      },
       "SeasonMatchDecisionDto": {
         "enum": [
           "Games",
@@ -16901,6 +17116,22 @@
           }
         },
         "additionalProperties": false
+      },
+      "SeasonsLiveDto": {
+        "required": [
+          "events"
+        ],
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "The home page's current and coming events, as its viewer may see them."
       },
       "SeedOrdering": {
         "enum": [
@@ -17658,6 +17889,43 @@
         "additionalProperties": false,
         "description": "One season of a franchise: that season's team."
       },
+      "TeamLiveDto": {
+        "required": [
+          "matches",
+          "playerStats",
+          "team",
+          "teamID"
+        ],
+        "type": "object",
+        "properties": {
+          "teamID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "team": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TeamDto"
+              }
+            ],
+            "nullable": true
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamPageMatchDto"
+            }
+          },
+          "playerStats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonPlayerStatDto"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A team's page: the team (null once it is gone), its matches, and its players' stats for its season."
+      },
       "TeamPageMatchDto": {
         "required": [
           "bestOf",
@@ -17909,6 +18177,38 @@
           }
         },
         "additionalProperties": false
+      },
+      "TeamsLiveDto": {
+        "required": [
+          "seasonID",
+          "summary",
+          "teams"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "summary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonSummaryDto"
+              }
+            ],
+            "description": "A season's page header: what it is, its champions, and how much of each kind of data it has, so the page can say\nwhat is missing (a season backfilled from the historical archive has teams and stats but no signups or schedule;\none with Waypoint matches has those too).",
+            "nullable": true
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonTeamDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season's teams page: its banner (the summary) and its teams with their rosters and records."
       },
       "TeamsPlayerDto": {
         "required": [

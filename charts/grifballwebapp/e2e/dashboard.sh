@@ -116,7 +116,7 @@ kubectl -n "$ns" rollout status deploy/grif-frontend --timeout=300s
 
 # Traffic, all through the frontend (the backend takes requests only from it, NetworkPolicy): pages (server rendering,
 # which calls the API) and the API it proxies, a 404 among them, the health check that runs every check (the memory one
-# Degraded: a warning), and a SignalR connection to the queue's hub (negotiate, then a few seconds of server-sent
+# Degraded: a warning), and a SignalR connection to the live hub (negotiate, then a few seconds of server-sent
 # events) for Live connections
 kubectl -n "$ns" run traffic --image=docker.io/curlimages/curl:8.16.0 --restart=Never --command -- sleep 900
 kubectl -n "$ns" wait --for=condition=Ready pod/traffic --timeout=120s
@@ -124,11 +124,11 @@ for i in $(seq 1 6); do
   for url in http://grif-frontend/ http://grif-frontend/seasons http://grif-frontend/api/seasons http://grif-frontend/api/does-not-exist http://grif-frontend/api/health; do
     kubectl -n "$ns" exec traffic -- curl -s -o /dev/null -w "%{http_code} $url\n" --max-time 20 "$url" || true
   done
-  token=$(kubectl -n "$ns" exec traffic -- curl -s -X POST --max-time 20 "http://grif-frontend/hub/QueueHub/negotiate?negotiateVersion=1" \
+  token=$(kubectl -n "$ns" exec traffic -- curl -s -X POST --max-time 20 "http://grif-frontend/hub/LiveHub/negotiate?negotiateVersion=1" \
     | sed -n 's/.*"connectionToken":"\([^"]*\)".*/\1/p' || true)
   echo "SignalR connection: ${token:-none}"
   if [[ -n "$token" ]]; then
-    kubectl -n "$ns" exec traffic -- curl -s -o /dev/null -H 'Accept: text/event-stream' --max-time 5 "http://grif-frontend/hub/QueueHub?id=$token" || true
+    kubectl -n "$ns" exec traffic -- curl -s -o /dev/null -H 'Accept: text/event-stream' --max-time 5 "http://grif-frontend/hub/LiveHub?id=$token" || true
   fi
   sleep 5
 done

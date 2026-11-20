@@ -52,6 +52,7 @@ public interface IApplicationDbContext
     DbSet<MatchedMatch> MatchedMatches { get; }
     DbSet<MatchmakingSeason> MatchmakingSeasons { get; }
     DbSet<MatchmakingPlayerStat> MatchmakingPlayerStats { get; }
+    DbSet<MatchmakingLadderRank> MatchmakingLadderRanks { get; }
     DbSet<MatchReschedule> MatchReschedules { get; }
     DbSet<PasswordResetLink> PasswordResetLinks { get; }
     DbSet<ScheduleRecommendation> ScheduleRecommendations { get; }

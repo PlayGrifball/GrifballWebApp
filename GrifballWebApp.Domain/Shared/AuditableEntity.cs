@@ -2,9 +2,10 @@ namespace GrifballWebApp.Domain.Shared;
 
 /// <summary>
 /// The shared base of the audited models: who made and last changed a row, and when. The columns are the audit
-/// interceptor's alone, which sets them through <see cref="IAuditStamp"/> as it saves; nothing else writes them.
+/// interceptor's alone, which sets them through <see cref="IAuditStamp"/> as it saves; nothing else writes them. Its methods
+/// raise their domain events through <see cref="RaisesDomainEvents"/>.
 /// </summary>
-public abstract class AuditableEntity : IAuditStamp
+public abstract class AuditableEntity : RaisesDomainEvents, IAuditStamp
 {
     public int? CreatedByID { get; private set; }
     public int? ModifiedByID { get; private set; }

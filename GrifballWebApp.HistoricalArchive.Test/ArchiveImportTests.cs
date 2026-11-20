@@ -1,4 +1,5 @@
 using System.Text;
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Historical.Sources;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ public class ArchiveImportTests
     private sealed record SeasonCounts(string Name, string SourceID, string Format, int Teams, int Captains, int Ranked, int Finished, int Stats, int PlayoffStats,
         int Matches, int PlayoffMatches, int Titles, int Awards, int Mvps, int CaptainsOrdered, int Picks, int PicksNumbered);
 
-    private sealed record LateLeagueCounts(string Name, string? SourceID, int Stats, int Games);
+    private sealed record LateLeagueCounts(string Name, string? SourceID, int Stats, int Games, int Ladder);
 
     // Read once: the database doesn't change after the import
     private static readonly Lazy<Task<List<SeasonCounts>>> SeasonsRead = new(async () =>
@@ -38,7 +39,7 @@ public class ArchiveImportTests
         await using var context = Archive.NewContext();
         return await context.MatchmakingSeasons.AsNoTracking().Where(s => s.HistoricalSourceID != null)
             .OrderBy(s => s.StartsAt).ThenBy(s => s.Name)
-            .Select(s => new LateLeagueCounts(s.Name, s.HistoricalSourceID, s.PlayerStats.Count, s.MatchedMatches.Count))
+            .Select(s => new LateLeagueCounts(s.Name, s.HistoricalSourceID, s.PlayerStats.Count, s.MatchedMatches.Count, s.LadderRanks.Count))
             .ToListAsync();
     });
 
@@ -74,6 +75,39 @@ public class ArchiveImportTests
         Assert.That(Archive.Report.MissingMatches.Where(m => !waypoint.Any(w => m.StartsWith(w + " ", StringComparison.OrdinalIgnoreCase))), Is.Empty);
     }
 
+    private static bool IsGrifballHub(string sourceID) => sourceID.StartsWith("history-grifballhub-db/", StringComparison.Ordinal);
+
+    private static readonly HashSet<string> GrifballHubStatsSeasons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "history-grifballhub-db/Player_Stats#sagla-fl17-am",
+        "history-grifballhub-db/Player_Stats#sagla-fl17-legacy",
+        "history-grifballhub-db/Player_Stats#sagla-fl17-pro",
+        "history-grifballhub-db/Player_Stats#seugbl-bid-2014",
+        "history-grifballhub-db/Player_Stats#seugbl-s17",
+        "history-grifballhub-db/Player_Stats#seugbl-s20",
+        "history-grifballhub-db/Player_Stats#sggl-sml17",
+    };
+
+    /// <summary>GrifballHub seasons whose original pages or team rosters omitted captain or champion roster records.</summary>
+    private static readonly HashSet<string> GrifballHubSeasonsWithoutTitles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "history-grifballhub-db/Player_Stats#sagla-fl17-am",
+        "history-grifballhub-db/Player_Stats#sagla-fl17-legacy",
+        "history-grifballhub-db/Player_Stats#sagla-fl17-pro",
+        "history-grifballhub-db/Player_Stats#seugbl-bid-2014",
+        "history-grifballhub-db/Player_Stats#sggl-fl15",
+        "history-grifballhub-db/Player_Stats#sggl-fl16",
+        "history-grifballhub-db/Player_Stats#sggl-sl15",
+        "history-grifballhub-db/Player_Stats#sggl-sl16",
+        "history-grifballhub-db/Player_Stats#sggl-sml11",
+        "history-grifballhub-db/Player_Stats#sggl-sml12",
+        "history-grifballhub-db/Player_Stats#sggl-sml13",
+        "history-grifballhub-db/Player_Stats#sggl-sml14",
+        "history-grifballhub-db/Player_Stats#sggl-sml17",
+        "history-grifballhub-db/Player_Stats#sggl-wl11",
+        "history-grifballhub-db/Player_Stats#sggl-wl13",
+    };
+
     [Test]
     public async Task EverySeason_HasTeams()
     {
@@ -83,7 +117,8 @@ public class ArchiveImportTests
     [Test]
     public async Task EverySeason_HasStats()
     {
-        Assert.That((await Seasons()).Where(s => s.Stats == 0).Select(s => s.Name), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.Stats == 0 && !(IsGrifballHub(s.SourceID) && !GrifballHubStatsSeasons.Contains(s.SourceID)))
+            .Select(s => s.Name), Is.Empty);
     }
 
     /// <summary>A line from a tab that counts rounds, not games (the Infinite stats tool's, 2025 on: its rounds are kept in
@@ -115,7 +150,8 @@ public class ArchiveImportTests
     [Test]
     public async Task EveryTeam_HasACaptain()
     {
-        Assert.That((await Seasons()).Where(s => s.Captains < s.Teams).Select(s => $"{s.Name}: {s.Captains} of {s.Teams}"), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.Captains < s.Teams && !IsGrifballHub(s.SourceID))
+            .Select(s => $"{s.Name}: {s.Captains} of {s.Teams}"), Is.Empty);
     }
 
     /// <summary>The seasons (their source IDs' workbook) whose catalog entries name a draft tab that isn't a bid draft's.</summary>
@@ -153,7 +189,9 @@ public class ArchiveImportTests
     [Test]
     public async Task EverySeason_PlacesItsTeams()
     {
-        Assert.That((await Seasons()).Where(s => s.Ranked == 0 && s.Finished == 0).Select(s => s.Name), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.Ranked == 0 && s.Finished == 0
+            && !(IsGrifballHub(s.SourceID) && !s.SourceID.StartsWith("history-grifballhub-db/Player_Stats#", StringComparison.Ordinal)))
+            .Select(s => s.Name), Is.Empty);
     }
 
     /// <summary>A season whose standings rank some teams ranks every one: a team left out is a name its standings spell
@@ -167,16 +205,69 @@ public class ArchiveImportTests
     [Test]
     public async Task EverySeason_HasAChampion()
     {
-        Assert.That((await Seasons()).Where(s => s.Titles == 0).Select(s => s.Name), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.Titles == 0 && !GrifballHubSeasonsWithoutTitles.Contains(s.SourceID)).Select(s => s.Name), Is.Empty);
     }
 
-    /// <summary>Not the seasons whose games are Waypoint matches: no run here has them.</summary>
+    /// <summary>Seasons whose archive supplies a bracket or playoff recorded games (not Waypoint seasons, nor sheets with playoff stat totals only).</summary>
     [Test]
     public async Task EverySeasonWithPlayoffs_HasABracket()
     {
         var waypoint = Archive.WaypointSeasons;
+        var playoffSources = Archive.Build.Input.Seasons.Seasons
+            .Where(s => s.Bracket is { Series.Count: > 0 })
+            .Select(s => s.HistoricalSourceId ?? HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!))
+            .Concat((Archive.Build.Input.RecordedGames ?? []).Where(g => g.IsPlayoffs).Select(g => g.SeasonSourceId))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.That((await Seasons()).Where(s => s.PlayoffStats > 0 && s.PlayoffMatches == 0 && !waypoint.Contains(s.SourceID)).Select(s => s.Name), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.PlayoffStats > 0 && s.PlayoffMatches == 0 && !waypoint.Contains(s.SourceID) && playoffSources.Contains(s.SourceID))
+            .Select(s => s.Name), Is.Empty);
+    }
+
+    /// <summary>The seasons of the website databases (grifball.com 2008-2010, grifball.info 2011-2013): each has the games
+    /// and forfeits its database kept, as season matches.</summary>
+    [Test]
+    public async Task EveryWebsiteSeason_HasMatches()
+    {
+        Assert.That((await Seasons()).Where(s => (s.SourceID.StartsWith("history-grifball-com-db/", StringComparison.Ordinal)
+            || s.SourceID.StartsWith("history-grifball-info-db/", StringComparison.Ordinal)) && s.Matches == 0).Select(s => s.Name), Is.Empty);
+    }
+
+    /// <summary>The games of the result lists (and of the game histories' forfeits), by season: what their source puts in a series.</summary>
+    private static Dictionary<string, List<string>> ResultListGames()
+        => (Archive.Build.Input.RecordedGames ?? []).Where(g => g.Series is not null)
+            .GroupBy(g => g.SeasonSourceId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.SourceKey).ToList(), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A season with a result list imports its matches: each of the list's games is in one of its series.</summary>
+    [Test]
+    public async Task EverySeasonWithAResultList_ImportsItsMatches()
+    {
+        await using var context = Archive.NewContext();
+        var missing = new List<string>();
+        foreach (var (season, keys) in ResultListGames())
+        {
+            var linked = await context.RecordedGames.CountAsync(g => keys.Contains(g.SourceKey) && g.SeriesGame != null);
+            var matches = await context.SeasonMatches.CountAsync(m => m.Season.HistoricalSourceID == season);
+            if (linked < keys.Count || matches == 0)
+                missing.Add($"{season}: {linked} of {keys.Count} listed games in a series, {matches} matches");
+        }
+
+        Assert.That(missing, Is.Empty);
+    }
+
+    /// <summary>Each side of a result list's game is one of its season's teams: a side without one is a name the list spells
+    /// another way than the season (an alias for its tab, ResultsTab.Teams), or a team the season doesn't have.</summary>
+    [Test]
+    public async Task EveryResultListGame_IsBetweenTheSeasonsTeams()
+    {
+        await using var context = Archive.NewContext();
+        var keys = ResultListGames().Values.SelectMany(k => k).ToList();
+        var sides = await context.Set<GrifballWebApp.Domain.Archive.RecordedGameTeam>().AsNoTracking()
+            .Where(t => t.TeamID == null && keys.Contains(t.RecordedGame.SourceKey))
+            .Select(t => new { Season = t.RecordedGame.Season!.HistoricalSourceID, t.Name })
+            .ToListAsync();
+
+        Assert.That(sides.GroupBy(s => s.Season).Select(g => $"{g.Key}: {string.Join(", ", g.Select(s => s.Name).Distinct().Order())}"), Is.Empty);
     }
 
     /// <summary>What a season with a bracket sheet got of it: its slots and teams beside the sheet's, and the final's winner
@@ -251,7 +342,35 @@ public class ArchiveImportTests
     [Test]
     public async Task EveryLateLeagueSeason_HasStatsAndGames()
     {
-        Assert.That((await LateLeagueRead.Value).Where(s => s.Stats == 0 || s.Games == 0).Select(s => $"{s.Name}: {s.Stats} stats, {s.Games} games"), Is.Empty);
+        // A season only its ladder records (the early seasons, kept before the stats sheets) has neither
+        Assert.That((await LateLeagueRead.Value).Where(s => (s.Stats == 0 || s.Games == 0) && !(s.Stats == 0 && s.Games == 0 && s.Ladder > 0))
+            .Select(s => $"{s.Name}: {s.Stats} stats, {s.Games} games"), Is.Empty);
+    }
+
+    /// <summary>
+    /// Every ladder tab the catalog names is read onto its season, and each of its players has a row on that season's
+    /// ladder: the ladder's rows less those the import reported as a second row for the same player.
+    /// </summary>
+    [Test]
+    public async Task EveryLadderTable_ImportsItsPlayers()
+    {
+        var expected = Archive.Build.Input.Seasons.Seasons.Where(s => s.Ladder.Count > 0)
+            .GroupBy(s => HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Sum(s => s.Ladder.Count), StringComparer.OrdinalIgnoreCase);
+        var ladders = (await LateLeagueRead.Value).Where(s => s.SourceID is not null).ToDictionary(s => s.SourceID!, s => s.Ladder, StringComparer.OrdinalIgnoreCase);
+        var tabs = ArchiveSnapshots.ImportedEntries().Where(e => Archive.Snapshots.Manifest.ContainsKey(e.HistoricalSourceID))
+            .SelectMany(e => e.Config!.Ladders.Select(t => $"{e.HistoricalSourceID}: ladder '{t.Sheet}'"));
+
+        int SecondRows(string key) => Archive.Report.Skipped.Count(s => s.StartsWith($"{key}: ", StringComparison.Ordinal)
+            && s.EndsWith("is a second ladder row for the same player", StringComparison.Ordinal));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Archive.Build.Warnings.Where(w => tabs.Any(t => w.StartsWith(t, StringComparison.Ordinal))), Is.Empty, "Every ladder tab is read");
+            Assert.That(expected, Has.Count.EqualTo(tabs.Count()), "A season per ladder tab");
+            Assert.That(expected.Where(e => ladders.GetValueOrDefault(e.Key) + SecondRows(e.Key) != e.Value)
+                .Select(e => $"{e.Key}: {ladders.GetValueOrDefault(e.Key)} rows and {SecondRows(e.Key)} second rows of {e.Value} players"), Is.Empty);
+        }
     }
 
     /// <summary>Not a check: each season's counts, in <c>summary.md</c> beside the copy, to compare runs.</summary>
@@ -261,10 +380,11 @@ public class ArchiveImportTests
         var summary = new StringBuilder("## Seasons\n\n| Season | Source | Format | Teams | Captains | Ranked | Finished | Stats | Playoff stats | Matches | Playoff matches | Titles | Awards | Captains ordered | Picks | Picks numbered |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
         foreach (var s in await Seasons())
             summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Format} | {s.Teams} | {s.Captains} | {s.Ranked} | {s.Finished} | {s.Stats} | {s.PlayoffStats} | {s.Matches} | {s.PlayoffMatches} | {s.Titles} | {s.Awards} | {s.CaptainsOrdered} | {s.Picks} | {s.PicksNumbered} |");
-        summary.AppendLine().AppendLine("## Late League").AppendLine().AppendLine("| Season | Source | Stats | Games |").AppendLine("|---|---|---|---|");
+        summary.AppendLine().AppendLine("## Late League").AppendLine().AppendLine("| Season | Source | Stats | Games | Ladder |").AppendLine("|---|---|---|---|---|");
         foreach (var s in await LateLeagueRead.Value)
-            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Stats} | {s.Games} |");
+            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Stats} | {s.Games} | {s.Ladder} |");
         Section(summary, "Placings (the seasons whose standings place a team: rank / finish, record)", await Placings());
+        Section(summary, "Result lists (games listed, in a series, forfeits; sides that are none of the season's teams)", await ResultLists());
         Section(summary, "Bracket sheets (slots of the sheet's series, teams of its teams, champion: the bracket's / the titles')",
             (await BracketsRead.Value).Select(b => $"{b.Name}: {b.Slots}/{b.SheetSeries} slots, {b.Teams}/{b.SheetTeams} teams, champion {b.Champion ?? "-"} / {(b.TitleTeams.Count == 0 ? "-" : string.Join(" / ", b.TitleTeams))}"));
         Section(summary, "Awards (each season's, in its order: award, winner, team or value)", await Awards());
@@ -278,6 +398,23 @@ public class ArchiveImportTests
         await File.WriteAllTextAsync(path, summary.ToString());
 
         Assert.That(path, Does.Exist);
+    }
+
+    /// <summary>Each season with a result list: its games, how many are in a series and forfeits, and the names of its sides
+    /// that are none of its teams.</summary>
+    private static async Task<List<string>> ResultLists()
+    {
+        await using var context = Archive.NewContext();
+        var lines = new List<string>();
+        foreach (var (season, keys) in ResultListGames().OrderBy(s => s.Key, StringComparer.Ordinal))
+        {
+            var games = await context.RecordedGames.AsNoTracking().Where(g => keys.Contains(g.SourceKey))
+                .Select(g => new { Linked = g.SeriesGame != null, g.IsForfeit, Unknown = g.Teams.Where(t => t.TeamID == null).Select(t => t.Name).ToList() })
+                .ToListAsync();
+            var unknown = games.SelectMany(g => g.Unknown).OfType<string>().Distinct().Order().ToList();
+            lines.Add($"{season}: {keys.Count} listed, {games.Count(g => g.Linked)} in a series, {games.Count(g => g.IsForfeit)} forfeits" + (unknown.Count > 0 ? $"; not a team: {string.Join(", ", unknown)}" : ""));
+        }
+        return lines;
     }
 
     /// <summary>Each season whose standings place a team: its teams in their order, the unplaced last.</summary>

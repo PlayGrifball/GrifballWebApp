@@ -28,7 +28,9 @@ public class PlayerSeasonStat : PlayerStatTotals
         int stintIndex = 1, bool isPlayoffs = false, bool isCombined = false, string tradeNote = null, string roleNote = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(stintIndex, 1);
-        return Seed(totals, seasonID, userID, gameVersionID, teamID, stintIndex, isPlayoffs, isCombined, tradeNote, roleNote);
+        var stat = Seed(totals, seasonID, userID, gameVersionID, teamID, stintIndex, isPlayoffs, isCombined, tradeNote, roleNote);
+        stat.Raise(new PlayerSeasonStatsChanged(stat));
+        return stat;
     }
 
     /// <summary>
@@ -108,6 +110,7 @@ public class PlayerSeasonStat : PlayerStatTotals
         RoleNote = sheet.RoleNote;
         IsCombined = sheet.IsCombined;
         Record(sheet.GameVersionID, sheet.Totals);
+        Raise(new PlayerSeasonStatsChanged(this));
     }
 
     /// <summary>The stint's team is gone (the archive no longer names it): the row stays, with no team.</summary>
@@ -115,5 +118,6 @@ public class PlayerSeasonStat : PlayerStatTotals
     {
         TeamID = null;
         Team = null;
+        Raise(new PlayerSeasonStatsChanged(this));
     }
 }

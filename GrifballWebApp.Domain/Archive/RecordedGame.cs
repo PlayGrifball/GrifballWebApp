@@ -24,6 +24,8 @@ public class RecordedGame : AuditableEntity
     public const int SourceKeyMaxLength = 200;
     public const int MapMaxLength = 100;
     public const int GametypeMaxLength = 100;
+    public const int VodMaxLength = 500;
+    public const int HostMaxLength = 100;
 
     /// <summary>The <see cref="SourceKey"/> prefix of a game entered by hand, which needs a unique key like any recorded
     /// game: never read, <see cref="Origin"/> is what says a game was entered by hand.</summary>
@@ -104,6 +106,13 @@ public class RecordedGame : AuditableEntity
     public Season? Season { get; private set; }
     public string? Map { get; private set; }
     public string? Gametype { get; private set; }
+    /// <summary>A link to a video of the game (a stream or its VOD), as its source gives it.</summary>
+    public string? Vod { get; private set; }
+    /// <summary>Who hosted the game (a player or a dedicated host), as its source names them.</summary>
+    public string? Host { get; private set; }
+    /// <summary>Not played: a side forfeited it (its source says so). It has no players; its sides say who won, or neither (a
+    /// double forfeit).</summary>
+    public bool IsForfeit { get; private set; }
     public DateTime? PlayedAt { get; private set; }
     /// <summary>The import's key for the game (its source file and game), what a re-import finds it by. Unique. A game
     /// entered by hand has a key of its own that nothing reads: <see cref="Origin"/> says where a game came from.</summary>
@@ -175,6 +184,7 @@ public class RecordedGame : AuditableEntity
                 _teams.Add(row = new RecordedGameTeam(side.Side));
             row.Record(side);
         }
+        Raise(new RecordedGameChanged(this));
     }
 
     /// <summary>
@@ -187,6 +197,8 @@ public class RecordedGame : AuditableEntity
     {
         if (lines.GroupBy(l => l.UserID).Any(g => g.Count() > 1))
             throw new ArgumentException("A player has one line in a game", nameof(lines));
+        if (IsForfeit && lines.Count > 0)
+            throw new InvalidOperationException($"Recorded game {RecordedGameID} was forfeited: nobody played it");
 
         foreach (var extra in _participants.GroupBy(p => p.UserID).SelectMany(g => g.OrderBy(p => p.RecordedGameParticipantID).Skip(1)).ToList())
             _participants.Remove(extra);
@@ -198,6 +210,7 @@ public class RecordedGame : AuditableEntity
                 _participants.Add(row = new RecordedGameParticipant(line.UserID));
             row.Record(line, line.Side is int side ? _teams.FirstOrDefault(t => t.Side == side) : null);
         }
+        Raise(new RecordedGameChanged(this));
     }
 
     /// <summary>
@@ -235,17 +248,31 @@ public class RecordedGame : AuditableEntity
             throw new ArgumentException("A recorded game is of a game version", nameof(facts));
         if (facts.Map?.Length > MapMaxLength || facts.Gametype?.Length > GametypeMaxLength)
             throw new ArgumentException($"The map and gametype are at most {MapMaxLength} characters", nameof(facts));
+        if (facts.Vod?.Length > VodMaxLength || facts.Host?.Length > HostMaxLength)
+            throw new ArgumentException($"A VOD link is at most {VodMaxLength} characters and a host {HostMaxLength}", nameof(facts));
         GameVersionID = facts.GameVersionID;
         Map = facts.Map;
         Gametype = facts.Gametype;
+        Vod = facts.Vod;
+        Host = facts.Host;
+        IsForfeit = facts.IsForfeit;
+        // Nobody played a forfeit: a game that becomes one loses its players' lines
+        if (IsForfeit)
+            _participants.Clear();
         PlayedAt = facts.PlayedAt;
         IsPlayoffs = facts.IsPlayoffs;
+        Raise(new RecordedGameChanged(this));
     }
 }
 
-/// <summary>What a recorded game's source (or a commissioner) says of it: its game, map, gametype, when it was played, and
-/// whether it was a playoff game.</summary>
-public sealed record RecordedGameFacts(int GameVersionID, string? Map = null, string? Gametype = null, DateTime? PlayedAt = null, bool IsPlayoffs = false);
+/// <summary>What a recorded game's source (or a commissioner) says of it: its game, map, gametype, when it was played, whether
+/// it was a playoff game, its VOD and host, and whether it was forfeited rather than played.</summary>
+public sealed record RecordedGameFacts(int GameVersionID, string? Map = null, string? Gametype = null, DateTime? PlayedAt = null, bool IsPlayoffs = false)
+{
+    public string? Vod { get; init; }
+    public string? Host { get; init; }
+    public bool IsForfeit { get; init; }
+}
 
 /// <summary>A side of a recorded game, as its source numbers it (1, 2): the season's team it was, when known, its name as
 /// recorded, and its result.</summary>
@@ -264,4 +291,6 @@ public sealed record RecordedPlayerLine(int UserID, int? Side, string Gamertag, 
     public int? SwordKills { get; init; }
     public int? BallKills { get; init; }
     public int? Punches { get; init; }
+    /// <summary>Times the player picked up the ball, where the source counts them (grifball.com).</summary>
+    public int? Grabs { get; init; }
 }

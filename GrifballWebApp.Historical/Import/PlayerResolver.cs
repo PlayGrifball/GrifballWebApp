@@ -149,7 +149,7 @@ internal sealed class PlayerResolver
         return placeholder is null ? null : new Resolution(placeholder.Id, ResolvedBy.Placeholder);
     }
 
-    /// <summary>The user of the sheet rows, titles or awards under the gamertag, in the seasons chosen.</summary>
+    /// <summary>The user of the sheet rows (stats, ladder), titles or awards under the gamertag, in the seasons chosen.</summary>
     private async Task<int?> EarlierRows(string gamertag, bool thisSeason, CancellationToken ct)
     {
         var fromStats = await _context.PlayerSeasonStats
@@ -162,6 +162,11 @@ internal sealed class PlayerResolver
             .OrderBy(s => s.MatchmakingPlayerStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromMatchmaking is not null)
             return fromMatchmaking;
+        var fromLadder = await _context.MatchmakingLadderRanks
+            .Where(r => r.Gamertag == gamertag && (r.MatchmakingSeasonID == _matchmakingSeasonId) == thisSeason)
+            .OrderBy(r => r.MatchmakingLadderRankID).Select(r => (int?)r.UserID).FirstOrDefaultAsync(ct);
+        if (fromLadder is not null)
+            return fromLadder;
         var fromTitles = await _context.Seasons.Championships()
             .Where(c => c.GamertagUsed == gamertag && (c.SeasonID == _seasonId) == thisSeason)
             .OrderBy(c => c.PlayerChampionshipID).Select(c => (int?)c.UserID).FirstOrDefaultAsync(ct);

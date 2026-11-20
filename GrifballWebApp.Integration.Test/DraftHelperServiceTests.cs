@@ -201,8 +201,7 @@ public class DraftHelperServiceTests
     public async Task TheDiscordOnDeckMessage_ListsTheSuggestedPicks_WithAMenuOfThem_BeforeThePool()
     {
         await Seed();
-        var teams = new GrifballWebApp.Application.Teams.TeamService(_context, NSubstitute.Substitute.For<GrifballWebApp.Application.Notifications.IPublisher>(),
-            NSubstitute.Substitute.For<GrifballWebApp.Application.Teams.IDraftChannel>(), NSubstitute.Substitute.For<GrifballWebApp.Application.Database.IDatabaseLocks>());
+        var teams = new GrifballWebApp.Application.Teams.TeamService(_context, NSubstitute.Substitute.For<GrifballWebApp.Application.Database.IDatabaseLocks>());
 
         await new GrifballWebApp.Infrastructure.Outbox.ContextOutbox(_context).EnqueueOnDeckAsync(_context, teams, _season.SeasonID, Service(), CancellationToken.None);
         await _context.SaveChangesAsync();

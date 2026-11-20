@@ -172,6 +172,21 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task APreview_ListsASeasonThatWouldLoseLadderRows_WithThemAmongItsStatRows()
+    {
+        var jobId = await Queue(HistoricalImportJob.Preview());
+        ImportRunAnswers(ReportOf(new HistoricalSeasonRemoval
+        {
+            SeasonKey = "late-league-aspence-main/S7 Halo 3", SeasonName = "Late League Season 7 (Halo 3)", StatsBefore = 4, LadderBefore = 6, LadderRemoved = 3,
+        }));
+
+        Assert.That(await _worker.RunNextAsync(CancellationToken.None), Is.True);
+
+        var review = (await Reload(jobId)).Reviews.Single();
+        Assert.That((review.StatsBefore, review.StatsRemoved), Is.EqualTo((10, 3)));
+    }
+
+    [Test]
     public async Task AScheduledImport_IsGuarded_AndTheSeasonsTheGuardrailStoppedNeedReview()
     {
         var jobId = await Queue(HistoricalImportJob.ScheduledImport("", "2019-wl19-schedule-stats"));

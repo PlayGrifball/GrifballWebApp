@@ -50,6 +50,9 @@ public class BracketService : IBracketService
         if (await bracket.AnyAsync(SeasonMatch.Played, ct))
             throw new SeasonRefusedException(PlayedBracket, StatusCodes.Status409Conflict);
         await _grifballContext.RecordedGames.DeleteManualForAsync(bracket, ct);
+        // Each match gone says so (its page hears of it), with the save below
+        foreach (var gone in await bracket.ToListAsync(ct))
+            gone.Cancel();
         await bracket.ExecuteDeleteAsync(ct);
 
         await _grifballContext.SaveChangesAsync(ct);

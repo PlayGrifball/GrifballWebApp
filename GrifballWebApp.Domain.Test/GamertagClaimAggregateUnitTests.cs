@@ -89,6 +89,7 @@ public class GamertagClaimAggregateUnitTests
                 Is.EqualTo((GamertagClaimKind.SetGamertag, (long?)10, (int?)5, (int?)3, (int?)4)));
             Assert.That((lookup.Kind, lookup.CurrentGamertag, lookup.LookedUpAt), Is.EqualTo((GamertagClaimKind.XuidLookup, new string('n', 50), (DateTime?)At)),
                 "Xbox's gamertag cut to the column");
+            Assert.That(GamertagClaim.FromXuidLookup(10, "Old Tag", "OLD TAG", 5, "Now Tag", At).CurrentGamertag, Is.EqualTo("Now Tag"), "a short one kept whole");
             Assert.That((discord.Kind, discord.ClaimantUserID, discord.XboxUserID), Is.EqualTo((GamertagClaimKind.DiscordMatch, (int?)6, (long?)null)));
             Assert.That((user.Kind, user.ClaimantUserID, user.FirstSeen, user.LastSeen), Is.EqualTo((GamertagClaimKind.UserClaim, (int?)6, (DateTime?)At.AddYears(-8), (DateTime?)At.AddYears(-7))));
             foreach (var kind in new[] { GamertagClaimKind.XuidLookup, GamertagClaimKind.UserClaim, GamertagClaimKind.DiscordMatch })

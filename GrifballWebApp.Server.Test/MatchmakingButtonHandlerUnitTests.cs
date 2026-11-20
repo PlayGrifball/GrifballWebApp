@@ -24,7 +24,7 @@ public class MatchmakingButtonHandlerUnitTests : SqliteGrifballContextFixture
     public async Task TearDownScopes() => await _services.DisposeAsync();
 
     private MatchmakingButtonHandler Handler(IQueueRepository? queue = null) => new(
-        new QueueMembership(queue ?? Substitute.For<IQueueRepository>(), Db, Substitute.For<IQueueNotifier>()),
+        new QueueMembership(queue ?? Substitute.For<IQueueRepository>(), Db),
         _services.GetRequiredService<IServiceScopeFactory>(), Db, null!, null!, new RecordingLogger<MatchmakingButtonHandler>());
 
     [Test]

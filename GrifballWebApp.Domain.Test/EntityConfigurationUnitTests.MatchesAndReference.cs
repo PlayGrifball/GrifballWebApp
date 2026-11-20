@@ -239,9 +239,9 @@ public partial class EntityConfigurationUnitTests
             Assert.That((IndexIsUnique(entity, "LeagueName"), IndexIsUnique(entity, "Slug")), Is.EqualTo(((bool?)true, (bool?)true)));
             Assert.That((MaxLengthOf(entity, "LeagueName"), MaxLengthOf(entity, "Slug")), Is.EqualTo(((int?)50, (int?)50)));
             Assert.That((NullableOf(entity, "LeagueName"), NullableOf(entity, "Slug")), Is.EqualTo(((bool?)false, (bool?)false)));
-            Assert.That(seeded.Select(r => r["LeagueID"]), Is.EqualTo(new List<int> { 1, 3, 4, 5 }), "League 2 is long gone: its ID isn't reused");
-            Assert.That(seeded.Select(r => r["LeagueName"]), Is.EqualTo(new List<string> { "AGLA", "GWL", "IGL", "Community/Side" }));
-            Assert.That(seeded.Select(r => r["Slug"]), Is.EqualTo(new List<string> { "agla", "gwl", "igl", "side" }));
+            Assert.That(seeded.Select(r => r["LeagueID"]), Is.EqualTo(new List<int> { 1, 3, 4, 5, 6, 7 }), "League 2 is long gone: its ID isn't reused");
+            Assert.That(seeded.Select(r => r["LeagueName"]), Is.EqualTo(new List<string> { "AGLA", "GWL", "IGL", "Community/Side", "GGL", "EUGBL" }));
+            Assert.That(seeded.Select(r => r["Slug"]), Is.EqualTo(new List<string> { "agla", "gwl", "igl", "side", "ggl", "eugbl" }));
         }
     }
 

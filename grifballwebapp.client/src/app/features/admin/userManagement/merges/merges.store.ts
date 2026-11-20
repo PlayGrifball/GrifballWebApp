@@ -6,6 +6,8 @@ import type { UserMergeDto } from '@api/models';
 import { UserMergesService } from '@api/services/user-merges.service';
 import { problemText } from '@shared/errorText';
 import { resourceView } from '@shared/resourceView';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 export const PAGE_SIZE = 25;
 
@@ -25,7 +27,8 @@ export class MergesStore {
   readonly rows = computed<UserMergeDto[]>(() => this.merges.value()?.results ?? []);
   readonly total = computed(() => this.merges.value()?.totalCount ?? 0);
   readonly pages = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
-  readonly loading = this.merges.isLoading;
+  /** The first load of a page (a live reload keeps it shown). */
+  readonly loading = computed(() => this.merges.status() === 'loading');
   readonly failed = this.merges.failed;
   readonly empty = computed(() => this.merges.resolved() && this.rows().length === 0);
 
@@ -35,6 +38,11 @@ export class MergesStore {
   /** Why the server refused to undo a merge, by merge. */
   private readonly _refusals = signal<Record<number, string>>({});
   readonly refusals = this._refusals.asReadonly();
+
+  constructor() {
+    // A merge made or undone: the page shown again, in place
+    liveReload(() => [LiveTopics.staffMerges], () => this.merges.reload());
+  }
 
   previous(): void {
     this._page.update(page => Math.max(1, page - 1));

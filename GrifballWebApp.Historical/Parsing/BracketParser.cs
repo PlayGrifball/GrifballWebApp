@@ -40,9 +40,142 @@ public static partial class BracketParser
     public static ArchiveBracket? Parse(string sourceId, BracketTab tab, SheetWorkbook workbook, List<string> warnings)
     {
         var drafts = tab.Rounds.Count > 0 ? FromRounds(sourceId, tab, workbook, warnings) : FromCells(sourceId, tab, workbook, warnings);
-        if (drafts is null)
-            return null;
+        return drafts is null ? null : BuildBracket(drafts, decided =>
+        {
+            // A final no cell decides: the side whose playoff record could not have lost it (#534)
+            if (tab.RecordsSheet is not { } recordsSheet)
+                return;
+            if (workbook.Sheet(recordsSheet) is { } records)
+                DecideByPlayoffLosses(decided, PlayoffLosses(records, tab.Aliases));
+            else
+                warnings.Add($"{sourceId}: no records sheet '{recordsSheet}'");
+        });
+    }
+
+    /// <summary>Normalized playoff brackets from a database table (<see cref="BracketTableConfig"/>), keyed by each season's
+    /// stats-table source ID (<c>{sourceId}/{stats.Sheet}#s{season_id}</c>).</summary>
+    public static Dictionary<string, ArchiveBracket> ParseTable(string sourceId, BracketTableConfig config, StatsTable stats, SheetWorkbook workbook, List<string> warnings)
+    {
+        var sheet = workbook.Sheet(config.Sheet);
+        if (sheet is null)
+        {
+            warnings.Add($"{sourceId}: no bracket sheet '{config.Sheet}'");
+            return [];
+        }
+        if (sheet.Rows.Count < 2)
+            return [];
+
+        var header = sheet.Rows[0];
+        var seasonCol = ColumnIndex(header, stats.SeasonColumn, "season_id", "season");
+        var bracketCol = ColumnIndex(header, "bracket");
+        var roundCol = ColumnIndex(header, "round");
+        var seed1Col = ColumnIndex(header, "seed_1", "seed1");
+        var team1Col = ColumnIndex(header, "team_1", "team1", "home");
+        var score1Col = ColumnIndex(header, "score_1", "score1");
+        var seed2Col = ColumnIndex(header, "seed_2", "seed2");
+        var team2Col = ColumnIndex(header, "team_2", "team2", "away");
+        var score2Col = ColumnIndex(header, "score_2", "score2");
+        var winnerCol = ColumnIndex(header, "winner");
+        if (seasonCol < 0 || team1Col < 0 || team2Col < 0)
+        {
+            warnings.Add($"{sourceId}: bracket sheet '{config.Sheet}' is missing required season or team columns");
+            return [];
+        }
+
+        var canonicalIds = StatsTableParser.CanonicalSeasonIds(stats);
+        var bySeason = new Dictionary<string, List<Draft>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in sheet.Rows.Skip(1))
+        {
+            var rawSeason = ArchiveCells.TableValue(row, seasonCol);
+            if (rawSeason is null || !canonicalIds.TryGetValue(rawSeason, out var canonicalId))
+                continue;
+            var (home, _) = Side(ArchiveCells.TableValue(row, team1Col) ?? "", seedsInNames: false);
+            var (away, _) = Side(ArchiveCells.TableValue(row, team2Col) ?? "", seedsInNames: false);
+            if (home is null || away is null)
+                continue;
+
+            var draft = TableDraft(row, home, away, bracketCol, roundCol, seed1Col, seed2Col);
+            TableResult(draft, row, winnerCol, score1Col, score2Col);
+
+            if (!bySeason.TryGetValue(canonicalId, out var list))
+                bySeason[canonicalId] = list = [];
+            list.Add(draft);
+        }
+
+        return bySeason.ToDictionary(
+            kv => Application.Historical.HistoricalKeys.SeasonSourceId(sourceId, $"{stats.Sheet}#s{kv.Key}"),
+            kv => BuildBracket([.. kv.Value.OrderBy(TableBracketOrder).ThenBy(d => d.Round)]),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>A table row's series: its bracket, round (1 when none) and seeds.</summary>
+    private static Draft TableDraft(string[] row, string home, string away, int bracketCol, int roundCol, int seed1Col, int seed2Col)
+    {
+        var bracket = ParseBracketKind(ArchiveCells.TableValue(row, bracketCol));
+        var round = ArchiveCells.TableInt(row, roundCol) is > 0 and var parsedRound ? parsedRound : 1;
+        var seed1 = ArchiveCells.TableValue(row, seed1Col) is { } s1 ? Seed(s1) : null;
+        var seed2 = ArchiveCells.TableValue(row, seed2Col) is { } s2 ? Seed(s2) : null;
+        return new Draft
+        {
+            Bracket = bracket,
+            Round = round,
+            Home = home,
+            Away = away,
+            HomeSeed = seed1,
+            AwaySeed = seed2,
+        };
+    }
+
+    /// <summary>A table row's winner and score: the winner its column names, else the side the score gives more wins; a
+    /// score that disagrees with the named winner is left out.</summary>
+    private static void TableResult(Draft draft, string[] row, int winnerCol, int score1Col, int score2Col)
+    {
+        if (ArchiveCells.TableValue(row, winnerCol) is { } winnerText)
+            draft.Winner = SideOf(draft, winnerText);
+        if (ArchiveCells.TableInt(row, score1Col) is { } hs && ArchiveCells.TableInt(row, score2Col) is { } aws && hs + aws > 0)
+        {
+            if (draft.Winner is null || SideWithMore(hs, aws) is not { } more || more == draft.Winner)
+                (draft.HomeWins, draft.AwayWins) = (hs, aws);
+            draft.Winner ??= SideWithMore(hs, aws);
+        }
+    }
+
+    /// <summary>A table series' place in bracket order: the winners' bracket, the losers', the grand final, its sudden death.</summary>
+    private static int TableBracketOrder(Draft d)
+        => d.Bracket is Bracket.GrandFinalSuddenDeath ? 3 : d.Bracket is Bracket.GrandFinal ? 2 : d.Bracket is Bracket.Loser ? 1 : 0;
+
+    private static int ColumnIndex(string[] header, params string[] candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            var key = ArchiveCells.HeaderKey(candidate);
+            var index = Array.FindIndex(header, h => ArchiveCells.HeaderKey(h) == key);
+            if (index >= 0)
+                return index;
+        }
+        return -1;
+    }
+
+    private static Bracket ParseBracketKind(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return Bracket.Winner;
+        var key = ArchiveCells.HeaderKey(text);
+        if (key.Contains("suddendeath", StringComparison.Ordinal))
+            return Bracket.GrandFinalSuddenDeath;
+        if (key.Contains("grandfinal", StringComparison.Ordinal))
+            return Bracket.GrandFinal;
+        if (key.Contains("loser", StringComparison.Ordinal))
+            return Bracket.Loser;
+        return Bracket.Winner;
+    }
+
+    /// <param name="drafts">The series as read, in bracket order.</param>
+    /// <param name="decideMore">What else decides a series, once the cells have (a tab's records sheet).</param>
+    private static ArchiveBracket BuildBracket(List<Draft> drafts, Action<List<Draft>>? decideMore = null)
+    {
         Decide(drafts);
+        decideMore?.Invoke(drafts);
         foreach (var draft in drafts.Where(d => d.Unplaced is not null && d.Winner is not null))
             (draft.HomeWins, draft.AwayWins) = draft.Winner is SeasonMatchSide.Home ? (draft.Unplaced!.Value.Winner, draft.Unplaced.Value.Loser) : (draft.Unplaced!.Value.Loser, draft.Unplaced.Value.Winner);
         var winners = 0;
@@ -75,10 +208,12 @@ public static partial class BracketParser
             return null;
         }
         var drafts = new List<Draft>();
+        // An alias before the placeholders: a team never named ("Team Name", H3 Action 2022's RDG NHL) is a team
+        string Aliased(string cell) => tab.Aliases.GetValueOrDefault(cell.Trim()) ?? cell;
         foreach (var slot in tab.Slots)
         {
-            var (home, homeSeed) = Side(sheet.At(slot.Home), tab.SeedsInNames);
-            var (away, awaySeed) = Side(sheet.At(slot.Away), tab.SeedsInNames);
+            var (home, homeSeed) = Side(Aliased(sheet.At(slot.Home)), tab.SeedsInNames);
+            var (away, awaySeed) = Side(Aliased(sheet.At(slot.Away)), tab.SeedsInNames);
             // A BYE, or a series not played (yet)
             if (home is null || away is null)
                 continue;
@@ -287,6 +422,51 @@ public static partial class BracketParser
         }
     }
 
+    /// <summary>Each team's playoff losses from a tab of the teams' records (<see cref="BracketTab.RecordsSheet"/>): a record
+    /// cell under the team's name (as the bracket tab's aliases name it), the season's then the playoffs' in brackets
+    /// ("16-2 (4-0)"). A tie breaker's game, "(1-0*)", isn't the playoffs'. A record without brackets (no playoffs), with two
+    /// unmarked ones (which is the playoffs'?) or under no name is no one's.</summary>
+    private static List<(string Team, int Losses)> PlayoffLosses(SheetTable sheet, Dictionary<string, string> aliases)
+    {
+        var losses = new List<(string, int)>();
+        for (var r = 1; r < sheet.Rows.Count; r++)
+        {
+            for (var c = 0; c < sheet.Rows[r].Length; c++)
+            {
+                var cell = sheet.Rows[r][c].Trim();
+                var name = sheet.Cell(r - 1, c).Trim();
+                var team = aliases.GetValueOrDefault(name) ?? name;
+                if (team.Length == 0 || !RecordWithPlayoffsPattern().IsMatch(cell))
+                    continue;
+                var playoffs = PlayoffRecordPattern().Matches(cell);
+                if (playoffs.Count == 1)
+                    losses.Add((team, int.Parse(playoffs[0].Groups["losses"].Value, CultureInfo.InvariantCulture)));
+            }
+        }
+        return losses;
+    }
+
+    /// <summary>
+    /// The winners of series whose score is known but not whose it is, from the teams' playoff losses: its loser lost as many
+    /// games as its winner won, so a side with fewer playoff losses than that won it, when the other side has enough (H4 Bid
+    /// 2022's final: Beer, 0 losses, over Forklift Certified, 2, in a 2-0). Nothing is decided when both sides could have
+    /// lost it, neither could, or a side has no record.
+    /// </summary>
+    private static void DecideByPlayoffLosses(List<Draft> drafts, List<(string Team, int Losses)> losses)
+    {
+        int? Of(string team) => losses.Where(l => Same(l.Team, team)).Select(l => (int?)l.Losses).FirstOrDefault();
+        foreach (var draft in drafts.Where(d => d.Winner is null && d.Unplaced is not null))
+        {
+            var lostBy = draft.Unplaced!.Value.Winner;
+            if (Of(draft.Home) is not int home || Of(draft.Away) is not int away)
+                continue;
+            if (home < lostBy && away >= lostBy)
+                draft.Winner = SeasonMatchSide.Home;
+            else if (away < lostBy && home >= lostBy)
+                draft.Winner = SeasonMatchSide.Away;
+        }
+    }
+
     /// <summary>A side's team and the seed its name carries ("Rated R (4)", "Beer - Seed 1"); no team for an empty cell or
     /// a template's placeholder ("Team Name", "Match 3").</summary>
     public static (string? Name, int? Seed) Side(string cell, bool seedsInNames)
@@ -323,6 +503,14 @@ public static partial class BracketParser
 
     [GeneratedRegex(@"^(?<first>\d+)\s*-\s*(?<second>\d+)\s*(?<named>.*)$|^vs\.?\s*\(\s*(?<first>\d+)\s*-\s*(?<second>\d+)\s*\)\s*(?<named>)$", RegexOptions.IgnoreCase)]
     private static partial Regex ScorePattern();
+
+    /// <summary>A record with a bracket or more after it: "16-2 (4-0)", "10-8 (1-0*) (0-2)".</summary>
+    [GeneratedRegex(@"^\d+\s*-\s*\d+(\s*\([^)]*\))+$")]
+    private static partial Regex RecordWithPlayoffsPattern();
+
+    /// <summary>A bracket of a playoff record, its losses second: "(4-2)", not a tie breaker's "(1-0*)".</summary>
+    [GeneratedRegex(@"\(\s*\d+\s*-\s*(?<losses>\d+)\s*\)")]
+    private static partial Regex PlayoffRecordPattern();
 
     [GeneratedRegex(@"Round\s*(\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex RoundPattern();

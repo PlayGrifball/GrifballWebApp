@@ -53,7 +53,7 @@ public sealed class OutboxTestDriver : IAsyncDisposable
         Options = options ?? new OutboxOptions();
         var services = new ServiceCollection()
             .AddLogging(b => b.AddProvider(new Provider(_entries)).SetMinimumLevel(LogLevel.Trace))
-            .AddScoped(_ => NewContext())
+            .AddScoped(_ => HandlersContext())
             .AddScoped<IOutbox, ContextOutbox>()
             .AddSingleton(discord)
             .AddSingleton(Microsoft.Extensions.Options.Options.Create(discordOptions))
@@ -70,6 +70,15 @@ public sealed class OutboxTestDriver : IAsyncDisposable
     }
 
     public GrifballContext NewContext() => new(TestDatabase.Options(_connectionString).Options);
+
+    /// <summary>A handler's context, as the app gives it: with the domain events' interceptor, so what a handler changes posts as
+    /// it commits (a match canceled when its announcement is dead-lettered: its canceled post).</summary>
+    private GrifballContext HandlersContext()
+    {
+        GrifballContext context = null!;
+        context = new(TestDatabase.Options(_connectionString).AddInterceptors(AppDomainEvents.Interceptor(() => context)).Options);
+        return context;
+    }
 
     /// <summary>Handles what is due now, until nothing is (the clock stays put: a failed message waits for its retry).</summary>
     public async Task<int> RunDueAsync()

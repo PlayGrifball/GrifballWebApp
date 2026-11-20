@@ -8,6 +8,8 @@ import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { errorText } from '@shared/errorText';
 import { whileCurrent } from '@shared/whileCurrent';
 import { AppLog } from '@core/telemetry/appLog';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /**
  * A player's profile: their gamertag (and, on your own profile without one, the prompt to set it) and their stats, and
@@ -32,6 +34,16 @@ export class ProfileStore {
   readonly profileStats = this._profileStats.asReadonly();
   private readonly _statsLoading = signal(false);
   readonly statsLoading = this._statsLoading.asReadonly();
+
+  constructor() {
+    // Their name or accounts, a team, a title, a game or a stats sheet of theirs: the profile again, in place
+    liveReload(() => this.userID() ? [LiveTopics.player(this.userID())] : [], () => {
+      // Not over a gamertag being typed into the prompt
+      if (!this.settingGamertag())
+        this.loadGamertag();
+      this.loadStats();
+    });
+  }
 
   /** Shows a player's profile. Nothing of the previous one stays: its name, stats or gamertag prompt. */
   show(userID: number): void {
@@ -59,10 +71,11 @@ export class ProfileStore {
       });
   }
 
-  /** Loads the player's stats (again). */
+  /** Loads the player's stats (again): loading only while none are shown, so a reload keeps them shown. */
   loadStats(): void {
     const userID = this.userID();
-    this._statsLoading.set(true);
+    if (!this._profileStats())
+      this._statsLoading.set(true);
     this.profile.getProfileStats({ userID })
       .pipe(whileCurrent(userID, this.userID))
       .subscribe({

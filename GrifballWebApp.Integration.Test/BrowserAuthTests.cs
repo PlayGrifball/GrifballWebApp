@@ -351,7 +351,7 @@ public class BrowserAuthTests
 
     // ---------- SignalR hub: cookie sessions only from this site's own pages ----------
 
-    private const string Negotiate = "/TeamsHub/negotiate?negotiateVersion=1";
+    private const string Negotiate = "/LiveHub/negotiate?negotiateVersion=1";
 
     private static HttpRequestMessage NegotiateRequest(string? origin = null, string? site = null, string? bearer = null)
     {
@@ -453,7 +453,7 @@ public class BrowserAuthTests
         var socket = _factory.Server.CreateWebSocketClient();
         socket.ConfigureRequest = request => request.Headers.Origin = "https://evil.example";
 
-        using var connected = await socket.ConnectAsync(new Uri($"wss://localhost/TeamsHub?access_token={Uri.EscapeDataString(token)}"), CancellationToken.None);
+        using var connected = await socket.ConnectAsync(new Uri($"wss://localhost/LiveHub?access_token={Uri.EscapeDataString(token)}"), CancellationToken.None);
 
         Assert.That(connected.State, Is.EqualTo(System.Net.WebSockets.WebSocketState.Open));
         await connected.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
@@ -478,10 +478,10 @@ public class BrowserAuthTests
         }
 
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Socket("https://grif-preview1.grifball.xyz").ConnectAsync(new Uri("wss://localhost/TeamsHub"), CancellationToken.None));
+            Socket("https://grif-preview1.grifball.xyz").ConnectAsync(new Uri("wss://localhost/LiveHub"), CancellationToken.None));
         Assert.That(refused!.Message, Does.Contain("403"));
 
-        using var accepted = await Socket("https://localhost").ConnectAsync(new Uri("wss://localhost/TeamsHub"), CancellationToken.None);
+        using var accepted = await Socket("https://localhost").ConnectAsync(new Uri("wss://localhost/LiveHub"), CancellationToken.None);
         Assert.That(accepted.State, Is.EqualTo(System.Net.WebSockets.WebSocketState.Open));
         await accepted.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
     }

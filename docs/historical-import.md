@@ -29,6 +29,26 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   Finished, Playoffs, Playoff Ending). A standings name a few letters off the stats' team takes the stats' name. A team
   keeps them as `Team.ArchivedRank` and `ArchivedFinish`; the season page orders its standings by the sheet's ranks (one
   table's) and shows each team's finish.
+- **Website games** (`GamesTableParser`, a source's `GameTables`): the grifball.com and grifball.info databases' game tables
+  (grifball.com's Matches, grifball.info's Reach gb_teamstats, Winter League 2013's h_games and the 2011 Halo 3 league's
+  agla_gamesreported), read with the stats table whose seasons they are of. Each game is a recorded game of its season
+  with its players' lines where the database has them (grifball.com's grabs included: a season's grabs and grifball.com's
+  batting, scoring and combined averages are then counted from them), and each forfeit a forfeited season match without
+  games. grifball.com's games have no dates, so each is a series of its own.
+- **Ladders** (`LadderParser`, a source's `Ladders` tabs and its `FinishesSheet`): a Late League season's ranked ladder, a row
+  per player under headers (Division, League, Rank, LP, Streak, MMR, P/ Win, P/ Loss), in the tab's order. The past finishes
+  tab ("Past Seasons": League, Rank and Pos under each season's heading) gives a player's place on its ladder. A ladder goes
+  on its season (by name), or on a season of its own when no stats tab has one (the early seasons). Each row is a
+  `MatchmakingLadderRank`; the Late League season page shows them under Ladder.
+- **Result lists** (`GameResultsParser`, a source's `Results` tabs): a season's results where no per-game stats tab has its
+  games: a table of Winner, score, Loser (and Host, VOD, Halo game, Map) rows under week and playoffs markers; cells such as
+  "A over B 2-0 (5-1, 5-4)" or "A 2-1 B" with the game scores beside; or a Halo Infinite game history's rows without a match
+  link (its forfeits, and games played without one). A calendar
+  (`Calendar`) gives a game per scored entry of its cells ("9:30pm: A (5) vs. B (1)"). Each game is a recorded game without players (`RecordedGame.Vod`,
+  `Host`, `IsForfeit`), its sides named as the season names its teams (the same letters or a few off, an abbreviation
+  either way, a player or captain of the team, or the tab's `Teams` aliases), in the series its list puts it in; a series
+  of forfeits is forfeited. A list of a season no stats tab has (`CustomSeason`) makes that season, its teams the list's.
+  The AGLA 2019 game results' titles give a forfeit without a block its game, and a partial copy its other side.
 - **Brackets** (`BracketParser`, a source's `Brackets`): a season's playoff bracket as its sheets draw it, either cell by
   cell (each series' two team cells, their seeds, its score and the cell its winner went on to: the layouts are in
   `HistoricalBracketLayouts`) or from a tab per round of game rows (Respawn). The import makes each series a slot of the
@@ -80,7 +100,8 @@ the Discord bot; there is no separate archive API. What makes it imported is `Se
   (`PlayerSeasonStat`), never both. Career totals are `CareerTotals`, over seasons and Late League alike.
 - **Late League** is matchmaking (random, skill-matched sides, like the queue), not a season: the import makes each
   archive Late League season (league or format Late League, or a name starting "Late League") a `MatchmakingSeason`,
-  its games finished `MatchedMatch`es of recorded games, and its sheet totals `MatchmakingPlayerStat` rows. No teams,
+  its games finished `MatchedMatch`es of recorded games, its sheet totals `MatchmakingPlayerStat` rows and its ladder
+  `MatchmakingLadderRank` rows. No teams,
   series, playoffs or titles. `MatchmakingStatsService` reads its stats (games first, as for seasons), for
   `GET /api/late-league/queue` (the Discord queue's games: Late League as it is played now), `GET /api/late-league/seasons`,
   `GET /api/late-league/seasons/{matchmakingSeasonID}`, profiles and the career leaderboards.
@@ -127,8 +148,9 @@ the real-archive tests, `Application/Historical`, `Domain/Archive`, the workbook
 Run workflow, on any branch).
 Both fill a copy once, run this commit's import and its base's on it, and report each season whose counts changed: in
 the run's summary, and on a PR from this repository a comment each, kept up to date. The import's known gaps don't fail
-them. The summaries and imported databases are each run's artifact. They share `historical-archive-run.yml`; they
-differ in where they run, so in what their copy can have:
+them; a check that passed on the base and fails on the change (a regression) does, and the report names it.
+The summaries and imported databases are each run's artifact. They share `historical-archive-run.yml`; they differ in
+where they run, so in what their copy can have:
 
 - **`historical-archive.yml`**: the org's in-cluster runners (`grif-k8s`). By hand only: every source the import reads is
   public, so the PRs' runs are GitHub's, and the cluster's memory stays the cluster's (its PR trigger is in the

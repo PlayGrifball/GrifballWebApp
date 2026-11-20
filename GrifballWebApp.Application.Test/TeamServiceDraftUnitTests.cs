@@ -2,7 +2,6 @@ using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Teams;
-using GrifballWebApp.Application.Teams.Handlers;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -18,18 +17,14 @@ internal sealed class TeamServiceDraftUnitTests : ApplicationDbContextTests
 {
     private const int SeasonID = 1;
 
-    private IPublisher _publisher = null!;
-    private IDraftChannel _draftChannel = null!;
     private IDatabaseLocks _locks = null!;
     private TeamService _service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _publisher = Substitute.For<IPublisher>();
-        _draftChannel = Substitute.For<IDraftChannel>();
         _locks = Substitute.For<IDatabaseLocks>();
-        _service = new TeamService(Context, _publisher, _draftChannel, _locks);
+        _service = new TeamService(Context, _locks);
     }
 
     private async Task SeedSeason() => await SeedSeasonUser(99);

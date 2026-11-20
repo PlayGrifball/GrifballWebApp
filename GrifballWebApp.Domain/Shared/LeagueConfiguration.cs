@@ -31,6 +31,8 @@ public class LeagueConfiguration : IEntityTypeConfiguration<League>
             League.Seed("GWL", "gwl", leagueID: 3),
             League.Seed("IGL", "igl", leagueID: 4),
             League.Seed("Community/Side", "side", leagueID: 5),
+            League.Seed("GGL", "ggl", leagueID: 6),
+            League.Seed("EUGBL", "eugbl", leagueID: 7),
         };
 
         entity.HasData(leagues);

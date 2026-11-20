@@ -5,7 +5,6 @@ using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Teams.Handlers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -33,7 +32,6 @@ using System.Net.Http.Json;
 using ServerProgram = GrifballWebApp.Server.Program;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Application.Notifications;
-using GrifballWebApp.Application.Teams.Handlers;
 using GrifballWebApp.Infrastructure.Events;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Matchmaking;
@@ -97,8 +95,6 @@ public class ProgramStartupTests
         "GrifballWebApp.Server.Teams.StringMenuInteractions",
     ];
 
-    private static readonly string[] FirstConnection = ["conn-1"];
-    private static readonly string[] SecondConnection = ["conn-2"];
 
     private string _connectionString = null!;
 
@@ -427,7 +423,7 @@ public class ProgramStartupTests
         using var client = factory.CreateClient();
 
         var handlers = NotificationHandlers();
-        Assert.That(handlers.Select(h => h.Handler), Does.Contain(typeof(LockChangeHandler)).And.Contain(typeof(UpdateDisplayHandler)));
+        Assert.That(handlers.Select(h => h.Handler), Does.Contain(typeof(UpdateDisplayHandler)));
 
         using var scope = factory.Services.CreateScope();
         using (Assert.EnterMultipleScope())
@@ -497,33 +493,6 @@ public class ProgramStartupTests
             Assert.That(scoped.Interceptors().OfType<GrifballWebApp.Domain.Shared.AuditInterceptor>().Count(), Is.EqualTo(1));
             Assert.That(fromFactory.Interceptors().OfType<GrifballWebApp.Domain.Shared.AuditInterceptor>().Count(), Is.EqualTo(1));
         }
-    }
-
-    [Test]
-    public async Task NormalMode_Should_PublishNotifications_ToTheTeamsHub()
-    {
-        // The real IPublisher from Program.cs's registration: LockChanged reaches LockChangeHandler, which tells every
-        // other connection to lock the captains (and the draft channel message it queues is skipped, Discord being disabled).
-        // Seasons 7 and 8 aren't there, so no one but staff may see them: the change goes to staff's connections (#435).
-        var others = Substitute.For<ITeamsHubClient>();
-        var clients = Substitute.For<IHubClients<ITeamsHubClient>>();
-        clients.GroupExcept(TeamsHub.StaffGroup, Arg.Any<IReadOnlyList<string>>()).Returns(others);
-        var hub = Substitute.For<IHubContext<TeamsHub, ITeamsHubClient>>();
-        hub.Clients.Returns(clients);
-
-        await using var factory = new StartupFactory(NormalModeSettings(), removeDiscordHostedServices: true,
-            services => services.AddSingleton(hub));
-        using var client = factory.CreateClient();
-
-        using var scope = factory.Services.CreateScope();
-        var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
-        await publisher.Publish(new LockChanged(true, 7, "conn-1"));
-        await publisher.Publish(new LockChanged(false, 8, "conn-2"));
-
-        await others.Received(1).LockCaptains(7);
-        await others.Received(1).UnlockCaptains(8);
-        clients.Received(1).GroupExcept(TeamsHub.StaffGroup, Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(FirstConnection)));
-        clients.Received(1).GroupExcept(TeamsHub.StaffGroup, Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(SecondConnection)));
     }
 
     [Test]
@@ -693,8 +662,8 @@ public class ProgramStartupTests
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Not.Contain(workerOnly));
-            Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
-                Is.InstanceOf<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisHubLifetimeManager<TeamsHub>>());
+            Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<GrifballWebApp.Server.Live.LiveHub>>(),
+                Is.InstanceOf<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisHubLifetimeManager<GrifballWebApp.Server.Live.LiveHub>>());
             Assert.That(factory.Services.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
                 Is.InstanceOf<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCache>(), "The leaderboards are cached in Redis, shared by every pod");
         }
@@ -710,7 +679,7 @@ public class ProgramStartupTests
         await AssertOk(client, "/CommitHash");
         await AssertOk(client, "/seasons");
         await AssertOk(client, "/health/live");
-        using var hub = await client.PostAsync("/TeamsHub/negotiate?negotiateVersion=1", null);
+        using var hub = await client.PostAsync("/" + GrifballWebApp.Server.Live.LiveHub.Path + "/negotiate?negotiateVersion=1", null);
         Assert.That(hub.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The hub is mapped");
         // The site's chat: open signed out too, its questions coming with their conversation
         using var chat = await client.PostAsync("/" + GrifballWebApp.Server.Chat.ChatHub.Path + "/negotiate?negotiateVersion=1", null);
@@ -795,8 +764,8 @@ public class ProgramStartupTests
             Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Server.SignalR.HubSessionSweep)).And.Not.Contain(typeof(GrifballWebApp.Server.SignalR.HubUserSessionsListener)));
             Assert.That(factory.Services.GetServices<GrifballWebApp.Application.Identity.IUserSessions>().Select(s => s.GetType()), Is.EqualTo(new[] { typeof(GrifballWebApp.Server.SignalR.HubUserSessions) }));
             // No ConnectionStrings:Redis: no backplane.
-            Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
-                Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());
+            Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<GrifballWebApp.Server.Live.LiveHub>>(),
+                Is.InstanceOf<DefaultHubLifetimeManager<GrifballWebApp.Server.Live.LiveHub>>());
             Assert.That(factory.Services.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
                 Is.InstanceOf<Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache>(), "No Redis: the process's memory");
         }
@@ -812,7 +781,7 @@ public class ProgramStartupTests
             using var response = await client.GetAsync(path);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"GET {path}: no public API on the worker");
         }
-        using var hub = await client.PostAsync("/TeamsHub/negotiate?negotiateVersion=1", null);
+        using var hub = await client.PostAsync("/" + GrifballWebApp.Server.Live.LiveHub.Path + "/negotiate?negotiateVersion=1", null);
         Assert.That(hub.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "No hub endpoint on the worker");
     }
 

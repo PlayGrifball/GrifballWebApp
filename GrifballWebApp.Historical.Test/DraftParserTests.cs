@@ -49,6 +49,42 @@ public class DraftParserTests
         }
     }
 
+    [Test]
+    public void Board_ATeamThePlaceholderNames_TakesTheConfigsName_WithItsCaptainAndPicks()
+    {
+        // H3 Action 2022's Teams tab: RDG NHL's team was never named, its column says "Team Name"
+        var sheet = Sheet(
+            ["Team Name", "The Boys Szn 3", "Team Name", "The Smurfs"],
+            ["Captain", "AJ DaJuiceMayne", "RDG NHL", "I robot9000"],
+            ["First Round", "Silva", "DlGITAL PAIN", "GodSnipezX"],
+            ["Second Round", "El Diablo X230X", "MysticalNovice", "ixjaga"]);
+        var config = new HistoricalSourceConfig { TeamNames = new() { ["team  name"] = "RDG NHL" } };
+
+        var teams = DraftParser.Parse(sheet, new DraftTab { Sheet = "Teams", Order = DraftOrder.None }, config)!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("The Boys Szn 3", "AJ DaJuiceMayne", null), ("RDG NHL", "RDG NHL", null), ("The Smurfs", "I robot9000", null) }));
+            Assert.That(Picks(teams).Where(p => p.Team == "RDG NHL"), Is.EqualTo(new (string, string, int, int?)[] { ("RDG NHL", "DlGITAL PAIN", 1, null), ("RDG NHL", "MysticalNovice", 2, null) }));
+        }
+    }
+
+    [Test]
+    public void Table_ATeamThePlaceholderNames_TakesTheConfigsName()
+    {
+        // H3 Action 2022's TeamInfo: RDG NHL's team is "Team Name" on every row
+        var sheet = Sheet(
+            ["Draft Order", "Team Name", "Player Name"],
+            ["10", "THE BOYS SZN 3", "AJ DaJuiceMayne"],
+            ["5", "Team Name", "RDG NHL"],
+            ["5", "Team Name", "DlGITAL PAIN"]);
+        var config = new HistoricalSourceConfig { TeamNames = new() { ["Team Name"] = "RDG NHL" } };
+
+        var teams = DraftParser.Parse(sheet, new DraftTab { Sheet = "TeamInfo", Layout = DraftLayout.Table }, config)!;
+
+        Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("THE BOYS SZN 3", null, 10), ("RDG NHL", null, 5) }));
+    }
+
     [TestCase("1st Round:", 1)]
     [TestCase("3rd Round", 3)]
     [TestCase("Round 2", 2)]

@@ -1,11 +1,13 @@
 import { effect, inject, Injectable, signal, untracked } from '@angular/core';
-import type { SeasonSummaryDto } from '@api/models';
+import type { SeasonLiveDto, SeasonsLiveDto, SeasonSummaryDto } from '@api/models';
 import { HomeService } from '@api/services/home.service';
 import { SeasonService } from '@api/services/season.service';
 import { SeasonEvent } from '@shared/seasonEvents';
 import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import { SeasonSummaryService } from './seasonSummary';
+import { liveData } from '@core/live/liveReload';
+import { LiveTopics, seasonTopics } from '@core/live/liveTopics';
 
 /**
  * The season page's season: the route's, or the current one when it names none (0), with its summary, and the current
@@ -43,6 +45,21 @@ export class SeasonStore {
       if (routeSeasonID !== undefined)
         untracked(() => this.show(routeSeasonID));
     });
+    // The season changed (its dates, its champions, a result): its summary as it is now comes with it. The events come
+    // with a change to any season's, as this viewer may see them.
+    liveData<SeasonLiveDto>(() => seasonTopics(this.shownSeasonID()), season => {
+      // Another season's (the page moved on): nothing to show here; none: read it
+      if (season.seasonID !== this.shownSeasonID())
+        return true;
+      if (!season.summary)
+        return false;
+      this.showSummary(season.summary);
+      return true;
+    }, () => this.loadSummary());
+    liveData<SeasonsLiveDto>(() => this.eventsLoaded() ? [LiveTopics.seasons] : [], seasons => {
+      this._events.set(seasons.events);
+      return true;
+    }, () => this.loadEvents());
   }
 
   loadEvents(): void {
@@ -75,17 +92,19 @@ export class SeasonStore {
       });
   }
 
+  private showSummary(summary: SeasonSummaryDto): void {
+    this._summary.set(summary);
+    this._seasonName.set(summary.seasonName);
+    this._nameLoaded.set(true);
+  }
+
   /** Loads the summary of the season shown again (its bracket was made again or reseeded, which clears its champion). */
   loadSummary(): void {
     const seasonID = this.shownSeasonID();
     this.summaries.get(seasonID)
       .pipe(whileCurrent(seasonID, this.shownSeasonID))
       .subscribe({
-        next: summary => {
-          this._summary.set(summary);
-          this._seasonName.set(summary.seasonName);
-          this._nameLoaded.set(true);
-        },
+        next: summary => this.showSummary(summary),
         error: () => this._nameLoaded.set(true),
       });
   }

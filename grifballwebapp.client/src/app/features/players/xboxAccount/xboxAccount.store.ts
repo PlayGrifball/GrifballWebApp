@@ -7,6 +7,8 @@ import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { errorText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
 import { Subscription, switchMap, takeWhile, timer } from 'rxjs';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** How often a queued or running pull of the account's games is looked at again. */
 export const PULL_POLL_MS = 3000;
@@ -47,16 +49,25 @@ export class XboxAccountStore {
   private readonly _pullError = signal<string | null>(null);
   readonly pullError = this._pullError.asReadonly();
   private pullWatch?: Subscription;
+  /** Bumped by a live change: the page shown loaded again, in place. */
+  private readonly changes = signal(0);
 
   constructor() {
-    // A new account or page cancels the previous request, and so does leaving the page
+    // A new account or page cancels the previous request, and so does leaving the page. A live change (a game of the
+    // account's pulled, a gamertag) loads the same page again, keeping it shown meanwhile.
+    let shown: string | undefined;
     effect(onCleanup => {
       const xuid = this.xuid.value();
+      const page = this.page();
+      this.changes();
       if (xuid === undefined)
         return;
-      const request = this.load(xuid, this.page());
+      const again = shown === `${xuid}:${page}`;
+      shown = `${xuid}:${page}`;
+      const request = this.load(xuid, page, again);
       onCleanup(() => request.unsubscribe());
     });
+    liveReload(() => { const xuid = this.xuid.value(); return xuid ? [LiveTopics.xbox(xuid)] : []; }, () => this.changes.update(n => n + 1));
     // Where the account's pull is, for each account shown
     effect(onCleanup => {
       const xuid = this.xuid.value();
@@ -128,8 +139,9 @@ export class XboxAccountStore {
     this.load(this.xuid.value()!, 1);
   }
 
-  private load(xuid: string, page: number): Subscription {
-    this._state.set('loading');
+  private load(xuid: string, page: number, again = false): Subscription {
+    if (!again)
+      this._state.set('loading');
     // No such account: a 404 (a malformed XUID misses the route's long constraint, so it is one too)
     return this.api.getXboxAccount({ xboxUserID: Number(xuid), page }).pipe(nullWhenNotFound()).subscribe({
       next: account => {

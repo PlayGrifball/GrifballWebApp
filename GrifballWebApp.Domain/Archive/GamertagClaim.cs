@@ -28,7 +28,7 @@ public class GamertagClaim : AuditableEntity
     {
         if (kind is not (GamertagClaimKind.RosterMatch or GamertagClaimKind.SetGamertag))
             throw new ArgumentOutOfRangeException(nameof(kind), kind, "Only a roster match or a set gamertag is suggested about an Xbox account alone");
-        return new()
+        return Created(new()
         {
             Kind = kind,
             XboxUserID = xboxUserID,
@@ -37,12 +37,12 @@ public class GamertagClaim : AuditableEntity
             PlaceholderUserID = placeholderUserID,
             SeasonID = seasonID,
             TeamID = teamID,
-        };
+        });
     }
 
     /// <summary>Xbox said the account holds the placeholder's gamertag now, as <paramref name="currentGamertag"/>, when it was
     /// looked up. Pending.</summary>
-    public static GamertagClaim FromXuidLookup(long xboxUserID, string gamertag, string normalizedGamertag, int placeholderUserID, string currentGamertag, DateTime lookedUpAt) => new()
+    public static GamertagClaim FromXuidLookup(long xboxUserID, string gamertag, string normalizedGamertag, int placeholderUserID, string currentGamertag, DateTime lookedUpAt) => Created(new()
     {
         Kind = GamertagClaimKind.XuidLookup,
         XboxUserID = xboxUserID,
@@ -51,10 +51,10 @@ public class GamertagClaim : AuditableEntity
         PlaceholderUserID = placeholderUserID,
         CurrentGamertag = currentGamertag.Length > 50 ? currentGamertag[..50] : currentGamertag,
         LookedUpAt = lookedUpAt,
-    };
+    });
 
     /// <summary>The archive gave a Discord ID the claimant has, with a gamertag that doesn't fit them. Pending.</summary>
-    public static GamertagClaim FromDiscordMatch(int claimantUserID, long? xboxUserID, string gamertag, string normalizedGamertag, int placeholderUserID) => new()
+    public static GamertagClaim FromDiscordMatch(int claimantUserID, long? xboxUserID, string gamertag, string normalizedGamertag, int placeholderUserID) => Created(new()
     {
         Kind = GamertagClaimKind.DiscordMatch,
         ClaimantUserID = claimantUserID,
@@ -62,11 +62,11 @@ public class GamertagClaim : AuditableEntity
         Gamertag = gamertag,
         NormalizedGamertag = normalizedGamertag,
         PlaceholderUserID = placeholderUserID,
-    };
+    });
 
     /// <summary>A user claimed a past gamertag's placeholder from their profile, having had it between
     /// <paramref name="firstSeen"/> and <paramref name="lastSeen"/> (either may be unknown). Pending.</summary>
-    public static GamertagClaim ClaimedByUser(int claimantUserID, long? xboxUserID, string gamertag, string normalizedGamertag, int placeholderUserID, DateTime? firstSeen, DateTime? lastSeen) => new()
+    public static GamertagClaim ClaimedByUser(int claimantUserID, long? xboxUserID, string gamertag, string normalizedGamertag, int placeholderUserID, DateTime? firstSeen, DateTime? lastSeen) => Created(new()
     {
         Kind = GamertagClaimKind.UserClaim,
         ClaimantUserID = claimantUserID,
@@ -76,7 +76,7 @@ public class GamertagClaim : AuditableEntity
         PlaceholderUserID = placeholderUserID,
         FirstSeen = firstSeen,
         LastSeen = lastSeen,
-    };
+    });
 
     /// <summary>A user's claim whose placeholder is gone already (merged or deleted), no dates given: for tests.</summary>
     internal static GamertagClaim ClaimedByUser(int claimantUserID, string gamertag, string normalizedGamertag) => new()
@@ -152,6 +152,13 @@ public class GamertagClaim : AuditableEntity
     public GamertagClaimDecision Reject(string? reason, int? decidedByUserID, DateTime decidedAt)
         => Decide(GamertagClaimStatus.Rejected, reason, decidedByUserID, decidedAt);
 
+    /// <summary>A claim made (the factories), with the event that says so.</summary>
+    private static GamertagClaim Created(GamertagClaim claim)
+    {
+        claim.Raise(new GamertagClaimChanged(claim));
+        return claim;
+    }
+
     private GamertagClaimDecision Decide(GamertagClaimStatus status, string? reason, int? decidedByUserID, DateTime decidedAt)
     {
         switch (Status)
@@ -166,6 +173,7 @@ public class GamertagClaim : AuditableEntity
             : reason.Trim() is { Length: > MaxRejectionReasonLength } r ? r[..MaxRejectionReasonLength] : reason.Trim();
         DecidedAt = decidedAt;
         DecidedByUserID = decidedByUserID;
+        Raise(new GamertagClaimChanged(this));
         return GamertagClaimDecision.Decided;
     }
 
@@ -183,6 +191,7 @@ public class GamertagClaim : AuditableEntity
         if (into.IsDummyUser)
         {
             PlaceholderUserID = into.Id;
+            Raise(new GamertagClaimChanged(this));
             return;
         }
         if (ClaimantUserID == into.Id || (XboxUserID is not null && into.XboxUserID == XboxUserID))
@@ -210,6 +219,7 @@ public class GamertagClaim : AuditableEntity
                 Reject(SameClaimAsMergeTarget, decidedByUserID, decidedAt);
         }
         ClaimantUserID = into.Id;
+        Raise(new GamertagClaimChanged(this));
     }
 
     /// <summary>
@@ -223,6 +233,7 @@ public class GamertagClaim : AuditableEntity
             throw new InvalidOperationException($"Claim {GamertagClaimID} is {Status}: only an approval is superseded");
         Status = GamertagClaimStatus.Rejected;
         RejectionReason = reason;
+        Raise(new GamertagClaimChanged(this));
     }
 
     /// <summary>A merge: the user who decided the claim, <paramref name="fromUserID"/>, was merged into

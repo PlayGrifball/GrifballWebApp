@@ -413,8 +413,13 @@ grif.pgWaitForServerScript.
 # A function, not inline in $(...): inside a multi-line command substitution the backend image's
 # BusyBox sh ran the first $(DB_NAME) as a command (DB_NAME: not found) instead of passing it to
 # sqlcmd, so the query asked about database '$' - which doesn't exist, so it read as ready.
+# Its status reads ONLINE before SQL Server has started it after a restart (a migration Job then failed with Msg 904,
+# "cannot be autostarted during server shutdown or startup"): a query in it (the probe) has to answer too, and fails
+# (-b: sqlcmd exits non-zero) until it does.
 database_state() {
   sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
+    DECLARE @probe nvarchar(400) = N'DECLARE @n int; SELECT @n = COUNT(*) FROM ' + QUOTENAME(N'\$$(DB_NAME)') + N'.sys.objects;';
+    IF DB_ID(N'\$$(DB_NAME)') IS NOT NULL EXEC (@probe);
     SELECT CASE WHEN DB_ID(N'\$$(DB_NAME)') IS NULL THEN 'ONLINE'
       ELSE CONVERT(nvarchar(60), DATABASEPROPERTYEX(N'\$$(DB_NAME)', 'Status')) END" 2>&1
 }

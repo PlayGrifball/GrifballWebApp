@@ -11,17 +11,6 @@ public class CaptainPlacementDto
 }
 
 [TranspilationSource]
-public record CaptainAddedDto
-{
-    public required int SeasonID { get; set; }
-    public required int PersonID { get; set; }
-    public required int TeamID { get; set; }
-    public required string TeamName { get; set; }
-    public required string CaptainName { get; set; }
-    public required int OrderNumber { get; set; }
-}
-
-[TranspilationSource]
 public class RemoveCaptainDto
 {
     public int SeasonID { get; set; }

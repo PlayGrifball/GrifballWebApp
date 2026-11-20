@@ -162,7 +162,7 @@ public class ServerLocksUnitTests
         var queue = Substitute.For<IQueueRepository>();
         queue.GetQueuePlayersWithInfo(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("past the lock"));
         var service = new QueueService(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = 111UL }), queue,
-            Substitute.For<IDiscordRestClient>(), context, Substitute.For<IDataPullService>(), Substitute.For<IOutbox>(), Substitute.For<IQueueNotifier>(), _time);
+            Substitute.For<IDiscordRestClient>(), context, Substitute.For<IDataPullService>(), Substitute.For<IOutbox>(), _time);
         int Tries() => _connection.Sent.Count(c => c.Sql.Contains("sp_getapplock", StringComparison.Ordinal));
 
         var going = service.Go(CancellationToken.None);

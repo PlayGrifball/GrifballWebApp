@@ -50,7 +50,7 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
     private PersonalCommandsHandler Handler()
     {
         _services = new ServiceCollection().AddSingleton<IPublisher>(_publisher).BuildServiceProvider();
-        var membership = new QueueMembership(_queue, Db, Substitute.For<IQueueNotifier>());
+        var membership = new QueueMembership(_queue, Db);
         var buttons = new MatchmakingButtonHandler(membership, _services.GetRequiredService<IServiceScopeFactory>(), Db, Substitute.For<IDiscordRestClient>(), null!,
             new RecordingLogger<MatchmakingButtonHandler>());
         var seasons = new SeasonService(Db, null!, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time);

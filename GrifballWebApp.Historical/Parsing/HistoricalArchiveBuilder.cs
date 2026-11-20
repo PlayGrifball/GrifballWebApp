@@ -1,3 +1,5 @@
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Historical.Sources;
@@ -28,13 +30,16 @@ public sealed class HistoricalArchiveBuild
 /// workbook at most, not every source's.
 /// </para>
 /// </summary>
-public sealed class HistoricalArchiveBuilder
+public sealed partial class HistoricalArchiveBuilder
 {
     private readonly IReadOnlySet<string>? _changedSourceIds;
     private readonly List<string> _warnings = [];
     private readonly List<ArchiveSeason> _seasons = [];
-    private ChampionsArchive? _champions;
+    private readonly List<ArchiveChampionship> _champions = [];
+    private string? _championsSourceId;
+    private string? _championsSourceUrl;
     private readonly List<RecordedGameInput> _games = [];
+    private readonly List<ArchiveForfeitInput> _forfeits = [];
     private readonly List<ArchivePlayerInput> _players = [];
     private readonly List<CatalogSource> _catalog = [];
     /// <summary>Each Waypoint tab's games, parsed as its source is read; put under their season's key once every season is known.</summary>
@@ -43,8 +48,15 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
     private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
+    /// <summary>Each ladder tab's players (with its workbook's season defaults, its year and its past finishes), put on their
+    /// season once every season is known.</summary>
+    private readonly List<LadderRead> _ladders = [];
+    /// <summary>Each result list's games, put under their season once every season is known.</summary>
+    private readonly List<(string SourceId, int? Year, SeasonDefaults? Defaults, ResultsTab Tab, List<RecordedGameInput>? Games)> _results = [];
     /// <summary>Each bracket tab's series, put on their season's regular season once every season (and its standings) is known.</summary>
     private readonly List<(string SourceId, BracketTab Tab, ArchiveBracket? Bracket)> _brackets = [];
+    /// <summary>Each normalized bracket table's series, keyed by season source ID.</summary>
+    private readonly List<(string SourceId, string SeasonSourceId, ArchiveBracket Bracket)> _tableBrackets = [];
     /// <summary>Each draft tab's teams, put on their season's regular season once every season (and its standings) is known.</summary>
     private readonly List<(string SourceId, DraftTab Tab, List<ArchiveTeam>? Teams)> _drafts = [];
     /// <summary>Each awards tab's awards, put on their season's regular season once every season is known.</summary>
@@ -88,10 +100,17 @@ public sealed class HistoricalArchiveBuilder
             entry.SourceYear ??= source.Year;
         _seasons.AddRange(entries);
         if (config.ChampionsSheet is not null)
-            AddChampions(id, source.Url, config.ChampionsSheet, workbook, changed);
+            AddChampions(id, source.Url, config, workbook, changed);
+        if (config.ChampionsTable is { } championsTable)
+            AddChampionsTable(id, source.Url, config, championsTable.Sheet, workbook, changed);
         AddWaypoint(id, config, workbook);
         AddSeasonTabs(id, config, workbook);
+        if (config.BracketTable is { } bracketTable)
+            AddBracketTable(id, config, bracketTable, workbook);
+        AddResultLists(id, source.Year, config, workbook);
         AddGames(id, config, workbook, changed);
+        AddGameTables(id, config, workbook, entries);
+        AddLadders(source, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
         if (changed)
@@ -99,20 +118,27 @@ public sealed class HistoricalArchiveBuilder
                 _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
     }
 
-    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, drafts, awards): parsed
-    /// now, put on their seasons in <see cref="Finish"/>.</summary>
+    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, drafts, awards,
+    /// brackets): parsed now, put on their seasons in <see cref="Finish"/>. Result lists are <see cref="AddResultLists"/>.</summary>
     private void AddSeasonTabs(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
         foreach (var tab in config.Rosters)
-            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
+            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet, config) : null));
         foreach (var tab in config.Standings)
-            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
+            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? Named(StandingsParser.Parse(standingsSheet, tab), config) : null));
         foreach (var tab in config.Drafts)
-            _drafts.Add((id, tab, workbook.Sheet(tab.Sheet) is { } draftSheet ? DraftParser.Parse(draftSheet, tab) : null));
+            _drafts.Add((id, tab, workbook.Sheet(tab.Sheet) is { } draftSheet ? DraftParser.Parse(draftSheet, tab, config) : null));
         foreach (var tab in config.Awards)
             _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
         foreach (var tab in config.Brackets)
             _brackets.Add((id, tab, BracketParser.Parse(id, tab, workbook, _warnings)));
+    }
+
+    /// <summary>The result lists of a source (<see cref="AddResults"/> puts their games under their seasons).</summary>
+    private void AddResultLists(string id, int? year, HistoricalSourceConfig config, SheetWorkbook workbook)
+    {
+        foreach (var tab in config.Results)
+            _results.Add((id, year, config.Season, tab, workbook.Sheet(tab.Sheet) is { } resultsSheet ? GameResultsParser.Parse(id, tab, resultsSheet, _warnings) : null));
     }
 
     /// <summary>The snapshot's workbook, the sheets its config reads; null (a warning said why) when it can't be read.</summary>
@@ -136,15 +162,46 @@ public sealed class HistoricalArchiveBuilder
         return workbook;
     }
 
-    private void AddChampions(string id, string url, string sheetName, SheetWorkbook workbook, bool changed)
+    private void AddChampions(string id, string url, HistoricalSourceConfig config, SheetWorkbook workbook, bool changed)
     {
+        var sheetName = config.ChampionsSheet!;
         if (workbook.Sheet(sheetName) is { } sheet)
         {
-            _champions = ChampionsParser.Parse(id, url, sheet);
+            // Every source's champions, each named as its config names its teams (#534)
+            var parsed = ChampionsParser.Parse(id, url, sheet, config);
+            _championsSourceId = id;
+            _championsSourceUrl = url;
+            _champions.AddRange(parsed.Champions);
             _everySeason |= changed;
         }
         else
             _warnings.Add($"{id}: no sheet '{sheetName}'");
+    }
+
+    private void AddChampionsTable(string id, string url, HistoricalSourceConfig config, string sheetName, SheetWorkbook workbook, bool changed)
+    {
+        if (workbook.Sheet(sheetName) is { } sheet)
+        {
+            var parsed = ChampionsParser.ParseTable(id, url, sheet, _warnings, config);
+            _championsSourceId ??= id;
+            _championsSourceUrl ??= url;
+            _champions.AddRange(parsed.Champions);
+            _everySeason |= changed;
+        }
+        else
+            _warnings.Add($"{id}: no sheet '{sheetName}'");
+    }
+
+    private void AddBracketTable(string id, HistoricalSourceConfig config, BracketTableConfig table, SheetWorkbook workbook)
+    {
+        var stats = config.Tables.FirstOrDefault(t => string.Equals(t.Sheet, table.Stats, StringComparison.OrdinalIgnoreCase));
+        if (stats is null)
+        {
+            _warnings.Add($"{id}: bracket table '{table.Sheet}' names no stats table '{table.Stats}'");
+            return;
+        }
+        foreach (var (seasonSourceId, bracket) in BracketParser.ParseTable(id, table, stats, workbook, _warnings))
+            _tableBrackets.Add((id, seasonSourceId, bracket));
     }
 
     private void AddWaypoint(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
@@ -172,6 +229,24 @@ public sealed class HistoricalArchiveBuilder
     }
     }
 
+    /// <summary>The source's database tables of games (<see cref="GamesTableParser"/>): the games and forfeits of its own
+    /// seasons. One of a season its stats make no entry for is left out and reported. Their seasons are the entries', which
+    /// the source's change already marks.</summary>
+    private void AddGameTables(string id, HistoricalSourceConfig config, SheetWorkbook workbook, List<ArchiveSeason> entries)
+    {
+        if (config.GameTables.Count == 0)
+            return;
+        var parsed = GamesTableParser.Parse(id, config, workbook, _warnings);
+        var seasons = entries.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var games = parsed.Games.Where(g => seasons.Contains(g.SeasonSourceId)).ToList();
+        var forfeits = parsed.Forfeits.Where(f => seasons.Contains(f.SeasonSourceId)).ToList();
+        var left = parsed.Games.Count - games.Count + parsed.Forfeits.Count - forfeits.Count;
+        if (left > 0)
+            _warnings.Add($"{id}: {left} game(s) or forfeit(s) of a season with no stats, skipped");
+        _games.AddRange(games);
+        _forfeits.AddRange(forfeits);
+    }
+
     private void AddPlayers(string id, string sheetName, SheetWorkbook workbook, bool changed)
     {
         if (workbook.Sheet(sheetName) is { } sheet)
@@ -181,23 +256,55 @@ public sealed class HistoricalArchiveBuilder
         _playersChanged |= changed;
     }
 
+    /// <summary>A ladder tab read: its players (null: no such sheet, or no table), its past finishes (null: none), and
+    /// what a season of its own is made of.</summary>
+    private sealed record LadderRead(string SourceId, LadderTab Tab, List<LadderStanding>? Players, List<LadderStanding>? Finishes,
+        SeasonDefaults? Defaults, int? SourceYear, bool Changed);
+
+    private void AddLadders(HistoricalSource source, HistoricalSourceConfig config, SheetWorkbook workbook, bool changed)
+    {
+        if (config.Ladders.Count == 0)
+            return;
+        Dictionary<string, List<LadderStanding>>? finishes = null;
+        if (config.FinishesSheet is not null)
+        {
+            finishes = workbook.Sheet(config.FinishesSheet) is { } finishesSheet ? LadderParser.ParseFinishes(finishesSheet) : null;
+            if (finishes is null)
+                _warnings.Add($"{source.HistoricalSourceID}: past finishes '{config.FinishesSheet}' not read (no such sheet, or no Pos column)");
+        }
+        foreach (var tab in config.Ladders)
+        {
+            var players = workbook.Sheet(tab.Sheet) is { } sheet ? LadderParser.Parse(sheet, tab) : null;
+            var finished = tab.Finishes is { } heading && finishes is not null ? finishes.GetValueOrDefault(heading.Trim()) : null;
+            if (tab.Finishes is not null && finishes is not null && finished is null)
+                _warnings.Add($"{source.HistoricalSourceID}: no past finishes under '{tab.Finishes}' for ladder '{tab.Sheet}'");
+            _ladders.Add(new LadderRead(source.HistoricalSourceID, tab, players, finished, config.Season, tab.Year ?? source.Year, changed));
+        }
+    }
+
     public HistoricalArchiveBuild Finish()
     {
         var waypoint = WaypointBySeason();
         FillTeamsFromRosters();
         AddStandings();
+        PutLadders();
         AddDrafts();
+        AddResults();
+        NameGameSides();
         AddBrackets();
         AddAwards();
 
         var input = new HistoricalArchiveInput
         {
             Seasons = new UnifiedArchive { Seasons = _seasons },
-            Championships = _champions,
+            Championships = _champions.Count > 0 || _championsSourceId is not null
+                ? new ChampionsArchive { SourceId = _championsSourceId, SourceUrl = _championsSourceUrl, Champions = _champions }
+                : null,
             Catalog = new ArchiveCatalog { Sources = _catalog },
             WaypointMatches = waypoint.Where(w => w.Value.Regular.Count > 0 || w.Value.Playoffs.Count > 0)
                 .ToDictionary(w => w.Key, w => new WaypointSeasonMatches { Regular = [.. w.Value.Regular], Playoffs = [.. w.Value.Playoffs], Schedule = [.. w.Value.Schedule.Values.OrderBy(g => g.MatchId, StringComparer.Ordinal)] }),
             RecordedGames = _games.Count > 0 ? _games : null,
+            Forfeits = _forfeits.Count > 0 ? _forfeits : null,
             // The players list goes along when it changed (it is matched against every season's placeholders)
             Players = _playersChanged && _players.Count > 0 ? _players : null,
         };
@@ -253,6 +360,11 @@ public sealed class HistoricalArchiveBuilder
         }
     }
 
+    /// <summary>A standings tab's teams under the names the workbook's config gives them (<see cref="HistoricalSourceConfig.TeamNames"/>),
+    /// without a placeholder it doesn't name ("Team Name"): no team, and never a real one a letter away.</summary>
+    private static List<ArchiveTeam>? Named(List<ArchiveTeam>? teams, HistoricalSourceConfig config)
+        => teams?.Select(t => t with { TeamName = config.TeamName(t.TeamName) }).Where(t => !HistoricalKeys.IsExcludedTeamName(t.TeamName)).ToList();
+
     /// <summary>Each standings tab's teams go on its season's regular-season entry (the first, or its <see cref="StandingsTab.Tab"/>),
     /// where the import reads a team's record and placing.</summary>
     private void AddStandings()
@@ -268,13 +380,19 @@ public sealed class HistoricalArchiveBuilder
             }
             // The season's names of its teams: its stats', and an earlier standings tab's (two tabs of a season spell a team
             // alike, the stats naming none)
-            // A captain is one of the season's players: a nickname ("Team (Snipez)") would be a placeholder player
+            // A captain or roster player is one of the season's players (SeasonPlayer: as written, as the stats write it, or
+            // without the nickname after it): a nickname ("Team (Snipez)") or a typo would be a placeholder player. A season
+            // with no player lines (its league kept no stats) has only its standings' names: a roster's names are gamertags
             var (known, _) = Spellings(season, regular);
             var players = PlayersOf(season);
+            string? PlayerOf(string name) => players.Count == 0
+                ? StandingsParser.Gamertag(name)
+                : SeasonPlayer(name, players) ?? SeasonPlayer(StandingsParser.Gamertag(name), players);
             var named = teams.Select(t => t with
             {
                 TeamName = KnownName(t.TeamName, known),
-                Captain = SeasonPlayer(t.Captain, players),
+                Captain = t.Captain is { } captain ? PlayerOf(captain) : null,
+                Roster = [.. t.Roster.Select(PlayerOf).OfType<string>()],
             }).ToList();
             // The stats' placeholder of a captain's team ("OREOTHECAT's Team") is the team the standings name with that captain,
             // or name after them: it takes the team's name as the season has it
@@ -306,19 +424,36 @@ public sealed class HistoricalArchiveBuilder
                 _warnings.Add($"{sourceId}: bracket '{tab.Sheet ?? tab.Rounds[0].Sheet}' not read (no season from {workbook})");
                 continue;
             }
-            var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
-            var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
-                .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            // A bracket's team is often "Team (captain)": the name without it, a few letters off, is the season's too
-            string Named(string name)
-            {
-                name = tab.Aliases.GetValueOrDefault(name) ?? name;
-                return Closest(name, known) ?? Closest(StandingsParser.WithoutNote(name), known) ?? name;
-            }
-            regular.Bracket = new ArchiveBracket { Series = [.. bracket.Series.Select(s => s with { Home = Named(s.Home), Away = Named(s.Away) })] };
-            if (_changedSourceIds?.Contains(sourceId) != false)
-                _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+            AttachBracket(regular, bracket, tab.Aliases, sourceId);
         }
+
+        foreach (var (sourceId, seasonSourceId, bracket) in _tableBrackets)
+        {
+            var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs
+                && string.Equals(HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!), seasonSourceId, StringComparison.OrdinalIgnoreCase));
+            if (regular is null)
+            {
+                _warnings.Add($"{sourceId}: bracket for '{seasonSourceId}' not attached (no regular-season entry)");
+                continue;
+            }
+            AttachBracket(regular, bracket, null, sourceId);
+        }
+    }
+
+    private void AttachBracket(ArchiveSeason regular, ArchiveBracket bracket, Dictionary<string, string>? aliases, string sourceId)
+    {
+        var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, regular.SourceWorkbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
+        var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
+            .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        // A bracket's team is often "Team (captain)": the name without it, a few letters off, is the season's too
+        string Named(string name)
+        {
+            name = aliases?.GetValueOrDefault(name) ?? name;
+            return Closest(name, known) ?? Closest(StandingsParser.WithoutNote(name), known) ?? name;
+        }
+        regular.Bracket = new ArchiveBracket { Series = [.. bracket.Series.Select(s => s with { Home = Named(s.Home), Away = Named(s.Away) })] };
+        if (_changedSourceIds?.Contains(sourceId) != false)
+            _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
     }
 
     /// <summary>The regular-season entry of the workbook's season (the first, or its stats tab's), and all of that season's entries.</summary>
@@ -412,6 +547,63 @@ public sealed class HistoricalArchiveBuilder
         var allowed = key.Length >= 15 ? 3 : key.Length >= 8 ? 2 : 1;
         var close = players.Where(p => DuplicateSuggestionService.Distance(key, HistoricalKeys.StripFraming(p), allowed) is not null && SameNumber(key, HistoricalKeys.StripFraming(p))).ToList();
         return close.Count == 1 ? close[0] : null;
+    }
+
+    /// <summary>
+    /// Each ladder tab's players go on its season: the workbook's regular-season entry of that name, or (a season with no
+    /// stats tab) an entry of its own, keyed by the ladder tab, with no stats. Its past finishes go with them: a player's
+    /// place is the finishes' Pos (and their league and rank where the tab gives none), and a player only the finishes
+    /// list is added with what they give.
+    /// </summary>
+    private void PutLadders()
+    {
+        foreach (var read in _ladders)
+        {
+            if (read.Players is null)
+            {
+                _warnings.Add($"{read.SourceId}: ladder '{read.Tab.Sheet}' not read (no such sheet, or no League header)");
+                continue;
+            }
+            var entry = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, read.SourceId, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(s.SeasonName.Trim(), read.Tab.Season.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (entry is null)
+            {
+                entry = new ArchiveSeason
+                {
+                    SeasonName = read.Tab.Season.Trim(),
+                    GameVersion = read.Tab.Game,
+                    League = read.Defaults?.League ?? HistoricalKeys.LateLeague,
+                    Division = read.Defaults?.Division,
+                    Format = read.Defaults?.Format,
+                    SourceWorkbook = read.SourceId,
+                    SourceSheet = read.Tab.Sheet.Trim(),
+                    SourceYear = read.SourceYear,
+                };
+                _seasons.Add(entry);
+            }
+            entry.Ladder.AddRange(WithFinishes(read.Players, read.Finishes ?? []));
+            if (read.Changed)
+                _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
+        }
+    }
+
+    /// <summary>The ladder's players with their finishes (matched by gamertag, <see cref="HistoricalKeys.Normalize"/>), then
+    /// the players only the finishes list. With finishes, a player's place is theirs alone.</summary>
+    private static List<LadderStanding> WithFinishes(List<LadderStanding> players, List<LadderStanding> finishes)
+    {
+        var byGamertag = finishes.GroupBy(f => HistoricalKeys.Normalize(f.Gamertag)).ToDictionary(g => g.Key, g => g.First());
+        var matched = new HashSet<string>();
+        var ladder = players.Select(p =>
+        {
+            var key = HistoricalKeys.Normalize(p.Gamertag);
+            // The finishes are the places: one they don't list has none (its order in the tab would repeat one of theirs)
+            if (!byGamertag.TryGetValue(key, out var finish))
+                return byGamertag.Count == 0 ? p : p with { Position = null };
+            matched.Add(key);
+            return p with { Position = finish.Position, League = p.League ?? finish.League, Rank = p.Rank ?? finish.Rank };
+        }).ToList();
+        ladder.AddRange(byGamertag.Values.Where(f => !matched.Contains(HistoricalKeys.Normalize(f.Gamertag))));
+        return ladder;
     }
 
     /// <summary>

@@ -124,6 +124,7 @@ public class MatchedMatchStatusMigrationTests
             match.Ignore(m => m.Status);
             match.Ignore(m => m.WinnerSide);
             match.Property<bool>(ActiveColumn);
+            BeforeRecordedGameResultDetailsContext.IgnoreResultDetails(modelBuilder);
         }
     }
 }

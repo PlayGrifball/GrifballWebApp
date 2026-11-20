@@ -12,7 +12,7 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class MatchmakingStringMenuHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private MatchmakingStringMenuHandler Handler() => new(Db, null!, null!, null!);
+    private MatchmakingStringMenuHandler Handler() => new(Db, null!, null!);
 
     [Test]
     public async Task VoteToKick_RepliesToSetAGamertag_ForAnUnknownCaller()

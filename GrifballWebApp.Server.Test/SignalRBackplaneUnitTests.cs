@@ -53,5 +53,5 @@ internal static class SignalRBackplaneTestData
     }
 
     internal static Type? LifetimeManager(ServiceProvider services)
-        => services.GetRequiredService<HubLifetimeManager<TeamsHub>>().GetType().GetGenericTypeDefinition();
+        => services.GetRequiredService<HubLifetimeManager<GrifballWebApp.Server.Live.LiveHub>>().GetType().GetGenericTypeDefinition();
 }

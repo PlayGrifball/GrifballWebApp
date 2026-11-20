@@ -31,6 +31,34 @@ public class RecordedGameAggregateTests
     }
 
     [Test]
+    public void AnImportedGame_KeepsItsVodHostAndForfeit_AndAForfeitHasNoPlayers()
+    {
+        var game = RecordedGame.Import("archive/1", Facts with { Vod = "https://www.twitch.tv/videos/1", Host = "Rage", IsForfeit = true }, 7);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((game.Vod, game.Host, game.IsForfeit), Is.EqualTo(("https://www.twitch.tv/videos/1", "Rage", true)));
+            Assert.That(() => game.SetPlayers([Line(100, 1)]), Throws.InvalidOperationException, "Nobody played a forfeit");
+            Assert.That(() => game.SetPlayers([]), Throws.Nothing);
+            Assert.That(() => RecordedGame.Import("archive/2", Facts with { Vod = new string('v', RecordedGame.VodMaxLength + 1) }, 7), Throws.ArgumentException, "A VOD a row holds");
+            Assert.That(() => RecordedGame.Import("archive/2", Facts with { Host = new string('h', RecordedGame.HostMaxLength + 1) }, 7), Throws.ArgumentException, "A host a row holds");
+        }
+        game.Reimport(Facts, 7);
+        Assert.That((game.Vod, game.Host, game.IsForfeit), Is.EqualTo(((string?)null, (string?)null, false)), "A re-import says it now");
+    }
+
+    [Test]
+    public void APlayedGameThatBecomesAForfeit_LosesItsPlayers()
+    {
+        var game = RecordedGame.Import("archive/1", Facts, 7);
+        game.SetPlayers([Line(100, 1)]);
+
+        game.Reimport(Facts with { IsForfeit = true }, 7);
+
+        Assert.That((game.IsForfeit, game.Participants.Count), Is.EqualTo((true, 0)));
+    }
+
+    [Test]
     public void AGameEnteredByHand_IsManual_WithAKeyOfItsOwn_AndNoSeason()
     {
         var game = RecordedGame.EnterByHand(Facts);

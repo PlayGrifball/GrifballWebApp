@@ -53,13 +53,26 @@ public abstract class SqliteGrifballContextFixture
     }
 
     /// <summary>A user with no gamertag or roles: not staff, and <see cref="GrifballWebApp.Server.Commands.DiscordCaller.Find"/>
-    /// won't recognize them as a player either (they need a gamertag).</summary>
+    /// won't recognize them as a player either (they need a gamertag). A real account though, so
+    /// <see cref="GrifballWebApp.Server.Commands.DiscordCaller.AsToolCaller"/> still counts them as signed in.</summary>
     protected async Task<User> AddDiscordOnlyUser(ulong discordUserId, string name = "someone")
     {
         var user = User.Register(name);
         // The object overload, not the raw ID one: User.DiscordUserID is a foreign key to the Discord row, so both must
         // be inserted together.
         user.LinkDiscord(DiscordUser.FromDiscord((long)discordUserId, name));
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+        return user;
+    }
+
+    /// <summary>A dummy user (the historical import's placeholder, <see cref="User.ImportPlaceholder"/>'s shape) linked to a
+    /// Discord account: never really signed in (<see cref="GrifballWebApp.Server.Commands.DiscordCaller.AsToolCaller"/> doesn't
+    /// count it as one, gamertag or not), unlike <see cref="AddUser"/>'s or <see cref="AddDiscordOnlyUser"/>'s real account.</summary>
+    protected async Task<User> AddDummyUserLinkedToDiscord(ulong discordUserId, string gamertag)
+    {
+        var user = User.Seed(userName: "historical:" + gamertag, isDummyUser: true,
+            xboxUser: XboxUser.FromXbox((long)discordUserId, gamertag), discordUser: DiscordUser.FromDiscord((long)discordUserId, gamertag));
         Db.Users.Add(user);
         await Db.SaveChangesAsync();
         return user;

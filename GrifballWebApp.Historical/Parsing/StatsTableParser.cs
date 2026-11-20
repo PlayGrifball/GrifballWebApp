@@ -13,7 +13,7 @@ namespace GrifballWebApp.Historical.Parsing;
 /// playoffs column), each player's line read as a season stats tab's (<see cref="SeasonStatsParser"/>). Rows of a
 /// season the config doesn't name, and rows without a gamertag, are skipped and reported.
 /// </summary>
-public static class StatsTableParser
+public static partial class StatsTableParser
 {
     /// <summary>Stats that are rates, not counts: a player's per-game rows aren't added up into them (the importer works
     /// them out again from the totals).</summary>
@@ -92,7 +92,7 @@ public static class StatsTableParser
 
     /// <summary>Maps each season ID in <see cref="StatsTable.Seasons"/> to the first ID that shares its name and division
     /// (e.g. two conferences of one season).</summary>
-    private static Dictionary<string, string> CanonicalSeasonIds(StatsTable table)
+    internal static Dictionary<string, string> CanonicalSeasonIds(StatsTable table)
     {
         var firstBySeason = new Dictionary<(string Name, string? Division), string>();
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -179,8 +179,8 @@ public static class StatsTableParser
         return new ArchiveSeason
         {
             SeasonName = key.Division is null ? season.Name : $"{season.Name} ({key.Division})",
-            GameVersion = table.Game,
-            League = config.Season?.League ?? "AGLA",
+            GameVersion = season.Game ?? table.Game,
+            League = season.League ?? config.Season?.League ?? "AGLA",
             Division = key.Division ?? season.Division ?? config.Season?.Division ?? "Open",
             Format = config.Season?.Format,
             Titles = season.Titles,
@@ -207,21 +207,15 @@ public static class StatsTableParser
             return [];
         }
         var header = sheet.Rows[0];
-        var seasonCol = Index(header, table.SeasonColumn);
-        var teamCol = FirstIndex(header, "team_name", "team");
+        // Its own season column when it isn't the stats' (agla_teamindex's "season" beside agla_playerstats' "p_season")
+        var seasonCol = FirstIndex(header, table.SeasonColumn, "season");
+        var teamCol = FirstIndex(header, "team_name", "team", "teamname");
         if (seasonCol < 0 || teamCol < 0)
         {
             warnings.Add($"{sourceId}: {table.StandingsSheet} has no '{table.SeasonColumn}' or 'team_name' column");
             return [];
         }
-        var divCol = FirstIndex(header, "division_name", "division");
-        var rankCol = Index(header, "rank");
-        var winsCol = Index(header, "wins");
-        var lossesCol = Index(header, "losses");
-        var gfCol = Index(header, "goals_for");
-        var gaCol = Index(header, "goals_against");
-        var capCol = FirstIndex(header, "captain_gamertag", "captain");
-        var rosterCol = FirstIndex(header, "roster_gamertags", "roster");
+        var columns = StandingsColumns.Of(header, table);
         var bySeason = new Dictionary<string, List<ArchiveTeam>>(StringComparer.Ordinal);
         foreach (var row in sheet.Rows.Skip(1))
         {
@@ -229,21 +223,38 @@ public static class StatsTableParser
                 continue;
             if (!bySeason.TryGetValue(seasonId, out var list))
                 bySeason[seasonId] = list = [];
-            var roster = Value(row, rosterCol)?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
-            list.Add(new ArchiveTeam
-            {
-                TeamName = teamName,
-                Division = Value(row, divCol),
-                Rank = IntValue(row, rankCol),
-                Wins = IntValue(row, winsCol),
-                Losses = IntValue(row, lossesCol),
-                GoalsFor = IntValue(row, gfCol),
-                GoalsAgainst = IntValue(row, gaCol),
-                Captain = Value(row, capCol),
-                Roster = roster,
-            });
+            list.Add(columns.Team(row, teamName, table.Seasons[rawId].Divisions));
         }
         return bySeason;
+    }
+
+    /// <summary>A standings tab's columns (-1 for one it hasn't), and a team of a row.</summary>
+    private sealed record StandingsColumns(int Split, int Division, int Rank, int Wins, int Losses, int GoalsFor, int GoalsAgainst, int Captain, int Roster, List<int> Players)
+    {
+        public static StandingsColumns Of(string[] header, StatsTable table) => new(
+            // A season split into divisions by the teams' column (isPro) names each team's division by it
+            table.DivisionColumn is null ? -1 : Index(header, table.DivisionColumn),
+            FirstIndex(header, "division_name", "division"),
+            Index(header, "rank"), Index(header, "wins"), Index(header, "losses"), Index(header, "goals_for"), Index(header, "goals_against"),
+            FirstIndex(header, "captain_gamertag", "captain"),
+            FirstIndex(header, "roster_gamertags", "roster"),
+            // Or a column per player after the captain (agla_teamindex's p2 to p8)
+            Enumerable.Range(0, header.Length).Where(c => PlayerColumnPattern().IsMatch(header[c].Trim())).ToList());
+
+        public ArchiveTeam Team(string[] row, string teamName, Dictionary<string, string>? divisions) => new()
+        {
+            TeamName = teamName,
+            Division = divisions is not null && Value(row, Split) is { } split ? divisions.GetValueOrDefault(split) : Value(row, Division),
+            Rank = IntValue(row, Rank),
+            Wins = IntValue(row, Wins),
+            Losses = IntValue(row, Losses),
+            GoalsFor = IntValue(row, GoalsFor),
+            GoalsAgainst = IntValue(row, GoalsAgainst),
+            Captain = Value(row, Captain),
+            Roster = Roster < 0
+                ? new[] { Value(row, Captain) }.Concat(Players.Select(c => Value(row, c))).OfType<string>().ToList()
+                : Value(row, Roster)?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [],
+        };
     }
 
     /// <summary>
@@ -324,18 +335,15 @@ public static class StatsTableParser
         return -1;
     }
 
-    private static string Cell(string[] row, int column) => column >= 0 && column < row.Length ? row[column] : "";
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[pP]\d+$")]
+    private static partial System.Text.RegularExpressions.Regex PlayerColumnPattern();
+
+    private static string Cell(string[] row, int column) => ArchiveCells.TableCell(row, column);
 
     /// <summary>A cell's text, null for an empty cell and the database's NULL.</summary>
-    private static string? Value(string[] row, int column)
-    {
-        var text = Cell(row, column).Trim();
-        return text.Length == 0 || text.Equals("NULL", StringComparison.OrdinalIgnoreCase) ? null : text;
-    }
+    private static string? Value(string[] row, int column) => ArchiveCells.TableValue(row, column);
 
     private static decimal? Number(string[] row, int column) => ArchiveCells.Number(Value(row, column));
 
-    /// <summary>A cell's whole number; null for none, or one beyond an int (a stray value, never a count).</summary>
-    private static int? IntValue(string[] row, int column)
-        => Number(row, column) is decimal d && Math.Round(d) is var whole && whole >= int.MinValue && whole <= int.MaxValue ? (int)whole : null;
+    private static int? IntValue(string[] row, int column) => ArchiveCells.TableInt(row, column);
 }

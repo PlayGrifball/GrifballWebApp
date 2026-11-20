@@ -34,7 +34,7 @@ public class ReferenceDataDatabaseTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(leagues.Select(l => (l.LeagueID, l.LeagueName, l.Slug)),
-                Is.EqualTo(new[] { (1, "AGLA", "agla"), (3, "GWL", "gwl"), (4, "IGL", "igl"), (5, "Community/Side", "side") }));
+                Is.EqualTo(new[] { (1, "AGLA", "agla"), (3, "GWL", "gwl"), (4, "IGL", "igl"), (5, "Community/Side", "side"), (6, "GGL", "ggl"), (7, "EUGBL", "eugbl") }));
             Assert.That(games.Select(g => (g.GameVesionID, g.Slug)),
                 Is.EqualTo(new[] { (1, "halo3"), (2, "reach"), (3, "reach-dash"), (4, "halo4"), (5, "halo5"), (6, "infinite") }));
             Assert.That(regions, Is.EqualTo(SeededRegions));

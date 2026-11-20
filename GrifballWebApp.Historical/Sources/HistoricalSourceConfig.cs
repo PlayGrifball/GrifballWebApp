@@ -25,6 +25,10 @@ public class HistoricalSourceConfig
     public List<GamesTab> Games { get; init; } = [];
     /// <summary>The tab of the AGLA champions record.</summary>
     public string? ChampionsSheet { get; init; }
+    /// <summary>A normalized champions table (with league, season_name, game, tier, champion_team, p1..p8 columns).</summary>
+    public ChampionsTableConfig? ChampionsTable { get; init; }
+    /// <summary>A normalized bracket table (with season_id, bracket, round, seed_1, team_1, score_1, seed_2, team_2, score_2, winner columns).</summary>
+    public BracketTableConfig? BracketTable { get; init; }
     /// <summary>The tab of a players list (gamertag, Discord, Discord ID, Location, System).</summary>
     public string? PlayersSheet { get; init; }
     /// <summary>Tabs of the teams' rosters (a "Team Name" and "Player Name" table, or a draft sheet: a "Team Name" row with
@@ -33,14 +37,43 @@ public class HistoricalSourceConfig
     /// <summary>Rosters (as <see cref="RosterSheets"/>) in this workbook of a season whose stats are in another source's, e.g. a
     /// draft sheet beside the schedule: they fill the team of that season's players whose stats name none.</summary>
     public List<RosterTab> Rosters { get; init; } = [];
-    /// <summary>Tabs of a season's team standings: each team's record, its rank (seed) and its final place.</summary>
+    /// <summary>Tabs of a season's team standings: each team's record, its rank (seed), its final place, its captain and
+    /// roster. A workbook with a <see cref="Season"/> but no stats tabs or tables (a league that kept no player stats) is a
+    /// season of these teams alone: its entry has no player lines, keyed by its first standings tab of its own.</summary>
     public List<StandingsTab> Standings { get; init; } = [];
+    /// <summary>Database tables of games (the grifball.com and grifball.info backups): each game a recorded game of its
+    /// season, with its players' lines where the database has them, and each forfeit a forfeited season match.</summary>
+    public List<GamesTable> GameTables { get; init; } = [];
+    /// <summary>Tabs of a Late League season's ladder (its ranked standings): each player's division, league, rank, LP,
+    /// streak and MMR (LadderParser), which go on the season's ladder.</summary>
+    public List<LadderTab> Ladders { get; init; } = [];
+    /// <summary>The tab of each player's finishes in past seasons (Late League's "Past Seasons", LadderParser.ParseFinishes): League,
+    /// Rank and Pos columns under each season's heading, each season's going on the ladder whose <see cref="LadderTab.Finishes"/>
+    /// is that heading.</summary>
+    public string? FinishesSheet { get; init; }
+    /// <summary>Tabs of a season's results, a game or a series per entry (GameResultsParser): the season's games when no
+    /// per-game stats tab has them, and the forfeits and unlinked games of a Waypoint season's game history.</summary>
+    public List<ResultsTab> Results { get; init; } = [];
     /// <summary>A season's playoff bracket: who met whom in which round, their seeds and who won (BracketParser).</summary>
     public List<BracketTab> Brackets { get; init; } = [];
     /// <summary>Tabs of a season's draft: each team's captain, its place in the draft order and its picks by round.</summary>
     public List<DraftTab> Drafts { get; init; } = [];
     /// <summary>Tabs of a season's awards (MVPs, named season awards, records): AwardsParser.</summary>
     public List<AwardsTab> Awards { get; init; } = [];
+    /// <summary>Teams this workbook's rosters, standings and champions record name another way, by the name they give: a
+    /// placeholder never filled in (H3 Action 2022's "Team Name", RDG NHL's team) that would otherwise read as no team, or a
+    /// champion the record spells otherwise than its season's sheets ("Yung Hummu", the sheets' Yung Humma).</summary>
+    public Dictionary<string, string> TeamNames { get; init; } = [];
+
+    /// <summary>The archive's name of a team this workbook calls <paramref name="name"/>: its <see cref="TeamNames"/> entry in
+    /// any case and spacing ("TEAM  NAME"), else the name itself.</summary>
+    public string TeamName(string name)
+    {
+        var key = SingleSpaced(name);
+        return TeamNames.FirstOrDefault(n => string.Equals(SingleSpaced(n.Key), key, StringComparison.OrdinalIgnoreCase)).Value ?? name;
+    }
+
+    private static string SingleSpaced(string name) => string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -64,11 +97,18 @@ public class HistoricalSourceConfig
             .. RosterSheets,
             .. Rosters.Select(t => t.Sheet),
             .. Standings.Select(t => t.Sheet),
+            .. GameTables.SelectMany(t => new[] { t.Sheet, t.PlayersSheet, t.DeletedSheet }),
+            .. Ladders.Select(t => t.Sheet),
+            FinishesSheet,
+            .. Results.Select(t => t.Sheet),
             .. Brackets.Select(t => t.Sheet),
+            .. Brackets.Select(t => t.RecordsSheet),
             .. Brackets.SelectMany(t => t.Rounds.Select(r => r.Sheet)),
             .. Drafts.Select(t => t.Sheet),
             .. Awards.Select(t => t.Sheet),
             ChampionsSheet,
+            ChampionsTable?.Sheet,
+            BracketTable?.Sheet,
             PlayersSheet,
         ];
         return names.OfType<string>().Select(n => n.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -129,6 +169,15 @@ public class StatsTab
     /// <summary>Optional marker (first non-empty cell prefix, case-insensitive) starting a side-by-side per-game box score
     /// section (e.g. Finals "GAME 1" / "Game 2" blocks), parsed alongside <see cref="PerGame"/>.</summary>
     public string? SideBySideGamesStart { get; init; }
+    /// <summary>Columns (0-based) not read though their header names a stat: a stat's second column of other games, e.g. a
+    /// medal section's Minutes of only the games whose medals were recorded (a later column of a stat wins otherwise).</summary>
+    public List<int>? IgnoreColumns { get; init; }
+    /// <summary>A game a player's row doesn't count as won is lost: their losses are their games less their wins (a tab
+    /// with no Losses column, whose games are never tied). Otherwise a tab without one gives no losses.</summary>
+    public bool LossesAreGamesNotWon { get; init; }
+    /// <summary>Treat rows whose player cell matches a known roster team name (summary/header rows above or below a team's
+    /// players) as non-player team markers rather than player rows, updating the carried team when <see cref="CarryTeam"/> is set.</summary>
+    public bool TeamSectionRows { get; init; }
 }
 
 /// <summary>
@@ -164,6 +213,61 @@ public class StatsTable
     public Dictionary<string, TableSeason> Seasons { get; init; } = [];
 }
 
+/// <summary>
+/// A database table of games (<see cref="GamesTableLayout"/> says which database's shape), its seasons those of a
+/// <see cref="StatsTable"/> of the same source (<see cref="Stats"/>): a game goes under the key of its season (and
+/// division) there, read through that table's season IDs, team lookup and division column. A game of a season the
+/// stats table doesn't name, or one that can't be told apart (two sides needed), is skipped and reported.
+/// </summary>
+public class GamesTable
+{
+    /// <summary>The games: a row per game, or per side of a game (<see cref="GamesTableLayout.TeamRows"/>).</summary>
+    public required string Sheet { get; init; }
+    public GamesTableLayout Layout { get; init; }
+    /// <summary>The <see cref="StatsTable.Sheet"/> whose seasons, teams and divisions the games are of.</summary>
+    public required string Stats { get; init; }
+    /// <summary>The games' player lines, a row per player per game.</summary>
+    public string? PlayersSheet { get; init; }
+    /// <summary>A table of deleted games (a game ID column): those games are left out.</summary>
+    public string? DeletedSheet { get; init; }
+}
+
+/// <summary>The shapes of the website databases' game tables.</summary>
+public enum GamesTableLayout
+{
+    /// <summary>grifball.com's Matches: a row per game (match_id, league_id, is_forfeit, team1_* the winner's and team2_*
+    /// the loser's name and score), its player lines in Match_Players (match_id, side, gamertag, goals, kills, deaths,
+    /// betrayals, grabs).</summary>
+    Matches = 1,
+    /// <summary>grifball.info's gb_teamstats: a row per team per game (gameid, teamid, t_win, t_loss, t_fwin, t_floss,
+    /// t_goals, t_season, t_playoffs). No player lines.</summary>
+    TeamRows = 2,
+    /// <summary>grifball.info's h_games: a row per scheduled game (id, season, teama, teamb, result "(7 - 2)" or
+    /// "forfeit", win, loss, playoffs, link, date_reported); unplayed ones have no result. Its player lines are the stats
+    /// table's rows with the game's link.</summary>
+    Schedule = 3,
+    /// <summary>grifball.info's agla_gamesreported: a row per reported game (Index, GameID, Winning_team, Losing_team,
+    /// Game_Date, g_season, forfeit 1 or 2 for a double forfeit), its player lines by GameID (Gamertag, TeamName, Goals,
+    /// Kills, Deaths, Assists, Betrayals, hammer_kills, sword_kills, bomb_kills, bombstops, playoffs).</summary>
+    Reported = 4,
+    /// <summary>Normalized schedule/match results table (season_id, division, team_a, team_b, winner, score_a, score_b,
+    /// is_forfeit, match_time): unplayed rows without a winner or scores are skipped without warning.</summary>
+    ScheduleResults = 5,
+}
+
+/// <summary>A normalized champions table tab (e.g. history-grifballhub-db's Champions tab).</summary>
+public class ChampionsTableConfig
+{
+    public required string Sheet { get; init; }
+}
+
+/// <summary>A normalized playoff bracket table tab (e.g. history-grifballhub-db's Brackets tab), keyed by season ID to a <see cref="StatsTable"/>.</summary>
+public class BracketTableConfig
+{
+    public required string Sheet { get; init; }
+    public required string Stats { get; init; }
+}
+
 /// <summary>Another tab's column by an ID: <see cref="Column"/> of the <see cref="Sheet"/> row whose <see cref="Key"/> is the
 /// stats row's <see cref="RowKey"/> (the same column name when not given).</summary>
 public class TableLookup
@@ -177,6 +281,10 @@ public class TableLookup
 public class TableSeason
 {
     public required string Name { get; init; }
+    /// <summary>Optional league name or slug override for this season; defaults to the source's <see cref="SeasonDefaults.League"/>.</summary>
+    public string? League { get; init; }
+    /// <summary>Optional GameVersion slug override for this season; defaults to <see cref="StatsTable.Game"/>.</summary>
+    public string? Game { get; init; }
     /// <summary>The season's division (Pro, Amateur, Open, UK, Aussie, OGBL) when all rows of the season share one.</summary>
     public string? Division { get; init; }
     /// <summary>The champions record's name for the season's titles, when it isn't the season's own.</summary>
@@ -197,7 +305,7 @@ public class RosterTab
 
 /// <summary>
 /// A tab of a season's team standings (StandingsParser): a table of teams with any of a record, a rank or seed, a final
-/// place and a captain, its columns found by their headers. Its teams go on the season's regular-season entry, which the
+/// place, a captain and its players (Player 1, Player 2, ...), its columns found by their headers. Its teams go on the season's regular-season entry, which the
 /// import takes their record and placing from.
 /// </summary>
 public class StandingsTab
@@ -220,6 +328,33 @@ public class StandingsTab
     public bool Ranked { get; init; }
     /// <summary>A team is named "Team (captain)": the name in brackets is its captain's.</summary>
     public bool CaptainInName { get; init; }
+    /// <summary>Players the tab names otherwise than the stats, by the name it gives (any case): a captain's nickname to their
+    /// gamertag (SL25's Team Chart "Nkot", NKOTB4evah), who would otherwise be no player of the season.</summary>
+    public Dictionary<string, string> Names { get; init; } = [];
+}
+
+/// <summary>
+/// A tab of a Late League season's ladder (LadderParser): a row per player under a row of headers (Division, League, Rank,
+/// LP, Streak, MMR, P/ Win, P/ Loss), the player in <see cref="PlayerColumn"/>. Its rows go on the season named
+/// <see cref="Season"/> of the workbook, or on a season of its own (one with no stats tab, keyed by this tab) when the
+/// workbook has none of that name.
+/// </summary>
+public class LadderTab
+{
+    public required string Sheet { get; init; }
+    /// <summary>The season's name, as its stats tab's <see cref="StatsTab.CustomSeason"/> gives it.</summary>
+    public required string Season { get; init; }
+    /// <summary>The season's GameVersion slug, for a season of its own.</summary>
+    public required string Game { get; init; }
+    /// <summary>The season's year, for a season of its own: nothing in the tab dates it.</summary>
+    public int? Year { get; init; }
+    /// <summary>The column of the gamertags (the first by default: its header varies, or is empty).</summary>
+    public int PlayerColumn { get; init; }
+    /// <summary>The column of the divisions, when its header doesn't say Division (an empty header).</summary>
+    public int? DivisionColumn { get; init; }
+    /// <summary>The season's heading in the workbook's <see cref="HistoricalSourceConfig.FinishesSheet"/>: its finishes
+    /// (league, rank, place) go on this ladder.</summary>
+    public string? Finishes { get; init; }
 }
 
 public enum StandingsLayout
@@ -230,6 +365,8 @@ public enum StandingsLayout
     Columns,
     /// <summary>A cell per team down the anchor's column, its record in brackets: "ZMD (Zeg) (17-3) (95-46)".</summary>
     List,
+    /// <summary>A team per row with unlabelled roster slots before Wins/Losses and a "Captain" label row beneath each team's captain.</summary>
+    CaptainRows,
 }
 
 /// <summary>
@@ -301,6 +438,48 @@ public class GamesTab
     public bool Scrims { get; init; }
 }
 
+public enum ResultsLayout
+{
+    /// <summary>A row per game under a header row naming Winner and Loser (and any of Score, Host, Game, Map, VOD):
+    /// "Winner | 5-2 | Loser | Host | VOD". A row that is a week or the playoffs (Week 3, Playoffs) marks the games below;
+    /// a series is the games of the same two teams in a row. A header row again mid-sheet may move the columns.</summary>
+    Table = 1,
+    /// <summary>A cell per series or game, anywhere on the tab: "A over B 2-0 (5-1, 5-4)", "A tied B (5-3, 5-3)",
+    /// "A 2-1 B" with the game scores (A's first, or FF) in the cells after it, or "A over B 5-3", one game.</summary>
+    Series = 2,
+    /// <summary>A Halo Infinite game history (Home, Away, Score, the Waypoint link): its rows without a match link, which the
+    /// Waypoint games leave out. A row that says FF (in any cell) is a forfeit; one with a score is a game played without
+    /// a link; the rest (not played yet) are left out.</summary>
+    GameHistory = 3,
+    /// <summary>A calendar: cells of games each after its time ("9:30pm: Impulse (5) vs. High Voltage (1)", "*8pm: A (0) @ B (5)"),
+    /// a game a score each; a game without scores (not played, or not reported) is left out.</summary>
+    Calendar = 4,
+}
+
+/// <summary>
+/// A tab of a season's results (GameResultsParser): its games go in as recorded games without players, each side named by
+/// the team the list gives (the season's team of that name, a known abbreviation, captain or player of it), in series.
+/// </summary>
+public class ResultsTab
+{
+    public required string Sheet { get; init; }
+    public ResultsLayout Layout { get; init; } = ResultsLayout.Table;
+    /// <summary>The source ID of the season's stats workbook; null: this workbook's own.</summary>
+    public string? Season { get; init; }
+    /// <summary>The stats tab (its <see cref="StatsTab.Name"/>) of the season, when the workbook has several seasons.</summary>
+    public string? Tab { get; init; }
+    /// <summary>A season of its own that no stats tab has (its results are all the archive has of it), e.g. the real league
+    /// of a fantasy workbook: an entry of that name (with this workbook's league and division) is made for it.</summary>
+    public string? CustomSeason { get; init; }
+    /// <summary>The games' GameVersion slug, unless a row names its game; the season's otherwise.</summary>
+    public string? Game { get; init; }
+    /// <summary>Every game is a playoff game (a playoffs-only list).</summary>
+    public bool IsPlayoffs { get; init; }
+    /// <summary>Names the list gives a team that the season spells another way and no rule finds (an abbreviation that is not
+    /// its words' first letters): the list's name to the season's.</summary>
+    public Dictionary<string, string> Teams { get; init; } = [];
+}
+
 /// <summary>
 /// A season's playoff bracket in its sheets (BracketParser): either a drawn bracket, its series named cell by cell
 /// (<see cref="Slots"/>, on <see cref="Sheet"/>), or a tab per round (<see cref="Rounds"/>) whose rows are each game's
@@ -323,6 +502,10 @@ public class BracketTab
     /// <summary>The season's name of a team the bracket calls something else (by its seed, or a typo): bracket name to
     /// the stats' or standings' name.</summary>
     public Dictionary<string, string> Aliases { get; init; } = [];
+    /// <summary>A tab of the teams' records, each under its team's name, the playoffs' in brackets after the season's (H4 Bid
+    /// 2022's Teams: "Beer" over "16-2 (4-0)"): a series no cell names the winner of, whose score is known, goes to the side
+    /// with too few playoff losses to have lost it.</summary>
+    public string? RecordsSheet { get; init; }
 }
 
 /// <summary>

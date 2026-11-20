@@ -15,6 +15,76 @@ public class SeasonStatsParserTests
     private static HistoricalSourceConfig Fl20Config()
         => HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "2020-fl20-pc-schedule-stats").Config!;
 
+    private static readonly (string, decimal?, decimal?, decimal?, decimal?)[] DjBlueLines = [("Mr Epic Beast", 3, 1, 2, 3360), ("oDhmon", 2, 2, 0, 600)];
+
+    [Test]
+    public void DjBluesTeamStatistics_LossesAreTheGamesNotWon_TheMedalSectionsMinutesIgnored_AndTheHostsListNotRead()
+    {
+        // Games and Wins but no Losses; a second Minutes column of only the games with medals; a Neutral Host list below
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Team Statistics",
+            [
+                Row(null, null, "Statistics for the Halo 3 Event"),
+                Row("Team", "Player", "Games", "Wins", "Minutes", "Kills", "Deaths", "Medals Recorded?", "Minutes"),
+                Row("Twitch Prime", "Mr Epic Beast", 3, 1, 56, 233, 323, 2, 14),
+                Row("Twitch Prime", "oDhmon", 2, 2, 10, 291, 225, 2, 4),
+                Row("Totals:", null, 5, 3, 66, 524, 548),
+                Row("Neutral Host:", 24),
+                Row("The Alpha Turtle", 1),
+            ])))!;
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "DJBluePDX Summer Series 2021 (Halo 3)", League = "Community/Side", Game = "halo3" },
+            Tabs = [new() { Name = "Team Statistics", HeaderRow = 1, StopAt = "Neutral Host", IgnoreColumns = [8], LossesAreGamesNotWon = true }],
+        };
+
+        var season = SeasonStatsParser.Parse("djblue", config, workbook, []).Single();
+
+        Assert.That(season.Players.Select(p => (p.Gamertag, p.GamesPlayed, p.Wins, p.Losses, p.TotalSecondsPlayed)), Is.EqualTo(DjBlueLines));
+    }
+
+    [Test]
+    public void ATabOfGamesAndWinsWithNoLossesColumn_HasNoLosses_UnlessItSaysAGameNotWonIsLost()
+    {
+        // Games not won may be ties or unfinished games: only a tab that says so counts them as lost
+        var workbook = SheetWorkbook.Read(Workbook(("Stats", [Row("Player", "Games", "Wins"), Row("A", 6, 3)])))!;
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Summer League 2021", Game = "halo3" }, Tabs = [new() { Name = "Stats" }] };
+
+        var player = SeasonStatsParser.Parse("s", config, workbook, []).Single().Players.Single();
+
+        Assert.That(player.Losses, Is.Zero);
+    }
+
+    [Test]
+    public void AWorkbookOfStandingsWithNoStats_WhoseStandingsTabIsMissing_MakesNoSeason()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Schedule", [Row("Team", "Wins"), Row("Alpha", 1)])))!;
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Spring League 2020 (Halo 5 Console)", Game = "halo5" }, Standings = [new() { Sheet = "Rosters" }] };
+
+        Assert.That(SeasonStatsParser.Parse("h5", config, workbook, []), Is.Empty);
+    }
+
+    [Test]
+    public void AWorkbookOfStandingsWithNoStats_NamingOnlyItsSeason_IsAnOpenAglaSeason()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Rosters", [Row("Team", "Captain"), Row("Alpha", "Ace")])))!;
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Spring League 2020" }, Standings = [new() { Sheet = "Rosters" }] };
+
+        var season = SeasonStatsParser.Parse("s", config, workbook, []).Single();
+
+        Assert.That((season.GameVersion, season.League, season.Division, season.SourceSheet), Is.EqualTo(("", "AGLA", "Open", "Rosters")));
+    }
+
+    [TestCase("Games")]
+    [TestCase("Wins")]
+    public void ATabWhoseGamesNotWonAreLost_WithoutItsGamesOrWins_HasNoLosses(string column)
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Stats", [Row("Player", column), Row("A", 3)])))!;
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Summer League 2021", Game = "halo3" }, Tabs = [new() { Name = "Stats", LossesAreGamesNotWon = true }] };
+
+        Assert.That(SeasonStatsParser.Parse("s", config, workbook, []).Single().Players.Single().Losses, Is.Zero);
+    }
+
     [Test]
     public void CarryTeam_FillsTeamDownBlock_AndResetsOnTotalsAndExcludedTeams()
     {
@@ -390,5 +460,111 @@ public class SeasonStatsParserTests
             Assert.That(players.Select(p => (p.StintIndex, p.GamesPlayed, p.Wins, p.Losses)), Is.EqualTo(new[] { (1, (decimal?)0, (decimal?)0, (decimal?)0), (2, (decimal?)0, (decimal?)0, (decimal?)0) }));
             Assert.That(warnings, Is.EqualTo(TwoLinesWarning));
         }
+    }
+
+    [Test]
+    public void LegacyHeaders_TimeMinutes_RecordCellsAndTeamSectionRows_AreHandled()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Rosters",
+            [
+                Row(null, "Teams", null, null, null, null, "Wins", null, "Losses"),
+                Row(null, "ThunderCats", null, "ixLiono", "ixGingy", null, 9, null, 1),
+                Row(null, null, null, "Captain"),
+            ]),
+            ("Stats",
+            [
+                Row("Pro Players", "Team", "Total Games", "Games Won", "Games Lost", "Time (m)", "Avg Life (S)", "Goals For", "Kills", "Ham Kills", "Ball    Kills"),
+                Row("Jankyard Doogs"),
+                Row("ixLiono", null, 3, 2, 1, 60, 14.0, 5, 200, 150, 8),
+                Row("Pro Players", null),
+                Row("ixGingy", "8-2", 5, 4, 1, 95, 11.2, 6, 300, 250, 12),
+                Row("SubPlayer", "Various Teams", 1, 0, 1, 15, 9.0, 1, 40, 30, 1),
+            ])))!;
+
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Winter League 2020 (Reach PC)", League = "AGLA", Game = "reach" },
+            RosterSheets = ["Rosters"],
+            Tabs = [new() { Name = "Stats", HeaderRow = 0, CarryTeam = true, TeamSectionRows = true }],
+            TeamNames = new() { ["Jankyard Doogs"] = "ThunderCats", ["Various Teams"] = "" },
+        };
+
+        var players = SeasonStatsParser.Parse("wl20", config, workbook, []).Single().Players;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(players.Select(p => (p.Gamertag, p.TeamName, p.TotalSecondsPlayed, p.BallKills, p.HammerKills)),
+                Is.EqualTo(new[]
+                {
+                    ("ixLiono", (string?)"ThunderCats", (decimal?)3600m, (decimal?)8m, (decimal?)150m),
+                    ("ixGingy", (string?)"ThunderCats", (decimal?)5700m, (decimal?)12m, (decimal?)250m),
+                    ("SubPlayer", (string?)null, (decimal?)900m, (decimal?)1m, (decimal?)30m),
+                }));
+        }
+    }
+
+    [Test]
+    public void TeamSectionRows_WithoutCarryTeam_LeaveTheTeamToTheRoster_AndANameForNoTeamIsALine()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Rosters",
+            [
+                Row(null, "Teams", null, null, null, null, "Wins", null, "Losses"),
+                Row(null, "ThunderCats", null, "ixLiono", "ixGingy", null, 9, null, 1),
+                Row(null, null, null, "Captain"),
+            ]),
+            ("Stats",
+            [
+                Row("Pro Players", "Team", "Total Games"),
+                Row("ThunderCats"),
+                Row("ixLiono", null, 3),
+                Row("Subs", null, 2),
+                Row("Gone", null, 1),
+            ])))!;
+
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Winter League 2020 (Reach PC)", League = "AGLA", Game = "reach" },
+            RosterSheets = ["Rosters"],
+            Tabs = [new() { Name = "Stats", HeaderRow = 0, TeamSectionRows = true }],
+            TeamNames = new() { ["Gone"] = "" },
+        };
+
+        var players = SeasonStatsParser.Parse("wl20", config, workbook, []).Single().Players;
+
+        Assert.That(players.Select(p => (p.Gamertag, p.TeamName)),
+            Is.EqualTo(new[] { ("ixLiono", (string?)"ThunderCats"), ("Subs", null), ("Gone", null) }));
+    }
+
+    [Test]
+    public void RosterParser_TeamStatBlocks_ReadsPlayersAboveGoalsRows()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Impulse",
+            [
+                Row("Impulse"),
+                Row(),
+                Row("iGalvanator", "Totals:"),
+                Row("Goals:", 11),
+                Row("KID TONGA 1"),
+                Row("Goals:", 46),
+            ]),
+            ("Overall",
+            [
+                Row("Pro Players", "Total Games", "Kills", "Deaths"),
+                Row("iGalvanator", 13, 784, 604),
+                Row("KID TONGA 1", 15, 446, 609),
+            ])))!;
+
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Summer League 2016", League = "AGLA", Game = "halo5" },
+            RosterSheets = ["Impulse"],
+            Tabs = [new() { Name = "Overall", HeaderRow = 0 }],
+        };
+
+        var players = SeasonStatsParser.Parse("sml16", config, workbook, []).Single().Players;
+        Assert.That(players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("iGalvanator", "Impulse"), ("KID TONGA 1", "Impulse") }));
     }
 }

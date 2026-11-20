@@ -22,6 +22,9 @@ public class HistoricalArchiveInput
     /// <summary>Games recorded outside Waypoint (MCC carnage reports, older games), each naming its season by the season's
     /// <c>HistoricalSourceID</c>. Filled by the spreadsheet parser.</summary>
     public List<RecordedGameInput>? RecordedGames { get; init; }
+    /// <summary>Season matches decided by a forfeit (no game was played), each naming its season by the season's
+    /// <c>HistoricalSourceID</c>. Filled by the spreadsheet parser from the website databases' game tables.</summary>
+    public List<ArchiveForfeitInput>? Forfeits { get; init; }
     /// <summary>Players lists (the Late League master list and the like): a gamertag's Discord ID, region and system.
     /// Filled by the spreadsheet parser, or from late-league-master.json (<see cref="LateLeagueMasterFile"/>).</summary>
     public List<ArchivePlayerInput>? Players { get; init; }
@@ -75,6 +78,9 @@ public class ArchiveSeason
     /// <summary>The season's teams, their records, captains and rosters when a standings table lists them (e.g. the
     /// grifball.com archive), including teams with no captured player stat rows.</summary>
     public List<ArchiveTeam> Teams { get; init; } = [];
+    /// <summary>A Late League season's ladder (its ranked standings), in its order: each player's place, league, rank, LP,
+    /// streak and MMR, and their finish where the workbook's past finishes give one.</summary>
+    public List<GrifballWebApp.Domain.LateLeague.LadderStanding> Ladder { get; init; } = [];
     /// <summary>The season's awards (its MVP, named awards, records), in its sheets' order: a row per winner.</summary>
     public List<ArchiveAward> Awards { get; init; } = [];
     /// <summary>The season's playoff bracket, when a sheet draws one (BracketParser): the import takes it over rebuilding
@@ -192,6 +198,13 @@ public class ChampionsArchive
 
 public class ArchiveChampionship
 {
+    /// <summary>The league's name or slug (e.g. "AGLA", "GGL", "EUGBL"); null defaults to AGLA.</summary>
+    [JsonPropertyName("leagueSlug")]
+    public string? League { get; init; }
+    /// <summary>The source workbook ID that supplied this title, when merged from multiple sources.</summary>
+    public string? SourceId { get; init; }
+    /// <summary>The source URL that supplied this title, when merged from multiple sources.</summary>
+    public string? SourceUrl { get; init; }
     /// <summary>The season's name, e.g. "Summer League 2021".</summary>
     public required string Season { get; init; }
     /// <summary>The game as the record writes it, e.g. "MCC Halo 3", "Infinite".</summary>
@@ -241,11 +254,11 @@ public class ScheduledGame
 public class RecordedGameInput
 {
     /// <summary>The season's <c>HistoricalSourceID</c> ("{sourceWorkbook}/{sourceSheet}"), as <see cref="HistoricalArchiveInput.WaypointMatches"/> is keyed.</summary>
-    public required string SeasonSourceId { get; init; }
+    public required string SeasonSourceId { get; set; }
     /// <summary>Unique per game (e.g. "{workbook}/{sheet}#{row}"): what a re-import finds the game by.</summary>
     public required string SourceKey { get; init; }
     /// <summary>A GameVersion slug: halo3, reach, reach-dash, halo4, halo5, infinite.</summary>
-    public required string GameVersion { get; init; }
+    public required string GameVersion { get; set; }
     public DateTime? PlayedAt { get; init; }
     public string? Map { get; init; }
     public string? Gametype { get; init; }
@@ -255,6 +268,15 @@ public class RecordedGameInput
     public bool IsScrim { get; init; }
     /// <summary>The game's Waypoint match ID or URL, when it was a Halo Infinite match: the Waypoint match wins.</summary>
     public string? WaypointMatchId { get; init; }
+    /// <summary>The series the game is in, when its source says (a result list's rows of one series): the games with the same
+    /// key are one series, whenever they were played. Without one, a series is the same two teams' games close in time.</summary>
+    public string? Series { get; init; }
+    /// <summary>A link to a video of the game, as its source gives it.</summary>
+    public string? Vod { get; init; }
+    /// <summary>Who hosted the game.</summary>
+    public string? Host { get; init; }
+    /// <summary>Forfeited, not played: no players, and its sides' outcomes say who forfeited (Lost), or both did.</summary>
+    public bool IsForfeit { get; init; }
     public List<RecordedTeamInput> Teams { get; init; } = [];
     public List<RecordedPlayerInput> Players { get; init; } = [];
 }
@@ -262,10 +284,14 @@ public class RecordedGameInput
 public class RecordedTeamInput
 {
     public int Side { get; init; }
-    public string? Name { get; init; }
+    public string? Name { get; set; }
     [JsonConverter(typeof(JsonStringEnumConverter<GrifballWebApp.Domain.Halo.Outcomes>))]
     public GrifballWebApp.Domain.Halo.Outcomes Outcome { get; init; }
     public int? Score { get; init; }
+    /// <summary>The name is the side's team as its season has it (a website database's): the side is that team, or none
+    /// when the season hasn't it (a deleted team), never the team its players are on. Otherwise the side is the team most
+    /// of its players are on, by its name when they are on none.</summary>
+    public bool NamesItsTeam { get; init; }
 }
 
 public class RecordedPlayerInput
@@ -284,6 +310,29 @@ public class RecordedPlayerInput
     public int? SwordKills { get; init; }
     public int? BallKills { get; init; }
     public int? Punches { get; init; }
+    /// <summary>Times the player picked up the ball (grifball.com's grabs).</summary>
+    public int? Grabs { get; init; }
+}
+
+/// <summary>
+/// A season match decided by a forfeit: no game was played. The import makes it a forfeited season match between the
+/// season teams of these names (the winner's and the forfeiting side's, or both forfeiting).
+/// </summary>
+public class ArchiveForfeitInput
+{
+    /// <summary>The season's <c>HistoricalSourceID</c>, as <see cref="RecordedGameInput.SeasonSourceId"/>.</summary>
+    public required string SeasonSourceId { get; init; }
+    /// <summary>Where it comes from (e.g. "{workbook}/{sheet}#{row}"), for the report.</summary>
+    public required string SourceKey { get; init; }
+    /// <summary>The team that won by the forfeit; with <see cref="BothForfeited"/>, one of the two.</summary>
+    public required string Winner { get; init; }
+    /// <summary>The team that forfeited.</summary>
+    public required string Loser { get; init; }
+    /// <summary>A double forfeit: neither side won.</summary>
+    public bool BothForfeited { get; init; }
+    /// <summary>A playoff series' forfeit: the import leaves it out (its bracket is rebuilt from games), and reports it.</summary>
+    public bool IsPlayoffs { get; init; }
+    public DateTime? PlayedAt { get; init; }
 }
 
 /// <summary>A player of a players list: who a gamertag is on Discord, where they play from and on what.</summary>

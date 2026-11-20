@@ -269,12 +269,14 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
 
     /// <summary>
     /// The models <paramref name="caller"/> may use on <paramref name="host"/>, in their configured order (the first is their default):
-    /// in private (or with <see cref="ChatHost.OwnModels"/>), each their roles allow; in public (a Discord channel), only the first anyone may use, whoever asks.
+    /// in private (or with <see cref="ChatHost.OwnModels"/>), each <see cref="ChatModelOption.Allows"/> them; in public (a Discord
+    /// channel), only the first anyone open to their own sign-in state may use (never a model's <see cref="ChatModelOption.Roles"/>
+    /// alone, whoever asks: no Sonnet or Opus there, and no choice read).
     /// </summary>
     public IReadOnlyList<ChatModelOption> Allowed(ToolCaller caller, ChatHost host)
         => host.InPublic && !host.OwnModels
-            ? Model.Models.Where(m => m.IsOpen).Take(1).ToList()
-            : Model.Models.Where(m => m.AllowsRoles(caller.Roles)).ToList();
+            ? Model.Models.Where(m => m.IsOpen && m.Allows(caller)).Take(1).ToList()
+            : Model.Models.Where(m => m.Allows(caller)).ToList();
 
     /// <summary>
     /// The model a question from <paramref name="caller"/> on <paramref name="host"/> goes to: <paramref name="requested"/> (a model's ID),

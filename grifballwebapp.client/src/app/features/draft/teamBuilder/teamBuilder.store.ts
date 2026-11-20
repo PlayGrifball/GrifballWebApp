@@ -2,19 +2,20 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { CaptainDto, CaptainPlacementDto, RemoveCaptainDto, TeamResponseDto, TeamsPlayerDto } from '@api/models';
+import type { CaptainDto, CaptainPlacementDto, DraftLiveDto, RemoveCaptainDto, TeamResponseDto, TeamsPlayerDto } from '@api/models';
 import { SeasonService } from '@api/services/season.service';
 import { TeamsService } from '@api/services/teams.service';
-import { SignalRService } from '@core/signalr/signalR.service';
+import { liveData } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 import { errorText } from '@shared/errorText';
 import { whileCurrent } from '@shared/whileCurrent';
 import { catchError, finalize, forkJoin, map, Observable, of, Subject, switchMap } from 'rxjs';
-import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, renameTeam, resortCaptain } from './draft';
+import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, renameTeam } from './draft';
 import { AppLog } from '@core/telemetry/appLog';
 
 /**
  * A season's draft as the team builder shows and changes it: the teams, the player pool and whether captains are locked,
- * loaded from the server, kept up to date with other users' changes (SignalR), and changed here a move at a time, each
+ * loaded from the server, loaded again when anyone's change to it is saved (liveReload), and changed here a move at a time, each
  * applied at once and saved. One per page (the component provides it).
  */
 @Injectable()
@@ -23,13 +24,7 @@ export class TeamBuilderStore {
   private readonly draft = inject(TeamsService);
   private readonly seasons = inject(SeasonService);
   private readonly snackBarService = inject(MatSnackBar);
-  private readonly signalR = inject(SignalRService);
   private readonly destroyRef = inject(DestroyRef);
-
-  /** This page's hub connection, for the server to leave out of the broadcast of its own change; none (no header) until it connects. */
-  private get connectionID(): string | undefined {
-    return this.signalR.hubConnection.connectionId || undefined;
-  }
 
   /** The season asked for (0: the current season), set by {@link show}. */
   private readonly routeSeasonID = signal(0);
@@ -50,6 +45,8 @@ export class TeamBuilderStore {
   private reloadAfterSaves = false;
   // Saves ever started here; a load that saw a save start while it ran does not apply its result.
   private savesStarted = 0;
+  // Drafts taken from live changes; a load that saw one taken while it ran is older than what the page shows.
+  private taken = 0;
   // A drag under way, and whether a reload waits for it to end (a reload would redraw the board
   // under the pointer).
   private dragging = false;
@@ -66,24 +63,28 @@ export class TeamBuilderStore {
 
   constructor() {
     // The server's draft is the truth: the latest load replaces what the page shows, and later
-    // SignalR updates apply on top of it. Teams and pool go together (one without the other could
+    // changes made here apply on top of it. Teams and pool go together (one without the other could
     // show a player twice or nowhere), so if either fails neither is applied; the lock state is
     // taken on its own.
     const part = <T>(request: Observable<T>) => request.pipe(catchError(() => of(undefined)));
     this.reloads.pipe(
       switchMap(() => {
         const savesStarted = this.savesStarted;
+        const taken = this.taken;
         const seasonID = this.shownSeasonID();
         return forkJoin({
           teams: part(this.draft.getTeams({ seasonID })),
           pool: part(this.draft.getPlayerPool({ seasonID })),
           locked: part(this.draft.areCaptainsLocked({ seasonID })),
-        }).pipe(whileCurrent(seasonID, this.shownSeasonID), map(snapshot => ({ ...snapshot, savesStarted })));
+        }).pipe(whileCurrent(seasonID, this.shownSeasonID), map(snapshot => ({ ...snapshot, savesStarted, taken })));
       }),
       takeUntilDestroyed(),
-    ).subscribe(({ teams, pool, locked, savesStarted }) => {
+    ).subscribe(({ teams, pool, locked, savesStarted, taken }) => {
+      // A live change brought a newer draft while this was loading: it is shown already
+      if (taken !== this.taken)
+        return;
       // A drop saved while this was loading may be missing from it: load again once that
-      // save is done instead (SignalR updates do not count, so there is no loop).
+      // save is done instead (a live change's reload waits for the saves too, so there is no loop).
       if (savesStarted !== this.savesStarted) {
         this.reloadAfterSaves = true;
         this.reloadIfSettled();
@@ -100,6 +101,11 @@ export class TeamBuilderStore {
         this.snackBarService.open('Failed to load the draft', 'Close');
     });
     this.destroyRef.onDestroy(() => this.destroyed = true);
+    // Anyone's change, ours too, once saved, comes with the draft as it is now: shown at once, unless a drag or a save
+    // of ours is under way (it would undo a change of ours still on its way), when it is loaded again once they are
+    // done. So it is when the live connection comes back: what changed meanwhile was missed.
+    liveData<DraftLiveDto>(() => this.shownSeasonID() > 0 ? [LiveTopics.draft(this.shownSeasonID())] : [],
+      draft => this.take(draft), () => this.reloadWhenIdle());
   }
 
   /** Shows a season's draft (0: the current season's). Nothing of the previous one stays: a load of it still on its way is dropped. */
@@ -125,47 +131,8 @@ export class TeamBuilderStore {
     }
   }
 
-  /** Follows other users' changes until the page is gone (the hub connection outlives it, so the handlers are removed then). */
-  listen(): void {
-    const offs = [
-      this.signalR.addCaptain(dto => this.applyRemote(dto.seasonID,
-        draft => addCaptain(draft, dto.personID, dto.teamName, dto.captainName, dto.orderNumber, dto.teamID))),
-      this.signalR.resortCaptain(dto => this.applyRemote(dto.seasonID,
-        draft => resortCaptain(draft, dto.personID, dto.orderNumber))),
-      this.signalR.removeCaptain(dto => this.applyRemote(dto.seasonID,
-        draft => removeCaptain(draft, dto.personID))),
-      this.signalR.addPlayerToTeam(dto => this.applyRemote(dto.seasonID,
-        draft => addPlayerToTeam(draft, dto.captainID, dto.personID))),
-      // The server puts the pick at round roundNumber (TeamService.MovePlayerToTeam).
-      this.signalR.movePlayerToTeam(dto => this.applyRemote(dto.seasonID,
-        draft => movePlayerToTeam(draft, dto.previousCaptainID, dto.newCaptainID, dto.personID, dto.roundNumber - 1))),
-      this.signalR.removePlayerFromTeam(dto => this.applyRemote(dto.seasonID,
-        draft => removePlayerFromTeam(draft, dto.captainID, dto.personID))),
-      this.signalR.lockCaptains(seasonID => {
-        if (seasonID === this.shownSeasonID())
-          this.captainLocked.set(true);
-      }),
-      this.signalR.unlockCaptains(seasonID => {
-        if (seasonID === this.shownSeasonID())
-          this.captainLocked.set(false);
-      }),
-      // The hub came up after this page loaded the draft (it was still connecting, or it dropped
-      // and reconnected): a change sent before then never reached this page, so load the draft
-      // again. Only on that change of state, so a load never leads to another.
-      this.signalR.connected(() => this.reloadWhenIdle()),
-    ];
-    this.destroyRef.onDestroy(() => offs.forEach(off => off()));
-  }
-
-  /** Applies another user's change, if it is for this season. */
-  private applyRemote(seasonID: number, change: (draft: Draft) => Draft | null): void {
-    if (seasonID !== this.shownSeasonID())
-      return;
-    this.applyDraft(change);
-  }
-
   /**
-   * The one way the draft changes (drag and drop and SignalR alike): a pure operation from
+   * The one way the draft changes here (drag and drop): a pure operation from
    * ./draft returns the next draft, and only the lists it replaced are set. If the people it
    * names are not in the draft, the page is out of sync and reloads.
    */
@@ -185,6 +152,19 @@ export class TeamBuilderStore {
     return next;
   }
 
+  /** The draft as a change pushed it: shown when nothing of ours is under way (true), else left to a load (false). */
+  private take(draft: DraftLiveDto): boolean {
+    if (draft.seasonID !== this.shownSeasonID())
+      return true;
+    if (this.dragging || this.savesInFlight > 0)
+      return false;
+    this.taken++;
+    this.teams.set(draft.teams);
+    this.playerPool.set(draft.pool);
+    this.captainLocked.set(draft.captainsLocked);
+    return true;
+  }
+
   /** Loads the draft from the server (see the constructor); nothing once the page is gone. */
   load(): void {
     if (!this.destroyed)
@@ -195,11 +175,11 @@ export class TeamBuilderStore {
   toggleCaptainLock(): void {
     const seasonID = this.shownSeasonID();
     if (this.captainLocked()) {
-      this.draft.unlockCaptains({ seasonID, signalRConnectionID: this.connectionID })
+      this.draft.unlockCaptains({ seasonID })
         .subscribe({ next: () => this.captainLocked.set(false) });
     }
     else {
-      this.draft.lockCaptains({ seasonID, signalRConnectionID: this.connectionID })
+      this.draft.lockCaptains({ seasonID })
         .subscribe({ next: () => this.captainLocked.set(true) });
     }
   }
@@ -280,7 +260,7 @@ export class TeamBuilderStore {
     const added = next.teams.find(t => t.captain.personID === player.personID)!;
     // Order must not be null
     const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: added.captain.personID, orderNumber: added.captain.order! };
-    this.save(this.draft.addCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }),
+    this.save(this.draft.addCaptain({ seasonID: dto.seasonID, body: dto }),
       saved => this.applyDraft(draft => renameTeam(draft, player.personID, saved.teamName, saved.teamID)));
     this.log.debug('Draft: added captain ' + added.captain.name + ' with pick order ' + added.captain.order);
   }
@@ -293,7 +273,7 @@ export class TeamBuilderStore {
     const moved = next.teams.find(t => t.captain.personID === captainID)!;
     // Order must not be null
     const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: moved.captain.personID, orderNumber: moved.captain.order! };
-    this.save(this.draft.resortCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }));
+    this.save(this.draft.resortCaptain({ seasonID: dto.seasonID, body: dto }));
     this.log.debug('Draft: resorted captains; ' + moved.captain.name + ' now has pick order ' + moved.captain.order);
   }
 
@@ -309,7 +289,6 @@ export class TeamBuilderStore {
     const seasonID = this.shownSeasonID();
     this.save(this.draft.removePlayerFromTeam({
       seasonID,
-      signalRConnectionID: this.connectionID,
       body: { seasonID, captainID, personID },
     }));
   }
@@ -321,7 +300,7 @@ export class TeamBuilderStore {
     // RemoveCaptainDto carries no order number: the server re-sequences the remaining captains 1..n itself
     // (TeamService.RemoveCaptain).
     const dto: RemoveCaptainDto = { seasonID: this.shownSeasonID(), personID: captainID };
-    this.save(this.draft.removeCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }));
+    this.save(this.draft.removeCaptain({ seasonID: dto.seasonID, body: dto }));
   }
 
   /** A pick moves from one team to another (or within one), at `index` among its picks. */
@@ -333,7 +312,6 @@ export class TeamBuilderStore {
     const seasonID = this.shownSeasonID();
     this.save(this.draft.movePlayerToTeam({
       seasonID,
-      signalRConnectionID: this.connectionID,
       body: { seasonID, previousCaptainID, newCaptainID: captainID, personID, roundNumber: player.round! }, // MUST NOT BE NULL :(
     }));
     this.log.debug('Draft: ' + teamName + '\'s ' + player.round + ' pick is ' + player.name);
@@ -348,7 +326,6 @@ export class TeamBuilderStore {
     const seasonID = this.shownSeasonID();
     this.save(this.draft.addPlayerToTeam({
       seasonID,
-      signalRConnectionID: this.connectionID,
       body: { seasonID, captainID, personID },
     }));
     this.log.debug('Draft: ' + teamName + '\'s ' + player.round + ' pick is ' + player.name);

@@ -11,7 +11,6 @@ import { CaptainPlacementDto } from '../../models/captain-placement-dto';
 
 export interface ResortCaptain$Params {
   seasonID: number;
-  signalRConnectionID?: string;
       body?: CaptainPlacementDto
 }
 
@@ -19,7 +18,6 @@ export function resortCaptain(http: HttpClient, rootUrl: string, params: ResortC
   const rb = new RequestBuilder(rootUrl, resortCaptain.PATH, 'post');
   if (params) {
     rb.path('seasonID', params.seasonID, {});
-    rb.header('signalRConnectionID', params.signalRConnectionID, {});
     rb.body(params.body, 'application/json');
   }
 

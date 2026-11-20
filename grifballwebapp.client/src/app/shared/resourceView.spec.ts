@@ -101,4 +101,19 @@ describe('resourceView', () => {
     answers[2].complete();
     await settle();
   });
+
+  it('takes a value it is given as the answer, without asking', async () => {
+    const { params, view, answers } = setUp();
+    params.set(1);
+    TestBed.tick();
+    answers[0].next([1]);
+    answers[0].complete();
+    await settle();
+
+    view.set([7, 8]);
+    expect(view.value()).toEqual([7, 8]);
+    expect(view.hasValue()).toBeTrue();
+    expect(view.isLoading()).toBeFalse();
+    expect(answers).toHaveSize(1);
+  });
 });

@@ -55,6 +55,36 @@
       } @else {
         <p class="hud-muted">No player stats were recorded for this season.</p>
       }
+      @if (d.ladder.length) {
+        <section class="hud-section" aria-labelledby="late-league-ladder">
+          <h2 id="late-league-ladder" class="hud-h2">Ladder</h2>
+          <p class="hud-muted intro">Where each player finished on the season's ranked ladder, as its spreadsheet records it.</p>
+          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Ladder"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+            <table class="board">
+              <thead>
+                <tr>
+                  <th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col">League</th><th scope="col" class="hud-num">LP</th>
+                  <th scope="col" class="hud-num">Streak</th><th scope="col" class="hud-num">MMR</th><th scope="col" class="hud-num">W-L</th><th scope="col">Division</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of d.ladder; track r.userID) {
+                  <tr>
+                    <td class="hud-num">{{r.position ?? '-'}}</td>
+                    <td><a [routerLink]="['/profile', r.userID]">{{r.gamertag}}</a></td>
+                    <td>{{leagueOf(r)}}</td>
+                    <td class="hud-num">{{r.leaguePoints ?? '-'}}</td>
+                    <td class="hud-num">{{streakOf(r)}}</td>
+                    <td class="hud-num">{{r.mmr ?? '-'}}</td>
+                    <td class="hud-num">{{r.wins != null || r.losses != null ? (r.wins ?? 0) + '-' + (r.losses ?? 0) : '-'}}</td>
+                    <td>{{r.division ?? '-'}}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
     } @else if (loaded()) {
       <p class="hud-muted">That Late League season couldn't be loaded.</p>
     }
@@ -92,7 +122,7 @@
           <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Late League seasons"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
             <table class="board">
               <thead>
-                <tr><th scope="col">Season</th><th scope="col">Game</th><th scope="col">Played</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Players</th></tr>
+                <tr><th scope="col">Season</th><th scope="col">Game</th><th scope="col">Played</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Players</th><th scope="col" class="hud-num">Ladder</th></tr>
               </thead>
               <tbody>
                 @for (s of list; track s.matchmakingSeasonID) {
@@ -102,6 +132,7 @@
                     <td>{{s.startsAt | date:'MMM y':'UTC'}} – {{s.endsAt | date:'MMM y':'UTC'}}</td>
                     <td class="hud-num">{{s.gameCount}}</td>
                     <td class="hud-num">{{s.playerCount}}</td>
+                    <td class="hud-num">{{s.ladderCount}}</td>
                   </tr>
                 }
               </tbody>

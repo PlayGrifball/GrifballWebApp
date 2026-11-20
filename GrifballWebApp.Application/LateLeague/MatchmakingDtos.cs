@@ -17,6 +17,8 @@ public class MatchmakingSeasonDto
     public DateTime EndsAt { get; set; }
     public int GameCount { get; set; }
     public int PlayerCount { get; set; }
+    /// <summary>How many players its ladder ranks (<see cref="MatchmakingLadderRank"/>).</summary>
+    public int LadderCount { get; set; }
     /// <summary>Imported from the historical archive: <see cref="HistoricalSourceUrl"/> is its source spreadsheet.</summary>
     public bool IsHistorical { get; set; }
     public string? HistoricalSourceUrl { get; set; }
@@ -33,6 +35,7 @@ public class MatchmakingSeasonDto
         EndsAt = s.EndsAt,
         // Played to a result, as the queue's count (an archive game always is)
         GameCount = s.MatchedMatches.AsQueryable().Count(MatchedMatch.PlayedToAResult),
+        LadderCount = s.LadderRanks.Count,
         HistoricalSourceUrl = s.HistoricalSourceUrl,
     };
 
@@ -61,6 +64,8 @@ public class MatchmakingSeasonDetailDto
 {
     public MatchmakingSeasonDto Season { get; set; } = null!;
     public List<MatchmakingPlayerStatDto> Players { get; set; } = [];
+    /// <summary>The season's ladder (its ranked standings), top first; empty when the archive has none.</summary>
+    public List<MatchmakingLadderRankDto> Ladder { get; set; } = [];
 }
 
 /// <summary>A player's line of a matchmaking season, for its page and a profile.</summary>
@@ -111,5 +116,36 @@ public class MatchmakingPlayerStatDto
         KdRatio = line.KdRatio,
         KdSpread = line.KdSpread,
         CarrierKills = line.CarrierKills,
+    };
+}
+
+/// <summary>A player's place on a matchmaking season's ladder (<see cref="MatchmakingLadderRank"/>), as its sheet gives it.</summary>
+public class MatchmakingLadderRankDto
+{
+    public int UserID { get; set; }
+    public string Gamertag { get; set; } = "";
+    public int? Position { get; set; }
+    public string? Division { get; set; }
+    public string? League { get; set; }
+    public int? Rank { get; set; }
+    public int? LeaguePoints { get; set; }
+    public int? Streak { get; set; }
+    public int? Mmr { get; set; }
+    public int? Wins { get; set; }
+    public int? Losses { get; set; }
+
+    public static readonly Expression<Func<MatchmakingLadderRank, MatchmakingLadderRankDto>> Of = r => new MatchmakingLadderRankDto
+    {
+        UserID = r.UserID,
+        Gamertag = r.Gamertag,
+        Position = r.Position,
+        Division = r.Division,
+        League = r.League,
+        Rank = r.Rank,
+        LeaguePoints = r.LeaguePoints,
+        Streak = r.Streak,
+        Mmr = r.Mmr,
+        Wins = r.Wins,
+        Losses = r.Losses,
     };
 }

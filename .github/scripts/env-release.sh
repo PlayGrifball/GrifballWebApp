@@ -9,20 +9,32 @@
 # get the release's tag as a docker tag (grifballwebappserver:prod-2026-11-08), to find them by; a docker tag can be
 # moved, so the release's digests are what count.
 # Made as a draft, then published once complete: an immutable release can't take assets after.
-# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, FROM (the tag promoted from), RUN_URL, ACTOR.
+# A re-run of the promotion releases once: a published release of this run (its notes link RUN_URL) ends it, and an
+# unfinished draft of this run is deleted and made again.
+# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, FROM (the tag promoted from), RUN_URL, ACTOR; COMMIT and
+# FRONTEND_COMMIT, the images' revisions when env-deploy.sh already read them; DEPLOY_COMMIT and DEPLOY_TAG, the deploy
+# env-deploy.sh made (the chart at the commit, with these images) and its dated tag, when it ran first; CHART_REPO, where
+# helm-chart.yml publishes the chart (oci://ghcr.io/playgrifball/charts).
 set -euo pipefail
 
 environment=${1:?usage: $0 <environment> <backend@digest> <frontend@digest>}
 backend=${2:?} frontend=${3:?}
 repo=${GITHUB_REPOSITORY:?}
 
-# The commit an image was built from: its revision label (one platform's: they're one build)
-revision() {
-  docker buildx imagetools inspect "$1" --format '{{json .Image}}' \
-    | jq -r 'if has("config") then . else to_entries[0].value end | .config.Labels["org.opencontainers.image.revision"] // empty'
-}
-commit=$(revision "$backend")
-frontend_commit=$(revision "$frontend")
+# A re-run: this run's release published (nothing to do), or left a draft (made again)
+mine=$(gh api "repos/$repo/releases" --paginate \
+  --jq ".[] | select((.body // \"\") | contains(\"([run]($RUN_URL))\")) | \"\(.id) \(.draft) \(.tag_name)\"")
+while read -r id draft tag; do
+  [[ -n "$id" ]] || continue
+  if [[ "$draft" = false ]]; then echo "This run already released $tag; nothing to do."; exit 0; fi
+  echo "Deleting this run's unfinished draft release ($tag) to make it again."
+  gh api "repos/$repo/releases/$id" -X DELETE
+done <<< "$mine"
+
+# The commit an image was built from: its revision label (given by env-deploy.sh's outputs, or read here)
+revision() { "$(dirname "$0")/image-revision.sh" "$1"; }
+commit=${COMMIT:-$(revision "$backend")}
+frontend_commit=${FRONTEND_COMMIT:-$(revision "$frontend")}
 [[ -n "$commit" ]] || { echo "::error::$backend has no org.opencontainers.image.revision label" >&2; exit 1; }
 if [[ "$frontend_commit" != "$commit" ]]; then
   echo "::warning::The frontend image was built from $frontend_commit, the backend from $commit: the release is tagged at the backend's"
@@ -49,6 +61,21 @@ previous=$(gh api "repos/$repo/releases" --paginate \
 
 digest() { echo "${1#*@}"; }
 image() { echo "${1%@*}"; }
+
+# The chart: what the environment runs is charts/grifballwebapp at the images' commit (env-deploy.sh), compared with the
+# newest published chart version that commit includes (helm-chart.yml's grifballwebapp-<version> tags): the same chart,
+# or changed since. By the chart directory's tree, so a publish of an unchanged chart counts as the same.
+chart_repo=${CHART_REPO:-oci://ghcr.io/playgrifball/charts}
+chart_tree() { gh api "repos/$repo/contents/charts?ref=$1" --jq '.[] | select(.name == "grifballwebapp") | .sha'; }
+published=""
+for t in $(gh api --paginate "repos/$repo/git/matching-refs/tags/grifballwebapp-" --jq '.[].ref | ltrimstr("refs/tags/")' \
+  | sort -V -r); do
+  status=$(gh api "repos/$repo/compare/$t...$commit" --jq .status)
+  if [[ "$status" = ahead || "$status" = identical ]]; then published=${t#grifballwebapp-}; break; fi
+done
+same_chart=false
+if [[ -n "$published" && "$(chart_tree "grifballwebapp-$published")" = "$(chart_tree "$commit")" ]]; then same_chart=true; fi
+
 notes=$(mktemp)
 {
   echo "**$environment** runs commit [\`${commit:0:7}\`](https://github.com/$repo/commit/$commit), promoted from \`:$FROM\` by @$ACTOR ([run]($RUN_URL))."
@@ -60,6 +87,25 @@ notes=$(mktemp)
   echo
   echo "Also tagged \`:$tag\`, e.g. \`docker pull $(image "$backend"):$tag\`. A docker tag can be moved; the digests above are what this release recorded."
   [[ "$frontend_commit" = "$commit" ]] || echo "(The frontend image was built from \`$frontend_commit\`.)"
+  echo
+  echo "### Chart"
+  echo "\`charts/grifballwebapp\` at [\`${commit:0:7}\`](https://github.com/$repo/commit/$commit): the chart written with these images, deployed with them."
+  echo
+  if [[ "$same_chart" = true ]]; then
+    echo "The same chart as the published \`grifballwebapp-$published\` (\`helm pull $chart_repo/grifballwebapp --version $published\`)."
+  elif [[ -n "$published" ]]; then
+    echo "Changed since the published \`grifballwebapp-$published\`: [what changed](https://github.com/$repo/compare/grifballwebapp-$published...$commit) (charts/grifballwebapp)."
+  else
+    echo "No chart version was published before this commit."
+  fi
+  if [[ -n "${DEPLOY_COMMIT:-}" ]]; then
+    echo
+    echo "Deployed as [\`${DEPLOY_COMMIT:0:7}\`](https://github.com/$repo/commit/$DEPLOY_COMMIT), tagged \`$DEPLOY_TAG\`: this chart with these images (charts/grifballwebapp/promoted-images.yaml). To render it as deployed, with the environment's own values:"
+    echo '```sh'
+    echo "git checkout $DEPLOY_TAG && helm dependency build charts/grifballwebapp"
+    echo "helm template grif charts/grifballwebapp -f <the environment's values> -f charts/grifballwebapp/promoted-images.yaml"
+    echo '```'
+  fi
   echo
   echo "### Verify"
   echo '```sh'
@@ -82,7 +128,11 @@ notes=$(mktemp)
 manifest=$(mktemp -d)/release.json
 jq -n --arg environment "$environment" --arg tag "$tag" --arg commit "$commit" --arg frontend_commit "$frontend_commit" \
   --arg backend "$backend" --arg frontend "$frontend" --arg from "$FROM" --arg run "$RUN_URL" --arg actor "$ACTOR" \
+  --arg deploy_commit "${DEPLOY_COMMIT:-}" --arg deploy_tag "${DEPLOY_TAG:-}" \
+  --arg published "$published" --argjson same_chart "$same_chart" \
   '{environment: $environment, tag: $tag, docker_tag: $tag, commit: $commit, promoted_from: $from, run: $run, actor: $actor,
+    deploy: (if $deploy_commit == "" then null else {commit: $deploy_commit, tag: $deploy_tag} end),
+    chart: {commit: $commit, published: (if $published == "" then null else $published end), same_as_published: $same_chart},
     images: {backend: {image: ($backend | split("@")[0]), digest: ($backend | split("@")[1]), commit: $commit},
              frontend: {image: ($frontend | split("@")[0]), digest: ($frontend | split("@")[1]), commit: $frontend_commit}}}' \
   > "$manifest"

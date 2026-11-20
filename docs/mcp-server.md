@@ -139,13 +139,17 @@ alone. A host keeps the conversation, passes the caller and its `ChatHost`, and 
     channel itself).
 
 The models are `IChatClientFactory`'s, which Infrastructure registers (`ChatClients`): `Chat:Models` when it lists any
-(each one's ID, name, provider, model, roles and price), else Claude Haiku, Sonnet and Opus 5.5 for sysadmins with
-`Anthropic:ApiKey` set, then the Ollama model (`Ollama:Model`, default `llama3.1:latest`, at `Ollama:Url`) for anyone.
+(each one's ID, name, provider, model, roles, `SignedIn` and price), else Claude Haiku for anyone signed in (a site user,
+or a Discord account linked to a real site account, gamertag or not, not a historical import's placeholder), Sonnet and
+Opus for sysadmins to pick instead, with `Anthropic:ApiKey` set, then the Ollama model (`Ollama:Model`, default
+`llama3.1:latest`, at `Ollama:Url`) for anyone, signed in or not.
 A model with `EveryTool` (the Claude defaults) gets, in private (the site, a Discord DM), every tool the caller's roles allow, as the
 MCP server gives them; the others, and every model in a Discord channel, keep the chat's short list, which a small model picks from
 better. `GrifChat` chooses one per question: the one asked for, else the user's choice (`ChatChoice`, kept from the site's picker
-for their Discord DMs too), else the first their roles allow; a Discord channel always uses the first anyone may. A paid
-model's reply is priced from its usage and added to the user's month (`ChatMonth`); past `Chat:MonthlyLimit` (10 US dollars)
+for their Discord DMs too), else the first their roles and sign-in state allow; a Discord channel always uses the first
+model anyone open to their own sign-in state may use (never `Roles` alone, whoever asks: no Sonnet or Opus there, and no
+choice read). A paid model's reply is always for a signed-in caller's own account, charged to it whatever the host (a
+channel and a DM included), so nothing is ever uncapped: it is priced from its usage and added to the user's month (`ChatMonth`); past `Chat:MonthlyLimit` (10 US dollars)
 the paid models refuse them until the next month. The limit can be overshot by a bounded amount: each process (a
 backend replica, the Discord bot) reads what is left as a reply starts, so replies started at the same moment in several
 processes can each spend up to it, and a reply makes at most `ChatModel.MaxModelCalls` calls of at most its model's

@@ -11,7 +11,6 @@ import { RemovePlayerFromTeamRequestDto } from '../../models/remove-player-from-
 
 export interface RemovePlayerFromTeam$Params {
   seasonID: number;
-  signalRConnectionID?: string;
       body?: RemovePlayerFromTeamRequestDto
 }
 
@@ -19,7 +18,6 @@ export function removePlayerFromTeam(http: HttpClient, rootUrl: string, params: 
   const rb = new RequestBuilder(rootUrl, removePlayerFromTeam.PATH, 'post');
   if (params) {
     rb.path('seasonID', params.seasonID, {});
-    rb.header('signalRConnectionID', params.signalRConnectionID, {});
     rb.body(params.body, 'application/json');
   }
 

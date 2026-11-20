@@ -117,6 +117,7 @@ internal sealed class FakeApplicationDbContext :
     public DbSet<MatchedMatch> MatchedMatches { get; set; } = null!;
     public DbSet<MatchmakingSeason> MatchmakingSeasons { get; set; } = null!;
     public DbSet<MatchmakingPlayerStat> MatchmakingPlayerStats { get; set; } = null!;
+    public DbSet<MatchmakingLadderRank> MatchmakingLadderRanks { get; set; } = null!;
     public DbSet<MatchReschedule> MatchReschedules { get; set; } = null!;
     public DbSet<PasswordResetLink> PasswordResetLinks { get; set; } = null!;
     public DbSet<ScheduleRecommendation> ScheduleRecommendations { get; set; } = null!;
@@ -206,6 +207,7 @@ internal sealed class FakeApplicationDbContext :
         builder.ApplyConfiguration(new MatchedMatchConfiguration());
         builder.ApplyConfiguration(new MatchmakingSeasonConfiguration());
         builder.ApplyConfiguration(new MatchmakingPlayerStatConfiguration());
+        builder.ApplyConfiguration(new MatchmakingLadderRankConfiguration());
         builder.ApplyConfiguration(new MatchedWinnerVoteConfiguration());
         builder.ApplyConfiguration(new MatchedKickVoteConfiguration());
         builder.ApplyConfiguration(new MatchRescheduleConfiguration());

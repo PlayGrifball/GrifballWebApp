@@ -29,7 +29,7 @@ public class UpdateDisplayHandlerUnitTests : SqliteGrifballContextFixture
         discord.GetMessagesAsync(Arg.Any<ulong>(), Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>())
             .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
         var queue = new QueueService(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = 55 }), new QueueRepository(Db), discord, Db,
-            Substitute.For<IDataPullService>(), new ContextOutbox(Db), Substitute.For<IQueueNotifier>());
+            Substitute.For<IDataPullService>(), new ContextOutbox(Db));
 
         await new UpdateDisplayHandler(queue).Handle(new UpdateDisplayNotification(), CancellationToken.None);
 

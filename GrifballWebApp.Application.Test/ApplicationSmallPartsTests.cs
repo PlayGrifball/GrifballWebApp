@@ -29,7 +29,7 @@ internal sealed class ApplicationSmallPartsTests : ApplicationDbContextTests
     private static readonly int[] AskedUsers = [1, 2, 2, 3];
 
     [Test]
-    public async Task DiscardPendingChanges_UndoesAddsEditsAndDeletes_KeepsTheRest()
+    public async Task DiscardPendingChanges_UndoesAddsEditsAndDeletes_AndTheirDomainEvents_KeepsTheRest()
     {
         var edited = User.Seed(userName: "edited", displayName: "Before", id: 1);
         var deleted = User.Seed(userName: "deleted", id: 2);
@@ -50,6 +50,8 @@ internal sealed class ApplicationSmallPartsTests : ApplicationDbContextTests
             Assert.That(edited.DisplayName, Is.EqualTo("Before"));
             Assert.That(Context.Entry(deleted).State, Is.EqualTo(EntityState.Unchanged));
             Assert.That(Context.Entry(untouched).State, Is.EqualTo(EntityState.Unchanged));
+            Assert.That(((IHasDomainEvents)edited).DomainEvents, Is.Empty, "the rename undone, its event goes too");
+            Assert.That(((IHasDomainEvents)added).DomainEvents, Is.Empty, "as does the added one's");
             Assert.That(await Context.SaveChangesAsync(), Is.Zero);
             Assert.That(await Context.Users.CountAsync(), Is.EqualTo(3));
         }

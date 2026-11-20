@@ -1,0 +1,38 @@
+name: Workflow lint
+
+# actionlint on .github/workflows: expression and type errors, unknown inputs, outputs and runner labels, and
+# shellcheck (and pyflakes) on the run: blocks. Its image, pinned by digest, carries both. Configuration and the
+# findings left as they were: .github/actionlint.yaml. The workflows' wiring between jobs and steps (needs, outputs,
+# permissions) is tested by .github/scripts/tests/workflows.sh, in the Migrations workflow.
+on:
+  pull_request:
+    branches: [ "master" ]
+    paths: [ ".github/workflows/**", ".github/actionlint.yaml" ]
+  push:
+    branches: [ "master" ]
+    paths: [ ".github/workflows/**", ".github/actionlint.yaml" ]
+  workflow_dispatch:
+
+permissions: {}
+
+# A newer push to a PR replaces its run still going; every other run is its own group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (seconds usually)
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: actionlint
+        uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: -color

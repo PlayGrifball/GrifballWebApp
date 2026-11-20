@@ -25,6 +25,25 @@ applied_migrations > /work/applied.txt
 {{- end -}}
 {{- end }}
 
+{{/*
+grif.readAppliedMigrations, or the step fails saying why; read again for up to half a minute while the database is
+still starting (SQL Server's Msg 904 or 922, PostgreSQL's "starting up"): a Job whose wait passed just before
+SQL Server started the database failed on its first read (grif-test, 2026-11-19).
+*/}}
+{{- define "grif.readAppliedMigrationsOnceStarted" -}}
+tries=0
+until {{ include "grif.readAppliedMigrations" . }}
+do
+  tries=$((tries + 1))
+  if [ "$tries" -lt 15 ] && grep -qE 'Msg (904|922),|the database system is (starting up|shutting down)' /work/applied.txt; then
+    echo "Database $DB_NAME is still starting: reading its migrations again."
+    sleep 2
+    continue
+  fi
+  echo "Reading $DB_NAME's migrations failed:"; cat /work/applied.txt; exit 1
+done
+{{- end }}
+
 {{/* What grif.readAppliedMigrations needs defined first, where a line starts: PostgreSQL's function. */}}
 {{- define "grif.migrationQueryFunctions" -}}
 {{- if include "grif.postgres" . -}}
@@ -282,7 +301,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- with include "grif.migrationQueryFunctions" . }}
       {{- . | nindent 6 }}
       {{- end }}
-      {{- include "grif.readAppliedMigrations" . | nindent 6 }} || { echo "Reading $DB_NAME's migrations failed:"; cat /work/applied.txt; exit 1; }
+      {{- include "grif.readAppliedMigrationsOnceStarted" . | nindent 6 }}
       if grep -qxF NO_DATABASE /work/applied.txt; then
         echo "Database $DB_NAME doesn't exist: the migration creates it."
         : > /work/applied.txt
@@ -370,7 +389,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- with include "grif.migrationQueryFunctions" . }}
       {{- . | nindent 6 }}
       {{- end }}
-      {{- include "grif.readAppliedMigrations" . | nindent 6 }} || { echo "Reading $DB_NAME's migrations failed:"; cat /work/applied.txt; exit 1; }
+      {{- include "grif.readAppliedMigrationsOnceStarted" . | nindent 6 }}
       {{ include "grif.pendingMigrations" . }} > /work/pending.txt
       echo "$file" > /work/restored
       if [ -s /work/pending.txt ]; then
@@ -425,7 +444,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- with include "grif.migrationQueryFunctions" . }}
       {{- . | nindent 6 }}
       {{- end }}
-      {{- include "grif.readAppliedMigrations" . | nindent 6 }} || { echo "Reading $DB_NAME's migrations failed:"; cat /work/applied.txt; exit 1; }
+      {{- include "grif.readAppliedMigrationsOnceStarted" . | nindent 6 }}
       {{ include "grif.pendingMigrations" . }} > /work/pending.txt
       echo "$Source__Provider" > /work/converted
       if [ -s /work/pending.txt ]; then
@@ -472,7 +491,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- with include "grif.migrationQueryFunctions" . }}
       {{- . | nindent 6 }}
       {{- end }}
-      {{- include "grif.readAppliedMigrations" . | nindent 6 }} || { echo "Reading $DB_NAME's migrations failed:"; cat /work/applied.txt; exit 1; }
+      {{- include "grif.readAppliedMigrationsOnceStarted" . | nindent 6 }}
       grep -vxF NO_DATABASE /work/applied.txt > /work/applied-now.txt || true
       preview_reset_recheck /work/applied-now.txt {{ include "grif.migrationList" . }} /work
   env:
