@@ -54,7 +54,7 @@ tests:
         documentIndex: 1
       - contains:
           path: "spec.template.spec.containers[0].env"
-          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX","speaches-ai/piper-en_US-amy-medium"]' }
+          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX","Systran/faster-whisper-base.en","speaches-ai/piper-en_US-amy-medium"]' }
         documentIndex: 1
       - contains:
           path: "spec.template.spec.containers[0].env"

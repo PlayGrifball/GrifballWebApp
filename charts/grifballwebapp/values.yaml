@@ -569,8 +569,9 @@ speech:
   transcriptionModel: Systran/faster-whisper-small.en
   speechModel: speaches-ai/Kokoro-82M-v1.0-ONNX
   # More models to download and keep ready beside the two in use, so speechModel and
-  # transcriptionModel can be switched without a download. Piper (a faster, plainer voice than Kokoro) is ready by default: set speechModel to it to use it.
+  # transcriptionModel can be switched without a download. Whisper base (faster than the small default) and Piper (a faster, plainer voice than Kokoro) are ready by default: set speechModel to it to use it.
   extraModels:
+    - Systran/faster-whisper-base.en
     - speaches-ai/piper-en_US-amy-medium
   image:
     repository: ghcr.io/speaches-ai/speaches
