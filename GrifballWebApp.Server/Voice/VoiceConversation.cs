@@ -23,7 +23,7 @@ namespace GrifballWebApp.Server.Voice;
 /// <param name="log">Where a line that couldn't be answered, or a consent that couldn't be read, is logged.</param>
 /// <param name="play">Plays an answer (48 kHz stereo) in the channel.</param>
 /// <param name="optedIn">Whether a speaker opted in; null: <see cref="VoiceConsents"/>, in a scope of its own.</param>
-public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat, IChatSpeech speech, TimeProvider time,
+public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat, IChatSpeech speech, TimeProvider time,
     ILogger<VoiceConversation> log, Func<short[], CancellationToken, Task> play, Func<ulong, Task<bool>>? optedIn = null,
     TimeSpan? endOfLine = null)
 {
@@ -191,8 +191,7 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
         started = Stopwatch.GetTimestamp();
         await play(VoicePcm.Stereo48kFrom24kMono(spoken), cancellationToken);
         var playedFor = Stopwatch.GetElapsedTime(started);
-        log.LogInformation("Voice: answered {Speaker} in {Transcribe} ms transcribing, {Reply} ms replying, {Speak} ms speaking, {Play} ms playing",
-            speaker, (int)heardFor.TotalMilliseconds, (int)answeredFor.TotalMilliseconds, (int)spokenFor.TotalMilliseconds, (int)playedFor.TotalMilliseconds);
+        Timings(speaker, (int)heardFor.TotalMilliseconds, (int)answeredFor.TotalMilliseconds, (int)spokenFor.TotalMilliseconds, (int)playedFor.TotalMilliseconds);
     }
 
     /// <summary><paramref name="question"/> asked as <paramref name="speaker"/> (their linked account's roles, else none) on the voice host; the whole answer.</summary>
@@ -211,4 +210,7 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
             answer.Append(text);
         return answer.ToString().Trim();
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Voice: answered {Speaker} in {Transcribe} ms transcribing, {Reply} ms replying, {Speak} ms speaking, {Play} ms playing")]
+    private partial void Timings(ulong speaker, int transcribe, int reply, int speak, int play);
 }
