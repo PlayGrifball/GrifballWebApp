@@ -422,6 +422,7 @@
         "enabled": { "type": "boolean" },
         "transcriptionModel": { "type": "string" },
         "speechModel": { "type": "string" },
+        "endOfLineMilliseconds": { "type": "integer", "minimum": 1 },
         "extraModels": { "type": "array", "items": { "type": "string" } },
         "ui": {
           "type": "object",

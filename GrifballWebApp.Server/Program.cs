@@ -297,6 +297,7 @@ public class Program
             builder.Services.AddTransient<HelpCommandsHandler>();
             // The bot's voice channels (/voice): this role runs the gateway they are joined through
             builder.Services.AddSingleton<GrifballWebApp.Server.Voice.IVoiceConnector, GrifballWebApp.Server.Voice.NetCordVoiceConnector>();
+            builder.Services.AddSingleton(new GrifballWebApp.Server.Voice.VoiceOptions(TimeSpan.FromMilliseconds(builder.Configuration.GetValue("Speech:EndOfLineMilliseconds", 700))));
             builder.Services.AddSingleton<GrifballWebApp.Server.Voice.VoiceSessions>();
             builder.Services.AddTransient<GrifballWebApp.Server.Voice.VoiceCommandsHandler>();
         }

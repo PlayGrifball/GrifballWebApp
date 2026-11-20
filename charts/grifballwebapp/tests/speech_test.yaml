@@ -173,3 +173,22 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "speech.ui.ingressRoute.host is required"
+
+  - it: gives the backend the end-of-line wait, 700 ms unless set
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__EndOfLineMilliseconds, value: "700" } }
+
+  - it: takes a different end-of-line wait and Whisper model
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+      speech.endOfLineMilliseconds: 400
+      speech.transcriptionModel: Systran/faster-whisper-base.en
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__EndOfLineMilliseconds, value: "400" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__TranscriptionModel, value: Systran/faster-whisper-base.en } }

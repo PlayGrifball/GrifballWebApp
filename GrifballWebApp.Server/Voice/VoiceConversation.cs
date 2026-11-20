@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Collections.Concurrent;
 using System.Text;
 using GrifballWebApp.Application.Chat;
@@ -22,8 +23,10 @@ namespace GrifballWebApp.Server.Voice;
 /// <param name="log">Where a line that couldn't be answered, or a consent that couldn't be read, is logged.</param>
 /// <param name="play">Plays an answer (48 kHz stereo) in the channel.</param>
 /// <param name="optedIn">Whether a speaker opted in; null: <see cref="VoiceConsents"/>, in a scope of its own.</param>
-public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat, IChatSpeech speech, TimeProvider time,
-    ILogger<VoiceConversation> log, Func<short[], CancellationToken, Task> play, Func<ulong, Task<bool>>? optedIn = null)
+/// <param name="endOfLine">How long a speaker is quiet before their line ends; null: <see cref="VoiceLines.Silence"/>.</param>
+public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat, IChatSpeech speech, TimeProvider time,
+    ILogger<VoiceConversation> log, Func<short[], CancellationToken, Task> play, Func<ulong, Task<bool>>? optedIn = null,
+    TimeSpan? endOfLine = null)
 {
     private readonly Func<ulong, Task<bool>> _optedIn = optedIn ?? (async speaker =>
     {
@@ -42,7 +45,7 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
 
     private static readonly int MaxHeldSamples = (int)(MaxHeld.TotalSeconds * VoicePcm.DiscordRate);
 
-    private readonly VoiceLines _lines = new(time);
+    private readonly VoiceLines _lines = new(time, endOfLine);
     // Who may be heard: true opted in, false not; absent, not known yet (their audio held while they are looked up)
     private readonly ConcurrentDictionary<ulong, bool> _heard = new();
     // Each speaker's lookups, one at a time: the latest (an opt-out's) always writes last
@@ -160,9 +163,12 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
 
     private async Task AnswerAsync(ulong speaker, short[] pcm, CancellationToken cancellationToken)
     {
+        var started = Stopwatch.GetTimestamp();
         var transcript = await speech.TranscribeAsync(VoicePcm.Wav16kMono(pcm), cancellationToken);
+        var heardFor = Stopwatch.GetElapsedTime(started);
         if (VoiceWake.Question(transcript) is not { } question)
             return;
+        started = Stopwatch.GetTimestamp();
         string answer;
         try
         {
@@ -177,10 +183,16 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
             log.LogError(e, "Voice: the chat couldn't answer {Speaker}", speaker);
             answer = Failed;
         }
+        var answeredFor = Stopwatch.GetElapsedTime(started);
         if (string.IsNullOrWhiteSpace(answer))
             return;
+        started = Stopwatch.GetTimestamp();
         var spoken = await speech.SpeakAsync(answer, cancellationToken);
+        var spokenFor = Stopwatch.GetElapsedTime(started);
+        started = Stopwatch.GetTimestamp();
         await play(VoicePcm.Stereo48kFrom24kMono(spoken), cancellationToken);
+        var playedFor = Stopwatch.GetElapsedTime(started);
+        Timings(log, speaker, (int)heardFor.TotalMilliseconds, (int)answeredFor.TotalMilliseconds, (int)spokenFor.TotalMilliseconds, (int)playedFor.TotalMilliseconds);
     }
 
     /// <summary><paramref name="question"/> asked as <paramref name="speaker"/> (their linked account's roles, else none) on the voice host; the whole answer.</summary>
@@ -191,9 +203,18 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
             caller = await new DiscordCaller(scope.ServiceProvider.GetRequiredService<GrifballContext>()).AsToolCaller(speaker, cancellationToken);
         using var reply = await chat.StartAsync([], question, caller, ChatHost.DiscordVoice, ChatLimits.Asker(caller, ChatLimits.Discord(speaker)),
             cancellationToken: cancellationToken);
+        var model = reply.Model.Id;
+        var signedIn = caller.SignedIn;
+        Answerer(log, speaker, signedIn, model);
         var answer = new StringBuilder();
         await foreach (var text in reply.StreamAsync(cancellationToken))
             answer.Append(text);
         return answer.ToString().Trim();
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Voice: answered {Speaker} in {Transcribe} ms transcribing, {Reply} ms replying, {Speak} ms speaking, {Play} ms playing")]
+    private static partial void Timings(ILogger log, ulong speaker, int transcribe, int reply, int speak, int play);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Voice: {Speaker} (signed in: {SignedIn}) is answered by {Model}")]
+    private static partial void Answerer(ILogger log, ulong speaker, bool signedIn, string model);
 }

@@ -184,6 +184,8 @@ spec:
           value: {{ $root.Values.speech.transcriptionModel | quote }}
         - name: Speech__SpeechModel
           value: {{ $root.Values.speech.speechModel | quote }}
+        - name: Speech__EndOfLineMilliseconds
+          value: {{ $root.Values.speech.endOfLineMilliseconds | quote }}
         {{- end }}
         {{- with $b.dataProtection.certificate }}
         {{- if .secretName }}

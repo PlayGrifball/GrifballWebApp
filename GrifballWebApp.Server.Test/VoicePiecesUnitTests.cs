@@ -76,6 +76,24 @@ public class VoicePiecesUnitTests
     }
 
     [Test]
+    public void Lines_EndAfterTheSilenceGiven_NotTheDefault()
+    {
+        var time = new FakeTimeProvider();
+        var lines = new VoiceLines(time, TimeSpan.FromMilliseconds(300));
+
+        lines.Add(1, new short[48_000]);
+        time.Advance(TimeSpan.FromMilliseconds(299));
+        var early = lines.Ended();
+        time.Advance(TimeSpan.FromMilliseconds(1));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(early, Is.Empty);
+            Assert.That(lines.Ended(), Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test]
     public void Lines_ALongOne_IsCutAtTheLimit()
     {
         var time = new FakeTimeProvider();

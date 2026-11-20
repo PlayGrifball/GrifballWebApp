@@ -17,7 +17,7 @@ public enum VoiceJoin
 /// The bot's voice channels, one a guild (Discord allows a bot one each): each connection (<see cref="IVoiceLink"/>) feeds its
 /// channel's <see cref="VoiceConversation"/> and plays its replies. Available only with a speech server (<see cref="IChatSpeech"/>).
 /// </summary>
-public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider services, ILogger<VoiceSessions> log) : IAsyncDisposable
+public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider services, ILogger<VoiceSessions> log, VoiceOptions? options = null) : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<ulong, Entry> _guilds = new();
 
@@ -122,7 +122,7 @@ public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider se
     {
         var conversation = new VoiceConversation(services.GetRequiredService<IServiceScopeFactory>(), services.GetRequiredService<GrifChat>(),
             services.GetRequiredService<IChatSpeech>(), services.GetRequiredService<TimeProvider>(),
-            services.GetRequiredService<ILogger<VoiceConversation>>(), link.PlayAsync);
+            services.GetRequiredService<ILogger<VoiceConversation>>(), link.PlayAsync, endOfLine: options?.EndOfLine);
         link.Wants = conversation.Wants;
         link.Heard += conversation.Hear;
         return conversation;
@@ -157,3 +157,6 @@ public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider se
         }
     }
 }
+
+/// <summary>The voice chat's settings: how long a speaker is quiet before their line is over (Speech:EndOfLineMilliseconds).</summary>
+public sealed record VoiceOptions(TimeSpan EndOfLine);
