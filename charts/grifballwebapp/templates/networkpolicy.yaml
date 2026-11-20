@@ -779,12 +779,16 @@ spec:
 {{- define "grif.voiceEgress" -}}
 {{- $np := .Values.networkPolicy -}}
 {{- if and $np.voice.enabled (or .Values.speech.enabled .Values.speech.external.url) }}
-# Discord voice: its voice servers' UDP ports (networkPolicy.voice).
+# Discord voice: its voice servers' UDP ports and the websocket's TCP 2096 and 8443 (networkPolicy.voice).
 # Not only 50000 and up: Discord voice servers are also seen on ports like 19298.
 - ports:
     - protocol: UDP
       port: 1024
       endPort: 65535
+    - protocol: TCP
+      port: 2096
+    - protocol: TCP
+      port: 8443
   {{- with $np.voice.to }}
   to:
     {{- toYaml . | nindent 4 }}
