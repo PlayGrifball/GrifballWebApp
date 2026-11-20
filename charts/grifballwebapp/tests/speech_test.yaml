@@ -1,6 +1,7 @@
 suite: the voice chat's speech (speech)
 templates:
   - templates/speech.yaml
+  - templates/speech-ui.yaml
   - templates/backend.yaml
   - templates/networkpolicy.yaml
 release:
@@ -117,3 +118,58 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX"]' }
+
+  - it: has the web UI off by default, with no route to it
+    template: templates/speech.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ENABLE_UI, value: "false" } }
+
+  - it: serves the web UI on a Traefik IngressRoute behind the given middlewares, the login's callback route first
+    template: templates/speech-ui.yaml
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      speech.ui.ingressRoute.enabled: true
+      speech.ui.ingressRoute.host: speech.example.com
+      speech.ui.ingressRoute.entryPoints: [websecure]
+      speech.ui.ingressRoute.middlewares: [{ name: authentik-forwardauth, namespace: authentik }]
+      speech.ui.ingressRoute.extraRoutes:
+        - match: "Host(`speech.example.com`) && PathPrefix(`/outpost.goauthentik.io/`)"
+          kind: Rule
+          priority: 300
+          services:
+            - { name: authentik-server, namespace: authentik, port: 80 }
+    asserts:
+      - isKind: { of: IngressRoute }
+      - equal: { path: "spec.routes[0].priority", value: 300 }
+      - equal: { path: "spec.routes[1].match", value: "Host(`speech.example.com`)" }
+      - equal: { path: "spec.routes[1].middlewares[0].name", value: authentik-forwardauth }
+      - equal: { path: "spec.routes[1].services[0].name", value: grif-speech }
+
+  - it: serves the web UI on an Ingress, and turns it on in the server
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      speech.ui.ingress.enabled: true
+      speech.ui.ingress.hosts: [speech.example.com]
+    asserts:
+      - isKind: { of: Ingress }
+        template: templates/speech-ui.yaml
+      - equal: { path: "spec.rules[0].host", value: speech.example.com }
+        template: templates/speech-ui.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ENABLE_UI, value: "true" } }
+        template: templates/speech.yaml
+        documentIndex: 1
+
+  - it: needs a host for the UI's route
+    template: templates/speech-ui.yaml
+    set:
+      speech.enabled: true
+      speech.ui.enabled: true
+      speech.ui.ingressRoute.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: "speech.ui.ingressRoute.host is required"

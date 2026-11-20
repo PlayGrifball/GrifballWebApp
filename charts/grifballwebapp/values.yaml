@@ -592,6 +592,29 @@ speech:
     storageClass: ""
     accessModes: [ReadWriteOnce]
     annotations: {}
+  # speaches' web UI (Gradio, at the server's root: try Whisper, Kokoro and Piper by hand), off. Reach it with kubectl
+  # port-forward, or put it on an Ingress or a Traefik IngressRoute below. It and the API share one port, so put a login on the
+  # route (middlewares) and allow the traffic in with networkPolicy.speech.extraIngress.
+  ui:
+    enabled: false
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      hosts: []
+      tls: []
+    ingressRoute:
+      enabled: false
+      name: grif-speech-ui
+      entryPoints: []
+      host: ""
+      # Ex: a forward-auth Middleware:  [{ name: authentik-forwardauth, namespace: authentik }]
+      middlewares: []
+      # More routes ahead of the UI's (a login's callback path that must stay public, with its own match, priority, services).
+      extraRoutes: []
+      tls:
+        secretName: ""
+      annotations: {}
   # The server's other settings (speaches' own environment variables).
   # OpenTelemetry (off): OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317 sends its traces, metrics and logs over OTLP gRPC.
   env: {}

@@ -423,6 +423,38 @@
         "transcriptionModel": { "type": "string" },
         "speechModel": { "type": "string" },
         "extraModels": { "type": "array", "items": { "type": "string" } },
+        "ui": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "ingress": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "className": { "type": "string" },
+                "annotations": { "type": "object" },
+                "hosts": { "type": "array", "items": { "type": "string" } },
+                "tls": { "type": "array" }
+              }
+            },
+            "ingressRoute": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "name": { "type": "string" },
+                "entryPoints": { "type": "array", "items": { "type": "string" } },
+                "host": { "type": "string" },
+                "middlewares": { "type": "array" },
+                "extraRoutes": { "type": "array" },
+                "tls": { "type": "object", "properties": { "secretName": { "type": "string" } } },
+                "annotations": { "type": "object" }
+              }
+            }
+          }
+        },
         "image": { "$ref": "#/definitions/image" },
         "port": { "$ref": "#/definitions/port" },
         "external": {

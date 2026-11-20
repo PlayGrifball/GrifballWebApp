@@ -88,7 +88,7 @@ spec:
             - name: TTS_MODEL_TTL
               value: "-1"
             - name: ENABLE_UI
-              value: "false"
+              value: {{ $s.ui.enabled | quote }}
             {{- range $name, $value := $s.env }}
             - name: {{ $name }}
               value: {{ $value | quote }}
