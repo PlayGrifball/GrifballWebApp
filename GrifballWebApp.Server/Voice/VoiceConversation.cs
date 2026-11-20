@@ -191,7 +191,7 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
         started = Stopwatch.GetTimestamp();
         await play(VoicePcm.Stereo48kFrom24kMono(spoken), cancellationToken);
         var playedFor = Stopwatch.GetElapsedTime(started);
-        Timings(speaker, (int)heardFor.TotalMilliseconds, (int)answeredFor.TotalMilliseconds, (int)spokenFor.TotalMilliseconds, (int)playedFor.TotalMilliseconds);
+        Timings(log, speaker, (int)heardFor.TotalMilliseconds, (int)answeredFor.TotalMilliseconds, (int)spokenFor.TotalMilliseconds, (int)playedFor.TotalMilliseconds);
     }
 
     /// <summary><paramref name="question"/> asked as <paramref name="speaker"/> (their linked account's roles, else none) on the voice host; the whole answer.</summary>
@@ -212,5 +212,5 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Voice: answered {Speaker} in {Transcribe} ms transcribing, {Reply} ms replying, {Speak} ms speaking, {Play} ms playing")]
-    private partial void Timings(ulong speaker, int transcribe, int reply, int speak, int play);
+    private static partial void Timings(ILogger log, ulong speaker, int transcribe, int reply, int speak, int play);
 }
