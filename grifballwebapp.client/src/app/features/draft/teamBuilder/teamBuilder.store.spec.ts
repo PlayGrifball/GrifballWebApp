@@ -292,6 +292,19 @@ describe('TeamBuilderStore', () => {
     expect(api.getTeams).toHaveBeenCalledTimes(1);
   });
 
+  it('counts a pushed draft as loaded, when it comes before the first load: that load is dropped', () => {
+    const loading = new Subject<TeamResponseDto[]>();
+    api.getTeams.and.returnValue(loading);
+    store.show(5);
+    TestBed.tick();
+    expect(store.loaded()).toBeFalse();
+
+    push(pushed());
+    loading.next([team(9, 'Old')]);
+    loading.complete();
+    expect(store.loaded()).toBeTrue();
+  });
+
   it('drops a load that was on its way when a draft was pushed: the pushed one is newer', () => {
     store.show(5);
     TestBed.tick();
