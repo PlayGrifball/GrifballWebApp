@@ -83,7 +83,7 @@ tests:
     asserts:
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__Url, value: "http://speaches.example:8000/" } }
 
-  - it: lets the Discord gateway pod's voice reach Discord's voice servers on any unprivileged UDP port
+  - it: lets the Discord gateway pod's voice reach Discord's voice servers on UDP 1024-65535 and the websocket's TCP 2096 and 8443
     template: templates/networkpolicy.yaml
     documentIndex: 1
     set:
@@ -92,6 +92,6 @@ tests:
       - contains:
           path: spec.egress
           content:
-            ports: [{ protocol: UDP, port: 1024, endPort: 65535 }]
+            ports: [{ protocol: UDP, port: 1024, endPort: 65535 }, { protocol: TCP, port: 2096 }, { protocol: TCP, port: 8443 }]
           count: 1
           any: true
