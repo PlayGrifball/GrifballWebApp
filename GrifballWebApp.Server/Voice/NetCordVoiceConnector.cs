@@ -48,6 +48,8 @@ public sealed class NetCordVoiceConnector(GatewayClient client, ILogger<NetCordV
         var members = client.Cache.Guilds.TryGetValue(guildId, out var guild)
             ? guild.VoiceStates.Values.Where(s => s.ChannelId == channelId).Select(s => s.UserId).ToArray()
             : [];
+        if (log.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+            log.LogInformation("Voice: seeding DAVE with channel members {Members}", string.Join(",", members));
         return ImmutableVoiceClientCacheProvider.FromJson(new JsonVoiceClientCache
         {
             Users = members,
@@ -100,6 +102,18 @@ public sealed class NetCordVoiceConnector(GatewayClient client, ILogger<NetCordV
                 {
                     log.LogWarning(e, "Voice: audio from {Speaker} couldn't be received", speaker);
                 }
+                return default;
+            };
+            voice.UserConnect += args =>
+            {
+                if (log.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                    log.LogInformation("Voice: users connected {Users}", string.Join(",", args.UserIds));
+                return default;
+            };
+            voice.UserDisconnect += args =>
+            {
+                if (log.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                    log.LogInformation("Voice: user disconnected {User}", args.UserId);
                 return default;
             };
             voice.Disconnect += args =>
