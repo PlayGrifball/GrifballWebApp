@@ -81,7 +81,7 @@ spec:
             - name: HOME
               value: /data
             - name: PRELOAD_MODELS
-              value: {{ list $s.transcriptionModel $s.speechModel | toJson | quote }}
+              value: {{ concat (list $s.transcriptionModel $s.speechModel) $s.extraModels | uniq | toJson | quote }}
             # Kept loaded: the next line said isn't kept waiting for a model to load
             - name: STT_MODEL_TTL
               value: "-1"

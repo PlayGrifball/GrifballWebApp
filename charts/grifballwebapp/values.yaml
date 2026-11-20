@@ -568,6 +568,9 @@ speech:
   # best of the CPU's (about 1 s for a short line on a few cores); Kokoro's 82M voice model is quick on a CPU.
   transcriptionModel: Systran/faster-whisper-small.en
   speechModel: speaches-ai/Kokoro-82M-v1.0-ONNX
+  # More models to download and keep ready (Piper voices, another Whisper size, ...), so speechModel and
+  # transcriptionModel can be switched without a download: speaches-ai/piper-en_US-amy-medium is a faster, plainer voice than Kokoro.
+  extraModels: []
   image:
     repository: ghcr.io/speaches-ai/speaches
     # The CPU image, pinned by digest; Renovate updates it.
@@ -588,6 +591,7 @@ speech:
     accessModes: [ReadWriteOnce]
     annotations: {}
   # The server's other settings (speaches' own environment variables).
+  # OpenTelemetry (off): OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317 sends its traces, metrics and logs over OTLP gRPC.
   env: {}
   # On the CPU: both models loaded (about 1.5 GB) and a few cores for Whisper. Limited, so it never takes a node.
   resources:
