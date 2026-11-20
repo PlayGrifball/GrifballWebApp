@@ -5,9 +5,9 @@ namespace GrifballWebApp.Server.Voice;
 /// <see cref="Silence"/> (Discord sends nothing while someone is silent). Too short a line (a cough, a click) is dropped; too
 /// long a one is cut at <see cref="MaxSeconds"/>.
 /// </summary>
-public sealed class VoiceLines(TimeProvider time)
+public sealed class VoiceLines(TimeProvider time, TimeSpan? silence = null)
 {
-    /// <summary>How long a speaker is quiet before their line is over.</summary>
+    /// <summary>How long a speaker is quiet before their line is over, unless set otherwise (Speech:EndOfLineMilliseconds).</summary>
     public static readonly TimeSpan Silence = TimeSpan.FromMilliseconds(700);
 
     /// <summary>The longest line kept: past it, the rest is dropped.</summary>
@@ -19,6 +19,7 @@ public sealed class VoiceLines(TimeProvider time)
     private const int MaxSamples = MaxSeconds * VoicePcm.DiscordRate;
     private static readonly int ShortestSamples = (int)(Shortest.TotalSeconds * VoicePcm.DiscordRate);
 
+    private readonly TimeSpan _silence = silence ?? Silence;
     private readonly Dictionary<ulong, (List<short> Pcm, DateTimeOffset Last)> _speaking = [];
     // Lines a pause ended before anyone asked for them (the bot was answering meanwhile), in the order they ended
     private readonly List<(ulong Speaker, List<short> Pcm)> _ended = [];
@@ -36,7 +37,7 @@ public sealed class VoiceLines(TimeProvider time)
             List<short> line = [];
             if (_speaking.TryGetValue(speaker, out var speaking))
             {
-                if (now - speaking.Last >= Silence)
+                if (now - speaking.Last >= _silence)
                     _ended.Add((speaker, speaking.Pcm));
                 else
                     line = speaking.Pcm;
@@ -55,7 +56,7 @@ public sealed class VoiceLines(TimeProvider time)
         var ended = new List<(ulong, short[])>();
         lock (_lock)
         {
-            foreach (var (speaker, (pcm, _)) in _speaking.Where(s => now - s.Value.Last >= Silence).ToList())
+            foreach (var (speaker, (pcm, _)) in _speaking.Where(s => now - s.Value.Last >= _silence).ToList())
             {
                 _speaking.Remove(speaker);
                 _ended.Add((speaker, pcm));

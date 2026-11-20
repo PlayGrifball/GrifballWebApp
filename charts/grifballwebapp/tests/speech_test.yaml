@@ -95,3 +95,22 @@ tests:
             ports: [{ protocol: UDP, port: 1024, endPort: 65535 }, { protocol: TCP, port: 2053 }, { protocol: TCP, port: 2083 }, { protocol: TCP, port: 2087 }, { protocol: TCP, port: 2096 }, { protocol: TCP, port: 8443 }]
           count: 1
           any: true
+
+  - it: gives the backend the end-of-line wait, 700 ms unless set
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__EndOfLineMilliseconds, value: "700" } }
+
+  - it: takes a different end-of-line wait and Whisper model
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+      speech.endOfLineMilliseconds: 400
+      speech.transcriptionModel: Systran/faster-whisper-base.en
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__EndOfLineMilliseconds, value: "400" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__TranscriptionModel, value: Systran/faster-whisper-base.en } }
