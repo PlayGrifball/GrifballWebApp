@@ -272,6 +272,33 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
     }
 
+    [Test]
+    public async Task Diagnostic_MockedStringSetAsync_ReturnsTrueThenThrows()
+    {
+        // Isolates the exact NSubstitute setup FlakyStoreRedis relies on, with no AppRedis/LiveDelivery involved, to
+        // find out why the "won the lock" branch keeps looking unreached further up the stack.
+        var db = Substitute.For<IDatabase>();
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
+            .Returns(_ => true, _ => throw new RedisException("boom"));
+
+        var first = await db.StringSetAsync("a:lock", RedisValue.EmptyString, TimeSpan.FromSeconds(1), When.NotExists);
+        RedisException? caught = null;
+        try
+        {
+            await db.StringSetAsync("a", "data", TimeSpan.FromSeconds(1));
+        }
+        catch (RedisException ex)
+        {
+            caught = ex;
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(first, Is.True, "the first call");
+            Assert.That(caught, Is.Not.Null, "the second call throws");
+        }
+    }
+
     [TestCase(typeof(RedisException))]
     [TestCase(typeof(TimeoutException))]
     public async Task AStoreFailureAfterABuild_ReturnsTheDataAlreadyBuilt_RatherThanBuildingAgain(Type exceptionType)
