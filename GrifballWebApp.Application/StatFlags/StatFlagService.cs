@@ -369,7 +369,7 @@ public class StatFlagService
     /// <see cref="ReconcileInMemory"/> for the rest.
     /// </summary>
     private async Task ReconcileAsync(Guid? matchID, int? recordedGameID, List<Finding> findings, DateTime now,
-        IReadOnlySet<StatFlagRule> ownedRules, CancellationToken ct, bool skipExistingQuery = false)
+        HashSet<StatFlagRule> ownedRules, CancellationToken ct, bool skipExistingQuery = false)
     {
         var existing = skipExistingQuery
             ? []
