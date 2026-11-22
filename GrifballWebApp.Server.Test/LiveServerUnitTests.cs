@@ -176,16 +176,16 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
 
     /// <summary>A Redis whose reads succeed (nothing cached yet); its first write (the lock) succeeds, its second (the
     /// data, once a build is done) fails with <paramref name="storeFailure"/> (a <see cref="RedisException"/> or a
-    /// <see cref="TimeoutException"/>). Sequential by call order, not by inspecting which key each call is for: two
-    /// Arg.Is&lt;RedisKey&gt; specifications on the same member, keyed on the ":lock" suffix, didn't route per-call the
-    /// way intended (every call landed on the same outcome), and neither did one callback that inspected the key - both
-    /// silently left the "lock" never actually won, so the two calls this double exists for were never reached.</summary>
+    /// <see cref="TimeoutException"/>). Sequential by call order. The callbacks return <c>bool</c> (NSubstitute's
+    /// Task-unwrapping overload - the same form <c>LiveSnapshots.For</c> doubles elsewhere in this file use to throw);
+    /// three earlier versions passed already-built <c>Task&lt;bool&gt;</c> values instead (the plain generic overload,
+    /// not the Task-aware one) and the lock was never actually won in any of them.</summary>
     private static AppRedis FlakyStoreRedis(Exception storeFailure)
     {
         var db = Substitute.For<IDatabase>();
         db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
         db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
-            .Returns(Task.FromResult(true), Task.FromException<bool>(storeFailure));
+            .Returns(_ => true, _ => throw storeFailure);
         var connection = Substitute.For<IConnectionMultiplexer>();
         connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
         return new AppRedis(_ => Task.FromResult(connection));
