@@ -10,7 +10,8 @@ export interface StatFlagDto {
   foundAt: string;
 
   /**
-   * The flagged game's number in its series, when it's in one (same condition as GrifballWebApp.Application.StatFlags.StatFlagDto.SeasonMatchID).
+   * The flagged game's number in its series, when the flag is about one particular game of it; null for a
+   *             flag about the series as a whole (StatFlagRule.SeriesDoesNotMatchGames).
    */
   gameNumber: number | null;
 

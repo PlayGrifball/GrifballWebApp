@@ -21,7 +21,9 @@ namespace GrifballWebApp.Application.StatFlags;
 /// Every public method here is safe to call after the action it follows is already decided: a failure (a transient DB
 /// error, a translation bug) is logged and let go, detaching anything of its own left tracked, rather than rolling
 /// back a commissioner's save or an import. Called after the save that made the game real (its key is real), never
-/// inside the transaction that makes it, so a check failing never takes the save down with it.
+/// inside the transaction that makes it, so a check failing never takes the save down with it - on Postgres a failing
+/// statement aborts the whole transaction outright (25P02), not only the statement that failed, so this holds even
+/// though every check here already catches its own failure (third review).
 /// </summary>
 public class StatFlagService
 {
@@ -38,7 +40,9 @@ public class StatFlagService
 
     /// <summary>What one rule found: <paramref name="PlayerUserID"/> is null when the rule is about the whole game (a
     /// team, the series), not one player. <paramref name="Discriminator"/> tells apart two findings of the same rule
-    /// with no player (a side's number, an unlinked Halo player's XUID): without it they'd share a reconciliation key.</summary>
+    /// with no player (a side's number, a Halo player by XUID): without it they'd share a reconciliation key - and,
+    /// for a Halo match's per-player findings, it is always the player's XUID, linked or not, so linking an account
+    /// never changes a finding's identity (third review): see <see cref="IdentityMatches"/>.</summary>
     private sealed record Finding(StatFlagRule Rule, int? PlayerUserID, string Reason, long? Discriminator = null);
 
     /// <summary>Every "any game" rule run on a recorded game.</summary>
@@ -68,7 +72,7 @@ public class StatFlagService
     /// match (a game it imports always counts through its series, never <see cref="RecordedGame.IsManual"/>, so the
     /// hand-entered rules never run there) - or, for many games at once, <see cref="CheckRecordedGamesAsync"/>.
     /// </summary>
-    public Task CheckRecordedGameAsync(RecordedGame game, SeasonMatch? seasonMatch, CancellationToken ct = default) =>
+    public virtual Task CheckRecordedGameAsync(RecordedGame game, SeasonMatch? seasonMatch, CancellationToken ct = default) =>
         SafelyAsync(() => CheckRecordedGameCoreAsync(game, seasonMatch, ct), $"recorded game {game.RecordedGameID}");
 
     private async Task CheckRecordedGameCoreAsync(RecordedGame game, SeasonMatch? seasonMatch, CancellationToken ct)
@@ -82,7 +86,7 @@ public class StatFlagService
             findings.AddRange(await HandEnteredFindingsAsync(game, seasonMatch, ct));
             ownedRules = new HashSet<StatFlagRule>(RecordedGameRules.Concat(HandEnteredRules));
         }
-        await ReconcileAsync(null, game.RecordedGameID, findings, now, ownedRules, ct);
+        await ReconcileAsync(null, game.RecordedGameID, null, findings, now, ownedRules, ct);
     }
 
     /// <summary>
@@ -91,7 +95,7 @@ public class StatFlagService
     /// <see cref="CheckRecordedGameAsync"/> a game: one query for every game's existing flags, one save for all of
     /// them.
     /// </summary>
-    public Task CheckRecordedGamesAsync(IReadOnlyCollection<RecordedGame> games, CancellationToken ct = default) =>
+    public virtual Task CheckRecordedGamesAsync(IReadOnlyCollection<RecordedGame> games, CancellationToken ct = default) =>
         SafelyAsync(() => CheckRecordedGamesCoreAsync(games, ct), $"{games.Count} recorded game(s)");
 
     private async Task CheckRecordedGamesCoreAsync(IReadOnlyCollection<RecordedGame> games, CancellationToken ct)
@@ -111,7 +115,7 @@ public class StatFlagService
         {
             var findings = NegativeStatFindings(game).ToList();
             var existing = existingByGame.GetValueOrDefault(game.RecordedGameID, []);
-            anyChange |= ReconcileInMemory(null, game.RecordedGameID, findings, existing, now);
+            anyChange |= ReconcileInMemory(null, game.RecordedGameID, null, findings, existing, now);
         }
         if (anyChange)
             await _context.SaveChangesAsync(ct);
@@ -121,107 +125,185 @@ public class StatFlagService
     /// Runs the "any game" rules that apply to a Halo Infinite match (accuracy and shots, negative stats, an undecoded
     /// custom score) and reconciles the result onto its flags. Called from the one place every Halo pull saves a match
     /// (DataPullService.SaveMatch), once the match itself is saved, so a match is checked once whether it ends up
-    /// reported to a season match or not - and again whenever it's decoded again (CustomScoreLayouts.DecodeAsync, a
-    /// variant's layout filled in by the backfill). <paramref name="match"/> is already loaded with its teams and
-    /// participants; <paramref name="userIDByXuid"/> and <paramref name="gamertagByXuid"/>, when the caller already
-    /// has them (a bulk pull, looking them up once for every match rather than once a match), are used as given -
-    /// otherwise looked up here, for a match checked on its own. <paramref name="isNewMatch"/>, true for a match this
-    /// call is saving for the first time, skips the existing-flags query: it can't have any yet.
+    /// reported to a season match or not - and again whenever it's decoded again, one at a time
+    /// (<see cref="CheckMatchesAsync"/> is the batched way, CustomScoreLayouts.DecodeAsync's). <paramref name="match"/>
+    /// is already loaded with its teams and participants; <paramref name="userIDByXuid"/> and
+    /// <paramref name="gamertagByXuid"/>, when the caller already has them (a bulk pull, looking them up once for every
+    /// match rather than once a match), are used as given - otherwise looked up here, for a match checked on its own.
+    /// <paramref name="isNewMatch"/>, true for a match this call is saving for the first time, skips the
+    /// existing-flags query: it can't have any yet.
     /// </summary>
-    public Task CheckMatchAsync(Match match, IReadOnlyDictionary<long, int>? userIDByXuid = null,
+    public virtual Task CheckMatchAsync(Match match, IReadOnlyDictionary<long, int>? userIDByXuid = null,
         IReadOnlyDictionary<long, string>? gamertagByXuid = null, bool isNewMatch = false, CancellationToken ct = default) =>
         SafelyAsync(() => CheckMatchCoreAsync(match, userIDByXuid, gamertagByXuid, isNewMatch, ct), $"match {match.MatchID}");
 
     private async Task CheckMatchCoreAsync(Match match, IReadOnlyDictionary<long, int>? userIDByXuid,
         IReadOnlyDictionary<long, string>? gamertagByXuid, bool isNewMatch, CancellationToken ct)
     {
-        var xuids = match.MatchTeams.SelectMany(t => t.MatchParticipants).Select(p => p.XboxUserID).Distinct().ToList();
+        (userIDByXuid, gamertagByXuid) = await ResolvedAsync([match], userIDByXuid, gamertagByXuid, ct);
+        var findings = MatchFindings(match, userIDByXuid, gamertagByXuid);
+        await ReconcileAsync(match.MatchID, null, null, findings, _time.GetUtcNow().UtcDateTime, MatchRules, ct, skipExistingQuery: isNewMatch);
+    }
+
+    /// <summary>
+    /// <see cref="CheckMatchAsync"/> for many matches at once - CustomScoreLayouts.DecodeAsync's, once a chunk of
+    /// matches is re-decoded (third review: was one <see cref="CheckMatchAsync"/> a match, a lookup, a flags query and
+    /// maybe a save each): one lookup for every match's players, one flags query, one save for them all.
+    /// </summary>
+    public virtual Task CheckMatchesAsync(IReadOnlyCollection<Match> matches, CancellationToken ct = default) =>
+        SafelyAsync(() => CheckMatchesCoreAsync(matches, ct), $"{matches.Count} match(es)");
+
+    private async Task CheckMatchesCoreAsync(IReadOnlyCollection<Match> matches, CancellationToken ct)
+    {
+        if (matches.Count == 0)
+            return;
+        var (userIDByXuid, gamertagByXuid) = await ResolvedAsync(matches, null, null, ct);
+
+        var matchIDs = matches.Select(m => m.MatchID).ToList();
+        var existingByMatch = (await _context.StatFlags
+                .Where(f => f.MatchID != null && matchIDs.Contains(f.MatchID.Value))
+                .Where(f => MatchRules.Contains(f.Rule))
+                .ToListAsync(ct))
+            .GroupBy(f => f.MatchID!.Value).ToDictionary(g => g.Key, g => g.ToList());
+
+        var now = _time.GetUtcNow().UtcDateTime;
+        var anyChange = false;
+        foreach (var match in matches)
+        {
+            var findings = MatchFindings(match, userIDByXuid, gamertagByXuid);
+            var existing = existingByMatch.GetValueOrDefault(match.MatchID, []);
+            anyChange |= ReconcileInMemory(match.MatchID, null, null, findings, existing, now);
+        }
+        if (anyChange)
+            await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary><paramref name="userIDByXuid"/> and <paramref name="gamertagByXuid"/> as given, or looked up once for
+    /// every one of <paramref name="matches"/>' players.</summary>
+    private async Task<(IReadOnlyDictionary<long, int> UserIDByXuid, IReadOnlyDictionary<long, string> GamertagByXuid)> ResolvedAsync(
+        IReadOnlyCollection<Match> matches, IReadOnlyDictionary<long, int>? userIDByXuid, IReadOnlyDictionary<long, string>? gamertagByXuid, CancellationToken ct)
+    {
+        if (userIDByXuid is not null && gamertagByXuid is not null)
+            return (userIDByXuid, gamertagByXuid);
+        var xuids = matches.SelectMany(m => m.MatchTeams.SelectMany(t => t.MatchParticipants)).Select(p => p.XboxUserID).Distinct().ToList();
         userIDByXuid ??= await _context.Users.Where(u => u.XboxUserID != null && xuids.Contains(u.XboxUserID!.Value))
             .Select(u => new { XboxUserID = u.XboxUserID!.Value, u.Id })
             .ToDictionaryAsync(u => u.XboxUserID, u => u.Id, ct);
         gamertagByXuid ??= await _context.XboxUsers.Where(x => xuids.Contains(x.XboxUserID))
             .ToDictionaryAsync(x => x.XboxUserID, x => x.Gamertag, ct);
+        return (userIDByXuid, gamertagByXuid);
+    }
 
+    private static List<Finding> MatchFindings(Match match, IReadOnlyDictionary<long, int> userIDByXuid, IReadOnlyDictionary<long, string> gamertagByXuid)
+    {
         var findings = new List<Finding>();
         findings.AddRange(NegativeStatFindings(match, userIDByXuid, gamertagByXuid));
         findings.AddRange(AccuracyFindings(match, userIDByXuid, gamertagByXuid));
         if (match.ScoreLayout is CustomScoreLayout.Undecoded)
             findings.Add(new Finding(StatFlagRule.UndecodedCustomScore, null,
                 "The match's custom game mode couldn't be decoded (#217): its players' scores are still Halo's packed numbers, not goals"));
-
-        await ReconcileAsync(match.MatchID, null, findings, _time.GetUtcNow().UtcDateTime, MatchRules, ct, skipExistingQuery: isNewMatch);
+        return findings;
     }
 
     /// <summary>
     /// A season match's games against its series result (StatFlagRule.SeriesDoesNotMatchGames): only when every one of
-    /// its games is a recorded game (a manual game, or the historical import's), never a Halo pull. A Waypoint game's
-    /// side isn't the series' home or away team directly (MatchTeam.TeamID is Halo's own team number): which one it was
-    /// is worked out from its players' rosters (SeasonMatchService.WaypointWinners), already run - and relied on -
-    /// every time such a game is reported, so skipping it here misses nothing a live report wouldn't already have
-    /// caught. The finding, when there is one, is attached to the series' last recorded game, a flag always being of
-    /// one game; otherwise any flag left on one of the series' games by an earlier run - no longer decided by games, a
-    /// Waypoint game now in the mix, undone, reopened - is cleared rather than left stuck open for good. Called
-    /// whenever a game is added, replaced or removed, the series is forfeited or undone, and whenever a Waypoint game
-    /// joins it (SeasonMatchService.ReportMatch) even though that alone never raises the finding, since it may be what
-    /// clears one an earlier, all-recorded state left.
+    /// its games is a recorded game (a manual game, or the historical import's), never a Halo pull. The finding is
+    /// about the series as a whole, never one of its games (<see cref="StatFlag.SeasonMatchID"/>, third review: not
+    /// attached to its "last" recorded game any more) - so adding, replacing or removing a game, undoing or
+    /// forfeiting the series, or a Waypoint game joining it (none of which ever call anything else of this service for
+    /// the game taken out) only ever need this one call afterwards to pick the change up, whatever it was. Called
+    /// whenever any of that happens (SeasonMatchService), and after the historical import re-imports or re-links a
+    /// series (<see cref="CheckSeriesGamesAsync(IReadOnlyCollection{int}, CancellationToken)"/> there, batched).
     /// </summary>
-    public Task CheckSeriesGamesAsync(int seasonMatchID, CancellationToken ct = default) =>
-        SafelyAsync(() => CheckSeriesGamesCoreAsync(seasonMatchID, ct), $"season match {seasonMatchID}'s series");
+    public virtual Task CheckSeriesGamesAsync(int seasonMatchID, CancellationToken ct = default) =>
+        SafelyAsync(() => CheckSeriesGamesCoreAsync([seasonMatchID], ct), $"season match {seasonMatchID}'s series");
 
-    private async Task CheckSeriesGamesCoreAsync(int seasonMatchID, CancellationToken ct)
+    /// <summary><see cref="CheckSeriesGamesAsync(int, CancellationToken)"/> for many series at once - the historical
+    /// import's, batched (third review: was one series at a time, each its own split-query reload, flags query and
+    /// maybe save): one load for every series named, one flags query, one save for them all.</summary>
+    public virtual Task CheckSeriesGamesAsync(IReadOnlyCollection<int> seasonMatchIDs, CancellationToken ct = default) =>
+        SafelyAsync(() => CheckSeriesGamesCoreAsync(seasonMatchIDs, ct), $"{seasonMatchIDs.Count} season match(es)' series");
+
+    private async Task CheckSeriesGamesCoreAsync(IReadOnlyCollection<int> seasonMatchIDs, CancellationToken ct)
     {
-        var seasonMatch = await _context.SeasonMatches
+        if (seasonMatchIDs.Count == 0)
+            return;
+        var seasonMatches = await _context.SeasonMatches
+            .Where(m => seasonMatchIDs.Contains(m.SeasonMatchID))
             .Include(m => m.SeriesGames).ThenInclude(g => g.RecordedGame!.Teams)
             .Include(m => m.SeriesGames).ThenInclude(g => g.Match)
             .AsSplitQuery()
-            .FirstOrDefaultAsync(m => m.SeasonMatchID == seasonMatchID, ct);
-        if (seasonMatch is null)
-            return;
+            .ToListAsync(ct);
+        if (seasonMatches.Count == 0)
+            return; // every one of them is gone already: its flag went with it (StatFlag.SeasonMatchID cascades)
 
-        var recordedGameIDs = seasonMatch.SeriesGames.Where(g => g.RecordedGameID is not null)
-            .Select(g => g.RecordedGameID!.Value).ToList();
-        if (recordedGameIDs.Count == 0)
-            return; // nothing a flag could ever have been attached to
-
-        var applies = seasonMatch.DecidedBy is SeasonMatchDecision.Games && seasonMatch.SeriesGames.All(g => g.Match is null);
-        int? lastGameID = null;
-        var findings = new List<Finding>();
-        if (applies)
-        {
-            lastGameID = seasonMatch.SeriesGames.OrderByDescending(g => g.GameNumber).First().RecordedGameID!.Value;
-            var home = seasonMatch.SeriesGames.Count(g => g.RecordedGame!.WonBy(seasonMatch.HomeTeamID));
-            var away = seasonMatch.SeriesGames.Count(g => g.RecordedGame!.WonBy(seasonMatch.AwayTeamID));
-            if (home != (seasonMatch.HomeTeamScore ?? 0) || away != (seasonMatch.AwayTeamScore ?? 0))
-                findings.Add(new Finding(StatFlagRule.SeriesDoesNotMatchGames, null,
-                    $"The series shows {seasonMatch.HomeTeamScore}-{seasonMatch.AwayTeamScore}, but its {seasonMatch.SeriesGames.Count} game(s) add up to {home}-{away}"));
-        }
-
-        var now = _time.GetUtcNow().UtcDateTime;
-        // One query for every game of the series' existing flags, one save for them all: not once a game.
-        var existingByGame = (await _context.StatFlags
-                .Where(f => f.RecordedGameID != null && recordedGameIDs.Contains(f.RecordedGameID.Value))
+        var ids = seasonMatches.Select(m => m.SeasonMatchID).ToList();
+        // One query for every series' existing flag, one save for them all: not once a series.
+        var existingByMatch = (await _context.StatFlags
+                .Where(f => f.SeasonMatchID != null && ids.Contains(f.SeasonMatchID.Value))
                 .Where(f => SeriesRules.Contains(f.Rule))
                 .ToListAsync(ct))
-            .GroupBy(f => f.RecordedGameID!.Value).ToDictionary(g => g.Key, g => g.ToList());
+            .GroupBy(f => f.SeasonMatchID!.Value).ToDictionary(g => g.Key, g => g.ToList());
 
-        // Every game of the series is reconciled, not only the one the finding (if any) attaches to: an earlier run
-        // may have left this flag on a different game (the series' "last" one at the time), which would otherwise
-        // never be looked at again once that's no longer the last, or no longer applies at all.
+        var now = _time.GetUtcNow().UtcDateTime;
         var anyChange = false;
-        foreach (var id in recordedGameIDs)
-            anyChange |= ReconcileInMemory(null, id, id == lastGameID ? findings : [], existingByGame.GetValueOrDefault(id, []), now);
+        foreach (var seasonMatch in seasonMatches)
+        {
+            var findings = SeriesFindings(seasonMatch);
+            var existing = existingByMatch.GetValueOrDefault(seasonMatch.SeasonMatchID, []);
+            anyChange |= ReconcileInMemory(null, null, seasonMatch.SeasonMatchID, findings, existing, now);
+        }
         if (anyChange)
             await _context.SaveChangesAsync(ct);
     }
 
+    /// <summary>Whether <paramref name="seasonMatch"/>'s games add up to its result, when that's even decidable from its
+    /// games (every one of them a recorded game, decided by games, not a Waypoint match - SeasonMatchService.WaypointWinners
+    /// is already run, and relied on, every time such a game is reported, so skipping it here misses nothing a live
+    /// report wouldn't already have caught). Empty otherwise - including a series with no games left (an earlier
+    /// finding, if any, no longer applies, and must still be cleared).</summary>
+    private static List<Finding> SeriesFindings(SeasonMatch seasonMatch)
+    {
+        var applies = seasonMatch.SeriesGames.Count > 0 && seasonMatch.DecidedBy is SeasonMatchDecision.Games
+            && seasonMatch.SeriesGames.All(g => g.Match is null);
+        if (!applies)
+            return [];
+        var (home, away) = SeriesWins(seasonMatch);
+        if (home == (seasonMatch.HomeTeamScore ?? 0) && away == (seasonMatch.AwayTeamScore ?? 0))
+            return [];
+        return [new Finding(StatFlagRule.SeriesDoesNotMatchGames, null,
+            $"The series shows {seasonMatch.HomeTeamScore}-{seasonMatch.AwayTeamScore}, but its {seasonMatch.SeriesGames.Count} game(s) add up to {home}-{away}")];
+    }
+
     /// <summary>
-    /// Clears any open SeriesDoesNotMatchGames flag on a game just taken out of its series for good - replaced, removed
-    /// by hand, or unlinked by the import (a stale or scrim game) - whose RecordedGameID the caller captured before the
-    /// unlink: once it's out, <see cref="CheckSeriesGamesAsync"/> can no longer reach it through the series.
+    /// Each side's wins in the series, counted the same way the historical import counts them (HistoricalImportService.Wins,
+    /// third review): by a game's recorded side (1 or 2) against the series' home and away team, the other way round
+    /// when the teams played that particular game swapped - never by matching a side's <see cref="RecordedGameTeam.TeamID"/>
+    /// to the series' (<see cref="RecordedGame.WonBy"/>), which undercounts a side the import never resolved to a
+    /// season team (a null TeamID): such a side still won or lost by its position, not by a team ID that was never
+    /// there. Ambiguous (neither arrangement matches, a null TeamID on one or both sides) defaults to unswapped, the
+    /// same default the import falls back to.
     /// </summary>
-    public Task ClearSeriesFlagAsync(int recordedGameID, CancellationToken ct = default) =>
-        SafelyAsync(() => ReconcileAsync(null, recordedGameID, [], _time.GetUtcNow().UtcDateTime, SeriesRules, ct),
-            $"clearing game {recordedGameID}'s series flag");
+    private static (int Home, int Away) SeriesWins(SeasonMatch seasonMatch)
+    {
+        var home = 0;
+        var away = 0;
+        foreach (var g in seasonMatch.SeriesGames)
+        {
+            var sides = g.RecordedGame?.Teams.OrderBy(t => t.Side).ToList();
+            if (sides is not { Count: 2 })
+                continue;
+            var (a, b) = (sides[0], sides[1]);
+            var swapped = (a.TeamID, b.TeamID) != (seasonMatch.HomeTeamID, seasonMatch.AwayTeamID)
+                && (b.TeamID, a.TeamID) == (seasonMatch.HomeTeamID, seasonMatch.AwayTeamID);
+            var (homeSide, awaySide) = swapped ? (b, a) : (a, b);
+            if (homeSide.Outcome is Outcomes.Won)
+                home++;
+            if (awaySide.Outcome is Outcomes.Won)
+                away++;
+        }
+        return (home, away);
+    }
 
     #region Hand-entered rules (RecordedGame.IsManual only)
 
@@ -284,13 +366,14 @@ public class StatFlagService
         }
     }
 
-    /// <summary>The game's date is before the season started, or in the future.</summary>
+    /// <summary>The game's date is before the season started, or more than <see cref="StatFlagThresholds.FutureMargin"/>
+    /// in the future (third review: was any amount, flagging a game just played against a clock a little fast).</summary>
     private async Task<List<Finding>> DateOutsideSeasonFindingsAsync(RecordedGame game, SeasonMatch seasonMatch, CancellationToken ct)
     {
         if (game.PlayedAt is not DateTime playedAt)
             return [];
         var now = _time.GetUtcNow().UtcDateTime;
-        if (playedAt <= now)
+        if (playedAt <= now + StatFlagThresholds.FutureMargin)
         {
             var seasonStart = await _context.Seasons.Where(s => s.SeasonID == seasonMatch.SeasonID).Select(s => s.SeasonStart).FirstOrDefaultAsync(ct);
             if (playedAt >= seasonStart)
@@ -316,7 +399,9 @@ public class StatFlagService
 
     /// <summary>Score isn't checked here (unlike a recorded game's): a Halo match's Score includes suicides and
     /// betrayals, which normal play can easily make negative - and an undecoded custom score (StatFlagRule.UndecodedCustomScore)
-    /// already flags that same match on its own. Kills, deaths, assists and goals, as the rule's own doc says.</summary>
+    /// already flags that same match on its own. Kills, deaths, assists and goals, as the rule's own doc says.
+    /// <see cref="Finding.Discriminator"/> is always the player's XUID (linked or not, third review): a Halo finding's
+    /// identity never depends on <see cref="Finding.PlayerUserID"/>, which linking an account later changes.</summary>
     private static IEnumerable<Finding> NegativeStatFindings(Match match, IReadOnlyDictionary<long, int> userIDByXuid,
         IReadOnlyDictionary<long, string> gamertagByXuid)
     {
@@ -324,11 +409,8 @@ public class StatFlagService
         {
             var bad = NegativeStats(("kills", p.Kills), ("deaths", p.Deaths), ("assists", p.Assists), ("goals", p.Goals ?? 0));
             if (bad is not null)
-            {
-                var playerID = userIDByXuid.GetValueOrDefault(p.XboxUserID) is int id and > 0 ? id : (int?)null;
-                yield return new Finding(StatFlagRule.NegativeStat, playerID,
-                    $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {bad}", Discriminator: playerID is null ? p.XboxUserID : null);
-            }
+                yield return new Finding(StatFlagRule.NegativeStat, PlayerID(p.XboxUserID, userIDByXuid),
+                    $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {bad}", Discriminator: p.XboxUserID);
         }
     }
 
@@ -339,24 +421,25 @@ public class StatFlagService
         return bad.Count == 0 ? null : string.Join(", ", bad) + " (can't be negative)";
     }
 
-    /// <summary>Accuracy over 100%, or shots hit above shots fired. A player not (yet) linked to a league account has
-    /// no player ID; its own XUID, rather than the player, then tells two such findings apart
-    /// (<see cref="Finding.Discriminator"/>), since they'd otherwise all share a (rule, null) key.</summary>
+    /// <summary>Accuracy over 100%, or shots hit above shots fired. <see cref="Finding.Discriminator"/> is always the
+    /// player's XUID (see <see cref="NegativeStatFindings(Match, IReadOnlyDictionary{long, int}, IReadOnlyDictionary{long, string})"/>).</summary>
     private static IEnumerable<Finding> AccuracyFindings(Match match, IReadOnlyDictionary<long, int> userIDByXuid,
         IReadOnlyDictionary<long, string> gamertagByXuid)
     {
         foreach (var p in match.MatchTeams.SelectMany(t => t.MatchParticipants))
         {
-            var playerID = userIDByXuid.GetValueOrDefault(p.XboxUserID) is int id and > 0 ? id : (int?)null;
-            var discriminator = playerID is null ? p.XboxUserID : (long?)null;
+            var playerID = PlayerID(p.XboxUserID, userIDByXuid);
             if (p.ShotsHit > p.ShotsFired)
                 yield return new Finding(StatFlagRule.ImpossibleAccuracy, playerID,
-                    $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {p.ShotsHit} shots hit, above {p.ShotsFired} shots fired", discriminator);
+                    $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {p.ShotsHit} shots hit, above {p.ShotsFired} shots fired", p.XboxUserID);
             else if (p.Accuracy > StatFlagThresholds.MaxAccuracy)
                 yield return new Finding(StatFlagRule.ImpossibleAccuracy, playerID,
-                    $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {p.Accuracy:0.#}% accuracy", discriminator);
+                    $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {p.Accuracy:0.#}% accuracy", p.XboxUserID);
         }
     }
+
+    private static int? PlayerID(long xboxUserID, IReadOnlyDictionary<long, int> userIDByXuid) =>
+        userIDByXuid.GetValueOrDefault(xboxUserID) is int id and > 0 ? id : null;
 
     private static string Gamertag(long xboxUserID, IReadOnlyDictionary<long, string> gamertagByXuid) =>
         gamertagByXuid.GetValueOrDefault(xboxUserID, xboxUserID.ToString());
@@ -368,43 +451,45 @@ public class StatFlagService
     /// <paramref name="skipExistingQuery"/> (a match just inserted: it can't have any). See
     /// <see cref="ReconcileInMemory"/> for the rest.
     /// </summary>
-    private async Task ReconcileAsync(Guid? matchID, int? recordedGameID, List<Finding> findings, DateTime now,
+    private async Task ReconcileAsync(Guid? matchID, int? recordedGameID, int? seasonMatchID, List<Finding> findings, DateTime now,
         HashSet<StatFlagRule> ownedRules, CancellationToken ct, bool skipExistingQuery = false)
     {
         var existing = skipExistingQuery
             ? []
             : await _context.StatFlags
-                .Where(f => matchID != null ? f.MatchID == matchID : f.RecordedGameID == recordedGameID)
+                .Where(f => matchID != null ? f.MatchID == matchID : recordedGameID != null ? f.RecordedGameID == recordedGameID : f.SeasonMatchID == seasonMatchID)
                 .Where(f => ownedRules.Contains(f.Rule))
                 .ToListAsync(ct);
 
-        if (ReconcileInMemory(matchID, recordedGameID, findings, existing, now))
+        if (ReconcileInMemory(matchID, recordedGameID, seasonMatchID, findings, existing, now))
             await _context.SaveChangesAsync(ct);
     }
 
     /// <summary>
-    /// An open flag for a (rule, player, discriminator) still found is rewritten in place; one no longer found is
-    /// removed (<see cref="StatFlag.Clear"/>, then); a new finding is added. A dismissed flag is left to
-    /// <see cref="StatFlag.Rewrite"/>'s own rule (stays dismissed unless its reason changed). Nothing but
-    /// <paramref name="existing"/> is read or touched, so a caller checking many games at once
-    /// (<see cref="CheckRecordedGamesAsync"/>, the series check) can batch the query and the save around many calls of
-    /// this. Returns whether anything changed, so an all-quiet batch saves nothing.
+    /// An open flag for a (rule, player-or-discriminator) still found is rewritten in place - which only actually
+    /// changes (and so is worth saving and publishing) anything when the reason itself did
+    /// (<see cref="StatFlag.Rewrite"/>); one no longer found is removed (<see cref="StatFlag.Clear"/>, then); a new
+    /// finding is added. A dismissed flag is left to <see cref="StatFlag.Rewrite"/>'s own rule (stays dismissed unless
+    /// its reason changed). Nothing but <paramref name="existing"/> is read or touched, so a caller checking many
+    /// games or series at once can batch the query and the save around many calls of this. Returns whether anything
+    /// changed, so an all-quiet batch saves nothing.
     /// </summary>
-    private bool ReconcileInMemory(Guid? matchID, int? recordedGameID, List<Finding> findings, List<StatFlag> existing, DateTime now)
+    private bool ReconcileInMemory(Guid? matchID, int? recordedGameID, int? seasonMatchID, List<Finding> findings, List<StatFlag> existing, DateTime now)
     {
         var changed = false;
         foreach (var finding in findings)
         {
-            var flag = existing.FirstOrDefault(f => f.Rule == finding.Rule && f.PlayerUserID == finding.PlayerUserID && f.Discriminator == finding.Discriminator);
+            var flag = existing.FirstOrDefault(f => IdentityMatches(finding.Rule, finding.PlayerUserID, finding.Discriminator, f));
             if (flag is null)
-                _context.StatFlags.Add(StatFlag.Found(finding.Rule, matchID, recordedGameID, finding.PlayerUserID, finding.Reason, now, finding.Discriminator));
-            else
-                flag.Rewrite(finding.Reason, now);
-            // A new flag, or an existing one Rewrite may have changed (its wording, or reopened): either way, worth a save
-            changed = true;
+            {
+                _context.StatFlags.Add(StatFlag.Found(finding.Rule, matchID, recordedGameID, seasonMatchID, finding.PlayerUserID, finding.Reason, now, finding.Discriminator));
+                changed = true;
+            }
+            else if (flag.Rewrite(finding.Reason, now))
+                changed = true;
         }
 
-        foreach (var stale in existing.Where(f => f.IsOpen && !findings.Any(fi => fi.Rule == f.Rule && fi.PlayerUserID == f.PlayerUserID && fi.Discriminator == f.Discriminator)))
+        foreach (var stale in existing.Where(f => f.IsOpen && !findings.Any(fi => IdentityMatches(fi.Rule, fi.PlayerUserID, fi.Discriminator, f))))
         {
             stale.Clear();
             _context.StatFlags.Remove(stale);
@@ -412,6 +497,16 @@ public class StatFlagService
         }
         return changed;
     }
+
+    /// <summary>
+    /// Whether an existing flag (<paramref name="f"/>) is the same finding as one with this rule, player and
+    /// discriminator: by <paramref name="discriminator"/> when the finding has one (a side's number, or - always, for
+    /// a Halo match's per-player findings (third review) - a player's XUID, stable whether or not the account is
+    /// linked); by <paramref name="playerUserID"/> otherwise (a recorded game's own per-player findings, which have no
+    /// XUID to fall back on and so must key on the real user ID directly).
+    /// </summary>
+    private static bool IdentityMatches(StatFlagRule rule, int? playerUserID, long? discriminator, StatFlag f) =>
+        f.Rule == rule && (discriminator is not null ? f.Discriminator == discriminator : f.PlayerUserID == playerUserID);
 
     /// <summary>
     /// Runs <paramref name="action"/>, logging and letting go of a failure (never <see cref="OperationCanceledException"/>)

@@ -334,10 +334,11 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
     }
 
     [Test]
-    public async Task AddManualGame_ReplacingAKeptImportedGame_ClearsTheStaleSeriesFlagItKeptOutsideTheSeries()
+    public async Task AddManualGame_ReplacingAKeptImportedGame_ClearsTheStaleSeriesFlag()
     {
-        // #548: unlike a game entered by hand (deleted outright), an imported game survives being replaced - its
-        // series flag is no longer reachable through the series once it's out, so AddManualGame must clear it directly
+        // #548, third review: unlike a game entered by hand (deleted outright), an imported game survives being
+        // replaced - but the series flag is of the series itself (StatFlag.SeasonMatchID), never one particular game,
+        // so AddManualGame's own CheckSeriesGamesAsync call reaches it regardless of which game it was ever attached to
         var seeded = await SeedAsync(Context, bestOf: 3);
         var imported = RecordedGame.Seed("unit/add-replaces-imported", gameVersionID: Halo3);
         imported.SeedSide(1, seeded.SeasonMatch.HomeTeamID, Outcomes.Won, 1);
@@ -345,7 +346,7 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
         Context.RecordedGames.Add(imported);
         var replaced = seeded.SeasonMatch.Game(1, recorded: imported);
         await Context.SaveChangesAsync();
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, imported.RecordedGameID, null, "stale", DateTime.UtcNow));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seeded.SeasonMatch.SeasonMatchID, null, "stale", DateTime.UtcNow));
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
@@ -355,7 +356,7 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
         {
             Assert.That(await Context.RecordedGames.AnyAsync(g => g.RecordedGameID == imported.RecordedGameID), Is.True);
             Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames
-                && f.RecordedGameID == imported.RecordedGameID && f.DismissedAt == null), Is.False);
+                && f.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID && f.DismissedAt == null), Is.False);
         }
     }
 
@@ -666,10 +667,11 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
     }
 
     [Test]
-    public async Task RemoveGame_AKeptImportedGame_ClearsTheStaleSeriesFlagItKeptOutsideTheSeries()
+    public async Task RemoveGame_AKeptImportedGame_ClearsTheStaleSeriesFlag()
     {
-        // #548: an imported (non-manual) game survives being removed from the series - only a game entered by hand is
-        // deleted - so its series flag is no longer reachable through the series once it's out
+        // #548, third review: an imported (non-manual) game survives being removed from the series - only a game
+        // entered by hand is deleted - but the series flag is of the series itself (StatFlag.SeasonMatchID), never
+        // one particular game, so RemoveGame's own CheckSeriesGamesAsync call reaches it regardless
         var seeded = await SeedAsync(Context, bestOf: 3);
         var imported = RecordedGame.Seed("unit/removed-stale-series", gameVersionID: Halo3);
         imported.SeedSide(1, seeded.SeasonMatch.HomeTeamID, Outcomes.Won, 1);
@@ -677,7 +679,7 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
         Context.RecordedGames.Add(imported);
         var seriesGame = seeded.SeasonMatch.Game(1, recorded: imported);
         await Context.SaveChangesAsync();
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, imported.RecordedGameID, null, "stale", DateTime.UtcNow));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seeded.SeasonMatch.SeasonMatchID, null, "stale", DateTime.UtcNow));
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 

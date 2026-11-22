@@ -114,6 +114,44 @@ public class CustomScoreLayoutsDecodeUnitTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task DecodeAsync_TwoMatchesThatStayUndecoded_FlagsBothInOneChunk()
+    {
+        // #548, third review: the chunk's checks are batched (one lookup, one flags query, one save) rather than one
+        // CheckMatchAsync a match - both of a chunk's undecoded matches must still each get their own flag
+        async Task<Guid> Undecoded(string suffix)
+        {
+            var matchId = Guid.NewGuid();
+            var match = Match.Seed(matchId);
+            match.AddTeam(0, 5, Outcomes.Won);
+            match.AddTeam(1, 2, Outcomes.Lost);
+            var x1 = ++_nextXuid;
+            var x2 = ++_nextXuid;
+            var x3 = ++_nextXuid;
+            var x4 = ++_nextXuid;
+            match.AddParticipant(0, x1, new MatchParticipantStats { Score = 3000000, PersonalScore = 15010100 }, [], XboxUser.FromXbox(x1, $"A{suffix}"));
+            match.AddParticipant(0, x2, new MatchParticipantStats { Score = 3000000, PersonalScore = 19030200 }, [], XboxUser.FromXbox(x2, $"B{suffix}"));
+            match.AddParticipant(1, x3, new MatchParticipantStats { Score = 2000000, PersonalScore = 18020000 }, [], XboxUser.FromXbox(x3, $"C{suffix}"));
+            match.AddParticipant(1, x4, new MatchParticipantStats { Score = 5000000, PersonalScore = 53110300 }, [], XboxUser.FromXbox(x4, $"D{suffix}"));
+            Context.Matches.Add(match);
+            return matchId;
+        }
+        var first = await Undecoded("1");
+        var second = await Undecoded("2");
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var changed = await _layouts.DecodeAsync([]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(changed, Is.EqualTo(2));
+            Assert.That(await Context.Set<StatFlag>().CountAsync(f => f.Rule == StatFlagRule.UndecodedCustomScore), Is.EqualTo(2));
+            Assert.That(await Context.Set<StatFlag>().AnyAsync(f => f.MatchID == first), Is.True);
+            Assert.That(await Context.Set<StatFlag>().AnyAsync(f => f.MatchID == second), Is.True);
+        }
+    }
+
+    [Test]
     public async Task DecodeAsync_ADecodedMatch_IsLeftAlone_UnlessItsVariantChanged()
     {
         var matchId = Guid.NewGuid();

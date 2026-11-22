@@ -34,8 +34,9 @@ public class StaffStatFlagService
     /// <summary>How many flags are open: the staff dashboard's count.</summary>
     public Task<int> OpenFlagCountAsync(CancellationToken ct = default) => _context.StatFlags.CountAsync(StatFlag.Open, ct);
 
-    /// <summary>The open flags of every game of a season match's series: the match page's markers, one request for all
-    /// of them rather than one a game.</summary>
+    /// <summary>The open flags of every game of a season match's series, and of the series itself
+    /// (StatFlagRule.SeriesDoesNotMatchGames, by StatFlag.SeasonMatchID directly - third review): the match page's
+    /// markers, one request for all of them rather than one a game.</summary>
     public async Task<List<StatFlagDto>> OpenFlagsForSeasonMatchAsync(int seasonMatchID, CancellationToken ct = default)
     {
         var games = await _context.SeasonSeriesGames.Where(g => g.SeasonMatchID == seasonMatchID)
@@ -43,7 +44,9 @@ public class StaffStatFlagService
         var matchIDs = games.Select(g => g.MatchID).OfType<Guid>().ToList();
         var recordedGameIDs = games.Select(g => g.RecordedGameID).OfType<int>().ToList();
         var flags = await _context.StatFlags.Where(StatFlag.Open)
-            .Where(f => (f.MatchID != null && matchIDs.Contains(f.MatchID.Value)) || (f.RecordedGameID != null && recordedGameIDs.Contains(f.RecordedGameID.Value)))
+            .Where(f => f.SeasonMatchID == seasonMatchID
+                || (f.MatchID != null && matchIDs.Contains(f.MatchID.Value))
+                || (f.RecordedGameID != null && recordedGameIDs.Contains(f.RecordedGameID.Value)))
             .ToListAsync(ct);
         return await ToDtosAsync(flags, ct);
     }
@@ -95,8 +98,11 @@ public class StaffStatFlagService
         Dictionary<int, (int? SeasonMatchID, int? GameNumber)> seriesGamesByRecordedGame,
         Dictionary<int, GameInfo> gameInfoByRecordedGame)
     {
+        // A series flag (third review) is of the series itself, StatFlag.SeasonMatchID directly: never one particular
+        // game, so it has no game number of its own.
         var (seasonMatchID, gameNumber) = f.MatchID is Guid matchID ? seriesGamesByMatch.GetValueOrDefault(matchID)
             : f.RecordedGameID is int recordedGameID ? seriesGamesByRecordedGame.GetValueOrDefault(recordedGameID)
+            : f.SeasonMatchID is int seriesMatchID ? (seriesMatchID, (int?)null)
             : (null, null);
         var outside = seasonMatchID is null && f.RecordedGameID is int gameID ? gameInfoByRecordedGame.GetValueOrDefault(gameID) : null;
         return new StatFlagDto

@@ -5,8 +5,12 @@ namespace GrifballWebApp.Domain.Archive;
 
 public class StatFlagConfiguration : IEntityTypeConfiguration<StatFlag>
 {
-    /// <summary>A flag is of one game: a Halo Infinite match or a recorded game, never both or neither (StatFlag.Found).</summary>
-    public const string OneGame = "(MatchID IS NOT NULL AND RecordedGameID IS NULL) OR (MatchID IS NULL AND RecordedGameID IS NOT NULL)";
+    /// <summary>A flag is of exactly one subject: a Halo Infinite match, a recorded game, or a season match's series
+    /// (StatFlag.Found).</summary>
+    public const string OneGame =
+        "(MatchID IS NOT NULL AND RecordedGameID IS NULL AND SeasonMatchID IS NULL)"
+        + " OR (MatchID IS NULL AND RecordedGameID IS NOT NULL AND SeasonMatchID IS NULL)"
+        + " OR (MatchID IS NULL AND RecordedGameID IS NULL AND SeasonMatchID IS NOT NULL)";
 
     /// <summary>Who dismissed a flag is known only once it is dismissed, never the other way round.</summary>
     public const string DismissedByNeedsDismissedAt = "DismissedByUserID IS NULL OR DismissedAt IS NOT NULL";
@@ -40,6 +44,17 @@ public class StatFlagConfiguration : IEntityTypeConfiguration<StatFlag>
             .HasForeignKey(e => e.RecordedGameID)
             .OnDelete(DeleteBehavior.Cascade)
             .IsRequired(false);
+
+        // A series flag's root fix (#548, third review): cascades with the season match itself, wherever it goes
+        // (undone, forfeited away, its team removed, its series no longer in the archive) - not only the sites that
+        // used to clear it by hand.
+        entity.HasOne(e => e.SeasonMatch)
+            .WithMany()
+            .HasForeignKey(e => e.SeasonMatchID)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired(false);
+
+        entity.HasIndex(e => e.SeasonMatchID);
 
         // PlayerUserID and DismissedByUserID are plain columns, no foreign key (StatFlag's own doc comment): a user
         // merged away later leaves the flag as it found them, like DuplicateDismissal's user IDs.

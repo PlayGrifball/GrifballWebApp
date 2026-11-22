@@ -1254,6 +1254,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("Rule")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("SeasonMatchID")
+                        .HasColumnType("integer");
+
                     b.HasKey("StatFlagID");
 
                     b.HasIndex("DismissedAt");
@@ -1262,11 +1265,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("RecordedGameID");
 
+                    b.HasIndex("SeasonMatchID");
+
                     b.ToTable("StatFlags", "Event", t =>
                         {
                             t.HasCheckConstraint("CK_Event_StatFlags_DismissedByNeedsDismissedAt", "\"DismissedByUserID\" IS NULL OR \"DismissedAt\" IS NOT NULL");
 
-                            t.HasCheckConstraint("CK_Event_StatFlags_OneGame", "(\"MatchID\" IS NOT NULL AND \"RecordedGameID\" IS NULL) OR (\"MatchID\" IS NULL AND \"RecordedGameID\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_Event_StatFlags_OneGame", "(\"MatchID\" IS NOT NULL AND \"RecordedGameID\" IS NULL AND \"SeasonMatchID\" IS NULL) OR (\"MatchID\" IS NULL AND \"RecordedGameID\" IS NOT NULL AND \"SeasonMatchID\" IS NULL) OR (\"MatchID\" IS NULL AND \"RecordedGameID\" IS NULL AND \"SeasonMatchID\" IS NOT NULL)");
                         });
                 });
 
@@ -8859,9 +8864,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasForeignKey("RecordedGameID")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("GrifballWebApp.Domain.League.SeasonMatch", "SeasonMatch")
+                        .WithMany()
+                        .HasForeignKey("SeasonMatchID")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.Navigation("Match");
 
                     b.Navigation("RecordedGame");
+
+                    b.Navigation("SeasonMatch");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Archive.XuidLookup", b =>

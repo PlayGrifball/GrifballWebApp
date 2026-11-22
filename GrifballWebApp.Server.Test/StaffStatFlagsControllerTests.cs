@@ -32,8 +32,8 @@ public class StaffStatFlagsControllerDatabaseUnitTests : SqliteGrifballContextFi
     public async Task List_ReturnsOnlyOpenFlags()
     {
         Db.Matches.Add(Domain.Halo.Match.Seed(MatchID));
-        Db.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "open one", FoundAt));
-        var dismissed = StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "dismissed one", FoundAt);
+        Db.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, null, "open one", FoundAt));
+        var dismissed = StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, null, "dismissed one", FoundAt);
         dismissed.Dismiss(1, FoundAt);
         Db.StatFlags.Add(dismissed);
         await Db.SaveChangesAsync();
@@ -48,7 +48,7 @@ public class StaffStatFlagsControllerDatabaseUnitTests : SqliteGrifballContextFi
     {
         // A pulled match not yet reported to any season match: its flag doesn't belong to season match 7's series
         Db.Matches.Add(Domain.Halo.Match.Seed(MatchID));
-        Db.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "unrelated", FoundAt));
+        Db.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, null, "unrelated", FoundAt));
         await Db.SaveChangesAsync();
 
         var flags = await Controller().ForSeasonMatch(7, CancellationToken.None);
@@ -60,7 +60,7 @@ public class StaffStatFlagsControllerDatabaseUnitTests : SqliteGrifballContextFi
     public async Task Dismiss_ClosesTheFlag_AndReturnsNoContent()
     {
         Db.Matches.Add(Domain.Halo.Match.Seed(MatchID));
-        var flag = StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "reason", FoundAt);
+        var flag = StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, null, "reason", FoundAt);
         Db.StatFlags.Add(flag);
         await Db.SaveChangesAsync();
 
@@ -81,7 +81,7 @@ public class StaffStatFlagsControllerDatabaseUnitTests : SqliteGrifballContextFi
     public async Task Dismiss_AlreadyDismissed_StillReturnsNoContent()
     {
         Db.Matches.Add(Domain.Halo.Match.Seed(MatchID));
-        var flag = StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "reason", FoundAt);
+        var flag = StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, null, "reason", FoundAt);
         flag.Dismiss(1, FoundAt);
         Db.StatFlags.Add(flag);
         await Db.SaveChangesAsync();

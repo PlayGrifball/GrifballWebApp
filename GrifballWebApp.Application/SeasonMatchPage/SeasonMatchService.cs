@@ -331,9 +331,8 @@ public partial class SeasonMatchService
             throw new SeasonMatchActionNotAllowedException("You cannot report a match for a season match that does not have both teams assigned");
 
         var number = 0;
-        int? clearedRecordedGameID = null;
         if (replacesSeriesGameID is int replaces)
-            (number, clearedRecordedGameID) = await ReplaceAsync(seasonMatch, replaces, ct);
+            number = await ReplaceAsync(seasonMatch, replaces, ct);
         else
             RefuseNewGame(seasonMatch);
 
@@ -346,12 +345,11 @@ public partial class SeasonMatchService
         });
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
-        // #548: the series now has a Match game, so CheckSeriesGamesAsync never raises SeriesDoesNotMatchGames for it -
-        // but it's still run, to clear one an earlier, all-recorded state left open (replacing a game, or into a
-        // reopened series); a replaced, kept (imported) game is cleared directly, since it's no longer reachable
-        // through the series. After the commit: a failing check must never roll back the report.
-        if (clearedRecordedGameID is int id)
-            await _statFlags.ClearSeriesFlagAsync(id, ct);
+        // #548: the series now has a Match game, so this never raises SeriesDoesNotMatchGames for it - but it's still
+        // run, to clear one an earlier, all-recorded state left open (replacing a game, or into a reopened series).
+        // The flag is of the series itself (StatFlag.SeasonMatchID), never the game replaced, so this alone reaches it
+        // however it got there (third review: a separate ClearSeriesFlagAsync call used to be needed too). After the
+        // commit: a failing check must never roll back the report.
         await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
 
         // A league game now: its players nobody signed up as (subs) get a placeholder, so their stats in it count. After the
@@ -679,9 +677,6 @@ public partial class SeasonMatchService
         var forfeited = seasonMatch.DecidedBy is SeasonMatchDecision.Forfeit;
 
         seasonMatch.Reopen();
-        // A kept (non-manual, imported) game's RecordedGameID, captured before it's taken out of the series below:
-        // once it's out, only StatFlagService.ClearSeriesFlagAsync can still reach its series flag.
-        var clearedRecordedGameIDs = new List<int>();
         // A forfeit did not come from the games: they and their score stay, and the series goes on from them. Any
         // other undo clears the games too
         if (forfeited is false)
@@ -693,20 +688,17 @@ public partial class SeasonMatchService
                 // it is deleted (the confirmation says so, and its flags cascade with it)
                 if (game.RecordedGame is { IsManual: true } manual)
                     _context.RemoveRecordedGame(manual);
-                else if (game.RecordedGameID is int id)
-                    clearedRecordedGameIDs.Add(id);
             }
         }
 
         await _context.SaveChangesAsync(ct);
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
-        // #548: reopened, so no longer decided by games - any SeriesDoesNotMatchGames flag on one of its games no
-        // longer applies. A game cleared from the series above (forfeited is false) is cleared directly, since it's no
-        // longer reachable through the series; the series itself (forfeited is true, or with no games left) is
-        // re-checked too. After the commit: a failing check must never roll back the undo.
-        foreach (var id in clearedRecordedGameIDs)
-            await _statFlags.ClearSeriesFlagAsync(id, ct);
+        // #548: reopened, so no longer decided by games - any SeriesDoesNotMatchGames flag on it no longer applies.
+        // The flag is of the series itself (StatFlag.SeasonMatchID), never one of its games, so this alone clears it
+        // whichever game (if any) it happened to be attached to (third review: a separate ClearSeriesFlagAsync call,
+        // for each game cleared from the series above, used to be needed too). After the commit: a failing check must
+        // never roll back the undo.
         await _statFlags.CheckSeriesGamesAsync(seasonMatchID, ct);
     }
 

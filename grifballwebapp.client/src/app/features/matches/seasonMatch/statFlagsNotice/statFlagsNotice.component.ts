@@ -1,4 +1,5 @@
-import { Component, ChangeDetectionStrategy, inject, input, signal, effect, untracked } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, input } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import type { StatFlagDto } from '@api/models';
@@ -6,6 +7,8 @@ import { StaffStatFlagsService } from '@api/services/staff-stat-flags.service';
 import { AppLog } from '@core/telemetry/appLog';
 import { liveReload } from '@core/live/liveReload';
 import { LiveTopics } from '@core/live/liveTopics';
+import { resourceView } from '@shared/resourceView';
+import { tap } from 'rxjs';
 
 /**
  * Open stat flags (#548) of a season match's games, for staff: a question, never a change. Renders nothing while
@@ -24,28 +27,26 @@ export class StatFlagsNoticeComponent {
 
   readonly seasonMatchID = input.required<number>();
 
-  private readonly _flags = signal<StatFlagDto[]>([]);
-  readonly flags = this._flags.asReadonly();
+  /**
+   * The match's open stat flags, reloaded for each match ID: a new one cancels the request still on its way
+   * (rxResource's own params-keyed switchMap), so a slower response for an earlier match can never show on a later
+   * one's - or be the one Dismiss acts against (third review: was a bare subscribe with nothing to cancel it).
+   */
+  private readonly resource = resourceView(rxResource({
+    params: () => ({ seasonMatchID: this.seasonMatchID() }),
+    stream: ({ params }) => this.statFlags.getSeasonMatchStatFlags(params)
+      .pipe(tap({ error: e => this.log.error('Failed to load this match\'s stat flags', e) })),
+  }), []);
+  readonly flags = this.resource.value;
 
   constructor() {
-    effect(() => {
-      // Read as a signal so a change of match (or a stat flag found or dismissed anywhere) reloads it
-      this.seasonMatchID();
-      untracked(() => this.load());
-    });
-    liveReload(() => [LiveTopics.staffStatFlags], () => this.load());
-  }
-
-  private load(): void {
-    this.statFlags.getSeasonMatchStatFlags({ seasonMatchID: this.seasonMatchID() }).subscribe({
-      next: flags => this._flags.set(flags),
-      error: err => this.log.error('Failed to load this match\'s stat flags', err),
-    });
+    // A stat flag found or dismissed anywhere: the list again, in place
+    liveReload(() => [LiveTopics.staffStatFlags], () => this.resource.reload());
   }
 
   dismiss(flag: StatFlagDto): void {
     this.statFlags.dismissStatFlag({ statFlagID: flag.statFlagID }).subscribe({
-      next: () => this._flags.update(flags => flags.filter(f => f.statFlagID !== flag.statFlagID)),
+      next: () => this.resource.set(this.flags().filter(f => f.statFlagID !== flag.statFlagID)),
       error: err => this.log.error('Failed to dismiss the stat flag', err),
     });
   }

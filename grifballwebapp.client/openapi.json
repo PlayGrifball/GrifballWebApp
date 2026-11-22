@@ -17872,7 +17872,7 @@
           },
           "gameNumber": {
             "type": "integer",
-            "description": "The flagged game's number in its series, when it's in one (same condition as GrifballWebApp.Application.StatFlags.StatFlagDto.SeasonMatchID).",
+            "description": "The flagged game's number in its series, when the flag is about one particular game of it; null for a\n            flag about the series as a whole (StatFlagRule.SeriesDoesNotMatchGames).",
             "format": "int32",
             "nullable": true
           },

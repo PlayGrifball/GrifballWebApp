@@ -12,7 +12,8 @@ public class StatFlagDto
     /// <summary>The season match the flagged game belongs to, when it belongs to one (a Halo pull not yet reported to
     /// a match has none): to link the staff list to the match page.</summary>
     public int? SeasonMatchID { get; set; }
-    /// <summary>The flagged game's number in its series, when it's in one (same condition as <see cref="SeasonMatchID"/>).</summary>
+    /// <summary>The flagged game's number in its series, when the flag is about one particular game of it; null for a
+    /// flag about the series as a whole (StatFlagRule.SeriesDoesNotMatchGames).</summary>
     public int? GameNumber { get; set; }
     public int? PlayerUserID { get; set; }
     /// <summary>The name shown for <see cref="PlayerUserID"/> (UserNames.Pick); null when the rule is about the whole

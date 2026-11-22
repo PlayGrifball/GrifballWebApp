@@ -12,4 +12,8 @@ public static class StatFlagThresholds
 
     /// <summary>Over 100% accuracy, allowing a little for Halo's own float rounding.</summary>
     public const float MaxAccuracy = 100.5f;
+
+    /// <summary>How far into the future a hand-entered game's PlayedAt is still let go (third review): a clock a
+    /// little fast, or a commissioner entering it moments after the game ended, shouldn't flag a game just played.</summary>
+    public static readonly TimeSpan FutureMargin = TimeSpan.FromHours(1);
 }

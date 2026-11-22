@@ -544,17 +544,18 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         {
             Assert.That(flag.Reason, Does.Contain("2-0"));
             Assert.That(flag.Reason, Does.Contain("1-0"));
-            // A flag is of one game: the series' only recorded one
-            Assert.That(flag.RecordedGameID, Is.EqualTo(game.RecordedGameID));
+            // #548, third review: a series flag is of the series itself, never a particular game
+            Assert.That(flag.SeasonMatchID, Is.EqualTo(match.SeasonMatchID));
+            Assert.That(flag.RecordedGameID, Is.Null);
         }
     }
 
     [Test]
-    public async Task CheckRecordedGameAsync_ReimportingTheSameGame_KeepsTheSeriesFlagTheSeriesCheckLeftOnIt()
+    public async Task CheckRecordedGameAsync_ReimportingTheSameGame_LeavesTheSeriesFlagAlone()
     {
         // The historical import re-checks a game's "any game" rules every time it's (re-)imported
-        // (HistoricalImportService.ImportRecordedGames); that must not wipe a SeriesDoesNotMatchGames flag the series
-        // check left on the same game
+        // (HistoricalImportService.ImportRecordedGames): that must not touch a SeriesDoesNotMatchGames flag, which is
+        // of the series itself (StatFlag.SeasonMatchID, third review), never reachable through the game at all
         var season = Season.Seed(seasonName: "Archive Season", historicalSourceID: "src/sheet").WithDates(seasonStart: SeasonStart, seasonEnd: SeasonEnd);
         Context.Seasons.Add(season);
         await Context.SaveChangesAsync();
@@ -632,5 +633,140 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         await _statFlags.CheckSeriesGamesAsync(999);
 
         Assert.That(await Context.StatFlags.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task CheckSeriesGamesAsync_AGameWithANonSeasonSide_IsCountedByPosition_NotTeamID()
+    {
+        // #548, third review: the import counts a series' wins by a game's recorded side (position), the other way
+        // round when the teams played swapped - never by matching a side's TeamID to the series' (RecordedGame.WonBy),
+        // which undercounts a side the import never resolved to a season team (TeamID null). Here game 1's side 1
+        // (home position, unswapped) has no TeamID at all, yet won: the import's own tally (stored 1-0) must still
+        // match, rather than counting it toward neither side.
+        var season = Season.Seed(seasonName: "Archive Season", historicalSourceID: "src/sheet").WithDates(seasonStart: SeasonStart, seasonEnd: SeasonEnd);
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Reds");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Blues");
+        Context.Teams.AddRange(home, away);
+        await Context.SaveChangesAsync();
+
+        var match = SeasonMatch.Imported(season.SeasonID, home.TeamID, away.TeamID, homeWins: 1, awayWins: 0, bestOf: 1, scheduledTime: null, bracketMatch: null);
+        var game = RecordedGame.Seed("archive-null-side", gameVersionID: Halo3);
+        game.SeedSide(1, null, Outcomes.Won, 1); // Unresolved side, but still the home position: it won
+        game.SeedSide(2, away.TeamID, Outcomes.Lost, 0);
+        Context.RecordedGames.Add(game);
+        Context.SeasonMatches.Add(match);
+        await Context.SaveChangesAsync();
+        match.AddImportedGame(null, game, 1);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckSeriesGamesAsync(match.SeasonMatchID);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames), Is.False);
+    }
+
+    [Test]
+    public async Task CheckSeriesGamesAsync_Batched_ChecksEverySeriesAtOnce()
+    {
+        // #548, third review: the import's batched path (one load, one flags query, one save) rather than once a series
+        var season = Season.Seed(seasonName: "Archive Season", historicalSourceID: "src/sheet").WithDates(seasonStart: SeasonStart, seasonEnd: SeasonEnd);
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Reds");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Blues");
+        Context.Teams.AddRange(home, away);
+        await Context.SaveChangesAsync();
+
+        var mismatched = SeasonMatch.Imported(season.SeasonID, home.TeamID, away.TeamID, homeWins: 2, awayWins: 0, bestOf: 3, scheduledTime: null, bracketMatch: null);
+        var mismatchedGame = RecordedGame.Seed("archive-batch-mismatch", gameVersionID: Halo3);
+        mismatchedGame.SeedSide(1, home.TeamID, Outcomes.Won, 1);
+        mismatchedGame.SeedSide(2, away.TeamID, Outcomes.Lost, 0);
+        var matching = SeasonMatch.Imported(season.SeasonID, home.TeamID, away.TeamID, homeWins: 1, awayWins: 0, bestOf: 1, scheduledTime: null, bracketMatch: null);
+        var matchingGame = RecordedGame.Seed("archive-batch-match", gameVersionID: Halo3);
+        matchingGame.SeedSide(1, home.TeamID, Outcomes.Won, 1);
+        matchingGame.SeedSide(2, away.TeamID, Outcomes.Lost, 0);
+        Context.RecordedGames.AddRange(mismatchedGame, matchingGame);
+        Context.SeasonMatches.AddRange(mismatched, matching);
+        await Context.SaveChangesAsync();
+        mismatched.AddImportedGame(null, mismatchedGame, 1);
+        matching.AddImportedGame(null, matchingGame, 1);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckSeriesGamesAsync([mismatched.SeasonMatchID, matching.SeasonMatchID]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.StatFlags.CountAsync(), Is.EqualTo(1));
+            Assert.That(await Context.StatFlags.AnyAsync(f => f.SeasonMatchID == mismatched.SeasonMatchID), Is.True);
+        }
+    }
+
+    [Test]
+    public async Task CheckSeriesGamesAsync_Batched_WithNoSeries_DoesNothing()
+    {
+        await _statFlags.CheckSeriesGamesAsync([]);
+
+        Assert.That(await Context.StatFlags.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task CheckMatchAsync_ANegativeStat_KeepsItsFlag_WhenThePlayerIsLinkedLater()
+    {
+        // #548, third review: a Halo finding's identity is always the player's XUID, linked or not - linking an
+        // account later must rewrite the same flag in place, never orphan it (leaving it stuck open forever) and
+        // raise a new one for the same finding
+        var match = Domain.Halo.Match.Seed(Guid.NewGuid());
+        match.AddTeam(0, 1, Outcomes.Won);
+        match.AddParticipant(0, 555, new MatchParticipantStats { Kills = -1, Deaths = 2 });
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckMatchAsync(match, userIDByXuid: new Dictionary<long, int>(), gamertagByXuid: new Dictionary<long, string>());
+        var before = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.NegativeStat);
+        Assert.That(before.PlayerUserID, Is.Null);
+
+        await _statFlags.CheckMatchAsync(match, userIDByXuid: new Dictionary<long, int> { [555] = 42 }, gamertagByXuid: new Dictionary<long, string>());
+
+        var flags = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.NegativeStat).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flags, Has.Count.EqualTo(1), "The same flag, not orphaned with a new one raised alongside it");
+            Assert.That(flags.Single().StatFlagID, Is.EqualTo(before.StatFlagID));
+            Assert.That(flags.Single().PlayerUserID, Is.EqualTo(42));
+        }
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_TheSameFinding_KeepsItsFoundAt_OnARerun()
+    {
+        // #548, third review: a re-run that finds exactly the same thing must not bump FoundAt (or it would jump to
+        // the top of the staff list's newest-first order, and look freshly found when it's not)
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.Seed("rerun-same-finding", gameVersionID: Halo3, seasonID: seeded.Season.SeasonID);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[0].Id, 1, "GT1", Kills: -1, Deaths: 2, Assists: 0));
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+        await _statFlags.CheckRecordedGameAsync(game, null);
+        var before = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.NegativeStat);
+        _time.Advance(TimeSpan.FromDays(1));
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var after = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.NegativeStat);
+        Assert.That(after.FoundAt, Is.EqualTo(before.FoundAt));
+    }
+
+    [Test]
+    public async Task AddManualGame_PlayedAFewMinutesInTheFuture_IsNotFlagged()
+    {
+        // #548, third review: a small future margin (StatFlagThresholds.FutureMargin) lets a clock a little fast, or
+        // entering the game moments after it ended, through without a flag
+        var seeded = await SeedAsync(Context);
+        var dto = Entry(1, 0, playedAt: _time.GetUtcNow().UtcDateTime.AddMinutes(10));
+
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, dto);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.DateOutsideSeason), Is.False);
     }
 }

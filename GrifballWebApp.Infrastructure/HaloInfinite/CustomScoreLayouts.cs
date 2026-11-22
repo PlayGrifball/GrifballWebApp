@@ -126,9 +126,9 @@ public sealed class CustomScoreLayouts
             }
             await _context.SaveChangesAsync(ct);
             // #548: a changed decode can clear or raise UndecodedCustomScore, and the goal-dependent rules
-            // (NegativeStat, over the max accuracy) read what it just decoded too
-            foreach (var match in changedMatches)
-                await _statFlags.CheckMatchAsync(match, ct: ct);
+            // (NegativeStat, over the max accuracy) read what it just decoded too - batched for the whole chunk
+            // (third review: was one CheckMatchAsync a match)
+            await _statFlags.CheckMatchesAsync(changedMatches, ct);
             _context.ChangeTracker.Clear();
             done += chunk.Length;
             progress?.Invoke(done, ids.Count);

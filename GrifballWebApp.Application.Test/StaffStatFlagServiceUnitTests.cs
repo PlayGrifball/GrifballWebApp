@@ -42,9 +42,9 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     {
         var game = SeedGame("g1");
         await Context.SaveChangesAsync();
-        var older = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "older", FoundAt);
-        var newer = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "newer", FoundAt.AddHours(1));
-        var dismissed = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "dismissed", FoundAt);
+        var older = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "older", FoundAt);
+        var newer = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "newer", FoundAt.AddHours(1));
+        var dismissed = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "dismissed", FoundAt);
         dismissed.Dismiss(3, FoundAt);
         Context.StatFlags.AddRange(older, newer, dismissed);
         await Context.SaveChangesAsync();
@@ -64,8 +64,8 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     {
         var game = SeedGame("g1");
         await Context.SaveChangesAsync();
-        var open = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "open", FoundAt);
-        var dismissed = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "dismissed", FoundAt);
+        var open = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "open", FoundAt);
+        var dismissed = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "dismissed", FoundAt);
         dismissed.Dismiss(null, FoundAt);
         Context.StatFlags.AddRange(open, dismissed);
         await Context.SaveChangesAsync();
@@ -83,8 +83,8 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
         seeded.SeasonMatch.AddGame(game, 1);
         await Context.SaveChangesAsync();
         Context.Matches.Add(Domain.Halo.Match.Seed(MatchID));
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "of this match's game", FoundAt));
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "of an unrelated match", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "of this match's game", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, null, "of an unrelated match", FoundAt));
         await Context.SaveChangesAsync();
 
         var flags = await _staff.OpenFlagsForSeasonMatchAsync(seeded.SeasonMatch.SeasonMatchID);
@@ -104,7 +104,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
         var seeded = await SeedAsync(Context);
         var game = SeedGame("g1");
         await Context.SaveChangesAsync();
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, seeded.HomeUsers[0].Id, "a player's stat", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, seeded.HomeUsers[0].Id, "a player's stat", FoundAt));
         await Context.SaveChangesAsync();
 
         var flags = await _staff.OpenFlagsAsync();
@@ -121,7 +121,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     {
         var game = SeedGame("g1");
         await Context.SaveChangesAsync();
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, 999, "a merged-away player's stat", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, 999, "a merged-away player's stat", FoundAt));
         await Context.SaveChangesAsync();
 
         var flags = await _staff.OpenFlagsAsync();
@@ -139,7 +139,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
         game.SeedSide(2, outcome: Outcomes.Lost, score: 1, name: "Blues");
         Context.RecordedGames.Add(game);
         await Context.SaveChangesAsync();
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "reason", FoundAt));
         await Context.SaveChangesAsync();
 
         var flags = await _staff.OpenFlagsAsync();
@@ -161,7 +161,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
         await Context.SaveChangesAsync();
         seeded.SeasonMatch.AddGame(game, 1);
         await Context.SaveChangesAsync();
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "reason", FoundAt));
         await Context.SaveChangesAsync();
 
         var flags = await _staff.OpenFlagsAsync();
@@ -179,7 +179,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     {
         var game = SeedGame("g1");
         await Context.SaveChangesAsync();
-        var flag = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt);
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "reason", FoundAt);
         Context.StatFlags.Add(flag);
         await Context.SaveChangesAsync();
 
@@ -202,7 +202,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     {
         var game = SeedGame("g1");
         await Context.SaveChangesAsync();
-        var flag = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt);
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "reason", FoundAt);
         Context.StatFlags.Add(flag);
         await Context.SaveChangesAsync();
         var currentUser = Substitute.For<ICurrentUserService>();
@@ -220,7 +220,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     {
         var game = SeedGame("g1");
         await Context.SaveChangesAsync();
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, null, "reason", FoundAt));
         await Context.SaveChangesAsync();
 
         Assert.That(await new StaffStatFlagService(Context).OpenFlagCountAsync(), Is.EqualTo(1));

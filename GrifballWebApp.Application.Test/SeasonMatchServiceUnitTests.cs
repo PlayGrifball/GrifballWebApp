@@ -696,10 +696,11 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public async Task ReportMatch_ReplacingAnImportedRecordedGame_ClearsTheStaleSeriesFlagItKeptOutsideTheSeries()
+    public async Task ReportMatch_ReplacingAnImportedRecordedGame_ClearsTheStaleSeriesFlag()
     {
-        // #548: the imported game survives being replaced (only a game entered by hand is deleted), so its series flag
-        // is no longer reachable through the series once it's out - ReportMatch must clear it directly
+        // #548, third review: the imported game survives being replaced (only a game entered by hand is deleted) -
+        // but the series flag is of the series itself (StatFlag.SeasonMatchID), never one particular game, so
+        // ReportMatch's own CheckSeriesGamesAsync call reaches it regardless of which game it was ever attached to
         var seeded = await SeedAsync(Context, bestOf: 3);
         var imported = RecordedGame.Seed("unit/stale-series", gameVersionID: Halo3);
         imported.SeedSide(1, seeded.SeasonMatch.HomeTeamID, Outcomes.Won, 1);
@@ -708,7 +709,7 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
         var replaced = seeded.SeasonMatch.Game(1, recorded: imported);
         seeded.SeasonMatch.Scored(0, 1);
         await Context.SaveChangesAsync();
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, imported.RecordedGameID, null, "stale", DateTime.UtcNow));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seeded.SeasonMatch.SeasonMatchID, null, "stale", DateTime.UtcNow));
         await Context.SaveChangesAsync();
         await AddMatchAsync(Context, 1, InSeason, HomeXbox, Outcomes.Won, AwayXbox, Outcomes.Lost);
         Context.ChangeTracker.Clear();
@@ -933,11 +934,12 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public async Task UndoResult_OfASeriesWithAnImportedGame_ClearsItsStaleSeriesFlagDirectly_SinceItSurvivesOutsideTheSeries()
+    public async Task UndoResult_OfASeriesWithAnImportedGame_ClearsItsStaleSeriesFlag()
     {
-        // #548: an imported (non-manual, non-Waypoint) game is kept (only a game entered by hand is deleted) once
-        // cleared from the series: its RecordedGameID must be captured before ClearSeries severs the link, since
-        // CheckSeriesGamesAsync can no longer reach it through the series afterwards
+        // #548, third review: an imported (non-manual, non-Waypoint) game is kept (only a game entered by hand is
+        // deleted) once cleared from the series - but the series flag is of the series itself
+        // (StatFlag.SeasonMatchID), never one particular game, so UndoResult's own CheckSeriesGamesAsync call reaches
+        // it regardless of which game it was ever attached to
         var seeded = await SeedAsync(Context, bestOf: 1);
         var imported = RecordedGame.Seed("unit/undo-kept", gameVersionID: Halo3);
         imported.SeedSide(1, seeded.SeasonMatch.HomeTeamID, Outcomes.Won, 1);
@@ -946,7 +948,7 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
         seeded.SeasonMatch.Game(1, recorded: imported);
         seeded.SeasonMatch.WonBy(SeasonMatchSide.Home);
         await Context.SaveChangesAsync();
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, imported.RecordedGameID, null, "stale", DateTime.UtcNow));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seeded.SeasonMatch.SeasonMatchID, null, "stale", DateTime.UtcNow));
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 

@@ -61,6 +61,24 @@ describe('StatFlagsNoticeComponent', () => {
     expect(fixture.componentInstance.flags()).toEqual([]);
   });
 
+  it('cancels a slower response for an earlier match, never showing its flags for a later one', async () => {
+    // #548, third review: match 10 is left loading, then the view moves on to match 11 before it answers
+    fixture.componentRef.setInput('seasonMatchID', 10);
+    fixture.detectChanges();
+    const first = http.expectOne('/api/season-matches/10/stat-flags');
+
+    fixture.componentRef.setInput('seasonMatchID', 11);
+    fixture.detectChanges();
+    const second = http.expectOne('/api/season-matches/11/stat-flags');
+
+    second.flush([{ ...flag, seasonMatchID: 11 }]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(first.cancelled).toBeTrue();
+    expect(fixture.componentInstance.flags().length).toBe(1);
+  });
+
   it('logs, rather than throws, when loading fails', async () => {
     spyOn(console, 'error');
     fixture.detectChanges();

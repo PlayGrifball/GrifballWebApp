@@ -22,6 +22,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Rule = table.Column<int>(type: "integer", nullable: false),
                     MatchID = table.Column<Guid>(type: "uuid", nullable: true),
                     RecordedGameID = table.Column<int>(type: "integer", nullable: true),
+                    SeasonMatchID = table.Column<int>(type: "integer", nullable: true),
                     PlayerUserID = table.Column<int>(type: "integer", nullable: true),
                     Discriminator = table.Column<long>(type: "bigint", nullable: true),
                     Reason = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false, collation: "case_insensitive"),
@@ -37,7 +38,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 {
                     table.PrimaryKey("PK_StatFlags", x => x.StatFlagID);
                     table.CheckConstraint("CK_Event_StatFlags_DismissedByNeedsDismissedAt", "\"DismissedByUserID\" IS NULL OR \"DismissedAt\" IS NOT NULL");
-                    table.CheckConstraint("CK_Event_StatFlags_OneGame", "(\"MatchID\" IS NOT NULL AND \"RecordedGameID\" IS NULL) OR (\"MatchID\" IS NULL AND \"RecordedGameID\" IS NOT NULL)");
+                    table.CheckConstraint("CK_Event_StatFlags_OneGame", "(\"MatchID\" IS NOT NULL AND \"RecordedGameID\" IS NULL AND \"SeasonMatchID\" IS NULL) OR (\"MatchID\" IS NULL AND \"RecordedGameID\" IS NOT NULL AND \"SeasonMatchID\" IS NULL) OR (\"MatchID\" IS NULL AND \"RecordedGameID\" IS NULL AND \"SeasonMatchID\" IS NOT NULL)");
                     table.ForeignKey(
                         name: "FK_StatFlags_Games_RecordedGameID",
                         column: x => x.RecordedGameID,
@@ -51,6 +52,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         principalSchema: "Infinite",
                         principalTable: "Matches",
                         principalColumn: "MatchID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_StatFlags_SeasonMatches_SeasonMatchID",
+                        column: x => x.SeasonMatchID,
+                        principalSchema: "Event",
+                        principalTable: "SeasonMatches",
+                        principalColumn: "SeasonMatchID",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -71,6 +79,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event",
                 table: "StatFlags",
                 column: "RecordedGameID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_StatFlags_SeasonMatchID",
+                schema: "Event",
+                table: "StatFlags",
+                column: "SeasonMatchID");
         }
 
         /// <inheritdoc />

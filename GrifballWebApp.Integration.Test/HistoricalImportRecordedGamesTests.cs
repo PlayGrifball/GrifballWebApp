@@ -221,9 +221,10 @@ public class HistoricalImportRecordedGamesTests
     public async Task RecordedGames_NoLongerInTheArchive_Go_AndAScrimNowLeavesItsSeries()
     {
         await _service.Import(Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo]), Game(Summer, "s/2", T.AddDays(2), [.. Alpha, .. Bravo])));
-        // #548: a stale flag from an earlier run, on the game that survives (unlinked, not removed: it's a scrim now)
-        var survivor = await _context.RecordedGames.AsNoTracking().SingleAsync(g => g.SourceKey == "s/2");
-        _context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, survivor.RecordedGameID, null, "stale", T));
+        // #548, third review: a stale flag from an earlier run, on the series itself (StatFlag.SeasonMatchID, not the
+        // game that survives - a series flag is never of one particular game any more)
+        var seasonMatch = await _context.SeasonMatches.AsNoTracking().SingleAsync();
+        _context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seasonMatch.SeasonMatchID, null, "stale", T));
         await _context.SaveChangesAsync();
 
         var report = await _service.Import(Summer2015(Game(Summer, "s/2", T.AddDays(2), [.. Alpha, .. Bravo], scrim: true)));
@@ -234,7 +235,7 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(expectedArray1));
             Assert.That(await _context.Set<SeriesGame>().AnyAsync(), Is.False);
             Assert.That(await _context.SeasonMatches.AnyAsync(), Is.False, "Series left with no games go");
-            Assert.That(await _context.StatFlags.AnyAsync(f => f.DismissedAt == null), Is.False, "Unlinked (not removed, so not cascaded): cleared directly");
+            Assert.That(await _context.StatFlags.AnyAsync(f => f.DismissedAt == null), Is.False, "The series itself goes with no games left: its flag cascades with it (StatFlag.SeasonMatchID)");
         }
     }
 
