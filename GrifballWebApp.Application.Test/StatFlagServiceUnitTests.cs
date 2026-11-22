@@ -72,6 +72,26 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task AddManualGame_TheDecidingGameOfABestOfOneSeries_KeepsItsScoreFlag_OnceTheSeriesCheckAlsoRuns()
+    {
+        // Bo1: reporting this one game both flags its own score/goals mismatch (CheckRecordedGameAsync) and decides
+        // the series (CheckSeriesGamesAsync, run right after by AddManualGame) - the series check must not remove a
+        // flag it doesn't own on the very game it just reconciled
+        var seeded = await SeedAsync(Context, bestOf: 1);
+        var dto = Entry(3, 1,
+            players:
+            [
+                Line(seeded.HomeUsers[0].Id, true, goals: 1),
+                Line(seeded.HomeUsers[1].Id, true, goals: 1),
+                Line(seeded.AwayUsers[0].Id, false, goals: 1),
+            ]);
+
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, dto);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.ScoreDoesNotMatchGoals && f.IsOpen), Is.True);
+    }
+
+    [Test]
     public async Task AddManualGame_WhereThePlayersGoalsMatchTheScore_IsNotFlagged()
     {
         // Full rosters (4v4, the season's format) and matching scores/goals/dates: nothing here is worth a look
@@ -251,6 +271,38 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task CheckRecordedGameAsync_BothSidesShortOfTheFormat_AreTwoFlags_AndFixingOneLeavesTheOther()
+    {
+        // Side 1 and side 2 are both too small: without a discriminator both findings would share the same
+        // (TeamSmallerThanFormat, null) key
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.Seed("both-sides-short", gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
+        var home = game.SeedSide(1);
+        var away = game.SeedSide(2);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[0].Id, 1, "GT1", Kills: 0, Deaths: 0, Assists: 0), home);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.AwayUsers[0].Id, 2, "GT2", Kills: 0, Deaths: 0, Assists: 0), away);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var flags = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.TeamSmallerThanFormat).ToListAsync();
+        Assert.That(flags, Has.Count.EqualTo(2));
+
+        // Side 1 is brought up to the format's minimum (4); side 2 is left short. A shared key would have rewritten
+        // one of these flags twice and never cleared the other
+        game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[1].Id, 1, "GT3", Kills: 0, Deaths: 0, Assists: 0), home);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[2].Id, 1, "GT4", Kills: 0, Deaths: 0, Assists: 0), home);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[3].Id, 1, "GT5", Kills: 0, Deaths: 0, Assists: 0), home);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var open = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.TeamSmallerThanFormat && f.IsOpen).ToListAsync();
+        Assert.That(open.Single().Reason, Does.Contain("Side 2"));
+    }
+
+    [Test]
     public async Task CheckRecordedGameAsync_ANegativeStat_IsFlagged()
     {
         var seeded = await SeedAsync(Context);
@@ -275,7 +327,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         Context.Matches.Add(match);
         await Context.SaveChangesAsync();
 
-        await _statFlags.CheckMatchAsync(match.MatchID);
+        await _statFlags.CheckMatchAsync(match);
 
         var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.ImpossibleAccuracy);
         Assert.That(flag.Reason, Does.Contain("150"));
@@ -291,7 +343,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         Context.Matches.Add(match);
         await Context.SaveChangesAsync();
 
-        await _statFlags.CheckMatchAsync(match.MatchID);
+        await _statFlags.CheckMatchAsync(match);
 
         var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.ImpossibleAccuracy);
         Assert.That(flag.Reason, Does.Contain("20 shots hit"));
@@ -305,7 +357,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         Context.Matches.Add(match);
         await Context.SaveChangesAsync();
 
-        await _statFlags.CheckMatchAsync(match.MatchID);
+        await _statFlags.CheckMatchAsync(match);
 
         Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.UndecodedCustomScore), Is.True);
     }
@@ -325,7 +377,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         Context.Matches.Add(match);
         await Context.SaveChangesAsync();
 
-        await _statFlags.CheckMatchAsync(match.MatchID);
+        await _statFlags.CheckMatchAsync(match);
 
         var flags = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.NegativeStat).ToListAsync();
         using (Assert.EnterMultipleScope())
@@ -338,11 +390,53 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public async Task CheckMatchAsync_ThatDoesNotExist_DoesNothing()
+    public async Task CheckMatchAsync_TwoUnlinkedPlayersBothNegative_AreTwoFlags_AndFixingOneLeavesTheOther()
     {
-        await _statFlags.CheckMatchAsync(Guid.NewGuid());
+        // Neither 998 nor 999 is anyone's Xbox account: without a discriminator both findings would share the same
+        // (NegativeStat, null) key
+        Context.XboxUsers.Add(XboxUser.FromXbox(998, "GT998"));
+        Context.XboxUsers.Add(XboxUser.FromXbox(999, "GT999"));
+        var match = Domain.Halo.Match.Seed(Guid.NewGuid());
+        match.AddTeam(0, 1, Outcomes.Won);
+        match.AddTeam(1, 0, Outcomes.Lost);
+        match.AddParticipant(0, 998, new MatchParticipantStats { Assists = -1 });
+        match.AddParticipant(1, 999, new MatchParticipantStats { Assists = -2 });
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
 
-        Assert.That(await Context.StatFlags.AnyAsync(), Is.False);
+        await _statFlags.CheckMatchAsync(match);
+
+        var flags = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.NegativeStat).ToListAsync();
+        Assert.That(flags, Has.Count.EqualTo(2));
+
+        // A second look at the same match, 998's line no longer negative (it's immutable once pulled, so this is a
+        // fresh in-memory copy standing in for a corrected re-pull): its flag should clear, 999's should stay - a
+        // shared key would have left both open, or cleared the wrong one
+        var corrected = Domain.Halo.Match.Seed(match.MatchID);
+        corrected.AddTeam(0, 1, Outcomes.Won);
+        corrected.AddTeam(1, 0, Outcomes.Lost);
+        corrected.AddParticipant(0, 998, new MatchParticipantStats { Assists = 1 });
+        corrected.AddParticipant(1, 999, new MatchParticipantStats { Assists = -2 });
+        await _statFlags.CheckMatchAsync(corrected);
+
+        var open = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.NegativeStat && f.IsOpen).ToListAsync();
+        Assert.That(open.Single().Reason, Does.Contain("-2 assists"));
+    }
+
+    [Test]
+    public async Task CheckMatchAsync_GivenLookupsAlready_UsesThemRatherThanQueryingItsOwn()
+    {
+        // A bulk pull looks these up once for every match it saves, not once a match (DataPullService.SaveMatchesAsync)
+        var match = Domain.Halo.Match.Seed(Guid.NewGuid());
+        match.AddTeam(0, 1, Outcomes.Won);
+        match.AddParticipant(0, 101, new MatchParticipantStats { Assists = -1 });
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckMatchAsync(match, userIDByXuid: new Dictionary<long, int>(), gamertagByXuid: new Dictionary<long, string> { [101] = "GivenGamertag" });
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.NegativeStat);
+        Assert.That(flag.Reason, Does.StartWith("GivenGamertag:"));
     }
 
     [Test]
@@ -377,6 +471,69 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
             // A flag is of one game: the series' only recorded one
             Assert.That(flag.RecordedGameID, Is.EqualTo(game.RecordedGameID));
         }
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_ReimportingTheSameGame_KeepsTheSeriesFlagTheSeriesCheckLeftOnIt()
+    {
+        // The historical import re-checks a game's "any game" rules every time it's (re-)imported
+        // (HistoricalImportService.ImportRecordedGames); that must not wipe a SeriesDoesNotMatchGames flag the series
+        // check left on the same game
+        var season = Season.Seed(seasonName: "Archive Season", historicalSourceID: "src/sheet").WithDates(seasonStart: SeasonStart, seasonEnd: SeasonEnd);
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Reds");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Blues");
+        Context.Teams.AddRange(home, away);
+        await Context.SaveChangesAsync();
+
+        var match = SeasonMatch.Imported(season.SeasonID, home.TeamID, away.TeamID, homeWins: 2, awayWins: 0, bestOf: 3, scheduledTime: null, bracketMatch: null);
+        var game = RecordedGame.Seed("archive-game-1", gameVersionID: Halo3);
+        game.SeedSide(1, home.TeamID, Outcomes.Won, 1);
+        game.SeedSide(2, away.TeamID, Outcomes.Lost, 0);
+        Context.RecordedGames.Add(game);
+        Context.SeasonMatches.Add(match);
+        await Context.SaveChangesAsync();
+        match.AddImportedGame(null, game, 1);
+        await Context.SaveChangesAsync();
+        await _statFlags.CheckSeriesGamesAsync(match.SeasonMatchID);
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames), Is.True);
+
+        // A re-import re-checks the game itself (never seasonMatch, per HistoricalImportService.ImportRecordedGames)
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.IsOpen), Is.True);
+    }
+
+    [Test]
+    public async Task CheckSeriesGamesAsync_OnceTheSeriesIsReopened_ClearsItsFlagRatherThanLeavingItStuckOpen()
+    {
+        var season = Season.Seed(seasonName: "Archive Season", historicalSourceID: "src/sheet").WithDates(seasonStart: SeasonStart, seasonEnd: SeasonEnd);
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Reds");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Blues");
+        Context.Teams.AddRange(home, away);
+        await Context.SaveChangesAsync();
+
+        var match = SeasonMatch.Imported(season.SeasonID, home.TeamID, away.TeamID, homeWins: 2, awayWins: 0, bestOf: 3, scheduledTime: null, bracketMatch: null);
+        var game = RecordedGame.Seed("archive-game-1", gameVersionID: Halo3);
+        game.SeedSide(1, home.TeamID, Outcomes.Won, 1);
+        game.SeedSide(2, away.TeamID, Outcomes.Lost, 0);
+        Context.RecordedGames.Add(game);
+        Context.SeasonMatches.Add(match);
+        await Context.SaveChangesAsync();
+        match.AddImportedGame(null, game, 1);
+        await Context.SaveChangesAsync();
+        await _statFlags.CheckSeriesGamesAsync(match.SeasonMatchID);
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.IsOpen), Is.True);
+
+        // No longer decided by games (UndoResult re-checks right after Reopen, before it clears the games)
+        match.Reopen();
+        await Context.SaveChangesAsync();
+        await _statFlags.CheckSeriesGamesAsync(match.SeasonMatchID);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.IsOpen), Is.False);
     }
 
     [Test]

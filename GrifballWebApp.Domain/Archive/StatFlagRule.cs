@@ -12,8 +12,8 @@ public enum StatFlagRule
     ScoreDoesNotMatchGoals = 1,
     /// <summary>Hand-entered: the winner doesn't match the scores.</summary>
     WinnerDoesNotMatchScores = 2,
-    /// <summary>Hand-entered: a player is on both teams, or listed twice.</summary>
-    PlayerOnBothTeamsOrTwice = 3,
+    // 3 was PlayerOnBothTeamsOrTwice: removed (#562 review) - RecordedGameParticipant's unique index on
+    // (RecordedGameID, UserID) already makes it impossible, so the rule could never fire. Not reused.
     /// <summary>Hand-entered: a team fielded fewer players than the season's format calls for.</summary>
     TeamSmallerThanFormat = 4,
     /// <summary>Hand-entered: the game's date is before the season started, or in the future.</summary>

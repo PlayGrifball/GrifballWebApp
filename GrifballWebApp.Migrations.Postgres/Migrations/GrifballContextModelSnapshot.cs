@@ -1215,6 +1215,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
+                    b.Property<long?>("Discriminator")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime?>("DismissedAt")
                         .HasColumnType("timestamp with time zone");
 

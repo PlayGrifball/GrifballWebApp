@@ -24,6 +24,7 @@ public class StatFlagConfiguration : IEntityTypeConfiguration<StatFlag>
         entity.HasKey(e => e.StatFlagID);
 
         entity.Property(e => e.Reason).HasMaxLength(StatFlag.ReasonMaxLength).IsRequired();
+        entity.Property(e => e.Discriminator);
 
         // The staff list reads open flags, newest first
         entity.HasIndex(e => e.DismissedAt);

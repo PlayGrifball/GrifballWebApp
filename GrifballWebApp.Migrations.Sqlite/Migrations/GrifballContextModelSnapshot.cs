@@ -1223,6 +1223,9 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("Discriminator")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("DismissedAt")
                         .HasColumnType("TEXT");
 

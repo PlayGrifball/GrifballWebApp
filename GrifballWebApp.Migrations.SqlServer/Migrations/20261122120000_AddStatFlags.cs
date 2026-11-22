@@ -22,6 +22,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     MatchID = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     RecordedGameID = table.Column<int>(type: "int", nullable: true),
                     PlayerUserID = table.Column<int>(type: "int", nullable: true),
+                    Discriminator = table.Column<long>(type: "bigint", nullable: true),
                     Reason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     FoundAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     DismissedAt = table.Column<DateTime>(type: "datetime2", nullable: true),

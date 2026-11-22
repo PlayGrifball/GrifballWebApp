@@ -74,36 +74,6 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public async Task OpenFlagsForGameAsync_OfARecordedGame_FindsItsFlags_NotAMatchs()
-    {
-        var game = SeedGame("g1");
-        await Context.SaveChangesAsync();
-        Context.Matches.Add(Domain.Halo.Match.Seed(MatchID));
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "of the recorded game", FoundAt));
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "of the match", FoundAt));
-        await Context.SaveChangesAsync();
-
-        var flags = await _staff.OpenFlagsForGameAsync(null, game.RecordedGameID);
-
-        Assert.That(flags.Single().Reason, Is.EqualTo("of the recorded game"));
-    }
-
-    [Test]
-    public async Task OpenFlagsForGameAsync_OfAMatch_FindsItsFlags_NotARecordedGames()
-    {
-        var game = SeedGame("g1");
-        await Context.SaveChangesAsync();
-        Context.Matches.Add(Domain.Halo.Match.Seed(MatchID));
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "of the recorded game", FoundAt));
-        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "of the match", FoundAt));
-        await Context.SaveChangesAsync();
-
-        var flags = await _staff.OpenFlagsForGameAsync(MatchID, null);
-
-        Assert.That(flags.Single().Reason, Is.EqualTo("of the match"));
-    }
-
-    [Test]
     public async Task OpenFlagsForSeasonMatchAsync_FindsFlagsOfEitherKindOfGame_WithTheirGameNumber()
     {
         var seeded = await SeedAsync(Context);

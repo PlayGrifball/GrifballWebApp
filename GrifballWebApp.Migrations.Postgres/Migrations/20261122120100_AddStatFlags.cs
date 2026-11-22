@@ -23,6 +23,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     MatchID = table.Column<Guid>(type: "uuid", nullable: true),
                     RecordedGameID = table.Column<int>(type: "integer", nullable: true),
                     PlayerUserID = table.Column<int>(type: "integer", nullable: true),
+                    Discriminator = table.Column<long>(type: "bigint", nullable: true),
                     Reason = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false, collation: "case_insensitive"),
                     FoundAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DismissedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),

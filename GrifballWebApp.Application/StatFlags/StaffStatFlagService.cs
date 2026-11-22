@@ -34,15 +34,6 @@ public class StaffStatFlagService
     /// <summary>How many flags are open: the staff dashboard's count.</summary>
     public Task<int> OpenFlagCountAsync(CancellationToken ct = default) => _context.StatFlags.CountAsync(StatFlag.Open, ct);
 
-    /// <summary>The open flags of one game (a recorded game or a Halo match, never both): the match page's marker.</summary>
-    public async Task<List<StatFlagDto>> OpenFlagsForGameAsync(Guid? matchID, int? recordedGameID, CancellationToken ct = default)
-    {
-        var flags = await _context.StatFlags.Where(StatFlag.Open)
-            .Where(f => matchID != null ? f.MatchID == matchID : f.RecordedGameID == recordedGameID)
-            .ToListAsync(ct);
-        return await ToDtosAsync(flags, ct);
-    }
-
     /// <summary>The open flags of every game of a season match's series: the match page's markers, one request for all
     /// of them rather than one a game.</summary>
     public async Task<List<StatFlagDto>> OpenFlagsForSeasonMatchAsync(int seasonMatchID, CancellationToken ct = default)

@@ -344,8 +344,8 @@ public partial class SeasonMatchService
             await _context.SaveChangesAsync(ct);
         });
         await AwardChampionship(seasonMatch, ct);
-        // #548: whether the series' games add up to its result; never fires for a Waypoint-only series (CheckSeriesGamesAsync skips it)
-        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
+        // #548: no StatFlagService.CheckSeriesGamesAsync call here - a reported match always adds a Match game, and
+        // that check is only ever for a series decided entirely by recorded games, so it would be a no-op every time.
         await transaction.CommitAsync(ct);
 
         // A league game now: its players nobody signed up as (subs) get a placeholder, so their stats in it count. After the
@@ -638,6 +638,10 @@ public partial class SeasonMatchService
 
         await _context.SaveChangesAsync(ct);
         await AwardChampionship(seasonMatch, ct);
+        // #548: a forfeit never decides a match that was already decided by games (ForfeitResult.AlreadyDecided above),
+        // so there is never a SeriesDoesNotMatchGames flag to clear here; re-checked anyway for the same reason as
+        // UndoResult - nothing this method does should leave a stale flag behind undetected.
+        await _statFlags.CheckSeriesGamesAsync(seasonMatchID, ct);
         await transaction.CommitAsync(ct);
     }
 
@@ -668,6 +672,10 @@ public partial class SeasonMatchService
         var forfeited = seasonMatch.DecidedBy is SeasonMatchDecision.Forfeit;
 
         seasonMatch.Reopen();
+        // #548: reopened, so no longer decided by games - any SeriesDoesNotMatchGames flag on one of its games no
+        // longer applies. Checked here, before the games below are cleared (and their link to the series gone with
+        // them): afterward there would be nothing left to find that flag by.
+        await _statFlags.CheckSeriesGamesAsync(seasonMatchID, ct);
         // A forfeit did not come from the games: they and their score stay, and the series goes on from them. Any
         // other undo clears the games too
         if (forfeited is false)

@@ -24,9 +24,11 @@ public class StatFlag : AuditableEntity
     /// A finding of <paramref name="rule"/>, against a Halo Infinite match (<paramref name="matchID"/>) or a recorded
     /// game (<paramref name="recordedGameID"/>) - never both or neither (<see cref="CheckGame"/>) - about
     /// <paramref name="playerUserID"/>'s line when the rule is about one player, else the whole game (a team, the
-    /// series).
+    /// series). <paramref name="discriminator"/> tells apart two findings of the same rule about no one player (a
+    /// side's number, an unlinked Halo player's XUID): without it they'd share a key and a re-run could rewrite one
+    /// twice while never clearing the other.
     /// </summary>
-    public static StatFlag Found(StatFlagRule rule, Guid? matchID, int? recordedGameID, int? playerUserID, string reason, DateTime foundAt)
+    public static StatFlag Found(StatFlagRule rule, Guid? matchID, int? recordedGameID, int? playerUserID, string reason, DateTime foundAt, long? discriminator = null)
     {
         CheckGame(matchID, recordedGameID);
         var flag = new StatFlag
@@ -35,6 +37,7 @@ public class StatFlag : AuditableEntity
             MatchID = matchID,
             RecordedGameID = recordedGameID,
             PlayerUserID = playerUserID,
+            Discriminator = discriminator,
             Reason = CheckReason(reason),
             FoundAt = foundAt,
         };
@@ -69,6 +72,10 @@ public class StatFlag : AuditableEntity
     /// <see cref="GrifballWebApp.Domain.Players.DuplicateDismissal"/>'s user IDs): the player may be merged away later,
     /// and the flag still names who it was found about.</summary>
     public int? PlayerUserID { get; private set; }
+    /// <summary>Part of the flag's identity alongside <see cref="Rule"/> and <see cref="PlayerUserID"/>, for findings
+    /// that are about no one player and so would otherwise collide (StatFlagService.ReconcileAsync): null for a rule
+    /// that's at most one finding a game.</summary>
+    public long? Discriminator { get; private set; }
     public string Reason { get; private set; } = null!;
     public DateTime FoundAt { get; private set; }
     public DateTime? DismissedAt { get; private set; }
@@ -103,11 +110,12 @@ public class StatFlag : AuditableEntity
     }
 
     /// <summary>Staff looked at it: not wrong, or not worth fixing. <paramref name="dismissedByUserID"/> is null when no
-    /// one was signed in.</summary>
+    /// one was signed in. A no-op when it's dismissed already (two staff, or a stale list) rather than refusing: it
+    /// says the same thing either way, so there's nothing to tell them went wrong.</summary>
     public void Dismiss(int? dismissedByUserID, DateTime dismissedAt)
     {
         if (DismissedAt is not null)
-            throw new InvalidOperationException($"Stat flag {StatFlagID} is already dismissed");
+            return;
         DismissedAt = dismissedAt;
         DismissedByUserID = dismissedByUserID;
     }

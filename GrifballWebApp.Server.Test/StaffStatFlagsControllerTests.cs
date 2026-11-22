@@ -76,4 +76,19 @@ public class StaffStatFlagsControllerDatabaseUnitTests : SqliteGrifballContextFi
     [Test]
     public void Dismiss_ThatDoesNotExist_ThrowsNotFound()
         => Assert.That(async () => await Controller().Dismiss(999, CancellationToken.None), Throws.InstanceOf<StatFlagNotFoundException>());
+
+    [Test]
+    public async Task Dismiss_AlreadyDismissed_StillReturnsNoContent()
+    {
+        Db.Matches.Add(Domain.Halo.Match.Seed(MatchID));
+        var flag = StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "reason", FoundAt);
+        flag.Dismiss(1, FoundAt);
+        Db.StatFlags.Add(flag);
+        await Db.SaveChangesAsync();
+
+        // Two staff dismissing it, or a stale list: a second dismiss says the same thing, not an error
+        var result = await Controller().Dismiss(flag.StatFlagID, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<NoContentResult>());
+    }
 }

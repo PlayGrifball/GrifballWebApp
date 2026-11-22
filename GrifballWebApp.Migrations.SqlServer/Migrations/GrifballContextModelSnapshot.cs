@@ -788,6 +788,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("int");
 
+                    b.Property<long?>("Discriminator")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime?>("DismissedAt")
                         .HasColumnType("datetime2");
 

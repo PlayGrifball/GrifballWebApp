@@ -80,12 +80,35 @@ public class StatFlagAggregateTests
     }
 
     [Test]
-    public void Dismiss_AlreadyDismissed_Refuses()
+    public void Dismiss_AlreadyDismissed_IsANoOp_KeepingTheFirstDismissal()
     {
         var flag = StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, "reason", FoundAt);
-        flag.Dismiss(3, FoundAt.AddDays(1));
+        var firstDismissedAt = FoundAt.AddDays(1);
+        flag.Dismiss(3, firstDismissedAt);
 
-        Assert.That(() => flag.Dismiss(3, FoundAt.AddDays(2)), Throws.InvalidOperationException);
+        Assert.That(() => flag.Dismiss(7, FoundAt.AddDays(2)), Throws.Nothing);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.DismissedAt, Is.EqualTo(firstDismissedAt));
+            Assert.That(flag.DismissedByUserID, Is.EqualTo(3));
+        }
+    }
+
+    [Test]
+    public void Found_WithADiscriminator_KeepsIt()
+    {
+        var flag = StatFlag.Found(StatFlagRule.TeamSmallerThanFormat, MatchID, null, null, "Side 1 fielded 1 player(s)", FoundAt, discriminator: 1);
+
+        Assert.That(flag.Discriminator, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Found_WithNoDiscriminator_IsNull()
+    {
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, 5, "reason", FoundAt);
+
+        Assert.That(flag.Discriminator, Is.Null);
     }
 
     [Test]
