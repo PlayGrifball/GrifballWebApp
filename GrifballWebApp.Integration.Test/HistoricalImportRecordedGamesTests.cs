@@ -220,11 +220,13 @@ public class HistoricalImportRecordedGamesTests
     [Test]
     public async Task RecordedGames_NoLongerInTheArchive_Go_AndAScrimNowLeavesItsSeries()
     {
+        // s/1 and s/2 are 2 days apart, past SeriesGap (3 hours): each is its own one-game series
         await _service.Import(Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo]), Game(Summer, "s/2", T.AddDays(2), [.. Alpha, .. Bravo])));
         // #548, third review: a stale flag from an earlier run, on the series itself (StatFlag.SeasonMatchID, not the
         // game that survives - a series flag is never of one particular game any more)
-        var seasonMatch = await _context.SeasonMatches.AsNoTracking().SingleAsync();
-        _context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seasonMatch.SeasonMatchID, null, "stale", T));
+        var seasonMatchID = await _context.Set<SeriesGame>().AsNoTracking()
+            .Where(g => g.RecordedGame!.SourceKey == "s/2").Select(g => g.SeasonMatchID).SingleAsync();
+        _context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seasonMatchID, null, "stale", T));
         await _context.SaveChangesAsync();
 
         var report = await _service.Import(Summer2015(Game(Summer, "s/2", T.AddDays(2), [.. Alpha, .. Bravo], scrim: true)));
