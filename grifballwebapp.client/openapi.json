@@ -193,7 +193,7 @@
         "tags": [
           "Admin"
         ],
-        "summary": "Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the\n            URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only.",
+        "summary": "Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the\n            URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only. Changes which Halo account the whole site\n            uses: browser only.",
         "operationId": "SetCode",
         "requestBody": {
           "content": {
@@ -241,7 +241,7 @@
         "tags": [
           "Admin"
         ],
-        "summary": "Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode.",
+        "summary": "Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode. Browser only, like setting them.",
         "operationId": "DeleteTokens",
         "responses": {
           "204": {
@@ -3584,7 +3584,7 @@
         "tags": [
           "Identity"
         ],
-        "summary": "Sets a new password using a one-time reset token.",
+        "summary": "Sets a new password using a one-time reset token. Not GrifballWebApp.Server.Mcp.DenyAccessTokenAttribute: the one-time token in\nthe body is this action's whole security boundary, not the caller's identity, so a dropped Authorization header\nreaches it exactly the same as a kept one. Denying it would protect nothing, only look as if it did.",
         "operationId": "ResetPassword",
         "requestBody": {
           "content": {
@@ -8401,7 +8401,7 @@
         "tags": [
           "UserManagement"
         ],
-        "summary": "Creates a user (204: the service answers no ID to point a Location at).",
+        "summary": "Creates a user (204: the service answers no ID to point a Location at). A new account stays browser only.",
         "operationId": "CreateUser",
         "requestBody": {
           "content": {
@@ -8518,7 +8518,7 @@
         "tags": [
           "UserManagement"
         ],
-        "summary": "Edits a user's account details. Sysadmins only.",
+        "summary": "Edits a user's account details. Sysadmins only. Can grant roles and change lockout/username: browser only.",
         "operationId": "EditUser",
         "parameters": [
           {

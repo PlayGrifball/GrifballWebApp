@@ -68,7 +68,7 @@ export class UserManagementService extends BaseService {
   static readonly CreateUserPath = '/users';
 
   /**
-   * Creates a user (204: the service answers no ID to point a Location at).
+   * Creates a user (204: the service answers no ID to point a Location at). A new account stays browser only.
    *
    *
    *
@@ -83,7 +83,7 @@ export class UserManagementService extends BaseService {
   }
 
   /**
-   * Creates a user (204: the service answers no ID to point a Location at).
+   * Creates a user (204: the service answers no ID to point a Location at). A new account stays browser only.
    *
    *
    *
@@ -138,7 +138,7 @@ export class UserManagementService extends BaseService {
   static readonly EditUserPath = '/users/{userID}';
 
   /**
-   * Edits a user's account details. Sysadmins only.
+   * Edits a user's account details. Sysadmins only. Can grant roles and change lockout/username: browser only.
    *
    *
    *
@@ -153,7 +153,7 @@ export class UserManagementService extends BaseService {
   }
 
   /**
-   * Edits a user's account details. Sysadmins only.
+   * Edits a user's account details. Sysadmins only. Can grant roles and change lockout/username: browser only.
    *
    *
    *

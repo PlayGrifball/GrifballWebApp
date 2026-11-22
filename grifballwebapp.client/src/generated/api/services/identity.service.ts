@@ -389,7 +389,9 @@ export class IdentityService extends BaseService {
   static readonly ResetPasswordPath = '/identity/password-reset';
 
   /**
-   * Sets a new password using a one-time reset token.
+   * Sets a new password using a one-time reset token. Not GrifballWebApp.Server.Mcp.DenyAccessTokenAttribute: the one-time token in
+   * the body is this action's whole security boundary, not the caller's identity, so a dropped Authorization header
+   * reaches it exactly the same as a kept one. Denying it would protect nothing, only look as if it did.
    *
    *
    *
@@ -404,7 +406,9 @@ export class IdentityService extends BaseService {
   }
 
   /**
-   * Sets a new password using a one-time reset token.
+   * Sets a new password using a one-time reset token. Not GrifballWebApp.Server.Mcp.DenyAccessTokenAttribute: the one-time token in
+   * the body is this action's whole security boundary, not the caller's identity, so a dropped Authorization header
+   * reaches it exactly the same as a kept one. Denying it would protect nothing, only look as if it did.
    *
    *
    *
