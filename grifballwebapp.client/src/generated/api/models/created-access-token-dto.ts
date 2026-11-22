@@ -9,7 +9,7 @@ import { AccessTokenDto } from '../models/access-token-dto';
 export interface CreatedAccessTokenDto {
 
   /**
-   * A personal access token, as its owner sees it in their list: never its secret.
+   * A personal access token, as its owner sees it in their list: its scope and whether it is read-only, never its secret.
    */
   accessToken: AccessTokenDto;
   token: string;

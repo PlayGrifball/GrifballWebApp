@@ -12,5 +12,11 @@ export interface AccessTokenDto {
   id: string;
   name: string;
   readOnly: boolean;
+
+  /**
+   * Where a personal access token works, chosen when it is made and never changed after (a new token instead of
+   * changing one's). A token made before this existed has none stored, which deserializes as GrifballWebApp.Server.Mcp.AccessTokenScope.Mcp: what
+   * every token did before scopes existed.
+   */
   scope: AccessTokenScope;
 }

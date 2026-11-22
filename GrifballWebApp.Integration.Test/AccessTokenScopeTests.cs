@@ -1,3 +1,4 @@
+using GrifballWebApp.Server;
 using GrifballWebApp.Server.Mcp;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Infrastructure.Preview;
@@ -63,6 +64,20 @@ public class AccessTokenScopeTests
         await TestDatabase.DropDatabase(_connectionString, ifExists: true);
     }
 
+    /// <summary>
+    /// Revokes every token the smoke user has: the fixture shares one database and one user across every test
+    /// (a fresh one per test would mean a fresh database each time), and <see cref="AccessTokenService.MaxTokensPerUser"/>
+    /// would otherwise refuse new ones partway through the fixture.
+    /// </summary>
+    [TearDown]
+    public async Task TearDown()
+    {
+        using var site = Client(await ApiToken());
+        using var list = await site.GetAsync("/identity/access-tokens");
+        foreach (var token in (await list.Content.ReadFromJsonAsync<List<AccessTokenDto>>(ApiJson.Options()))!)
+            await site.PostAsync($"/identity/access-tokens/{token.ID}/revoke", null);
+    }
+
     /// <summary>A client with no cookies, over HTTPS, following no redirects.</summary>
     private HttpClient Client(string? bearer = null)
     {
@@ -92,7 +107,7 @@ public class AccessTokenScopeTests
         using var client = Client(await ApiToken());
         using var response = await client.PostAsJsonAsync("/identity/access-tokens", new CreateAccessTokenRequest(name, 30, scope, readOnly));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        return (await response.Content.ReadFromJsonAsync<CreatedAccessTokenDto>())!;
+        return (await response.Content.ReadFromJsonAsync<CreatedAccessTokenDto>(ApiJson.Options()))!;
     }
 
     private async Task<McpClient> Connect(string accessToken)

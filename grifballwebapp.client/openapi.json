@@ -59,7 +59,7 @@
                     "$ref": "#/components/schemas/CreateAccessTokenRequest"
                   }
                 ],
-                "description": "What to make a token for: a name to tell it by, and how many days it lasts."
+                "description": "What to make a token for: a name to tell it by, how many days it lasts, where it works and whether it is read-only.\nGrifballWebApp.Server.Mcp.CreateAccessTokenRequest.Scope and GrifballWebApp.Server.Mcp.CreateAccessTokenRequest.ReadOnly default to what every token was before they existed (MCP only, not\nread-only), though the site always sends them: a token's scope can't be changed later, only remade."
               }
             }
           }
@@ -9348,7 +9348,9 @@
           "createdAt",
           "expiresAt",
           "id",
-          "name"
+          "name",
+          "readOnly",
+          "scope"
         ],
         "type": "object",
         "properties": {
@@ -9365,10 +9367,21 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "scope": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccessTokenScope"
+              }
+            ],
+            "description": "Where a personal access token works, chosen when it is made and never changed after (a new token instead of\nchanging one's). A token made before this existed has none stored, which deserializes as GrifballWebApp.Server.Mcp.AccessTokenScope.Mcp: what\nevery token did before scopes existed."
+          },
+          "readOnly": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false,
-        "description": "A personal access token, as its owner sees it in their list: never its secret."
+        "description": "A personal access token, as its owner sees it in their list: its scope and whether it is read-only, never its secret."
       },
       "AccessTokenResponse": {
         "required": [
@@ -9395,6 +9408,15 @@
           }
         },
         "additionalProperties": false
+      },
+      "AccessTokenScope": {
+        "enum": [
+          "Mcp",
+          "Api",
+          "Both"
+        ],
+        "type": "string",
+        "description": "Where a personal access token works, chosen when it is made and never changed after (a new token instead of\nchanging one's). A token made before this existed has none stored, which deserializes as GrifballWebApp.Server.Mcp.AccessTokenScope.Mcp: what\nevery token did before scopes existed."
       },
       "AddGamertagHistoryRequest": {
         "required": [
@@ -10405,7 +10427,9 @@
       "CreateAccessTokenRequest": {
         "required": [
           "days",
-          "name"
+          "name",
+          "readOnly",
+          "scope"
         ],
         "type": "object",
         "properties": {
@@ -10415,10 +10439,21 @@
           "days": {
             "type": "integer",
             "format": "int32"
+          },
+          "scope": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccessTokenScope"
+              }
+            ],
+            "description": "Where a personal access token works, chosen when it is made and never changed after (a new token instead of\nchanging one's). A token made before this existed has none stored, which deserializes as GrifballWebApp.Server.Mcp.AccessTokenScope.Mcp: what\nevery token did before scopes existed."
+          },
+          "readOnly": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false,
-        "description": "What to make a token for: a name to tell it by, and how many days it lasts."
+        "description": "What to make a token for: a name to tell it by, how many days it lasts, where it works and whether it is read-only.\nGrifballWebApp.Server.Mcp.CreateAccessTokenRequest.Scope and GrifballWebApp.Server.Mcp.CreateAccessTokenRequest.ReadOnly default to what every token was before they existed (MCP only, not\nread-only), though the site always sends them: a token's scope can't be changed later, only remade."
       },
       "CreateUserRequestDto": {
         "required": [
@@ -10453,7 +10488,7 @@
                 "$ref": "#/components/schemas/AccessTokenDto"
               }
             ],
-            "description": "A personal access token, as its owner sees it in their list: never its secret."
+            "description": "A personal access token, as its owner sees it in their list: its scope and whether it is read-only, never its secret."
           },
           "token": {
             "type": "string"
