@@ -93,34 +93,39 @@ public class AccessTokenAuthorizationTests
         }
     }
 
+    private static readonly string[] JustSysadmin = ["Sysadmin"];
+
+    private const BindingFlags FixtureMethod = BindingFlags.Public | BindingFlags.Static;
+
     /// <summary>A method-level bare [Authorize] must not hide a controller's Roles="Sysadmin": both apply at runtime.</summary>
     [Test]
     public void Roles_CombinesClassAndMethodAuthorizeAttributes()
     {
-        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.BareAuthorize))!;
+        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.BareAuthorize), FixtureMethod)!;
 
         var roles = Roles(method);
 
-        Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }));
+        Assert.That(roles, Is.EqualTo(JustSysadmin));
     }
 
     /// <summary>More than one [Authorize] on the same action or controller (legal) must not throw.</summary>
     [Test]
     public void Roles_NeverThrowsOnMultipleAuthorizeAttributes()
     {
-        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.TwoAuthorizeAttributes))!;
+        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.TwoAuthorizeAttributes), FixtureMethod)!;
 
         Assert.That(() => Roles(method), Throws.Nothing);
     }
 
+    /// <summary>A reflection-only fixture (never instantiated): its methods are static since nothing in this test touches an instance.</summary>
     [Authorize(Roles = "Sysadmin")]
     private sealed class RolesFixture
     {
         [Authorize]
-        public void BareAuthorize() { }
+        public static void BareAuthorize() { }
 
         [Authorize(Roles = "Commissioner")]
         [Authorize(AuthenticationSchemes = "Bearer")]
-        public void TwoAuthorizeAttributes() { }
+        public static void TwoAuthorizeAttributes() { }
     }
 }

@@ -125,7 +125,8 @@ public class AccessTokenAuthorizationHandlerTests
     public async Task ResultHandler_Forbidden_WritesTheFirstReasonAsAProblemBody()
     {
         var context = ResultHandlerContext();
-        var failure = AuthorizationFailure.Failed([new AuthorizationFailureReason(this, "The access token is read-only.")]);
+        var handler = new AccessTokenAuthorizationHandler(new HttpContextAccessor());
+        var failure = AuthorizationFailure.Failed([new AuthorizationFailureReason(handler, "The access token is read-only.")]);
         var called = false;
 
         await new AccessTokenAuthorizationResultHandler().HandleAsync(_ => { called = true; return Task.CompletedTask; }, context,
