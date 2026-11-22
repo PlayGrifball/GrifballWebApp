@@ -42,12 +42,17 @@ public class UserMergeService : IUserMergeService
         _currentUser = currentUser;
     }
 
-    public async Task Merge(int mergeToId, int mergeFromId, MergeOptions? options = null, CancellationToken ct = default)
+    /// <summary>The one choke point every merge path reaches (MCP, historical import, a gamertag set onto a placeholder,
+    /// the REST endpoints): a personal access token may never merge, whatever marked the caller's own endpoint (#549).</summary>
+    private void RefuseAnAccessToken()
     {
-        // The one choke point every merge path reaches (MCP, historical import, a gamertag set onto a placeholder, the
-        // REST endpoints): a personal access token may never merge, whatever marked the caller's own endpoint (#549).
         if (_currentUser?.IsAccessToken == true)
             throw new MergeDeniedToAccessTokenException();
+    }
+
+    public async Task Merge(int mergeToId, int mergeFromId, MergeOptions? options = null, CancellationToken ct = default)
+    {
+        RefuseAnAccessToken();
 
         if (mergeToId == mergeFromId)
             throw new ArgumentException("Cannot merge a user into itself");
