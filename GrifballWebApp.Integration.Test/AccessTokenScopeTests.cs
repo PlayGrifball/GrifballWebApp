@@ -73,7 +73,7 @@ public class AccessTokenScopeTests
     /// would otherwise refuse new ones partway through the fixture.
     /// </summary>
     [TearDown]
-    public async Task TearDown()
+    public static async Task TearDown()
     {
         using var site = Client(await ApiToken());
         using var list = await site.GetAsync("/identity/access-tokens");
@@ -82,7 +82,7 @@ public class AccessTokenScopeTests
     }
 
     /// <summary>A client with no cookies, over HTTPS, following no redirects.</summary>
-    private HttpClient Client(string? bearer = null)
+    private static HttpClient Client(string? bearer = null)
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -96,7 +96,7 @@ public class AccessTokenScopeTests
     }
 
     /// <summary>The smoke user's API bearer token (/identity/login?useCookies=false), as a script signs in.</summary>
-    private async Task<string> ApiToken()
+    private static async Task<string> ApiToken()
     {
         using var client = Client();
         using var login = await client.PostAsJsonAsync("/identity/login?useCookies=false", new { Username = UserName, Password });
@@ -105,7 +105,7 @@ public class AccessTokenScopeTests
     }
 
     /// <summary>A new personal access token of the smoke user's, with the given scope and read-only flag.</summary>
-    private async Task<CreatedAccessTokenDto> NewAccessToken(AccessTokenScope scope, bool readOnly = false, string name = "test token")
+    private static async Task<CreatedAccessTokenDto> NewAccessToken(AccessTokenScope scope, bool readOnly = false, string name = "test token")
     {
         using var client = Client(await ApiToken());
         using var response = await client.PostAsJsonAsync("/identity/access-tokens", new CreateAccessTokenRequest(name, 30, scope, readOnly));
@@ -113,7 +113,7 @@ public class AccessTokenScopeTests
         return (await response.Content.ReadFromJsonAsync<CreatedAccessTokenDto>(ApiJson.Options()))!;
     }
 
-    private async Task<McpClient> Connect(string accessToken)
+    private static async Task<McpClient> Connect(string accessToken)
     {
         var transport = new HttpClientTransport(new HttpClientTransportOptions { Endpoint = new Uri("https://localhost/" + GrifMcp.Path) },
             Client(accessToken), loggerFactory: null, ownsHttpClient: true);
@@ -276,7 +276,7 @@ public class AccessTokenScopeTests
 
     // ---------- Never allowed with any token (DenyAccessTokenAttribute) ----------
 
-    private async Task<string> ReadWriteApiToken() => (await NewAccessToken(AccessTokenScope.Both)).Token;
+    private static async Task<string> ReadWriteApiToken() => (await NewAccessToken(AccessTokenScope.Both)).Token;
 
     [Test]
     public async Task NoToken_MayManageTokens_WhateverItsOwnScope()

@@ -65,7 +65,7 @@ public class AccessTokenHubTests
         await TestDatabase.DropDatabase(_connectionString, ifExists: true);
     }
 
-    private HttpClient Client(string? bearer = null)
+    private static HttpClient Client(string? bearer = null)
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -79,7 +79,7 @@ public class AccessTokenHubTests
     }
 
     /// <summary>The smoke user's API bearer token (/identity/login?useCookies=false), as a script signs in.</summary>
-    private async Task<string> ApiToken()
+    private static async Task<string> ApiToken()
     {
         using var client = Client();
         using var login = await client.PostAsJsonAsync("/identity/login?useCookies=false", new { Username = PreviewSmokeUsers.UserNames[0], Password });
@@ -88,7 +88,7 @@ public class AccessTokenHubTests
     }
 
     /// <summary>A new personal access token of the smoke user's, with the given scope and read-only flag; revoked after the test.</summary>
-    private async Task<string> NewAccessToken(AccessTokenScope scope, bool readOnly)
+    private static async Task<string> NewAccessToken(AccessTokenScope scope, bool readOnly)
     {
         using var client = Client(await ApiToken());
         using var response = await client.PostAsJsonAsync("/identity/access-tokens", new CreateAccessTokenRequest("hub-test", 30, scope, readOnly));
@@ -97,7 +97,7 @@ public class AccessTokenHubTests
     }
 
     [TearDown]
-    public async Task TearDown()
+    public static async Task TearDown()
     {
         // Leaves the smoke user with no tokens: AccessTokenService.MaxTokensPerUser would otherwise refuse new ones.
         using var site = Client(await ApiToken());
@@ -107,7 +107,7 @@ public class AccessTokenHubTests
     }
 
     /// <summary>Tries to connect to <paramref name="hub"/> over a direct WebSocket upgrade, with the token as a bearer header.</summary>
-    private async Task<Exception?> TryConnect(string hub, string token)
+    private static async Task<Exception?> TryConnect(string hub, string token)
     {
         var connection = new HubConnectionBuilder()
             .WithUrl($"https://localhost/{hub}", options =>
