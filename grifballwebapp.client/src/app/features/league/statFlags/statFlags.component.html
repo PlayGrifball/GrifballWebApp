@@ -51,6 +51,8 @@
           <mat-cell *matCellDef="let flag">
             @if (flag.seasonMatchID) {
             <a class="hud-text-link" [routerLink]="['/seasonmatch', flag.seasonMatchID]">Match {{ flag.seasonMatchID }}</a>
+            } @else if (flag.matchID) {
+            <a class="hud-text-link" [routerLink]="['/match', flag.matchID]">Halo match</a>
             }
           </mat-cell>
         </ng-container>

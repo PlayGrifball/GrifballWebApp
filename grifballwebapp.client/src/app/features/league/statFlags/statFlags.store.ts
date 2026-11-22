@@ -2,6 +2,8 @@ import { inject, Injectable, signal } from '@angular/core';
 import type { StatFlagDto } from '@api/models';
 import { StaffStatFlagsService } from '@api/services/staff-stat-flags.service';
 import { AppLog } from '@core/telemetry/appLog';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /** The staff flags page's open flags (#548), and dismissing one. One per page (the component provides it). */
 @Injectable()
@@ -15,6 +17,11 @@ export class StatFlagsStore {
   readonly loading = this._loading.asReadonly();
   private readonly _error = signal<string | null>(null);
   readonly error = this._error.asReadonly();
+
+  constructor() {
+    // A flag found or dismissed anywhere: the list again, in place
+    liveReload(() => [LiveTopics.staffStatFlags], () => this.load());
+  }
 
   /** Loads the open flags (again): loading only while nothing is shown, so a reload keeps the list shown. */
   load(): void {

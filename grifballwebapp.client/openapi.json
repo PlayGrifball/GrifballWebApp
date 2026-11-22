@@ -17899,7 +17899,6 @@
         "enum": [
           "ScoreDoesNotMatchGoals",
           "WinnerDoesNotMatchScores",
-          "PlayerOnBothTeamsOrTwice",
           "TeamSmallerThanFormat",
           "DateOutsideSeason",
           "NegativeStat",

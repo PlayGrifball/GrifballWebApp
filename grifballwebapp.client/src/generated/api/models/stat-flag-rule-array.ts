@@ -9,7 +9,6 @@ import { StatFlagRule } from './stat-flag-rule';
 export const STAT_FLAG_RULE: StatFlagRule[] = [
   'ScoreDoesNotMatchGoals',
   'WinnerDoesNotMatchScores',
-  'PlayerOnBothTeamsOrTwice',
   'TeamSmallerThanFormat',
   'DateOutsideSeason',
   'NegativeStat',

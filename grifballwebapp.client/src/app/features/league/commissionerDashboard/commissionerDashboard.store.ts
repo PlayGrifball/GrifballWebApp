@@ -21,8 +21,8 @@ export class CommissionerDashboardStore {
   readonly error = this._error.asReadonly();
 
   constructor() {
-    // A reschedule asked for or decided, a match played: the dashboard again, in place
-    liveReload(() => [LiveTopics.staffReschedules, LiveTopics.seasons], () => this.load());
+    // A reschedule asked for or decided, a match played, a stat flag found or dismissed: the dashboard again, in place
+    liveReload(() => [LiveTopics.staffReschedules, LiveTopics.seasons, LiveTopics.staffStatFlags], () => this.load());
   }
 
   /** Loads the dashboard (again): loading only while nothing is shown, so a reload keeps it shown. */

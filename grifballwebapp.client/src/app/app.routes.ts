@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { isEventOrganizerGuard } from './core/auth/isEventOrganizer.guard';
+import { isStaffGuard } from './core/auth/isStaff.guard';
 import { isSysAdminGuard } from './core/auth/isSysAdmin.guard';
 
 export const APP_ROUTES: Routes = [
@@ -239,7 +240,8 @@ export const APP_ROUTES: Routes = [
     path: 'stat-flags',
     loadComponent: () => import('./features/league/statFlags/statFlags.component').then(m => m.StatFlagsComponent),
     title: 'Stat Flags',
-    canActivate: [isEventOrganizerGuard]
+    // Commissioners or sysadmins, matching the API's role check and the match page's own marker
+    canActivate: [isStaffGuard]
   },
   {
     path: 'reschedule-request/:seasonMatchID',

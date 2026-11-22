@@ -1,9 +1,11 @@
-import { Component, ChangeDetectionStrategy, inject, input, signal, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, input, signal, effect, untracked } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import type { StatFlagDto } from '@api/models';
 import { StaffStatFlagsService } from '@api/services/staff-stat-flags.service';
 import { AppLog } from '@core/telemetry/appLog';
+import { liveReload } from '@core/live/liveReload';
+import { LiveTopics } from '@core/live/liveTopics';
 
 /**
  * Open stat flags (#548) of a season match's games, for staff: a question, never a change. Renders nothing while
@@ -11,7 +13,6 @@ import { AppLog } from '@core/telemetry/appLog';
  */
 @Component({
   selector: 'app-stat-flags-notice',
-  standalone: true,
   imports: [MatButtonModule, MatIconModule],
   templateUrl: './statFlagsNotice.component.html',
   styleUrls: ['./statFlagsNotice.component.scss'],
@@ -28,11 +29,17 @@ export class StatFlagsNoticeComponent {
 
   constructor() {
     effect(() => {
-      const seasonMatchID = this.seasonMatchID();
-      this.statFlags.getSeasonMatchStatFlags({ seasonMatchID }).subscribe({
-        next: flags => this._flags.set(flags),
-        error: err => this.log.error('Failed to load this match\'s stat flags', err),
-      });
+      // Read as a signal so a change of match (or a stat flag found or dismissed anywhere) reloads it
+      this.seasonMatchID();
+      untracked(() => this.load());
+    });
+    liveReload(() => [LiveTopics.staffStatFlags], () => this.load());
+  }
+
+  private load(): void {
+    this.statFlags.getSeasonMatchStatFlags({ seasonMatchID: this.seasonMatchID() }).subscribe({
+      next: flags => this._flags.set(flags),
+      error: err => this.log.error('Failed to load this match\'s stat flags', err),
     });
   }
 

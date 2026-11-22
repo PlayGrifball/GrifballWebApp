@@ -10,7 +10,6 @@ export type { StatFlagDto };
 
 @Component({
   selector: 'app-stat-flags',
-  standalone: true,
   imports: [RouterLink, MatTableModule, MatButtonModule, MatIconModule],
   templateUrl: './statFlags.component.html',
   styleUrls: ['./statFlags.component.scss'],
@@ -35,7 +34,6 @@ export class StatFlagsComponent implements OnInit {
     switch (rule) {
       case 'ScoreDoesNotMatchGoals': return "Score doesn't match goals";
       case 'WinnerDoesNotMatchScores': return "Winner doesn't match scores";
-      case 'PlayerOnBothTeamsOrTwice': return 'Player on both teams, or twice';
       case 'TeamSmallerThanFormat': return 'Team smaller than the format';
       case 'DateOutsideSeason': return 'Date outside the season';
       case 'NegativeStat': return 'Negative stat';

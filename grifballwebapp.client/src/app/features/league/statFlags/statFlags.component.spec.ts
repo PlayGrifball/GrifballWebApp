@@ -69,7 +69,7 @@ describe('StatFlagsComponent', () => {
 
   it('labels every rule in plain words', () => {
     const rules: StatFlagRule[] = [
-      'ScoreDoesNotMatchGoals', 'WinnerDoesNotMatchScores', 'PlayerOnBothTeamsOrTwice', 'TeamSmallerThanFormat',
+      'ScoreDoesNotMatchGoals', 'WinnerDoesNotMatchScores', 'TeamSmallerThanFormat',
       'DateOutsideSeason', 'NegativeStat', 'ImpossibleAccuracy', 'UndecodedCustomScore', 'SeriesDoesNotMatchGames',
     ];
     http.expectOne('/api/stat-flags').flush([]);
@@ -81,5 +81,18 @@ describe('StatFlagsComponent', () => {
     http.expectOne('/api/stat-flags').flush([]);
 
     expect(component.ruleLabel('SomeFutureRule' as StatFlagRule)).toBe('SomeFutureRule');
+  });
+
+  it('links a Halo match outside a series to its own match page', async () => {
+    const haloFlag: StatFlagDto = {
+      statFlagID: 8, rule: 'UndecodedCustomScore', matchID: '11111111-1111-1111-1111-111111111111', recordedGameID: null,
+      seasonMatchID: null, gameNumber: null, playerUserID: null, playerName: null, reason: 'not decoded', foundAt: '2026-11-20T12:00:00Z',
+    };
+    http.expectOne('/api/stat-flags').flush([haloFlag]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const link: HTMLAnchorElement | null = fixture.nativeElement.querySelector('a[href*="/match/11111111-1111-1111-1111-111111111111"]');
+    expect(link).not.toBeNull();
   });
 });
