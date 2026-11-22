@@ -77,9 +77,14 @@
     <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
-  <!-- LiveDelivery's cache key is internal; LiveRedisTests builds the real one instead of a hand-copied format. -->
+  <!--
+    LiveDelivery's cache key and per-topic queue are internal: LiveRedisTests builds the real cache key instead of a
+    hand-copied format, and LiveServerUnitTests exercises the queue (a failed item never stopping the next one for the
+    same topic) directly, rather than contrive that failure through the whole public Deliver.
+  -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Server.Test" />
   </ItemGroup>
 
   <!--

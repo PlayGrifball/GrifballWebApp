@@ -197,6 +197,21 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         return new AppRedis(_ => Task.FromResult(connection));
     }
 
+    /// <summary>A Redis whose build succeeds and whose data stores fine, but whose lock release (the compare-and-delete
+    /// Lua script) throws: the one real call site always passes exactly a script, a one-element key array and a
+    /// one-element value array, so the mock mirrors that shape rather than risk matching a different overload.</summary>
+    private static AppRedis FlakyReleaseRedis(Exception releaseFailure)
+    {
+        var db = Substitute.For<IDatabase>();
+        db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(true);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(true);
+        db.ScriptEvaluateAsync(Arg.Any<string>(), Arg.Any<RedisKey[]>(), Arg.Any<RedisValue[]>()).Returns<RedisResult>(_ => throw releaseFailure);
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        return new AppRedis(_ => Task.FromResult(connection));
+    }
+
     /// <summary>A Redis whose first read is a cache miss, whose lock is already taken (by "someone else"), and whose
     /// second read (WaitForBuild's) finds the data: no real Redis latency, so a real <c>Task.Delay</c> before the first
     /// check (the bug) is the only thing that could make this slow.</summary>
@@ -298,6 +313,41 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         {
             await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":5}");
             Assert.That(built, Is.EqualTo(1), "a store failure after a successful build must not cost a second one");
+        }
+    }
+
+    [TestCase(typeof(RedisException))]
+    [TestCase(typeof(TimeoutException))]
+    public async Task AReleaseFailure_StillReturnsTheBuiltData_TheLockExpiresOnItsOwnInstead(Type exceptionType)
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(9));
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var releaseFailure = (Exception)Activator.CreateInstance(exceptionType, "could not release")!;
+
+        await Delivery(Scopes(snapshots), FlakyReleaseRedis(releaseFailure)).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+
+        await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":9}");
+    }
+
+    [Test]
+    public async Task EnqueueForTopic_AFailedWorkItem_NeverStopsTheNextOneQueuedForTheSameTopic()
+    {
+        var delivery = Delivery();
+        var failed = delivery.EnqueueForTopic(LiveTopics.Queue, SeasonViewer.Public, () => Task.FromException(new InvalidOperationException("down")));
+        var succeeded = false;
+        var next = delivery.EnqueueForTopic(LiveTopics.Queue, SeasonViewer.Public, () =>
+        {
+            succeeded = true;
+            return Task.CompletedTask;
+        });
+
+        await next;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(succeeded, "the second item for the same topic ran despite the first one's failure");
+            Assert.That(async () => await failed, Throws.InstanceOf<InvalidOperationException>(), "the first item's own failure is still observable to whoever queued it");
         }
     }
 

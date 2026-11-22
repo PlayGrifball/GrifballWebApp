@@ -135,16 +135,15 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
         {
             try
             {
-                var changes = JsonSerializer.Deserialize<List<LiveChange>>(message);
-                if (changes is not null)
-                    return new RelayedMessage(changes, null);
+                // No change ID in this shape: it always builds its own, never shares another pod's cached build
+                return new RelayedMessage(JsonSerializer.Deserialize<List<LiveChange>>(message) ?? [], null);
             }
             catch (JsonException)
             {
                 // Neither shape: the caller logs it, with the message itself
+                return null;
             }
         }
-        return null;
     }
 }
 
@@ -361,9 +360,10 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
     /// Chains <paramref name="work"/> after whatever is already queued for <paramref name="topic"/> (and
     /// <paramref name="viewer"/>, for one whose data depends on it), so two changes to the same topic are always built
     /// and sent in the order they were relayed - even though different topics, and different relayed messages, never
-    /// wait on one another.
+    /// wait on one another. A failed item never stops the next one queued behind it (<see cref="Chain"/>); internal so
+    /// a test can exercise that directly, rather than contrive a failure through the whole public <see cref="Deliver"/>.
     /// </summary>
-    private Task EnqueueForTopic(string topic, SeasonViewer viewer, Func<Task> work)
+    internal Task EnqueueForTopic(string topic, SeasonViewer viewer, Func<Task> work)
     {
         var key = LiveSnapshots.DependsOnViewer(topic) ? $"{topic}:{viewer}" : topic;
         lock (_topicQueueGate)
