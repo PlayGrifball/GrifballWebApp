@@ -198,6 +198,8 @@ public class Program
                 options.Filters.Add<CookieAntiforgeryFilter>();
                 // A season not announced yet is staff's alone (#435)
                 options.Filters.Add<GrifballWebApp.Server.Seasons.SeasonVisibilityFilter>();
+                // Managing tokens, the account's password/email/logins, merges and deleting it stay browser only (#549)
+                options.Filters.Add<DenyAccessTokenFilter>();
             })
             .AddJsonOptions(options => ApiJson.Configure(options.JsonSerializerOptions));
 
@@ -458,6 +460,8 @@ public class Program
         // pipeline, where the Discord callback (/signin-discord) would see the frontend's http and send
         // Discord a redirect_uri other than the https one the sign-in started with (invalid_grant).
         app.UseAuthentication();
+        // A read-only access token's write: 403 saying why, before role checks give a less specific one (#549)
+        app.Use(AccessTokenAuthentication.RefuseWritesFromReadOnlyTokens);
         app.UseAuthorization();
         // Per-endpoint limits ([EnableRateLimiting]): the browser's telemetry batches
         app.UseRateLimiter();

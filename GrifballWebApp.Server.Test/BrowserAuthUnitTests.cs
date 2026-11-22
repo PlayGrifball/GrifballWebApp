@@ -186,6 +186,19 @@ public class BrowserAuthUnitTests
         }
     }
 
+    [Test]
+    public void SelectScheme_AGrifBearerToken_GoesToTheAccessTokenScheme()
+    {
+        // Its own scheme refuses it later if its scope doesn't allow the surface (AccessTokenAuthentication); selection
+        // only needs the prefix, not a database lookup.
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(BrowserAuth.SelectScheme(Context("GET", authorization: "Bearer grif_" + new string('0', 32) + "_secret")),
+                Is.EqualTo(GrifballWebApp.Server.Mcp.AccessTokenAuthentication.SchemeName));
+            Assert.That(BrowserAuth.BearerToken(Context("GET", authorization: "Bearer grif_abc")), Is.EqualTo("grif_abc"));
+        }
+    }
+
     /// <summary>A request to a hub (negotiate or the connection), with its query.</summary>
     private static DefaultHttpContext HubRequest(string query, bool hub = true)
     {

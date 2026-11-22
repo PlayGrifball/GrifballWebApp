@@ -312,6 +312,18 @@ public class GrifToolsTests
     }
 
     [Test]
+    public void EffectByName_MatchesEachToolsSet_ForAReadOnlyAccessTokensFilter()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(GrifTools.EffectByName["get_season_standings"], Is.EqualTo(ToolEffect.ReadsOnly));
+            Assert.That(GrifTools.EffectByName["pull_season_match_games"], Is.EqualTo(ToolEffect.QueuesHaloPull));
+            Assert.That(GrifTools.EffectByName["decide_gamertag_claim"], Is.EqualTo(ToolEffect.ChangesData));
+            Assert.That(GrifTools.EffectByName.Keys, Is.EquivalentTo(AllTools().Select(GrifTools.Name)));
+        }
+    }
+
+    [Test]
     public void ToolNames_AreSnakeCase_AndUnique()
     {
         var names = AllTools().Select(GrifTools.Name).ToList();

@@ -164,6 +164,10 @@ public static class GrifTools
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> RolesByName
         = All.SelectMany(set => Methods(set.Type)).ToDictionary(Name, Roles);
 
+    /// <summary>Every tool's effect by its name, for a host that knows only the name (a read-only access token's filter, which leaves out <see cref="ToolEffect.ChangesData"/>).</summary>
+    public static readonly IReadOnlyDictionary<string, ToolEffect> EffectByName
+        = All.SelectMany(set => Methods(set.Type).Select(m => (Name: Name(m), set.Effect))).ToDictionary(t => t.Name, t => t.Effect);
+
     /// <summary>A class's tools: its own public instance methods with a [Description].</summary>
     public static IEnumerable<MethodInfo> Methods(Type type)
         => type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)

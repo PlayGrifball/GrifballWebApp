@@ -163,4 +163,38 @@ public class RequestTelemetryUnitTests
         diagnostics.DidNotReceive().Set("UserId", Arg.Any<string>());
         diagnostics.DidNotReceive().Set("EndpointName", Arg.Any<string>());
     }
+
+    [Test]
+    public void EnrichDiagnosticContext_AccessTokenRequest_IncludesTheTokensIdAndName_NeverItsSecret()
+    {
+        var diagnostics = Substitute.For<IDiagnosticContext>();
+        var context = new DefaultHttpContext();
+        var identity = new ClaimsIdentity(
+        [
+            new Claim(GrifballWebApp.Server.Mcp.AccessTokenAuthentication.TokenIdClaimType, "token-id"),
+            new Claim(GrifballWebApp.Server.Mcp.AccessTokenAuthentication.TokenNameClaimType, "Claude Code"),
+            new Claim(ClaimTypes.NameIdentifier, "42"),
+        ]);
+        context.User = new ClaimsPrincipal(identity);
+
+        RequestTelemetryExtensions.EnrichDiagnosticContext(diagnostics, context);
+
+        diagnostics.Received().Set("AccessTokenId", "token-id");
+        diagnostics.Received().Set("AccessTokenName", "Claude Code");
+    }
+
+    [Test]
+    public void EnrichDiagnosticContext_ACookieOrPasswordSession_HasNoAccessTokenFields()
+    {
+        var diagnostics = Substitute.For<IDiagnosticContext>();
+        var context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "42")], "Identity.Application")),
+        };
+
+        RequestTelemetryExtensions.EnrichDiagnosticContext(diagnostics, context);
+
+        diagnostics.DidNotReceive().Set("AccessTokenId", Arg.Any<string>());
+        diagnostics.DidNotReceive().Set("AccessTokenName", Arg.Any<string?>());
+    }
 }

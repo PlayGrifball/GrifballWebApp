@@ -1,4 +1,5 @@
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Server.Mcp;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -72,6 +73,7 @@ public class ExternalLoginsController : ControllerBase
     }
 
     /// <summary>Starts linking a provider to the signed-in user. Returns the token for <see cref="Link"/>.</summary>
+    [DenyAccessToken]
     [ProducesResponseType(typeof(StartLinkResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [HttpPost("me/external-logins/link-token", Name = "StartExternalLoginLink")]
@@ -118,6 +120,7 @@ public class ExternalLoginsController : ControllerBase
     }
 
     /// <summary>Finishes linking: adds the external login from the provider round trip to the signed-in user.</summary>
+    [DenyAccessToken]
     [ProducesResponseType(typeof(ExternalLoginDto), StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
@@ -153,6 +156,7 @@ public class ExternalLoginsController : ControllerBase
     }
 
     /// <summary>Removes one of the signed-in user's external logins. Refuses the last way to sign in.</summary>
+    [DenyAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [HttpPost("me/external-logins/remove", Name = "UnlinkExternalLogin")]
@@ -179,6 +183,7 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>Sysadmin: removes one of a user's external logins. Refuses the user's last way to sign in.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [HttpPost("users/{userID:int}/external-logins/remove", Name = "RemoveUserExternalLogin")]

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.UserManagement;
 using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.UserManagement;
 
@@ -69,6 +70,7 @@ public class UserManagementController : ControllerBase
     }
 
     /// <summary>Merges one user into another, moving the source user's data onto the target and deleting it. Sysadmins only.</summary>
+    [DenyAccessToken]
     [HttpPost("user-merges", Name = "MergeUser")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

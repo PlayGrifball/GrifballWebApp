@@ -1,8 +1,10 @@
 <section aria-labelledby="at-heading">
   <h2 id="at-heading" class="hud-h2">Access tokens</h2>
   <p class="hud-muted">
-    For AI agents such as Claude Code, through the MCP server at <code>{{endpoint()}}</code>. A token acts as you, with your roles,
-    and opens nothing but the MCP server.
+    For AI agents such as Claude Code over the MCP server at <code>{{endpoint()}}</code>, or a script over the REST API.
+    A token acts as you, with your roles, on the surface its scope allows; a read-only one may only read.
+    See <a href="https://github.com/PlayGrifball/GrifballWebApp/blob/master/docs/api-tokens.md">calling the API with a token</a>
+    for the details. Its scope can't be changed after it's made.
   </p>
 
   <form class="at-form" (submit)="$event.preventDefault(); create()">
@@ -19,6 +21,20 @@
         }
       </select>
     </div>
+    <div class="at-field">
+      <label class="at-label" for="at-scope">Where</label>
+      <select id="at-scope" class="at-input" (change)="scope.set($any($event.target).value)">
+        @for (s of scopes; track s.value) {
+          <option [value]="s.value" [selected]="s.value === scope()">{{s.label}}</option>
+        }
+      </select>
+    </div>
+    <div class="at-field at-field--checkbox">
+      <label class="at-label" for="at-readonly">
+        <input id="at-readonly" type="checkbox" [checked]="readOnly()" (change)="readOnly.set($any($event.target).checked)">
+        Read-only
+      </label>
+    </div>
     <button type="submit" class="hud-btn at-btn" [disabled]="creating() || !name().trim()">Make a token</button>
   </form>
 
@@ -26,8 +42,10 @@
     <div class="at-created" role="status">
       <p>Your new token, shown only this once:</p>
       <code class="at-secret">{{token}}</code>
-      <p>To add the server to Claude Code:</p>
-      <code class="at-secret">{{command()}}</code>
+      @if (showsMcpCommand()) {
+        <p>To add the server to Claude Code:</p>
+        <code class="at-secret">{{command()}}</code>
+      }
     </div>
   }
 
@@ -40,6 +58,7 @@
       @for (t of rows(); track t.id) {
         <li>
           <span class="at-token-name">{{t.name}}</span>
+          <span class="hud-muted">{{t.scope}}{{t.readOnly ? ', read-only' : ''}}</span>
           <span class="hud-muted">made {{t.createdAt | date: 'mediumDate'}}</span>
           <span [class.at-expired]="isExpired(t)" class="hud-muted">{{isExpired(t) ? 'expired' : 'expires'}} {{t.expiresAt | date: 'mediumDate'}}</span>
           <button type="button" class="hud-btn at-btn" (click)="revoke(t)">Revoke</button>

@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.Mcp;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -364,6 +365,7 @@ public class IdentityController : ControllerBase
 
     /// <summary>Sets a new password using a one-time reset token.</summary>
     [AllowAnonymous]
+    [DenyAccessToken]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<string>(StatusCodes.Status200OK, "text/plain")]
     [HttpPost("identity/password-reset", Name = "ResetPassword")]

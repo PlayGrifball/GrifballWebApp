@@ -3,6 +3,7 @@
 
 export type { AccessTokenDto } from './models/access-token-dto';
 export type { AccessTokenResponse } from './models/access-token-response';
+export type { AccessTokenScope } from './models/access-token-scope';
 export type { AddGamertagHistoryRequest } from './models/add-gamertag-history-request';
 export type { AddPlayerToTeamRequestDto } from './models/add-player-to-team-request-dto';
 export type { AntiforgeryTokenResponse } from './models/antiforgery-token-response';

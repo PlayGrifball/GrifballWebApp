@@ -18,10 +18,20 @@ at the time of each call. Everything it reads or does shows up as that user.
 
 - Make a token on your profile page, under Access tokens. The site shows it once. It lasts 1 to 365 days (90 by default),
   and you can have up to 10.
-- A token opens the MCP endpoint only. The rest of the API doesn't accept it, so a token can't make more tokens or change
-  your account. The browser's sign-in cookie doesn't open the MCP endpoint either.
+- A token's **scope**, chosen when it is made, says where it works: the MCP endpoint, the REST API, or both (see
+  [API tokens](api-tokens.md) for calling the REST API with one). A token made before scopes existed is MCP only. The
+  scope can't be changed after: make a new token instead. A token whose scope doesn't allow the endpoint it's sent to is
+  refused with 401, saying so.
+- A token can be **read-only**, chosen when it is made: on MCP, only tools that don't change data (below); on the REST
+  API, only `GET` and `HEAD`.
+- Whatever its scope or read-only flag, a token may never make, list or revoke a token, change the account's password,
+  email or linked logins, merge accounts, or delete the account: those stay the browser's own.
+- The browser's sign-in cookie doesn't open the MCP endpoint (or, for a token's own scope, the parts of the REST API a
+  token can reach).
 - Revoke a token on the same page. It stops working at once.
-- Only the token's SHA-256 is kept, in Identity's user tokens (`Auth.UserTokens`, login provider `Grifball.AccessToken`).
+- Only the token's SHA-256 is kept, with its scope and read-only flag, in Identity's user tokens (`Auth.UserTokens`,
+  login provider `Grifball.AccessToken`).
+- A call signed in by a token is logged with the token's own ID and name, never its secret.
 
 To add it to Claude Code:
 

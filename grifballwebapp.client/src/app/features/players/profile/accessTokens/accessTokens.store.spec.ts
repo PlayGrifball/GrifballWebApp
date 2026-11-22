@@ -7,7 +7,8 @@ import type { AccessTokenDto } from '@api/models';
 import { AccessTokensStore } from './accessTokens.store';
 
 const listUrl = '/api/identity/access-tokens';
-const token = (id: string): AccessTokenDto => ({ id, name: 'Claude Code', createdAt: '2026-11-01T12:00:00Z', expiresAt: '2099-01-30T12:00:00Z' });
+const token = (id: string, changes: Partial<AccessTokenDto> = {}): AccessTokenDto =>
+  ({ id, name: 'Claude Code', createdAt: '2026-11-01T12:00:00Z', expiresAt: '2099-01-30T12:00:00Z', scope: 'Mcp', readOnly: false, ...changes });
 const problem = (detail: string, status: number) =>
   [{ title: 'Refused', detail }, { status, statusText: 'Refused', headers: { 'Content-Type': 'application/problem+json' } }] as const;
 
@@ -41,14 +42,15 @@ describe('AccessTokensStore', () => {
 
   it('makes a token, keeps it to show once, says it is made, and loads the list again', () => {
     const made = jasmine.createSpy('made');
-    store.create('Laptop', 30, made);
+    store.create('Laptop', 30, 'Mcp', false, made);
     expect(store.creating()).toBeTrue();
     const make = http.expectOne({ method: 'POST', url: listUrl });
-    expect(make.request.body).toEqual({ name: 'Laptop', days: 30 });
+    expect(make.request.body).toEqual({ name: 'Laptop', days: 30, scope: 'Mcp', readOnly: false });
     make.flush({ accessToken: token('b'), token: 'grif_secret' });
 
     expect(store.creating()).toBeFalse();
     expect(store.created()).toBe('grif_secret');
+    expect(store.createdScope()).toBe('Mcp');
     expect(made).toHaveBeenCalledTimes(1);
     TestBed.tick();
     http.expectOne(listUrl).flush([token('a'), token('b')]);
@@ -56,14 +58,25 @@ describe('AccessTokensStore', () => {
 
   it('makes one token at a time, and says why one was refused', () => {
     const made = jasmine.createSpy('made');
-    store.create('Laptop', 30, made);
-    store.create('Laptop', 30, made);
+    store.create('Laptop', 30, 'Mcp', false, made);
+    store.create('Laptop', 30, 'Mcp', false, made);
     http.expectOne({ method: 'POST', url: listUrl }).flush(...problem('You have 10 tokens already: revoke one first.', 400));
 
     expect(store.creating()).toBeFalse();
     expect(store.created()).toBeNull();
     expect(made).not.toHaveBeenCalled();
     expect(snackBar.open).toHaveBeenCalledWith('You have 10 tokens already: revoke one first.', 'Close');
+  });
+
+  it('makes a token with the chosen scope and read-only flag', () => {
+    store.create('Script', 90, 'Api', true);
+    const make = http.expectOne({ method: 'POST', url: listUrl });
+
+    expect(make.request.body).toEqual({ name: 'Script', days: 90, scope: 'Api', readOnly: true });
+    make.flush({ accessToken: token('b', { scope: 'Api', readOnly: true }), token: 'grif_secret' });
+    expect(store.createdScope()).toBe('Api');
+    TestBed.tick();
+    http.expectOne(listUrl).flush([token('a'), token('b', { scope: 'Api', readOnly: true })]);
   });
 
   it('revokes a token, says so, and loads the list again', () => {

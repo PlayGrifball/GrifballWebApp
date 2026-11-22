@@ -41,20 +41,27 @@ public static class GrifMcp
             .WithHttpTransport(options => options.Stateless = true)
             .WithTools(Tools(GrifTools.All))
             .WithRequestFilters(filters => filters
-                // A tool the user's roles don't allow isn't listed for them...
+                // A tool the user's roles don't allow isn't listed for them, nor is a changing one for a read-only token...
                 .AddListToolsFilter(next => async (request, ct) =>
                 {
                     var result = await next(request, ct);
                     var caller = Caller(request.User!);
-                    result.Tools = result.Tools.Where(t => caller.IsInAnyRole(GrifTools.RolesByName.GetValueOrDefault(t.Name, []))).ToList();
+                    var readOnly = AccessTokenAuthentication.IsReadOnly(request.User!);
+                    result.Tools = result.Tools
+                        .Where(t => caller.IsInAnyRole(GrifTools.RolesByName.GetValueOrDefault(t.Name, [])))
+                        .Where(t => !readOnly || GrifTools.EffectByName.GetValueOrDefault(t.Name) is not ToolEffect.ChangesData)
+                        .ToList();
                     return result;
                 })
-                // ...and is refused if called anyway (the tool checks too)
+                // ...and is refused if called anyway (the tool checks the role too)
                 .AddCallToolFilter(next => async (request, ct) =>
                 {
                     try
                     {
-                        Caller(request.User!).Require(GrifTools.RolesByName.GetValueOrDefault(request.Params?.Name ?? "", []));
+                        var name = request.Params?.Name ?? "";
+                        Caller(request.User!).Require(GrifTools.RolesByName.GetValueOrDefault(name, []));
+                        if (AccessTokenAuthentication.IsReadOnly(request.User!) && GrifTools.EffectByName.GetValueOrDefault(name) is ToolEffect.ChangesData)
+                            throw new McpException("The access token is read-only: it may not call a tool that changes data.");
                         return await next(request, ct);
                     }
                     catch (ToolException e)
@@ -70,9 +77,12 @@ public static class GrifMcp
                 }));
     }
 
-    /// <summary>The endpoint, open to access tokens only (not to the browser's cookie or the API's bearer tokens).</summary>
+    /// <summary>The endpoint, open to access tokens whose scope allows MCP only (not to the browser's cookie or the API's own bearer tokens).</summary>
     public static void MapGrifMcp(this IEndpointRouteBuilder app)
         => app.MapMcp(Path).RequireAuthorization(AccessTokenAuthentication.SchemeName);
+
+    /// <summary>Whether <paramref name="context"/>'s request is to the MCP endpoint, for the access token scheme's surface check and the read-only write guard.</summary>
+    public static bool IsMcpRequest(HttpContext context) => context.Request.Path.StartsWithSegments("/" + Path);
 
     /// <summary>The caller a request's user is: the user ID and roles the access token signed in.</summary>
     public static ToolCaller Caller(ClaimsPrincipal user)

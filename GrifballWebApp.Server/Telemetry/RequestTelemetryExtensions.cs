@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Mcp;
 using GrifballWebApp.Server.Telemetry.Browser;
 using Serilog;
 using Serilog.AspNetCore;
@@ -86,5 +87,12 @@ public static class RequestTelemetryExtensions
 
         if (context.User.Identity?.IsAuthenticated == true && context.User.FindFirstValue(ClaimTypes.NameIdentifier) is { } userId)
             diagnostics.Set("UserId", userId);
+
+        // A call signed in by a personal access token (AccessTokenAuthentication): its ID and name, never its secret.
+        if (context.User.FindFirstValue(AccessTokenAuthentication.TokenIdClaimType) is { } tokenId)
+        {
+            diagnostics.Set("AccessTokenId", tokenId);
+            diagnostics.Set("AccessTokenName", context.User.FindFirstValue(AccessTokenAuthentication.TokenNameClaimType));
+        }
     }
 }

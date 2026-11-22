@@ -5,11 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace GrifballWebApp.Server.Mcp;
 
 /// <summary>
-/// The signed-in user's personal access tokens, for an MCP client to act as them (<see cref="AccessTokenService"/>). Managed
-/// from the site only: an access token doesn't sign in here (the default scheme doesn't know it), so one token can't make more.
+/// The signed-in user's personal access tokens, for an MCP client or a script to act as them (<see cref="AccessTokenService"/>).
+/// Managed from the browser only: whatever its own scope, an access token may never make, list or revoke a token
+/// (<see cref="DenyAccessTokenAttribute"/>), so one token can't make more or learn another's name or ID.
 /// </summary>
 [ApiController]
 [Authorize]
+[DenyAccessToken]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ProblemJson)]
 public class AccessTokensController : ControllerBase
 {

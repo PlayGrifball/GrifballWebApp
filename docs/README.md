@@ -20,6 +20,7 @@
 - [Background jobs](jobs.md) - The Quartz jobs, where they run, and the Jobs page
 - [Discord commands](discord-commands.md) - The bot's slash commands, who may run each, and adding one
 - [MCP server](mcp-server.md) - The MCP server for AI agents, its access tokens and its tools
+- [API tokens](api-tokens.md) - Calling the REST API with a personal access token: scope, read-only, and what no token may do
 - [Telemetry page](telemetry-page.md) - The sysadmins' view of the app's own logs, metrics and traces, and its settings
 - [Historical import](historical-import.md) - How the app downloads, snapshots and imports the historical archive
 - [Password reset](PasswordReset.md) - Sysadmin-made, time-limited reset links for users who sign in with a password

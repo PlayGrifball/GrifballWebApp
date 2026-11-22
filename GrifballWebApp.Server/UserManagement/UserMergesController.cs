@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Dtos;
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.UserManagement;
 
@@ -33,6 +34,7 @@ public class UserMergesController : ControllerBase
         => await _merges.Get(mergeID, ct) is { } merge ? merge : this.NotFoundProblem("There is no such merge");
 
     /// <summary>Puts back what the merge changed. 409 with the reason when it can't be done.</summary>
+    [DenyAccessToken]
     [HttpPost("user-merges/{mergeID:int}/undo", Name = "UndoUserMerge")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]

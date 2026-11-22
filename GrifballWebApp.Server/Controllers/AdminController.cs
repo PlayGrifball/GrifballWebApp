@@ -1,5 +1,6 @@
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Server.Mcp;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -188,6 +189,7 @@ public class AdminController : ControllerBase
 
     /// <summary>Generates a one-time password reset link for a user. Sysadmins only.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [HttpPost("password-reset-links", Name = "GeneratePasswordResetLink")]
     [ProducesResponseType<GeneratePasswordResetLinkResponseDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

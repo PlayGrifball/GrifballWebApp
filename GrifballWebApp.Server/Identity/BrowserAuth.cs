@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Mcp;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -61,9 +62,22 @@ public static partial class BrowserAuth
     public static bool HasBearerToken(HttpContext context)
         => HasBearerToken(context.Request) || HubAccessToken(context) is not null;
 
-    /// <summary>The scheme that authenticates this request: the bearer token's when it has one, else the cookie's.</summary>
+    /// <summary>The bearer token's own value, from the header or (for a hub) the query; null without one.</summary>
+    public static string? BearerToken(HttpContext context)
+        => HasBearerToken(context.Request) ? context.Request.Headers.Authorization.ToString()["Bearer ".Length..].Trim() : HubAccessToken(context);
+
+    /// <summary>
+    /// The scheme that authenticates this request: a personal access token's (<see cref="AccessTokenAuthentication"/>) for a
+    /// <c>grif_</c> bearer token, which its own scheme refuses if its scope doesn't allow the surface the request is on; the
+    /// API's own short-lived bearer token's for any other bearer token; else the cookie's.
+    /// </summary>
     public static string SelectScheme(HttpContext context)
-        => HasBearerToken(context) ? IdentityConstants.BearerScheme : IdentityConstants.ApplicationScheme;
+        => BearerToken(context) switch
+        {
+            { } token when token.StartsWith(AccessTokenService.Prefix, StringComparison.Ordinal) => AccessTokenAuthentication.SchemeName,
+            { } => IdentityConstants.BearerScheme,
+            null => IdentityConstants.ApplicationScheme,
+        };
 
     /// <summary>How often a cookie session is checked against the user's security stamp. Logging out changes the
     /// stamp, so a copy of the cookie stops working within this time (as do the user's other sessions).</summary>
