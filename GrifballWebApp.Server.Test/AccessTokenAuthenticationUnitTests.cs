@@ -104,6 +104,36 @@ public class AccessTokenAuthenticationUnitTests
         => Assert.That(GrifMcp.IsMcpRequest(Context("POST", path)), Is.False);
 
     [Test]
+    public void Caller_ReadsTheUserIdRolesAndName()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(ClaimTypes.NameIdentifier, "7"),
+            new Claim(ClaimTypes.Role, "Sysadmin"),
+            new Claim(ClaimTypes.Role, "Commissioner"),
+            new Claim(ClaimTypes.Name, "Noah"),
+        ], "Bearer"));
+
+        var caller = GrifMcp.Caller(user);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(caller.UserID, Is.EqualTo(7));
+            Assert.That(caller.Roles, Is.EquivalentTo(new[] { "Sysadmin", "Commissioner" }));
+            Assert.That(caller.Name, Is.EqualTo("Noah"));
+        }
+    }
+
+    [Test]
+    public void Caller_WithNoNameClaim_HasNoName()
+    {
+        // Identity.Name reads the ClaimTypes.Name claim: none here, so it (and so ToolCaller.Name) is null, not thrown.
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "7")], "Bearer"));
+
+        Assert.That(GrifMcp.Caller(user).Name, Is.Null);
+    }
+
+    [Test]
     public async Task RefuseWritesFromReadOnlyTokens_PassesReadsAndNonReadOnlyUsers_AndTheMcpEndpoint()
     {
         var called = 0;

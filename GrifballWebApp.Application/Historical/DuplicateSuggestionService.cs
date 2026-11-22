@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using GrifballWebApp.Application.Database;
@@ -66,9 +67,11 @@ public partial class DuplicateSuggestionService
         _currentUser = currentUser;
     }
 
-    /// <summary>A non-null stand-in for <see cref="SuggestAsync"/>'s read-only <c>UserMergeService</c>, which never
-    /// merges (so never asks <see cref="ICurrentUserService.IsAccessToken"/>): just enough to satisfy its constructor,
-    /// which requires one.</summary>
+    /// <summary>A non-null stand-in for <see cref="SuggestAsync"/>'s read-only <c>UserMergeService</c>, which only calls
+    /// <see cref="UserMergeService.ConflictAsync"/> - never <see cref="UserMergeService.Merge"/>, the one caller of
+    /// <see cref="ICurrentUserService.IsAccessToken"/> - so nothing on this interface is ever actually called; it
+    /// exists only to satisfy the constructor, which requires one.</summary>
+    [ExcludeFromCodeCoverage(Justification = "A null object whose only caller (SuggestAsync's read-only checker) never calls any of its members")]
     private sealed class NotAnAccessToken : ICurrentUserService
     {
         public static readonly NotAnAccessToken Instance = new();

@@ -169,18 +169,21 @@ public class RequestTelemetryUnitTests
     {
         var diagnostics = Substitute.For<IDiagnosticContext>();
         var context = new DefaultHttpContext();
+        // Authenticated (a real authentication type, unlike the other claims-only identities here) but with no
+        // ClaimTypes.NameIdentifier: UserId is left out, not set to null or thrown over - the other branch IsAuthenticated's
+        // check takes, besides an anonymous request's own (EnrichDiagnosticContext_AnonymousRequest_HasNoUserOrEndpoint).
         var identity = new ClaimsIdentity(
         [
             new Claim(GrifballWebApp.Server.Mcp.AccessTokenAuthentication.TokenIdClaimType, "token-id"),
             new Claim(GrifballWebApp.Server.Mcp.AccessTokenAuthentication.TokenNameClaimType, "Claude Code"),
-            new Claim(ClaimTypes.NameIdentifier, "42"),
-        ]);
+        ], GrifballWebApp.Server.Mcp.AccessTokenAuthentication.SchemeName);
         context.User = new ClaimsPrincipal(identity);
 
         RequestTelemetryExtensions.EnrichDiagnosticContext(diagnostics, context);
 
         diagnostics.Received().Set("AccessTokenId", "token-id");
         diagnostics.Received().Set("AccessTokenName", "Claude Code");
+        diagnostics.DidNotReceive().Set("UserId", Arg.Any<string>());
     }
 
     [Test]

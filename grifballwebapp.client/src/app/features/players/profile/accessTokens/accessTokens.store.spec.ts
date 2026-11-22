@@ -64,6 +64,7 @@ describe('AccessTokensStore', () => {
 
     expect(store.creating()).toBeFalse();
     expect(store.created()).toBeNull();
+    expect(store.createdScope()).toBeNull();
     expect(made).not.toHaveBeenCalled();
     expect(snackBar.open).toHaveBeenCalledWith('You have 10 tokens already: revoke one first.', 'Close');
   });
