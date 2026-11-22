@@ -55,6 +55,21 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     private static readonly string[] WinterLeague2019Only = ["Winter League 2019"];
 
     [Test]
+    public async Task Constructed_WithAnExplicitStatFlagService_UsesItRatherThanMakingItsOwn()
+    {
+        // #548: CustomScoreLayouts/MatchVariantBackfillJob pass their own StatFlagService through; the default here
+        // is only production's convenience (InfrastructureServiceCollectionExtensions)
+        var statFlags = new GrifballWebApp.Application.StatFlags.StatFlagService(Context);
+        var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, statFlags: statFlags);
+
+        var report = await service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10))));
+
+        Assert.That(report.Errors, Is.Empty);
+    }
+
+    [Test]
     public async Task Import_MakesOneSeasonPerLeagueAndName_AndOnePlaceholderPerPlayer()
     {
         var report = await _service.Import(Input(

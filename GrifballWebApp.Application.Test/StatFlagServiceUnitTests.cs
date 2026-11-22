@@ -233,6 +233,64 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task CheckRecordedGameAsync_WithOnlyOneSide_SkipsTheWinnerCheck_WithoutThrowing()
+    {
+        // Another safety net (same as above): a game somehow saved with other than two sides can't have "the side
+        // with the higher score" compared against anything
+        var game = RecordedGame.Seed("one-side-only", gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
+        game.SeedSide(1, outcome: Outcomes.Won, score: 5, name: "Home");
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.WinnerDoesNotMatchScores), Is.False);
+    }
+
+    [Test]
+    public async Task CheckRecordedGamesAsync_WithNoGames_DoesNothing()
+    {
+        await _statFlags.CheckRecordedGamesAsync([]);
+
+        Assert.That(await Context.StatFlags.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task CheckRecordedGamesAsync_WithNothingToFlag_SavesNothing()
+    {
+        var seeded = await SeedAsync(Context);
+        var clean = RecordedGame.Seed("batch-clean-only", gameVersionID: Halo3, seasonID: seeded.Season.SeasonID);
+        clean.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[0].Id, 1, "GT1", Kills: 1, Deaths: 2, Assists: 0));
+        Context.RecordedGames.Add(clean);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGamesAsync([clean]);
+
+        Assert.That(await Context.StatFlags.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task CheckRecordedGamesAsync_ChecksEveryGameAtOnce_FlaggingOnlyTheOneWithANegativeStat()
+    {
+        // The import's batched path (one flags query, one save) rather than once a game
+        var seeded = await SeedAsync(Context);
+        var flagged = RecordedGame.Seed("batch-negative", gameVersionID: Halo3, seasonID: seeded.Season.SeasonID);
+        flagged.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[0].Id, 1, "GT1", Kills: -1, Deaths: 2, Assists: 0));
+        var clean = RecordedGame.Seed("batch-clean", gameVersionID: Halo3, seasonID: seeded.Season.SeasonID);
+        clean.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[1].Id, 1, "GT2", Kills: 1, Deaths: 2, Assists: 0));
+        Context.RecordedGames.AddRange(flagged, clean);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGamesAsync([flagged, clean]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.StatFlags.CountAsync(), Is.EqualTo(1));
+            Assert.That(await Context.StatFlags.AnyAsync(f => f.RecordedGameID == flagged.RecordedGameID), Is.True);
+        }
+    }
+
+    [Test]
     public async Task CheckRecordedGameAsync_WhereTheScoreDoesNotMatchGoals_WithNoTeamName_NamesTheSideByNumber()
     {
         var seeded = await SeedAsync(Context);

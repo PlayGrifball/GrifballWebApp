@@ -933,6 +933,33 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task UndoResult_OfASeriesWithAnImportedGame_ClearsItsStaleSeriesFlagDirectly_SinceItSurvivesOutsideTheSeries()
+    {
+        // #548: an imported (non-manual, non-Waypoint) game is kept (only a game entered by hand is deleted) once
+        // cleared from the series: its RecordedGameID must be captured before ClearSeries severs the link, since
+        // CheckSeriesGamesAsync can no longer reach it through the series afterwards
+        var seeded = await SeedAsync(Context, bestOf: 1);
+        var imported = RecordedGame.Seed("unit/undo-kept", gameVersionID: Halo3);
+        imported.SeedSide(1, seeded.SeasonMatch.HomeTeamID, Outcomes.Won, 1);
+        imported.SeedSide(2, seeded.SeasonMatch.AwayTeamID, Outcomes.Lost, 0);
+        Context.RecordedGames.Add(imported);
+        seeded.SeasonMatch.Game(1, recorded: imported);
+        seeded.SeasonMatch.WonBy(SeasonMatchSide.Home);
+        await Context.SaveChangesAsync();
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, imported.RecordedGameID, null, "stale", DateTime.UtcNow));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.RecordedGames.AnyAsync(g => g.RecordedGameID == imported.RecordedGameID), Is.True, "Kept, only its link is cleared");
+            Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.DismissedAt == null), Is.False);
+        }
+    }
+
+    [Test]
     public async Task UndoResult_InTheBracket_TakesBothTeamsBackOutOfTheMatchesItFed()
     {
         var b = await SeedDoubleEliminationAsync(Context, _bracketService);

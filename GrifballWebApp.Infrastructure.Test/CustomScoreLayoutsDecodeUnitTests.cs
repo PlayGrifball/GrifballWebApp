@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.StatFlags;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
@@ -68,6 +69,17 @@ public class CustomScoreLayoutsDecodeUnitTests : SqliteContextFixture
             Assert.That(saved.ScoreLayout, Is.EqualTo(CustomScoreLayout.Plain));
             Assert.That(saved.MatchTeams.SelectMany(t => t.MatchParticipants).Select(p => p.Goals), Is.EquivalentTo(new int?[] { 5, 3 }));
         }
+    }
+
+    [Test]
+    public async Task DecodeAsync_ConstructedWithAnExplicitStatFlagService_UsesItRatherThanMakingItsOwn()
+    {
+        // #548: MatchVariantBackfillJob passes its own StatFlagService through rather than let one be made per decode
+        var layouts = new CustomScoreLayouts(Context, new StatFlagService(Context));
+
+        var changed = await layouts.DecodeAsync([]);
+
+        Assert.That(changed, Is.Zero);
     }
 
     [Test]
