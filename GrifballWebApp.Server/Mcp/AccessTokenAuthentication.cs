@@ -145,16 +145,12 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
     /// <summary>
     /// The 401/403 body for every refusal above and <see cref="HandleChallengeAsync"/>, through <see cref="IProblemDetailsService"/>
     /// (registered once, <c>AddProblemDetails</c> in Program) instead of each writing its own JSON by hand, so they share whatever
-    /// the app customises on every problem response (the trace ID). Falls back to writing the body itself if the service declines
-    /// (no formatter matched the request), which it practically never does for these: every caller here is a plain API client.
+    /// the app customises on every problem response (the trace ID).
     /// </summary>
     private static async Task WriteProblemAsync(HttpContext context, int status, string title)
     {
         context.Response.StatusCode = status;
-        var problem = new ProblemDetails { Status = status, Title = title };
-        var written = await context.RequestServices.GetRequiredService<IProblemDetailsService>()
-            .WriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = problem });
-        if (!written)
-            await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
+        await context.RequestServices.GetRequiredService<IProblemDetailsService>()
+            .WriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = new ProblemDetails { Status = status, Title = title } });
     }
 }

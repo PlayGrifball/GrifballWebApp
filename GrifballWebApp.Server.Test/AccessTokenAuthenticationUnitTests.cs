@@ -70,16 +70,10 @@ public class AccessTokenAuthenticationUnitTests
     /// </summary>
     private sealed class StubProblemDetailsService : IProblemDetailsService
     {
-        public ValueTask<bool> WriteAsync(ProblemDetailsContext context)
+        public ValueTask WriteAsync(ProblemDetailsContext context)
         {
             context.HttpContext.Response.ContentType = "application/problem+json";
-            return new ValueTask<bool>(WriteBodyAsync(context));
-        }
-
-        private static async Task<bool> WriteBodyAsync(ProblemDetailsContext context)
-        {
-            await context.HttpContext.Response.WriteAsJsonAsync(context.ProblemDetails, context.HttpContext.RequestAborted);
-            return true;
+            return new ValueTask(context.HttpContext.Response.WriteAsJsonAsync(context.ProblemDetails, context.HttpContext.RequestAborted));
         }
     }
 

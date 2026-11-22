@@ -79,15 +79,13 @@ public sealed class AccessTokenAuthorizationResultHandler : IAuthorizationMiddle
         var reason = authorizeResult.Forbidden
             ? authorizeResult.AuthorizationFailure?.FailureReasons.Select(r => r.Message).FirstOrDefault(m => !string.IsNullOrEmpty(m))
             : null;
-        if (reason is not null)
+        if (reason is null)
         {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            var problem = new ProblemDetails { Status = StatusCodes.Status403Forbidden, Title = reason };
-            var written = await context.RequestServices.GetRequiredService<IProblemDetailsService>()
-                .WriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = problem });
-            if (written)
-                return;
+            await _default.HandleAsync(next, context, policy, authorizeResult);
+            return;
         }
-        await _default.HandleAsync(next, context, policy, authorizeResult);
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.RequestServices.GetRequiredService<IProblemDetailsService>()
+            .WriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = new ProblemDetails { Status = StatusCodes.Status403Forbidden, Title = reason } });
     }
 }
