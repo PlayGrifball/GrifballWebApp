@@ -33,6 +33,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     private static readonly string[] BothTabs = ["a", "b"];
     private static readonly string[] OnlyB = ["b"];
     private static readonly string[] Reds = ["Reds"];
+    private static readonly string[] OldShapeTopics = ["season:1", "queue:me"];
 
     private readonly IHubContext<LiveHub, ILiveHubClient> _hubContext = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
 
@@ -200,7 +201,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         {
             Assert.That(relayed, Is.Not.Null);
             Assert.That(relayed!.ChangeID, Is.Null, "no change ID: it always builds its own, never shares a cached build");
-            Assert.That(relayed.Changes.Select(c => c.Topic), Is.EqualTo(new[] { "season:1", "queue:me" }));
+            Assert.That(relayed.Changes.Select(c => c.Topic), Is.EqualTo(OldShapeTopics));
         }
     }
 

@@ -28,6 +28,8 @@ public class LiveRedisTests
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(30);
     private static readonly string[] BothTabs = ["a", "b"];
     private static readonly string[] SecondsTab = ["b"];
+    private static readonly string[] CountsOneThenTwo = ["{\"count\":1}", "{\"count\":2}"];
+    private static readonly string[] CountOfSeven = ["{\"count\":7}"];
 
     private IContainer _redis = null!;
     private string _connectionString = null!;
@@ -289,7 +291,7 @@ public class LiveRedisTests
 
         await bothSeen.Task.WaitAsync(Patience);
         await listener.StopAsync(CancellationToken.None);
-        Assert.That(seen, Is.EqualTo(new[] { "{\"count\":1}", "{\"count\":2}" }));
+        Assert.That(seen, Is.EqualTo(CountsOneThenTwo));
     }
 
     [Test]
@@ -475,7 +477,7 @@ public class LiveRedisTests
         {
             Assert.That(attempt, Is.EqualTo(2), "the failed winner's attempt, and the waiter's retry");
             Assert.That(notices, Has.Count.EqualTo(1), "the failed winner's own notice");
-            Assert.That(snapshotsSent, Is.EqualTo(new[] { "{\"count\":7}" }), "the waiter's successful retry");
+            Assert.That(snapshotsSent, Is.EqualTo(CountOfSeven), "the waiter's successful retry");
             Assert.That(sw.Elapsed, Is.LessThan(LiveDelivery.BuildWait),
                 "the waiter noticed the lock was released and retried, rather than waiting out BuildWait for nothing");
         }
