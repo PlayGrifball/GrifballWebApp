@@ -103,6 +103,8 @@ public class AccessTokenAuthenticationUnitTests
     public void IsMcpRequest_NotOtherPaths(string path)
         => Assert.That(GrifMcp.IsMcpRequest(Context("POST", path)), Is.False);
 
+    private static readonly string[] SysadminAndCommissioner = ["Sysadmin", "Commissioner"];
+
     [Test]
     public void Caller_ReadsTheUserIdRolesAndName()
     {
@@ -119,7 +121,7 @@ public class AccessTokenAuthenticationUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(caller.UserID, Is.EqualTo(7));
-            Assert.That(caller.Roles, Is.EquivalentTo(new[] { "Sysadmin", "Commissioner" }));
+            Assert.That(caller.Roles, Is.EquivalentTo(SysadminAndCommissioner));
             Assert.That(caller.Name, Is.EqualTo("Noah"));
         }
     }
