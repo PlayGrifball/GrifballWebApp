@@ -77,6 +77,11 @@
     <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
+  <!-- LiveDelivery's cache key is internal; LiveRedisTests builds the real one instead of a hand-copied format. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
+  </ItemGroup>
+
   <!--
     GitInfo.CommitShortHash and GitInfo.CommitDate (the footer's BUILD, telemetry's service version), from git before
     each compile. Only the commit's own values, so the same commit compiles to the same bytes (docs/reproducible-builds.md):

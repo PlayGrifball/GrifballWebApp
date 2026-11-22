@@ -8,6 +8,7 @@ using GrifballWebApp.Server.Live;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -134,6 +135,20 @@ public class LiveRedisTests
         }
     }
 
+    /// <summary>A real listener, on its own Redis connection, delivering to <paramref name="watchers"/>.</summary>
+    private async Task<LiveRelayListener> ListenerFor(LiveWatchers watchers, IHubContext<LiveHub, ILiveHubClient> hub, LiveSnapshots snapshots)
+    {
+        var services = new ServiceCollection();
+        services.AddScoped(_ => snapshots);
+        var delivery = new LiveDelivery(watchers, hub, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<LiveDelivery>.Instance, Configuration(), Process());
+        var apiRedis = Process();
+        var listener = new LiveRelayListener(delivery, NullLogger<LiveRelayListener>.Instance, apiRedis);
+        await listener.StartAsync(CancellationToken.None);
+        await apiRedis.ConnectAsync(); // the subscription only takes effect once connected
+        return listener;
+    }
+
     [Test]
     public async Task AChangePublishedOnOneProcess_ReachesAnotherProcesssPages()
     {
@@ -149,12 +164,7 @@ public class LiveRedisTests
         hub.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watching);
         var watchers = new LiveWatchers();
         watchers.Watch(LiveTopics.Player(5), "conn", SeasonViewer.Public);
-        var delivery = new LiveDelivery(watchers, hub, new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
-            NullLogger<LiveDelivery>.Instance, Configuration());
-        var apiRedis = Process();
-        var listener = new LiveRelayListener(delivery, apiRedis);
-        await listener.StartAsync(CancellationToken.None);
-        await apiRedis.ConnectAsync();
+        var listener = await ListenerFor(watchers, hub, Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!));
 
         // The worker: publishes, with no pages of its own
         var worker = new LiveUpdates(NullLogger<LiveUpdates>.Instance, Process());
@@ -174,32 +184,131 @@ public class LiveRedisTests
         var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
         snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>())
             .Returns(_ => Task.FromResult<object?>(new QueueLiveDto(counts.Dequeue())));
+        var secondSent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var client = Substitute.For<ILiveHubClient>();
+        client.Snapshot(LiveTopics.Queue, "{\"count\":2}").Returns(_ =>
+        {
+            secondSent.TrySetResult();
+            return Task.CompletedTask;
+        });
         var watchers = new LiveWatchers();
         watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
         var hub = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
         hub.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(client);
-        var services = new ServiceCollection();
-        services.AddScoped(_ => snapshots);
-        var delivery = new LiveDelivery(watchers, hub, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
-            NullLogger<LiveDelivery>.Instance, Configuration(), Process());
-        var apiRedis = Process();
-        var listener = new LiveRelayListener(delivery, apiRedis);
-        await listener.StartAsync(CancellationToken.None);
-        await apiRedis.ConnectAsync(); // the subscription only takes effect once connected
+        var listener = await ListenerFor(watchers, hub, snapshots);
         var worker = new LiveUpdates(NullLogger<LiveUpdates>.Instance, Process());
 
         worker.Publish([new LiveChange(LiveTopics.Queue)]);
         await worker.SendPendingAsync();
         worker.Publish([new LiveChange(LiveTopics.Queue)]); // the exact same change, again
         await worker.SendPendingAsync();
-        await Task.Delay(TimeSpan.FromMilliseconds(500)); // pub/sub delivery and both builds
+        await secondSent.Task.WaitAsync(Patience);
 
         using (Assert.EnterMultipleScope())
         {
             await client.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":1}");
             await client.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":2}");
         }
+        await listener.StopAsync(CancellationToken.None);
+    }
+
+    [Test]
+    public async Task ASlowTopicInOneMessage_DoesNotDelayAnotherMessagesOtherTopic()
+    {
+        // Message 1 touches a slow-building topic; message 2, moments later, touches an unrelated one
+        var told = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Draft(1), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(3));
+            return new DraftLiveDto(1, [], [], false);
+        });
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(1));
+        var client = Substitute.For<ILiveHubClient>();
+        client.Snapshot(LiveTopics.Queue, Arg.Any<string>()).Returns(_ =>
+        {
+            told.TrySetResult();
+            return Task.CompletedTask;
+        });
+        var watchers = new LiveWatchers();
+        watchers.Watch(LiveTopics.Draft(1), "x", SeasonViewer.Public);
+        watchers.Watch(LiveTopics.Queue, "z", SeasonViewer.Public);
+        var hub = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
+        hub.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(client);
+        var listener = await ListenerFor(watchers, hub, snapshots);
+        var worker = new LiveUpdates(NullLogger<LiveUpdates>.Instance, Process());
+
+        worker.Publish([new LiveChange(LiveTopics.Draft(1))]); // message 1: a slow topic nobody here waits on but its own watcher
+        await worker.SendPendingAsync();
+        worker.Publish([new LiveChange(LiveTopics.Queue)]); // message 2: a different, fast topic
+        await worker.SendPendingAsync();
+
+        // Z must be told well before message 1's 3s build finishes: the subscriber loop isn't blocked on it
+        await told.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await listener.StopAsync(CancellationToken.None);
+    }
+
+    [Test]
+    public async Task TwoMessagesForOneTopic_ArriveInOrder()
+    {
+        // The first build is artificially slower than the second: without per-topic ordering, the second could reach
+        // the watchers first
+        var counts = new Queue<int>([1, 2]);
+        var seen = new List<string>();
+        var bothSeen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            var n = counts.Dequeue();
+            if (n == 1)
+                await Task.Delay(TimeSpan.FromMilliseconds(300));
+            return new QueueLiveDto(n);
+        });
+        var client = Substitute.For<ILiveHubClient>();
+        client.Snapshot(LiveTopics.Queue, Arg.Any<string>()).Returns(call =>
+        {
+            lock (seen)
+            {
+                seen.Add(call.ArgAt<string>(1));
+                if (seen.Count == 2)
+                    bothSeen.TrySetResult();
+            }
+            return Task.CompletedTask;
+        });
+        var watchers = new LiveWatchers();
+        watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var hub = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
+        hub.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(client);
+        var listener = await ListenerFor(watchers, hub, snapshots);
+        var worker = new LiveUpdates(NullLogger<LiveUpdates>.Instance, Process());
+
+        worker.Publish([new LiveChange(LiveTopics.Queue)]);
+        await worker.SendPendingAsync();
+        worker.Publish([new LiveChange(LiveTopics.Queue)]); // moments later, the same topic again
+        await worker.SendPendingAsync();
+
+        await bothSeen.Task.WaitAsync(Patience);
+        await listener.StopAsync(CancellationToken.None);
+        Assert.That(seen, Is.EqualTo(new[] { "{\"count\":1}", "{\"count\":2}" }));
+    }
+
+    [Test]
+    public async Task AGarbledRelayedMessage_IsLogged_NotSilentlyDropped()
+    {
+        var logger = Substitute.For<ILogger<LiveRelayListener>>();
+        var delivery = new LiveDelivery(new LiveWatchers(), Substitute.For<IHubContext<LiveHub, ILiveHubClient>>(),
+            new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance, Configuration());
+        var apiRedis = Process();
+        var listener = new LiveRelayListener(delivery, logger, apiRedis);
+        await listener.StartAsync(CancellationToken.None);
+        await apiRedis.ConnectAsync();
+        var publisher = Process();
+
+        await (await publisher.ConnectAsync()).GetSubscriber().PublishAsync(LiveUpdates.RelayChannel, "not json at all");
+
+        using var giveUp = new CancellationTokenSource(Patience);
+        while (logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ILogger.Log)) == 0)
+            await Task.Delay(TimeSpan.FromMilliseconds(20), giveUp.Token);
         await listener.StopAsync(CancellationToken.None);
     }
 
@@ -321,6 +430,112 @@ public class LiveRedisTests
     }
 
     [Test]
+    public async Task AFailedWinner_ReleasesAtOnce_SoAWaiterRetriesImmediately_NotAfterBuildWait()
+    {
+        var changeID = Guid.NewGuid();
+        var attempt = 0;
+        Task<object?> Build(NSubstitute.Core.CallInfo _)
+        {
+            var n = Interlocked.Increment(ref attempt);
+            return n == 1
+                ? Task.FromException<object?>(new InvalidOperationException("down")) // the winner's build fails, fast
+                : Task.FromResult<object?>(new QueueLiveDto(7)); // the waiter's own retry succeeds
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(Build);
+        var notices = new List<string>();
+        var snapshotsSent = new List<string>();
+        ILiveHubClient Client()
+        {
+            var client = Substitute.For<ILiveHubClient>();
+            client.Changed(Arg.Any<string>()).Returns(_ =>
+            {
+                lock (notices)
+                    notices.Add("changed");
+                return Task.CompletedTask;
+            });
+            client.Snapshot(Arg.Any<string>(), Arg.Any<string>()).Returns(call =>
+            {
+                lock (snapshotsSent)
+                    snapshotsSent.Add(call.ArgAt<string>(1));
+                return Task.CompletedTask;
+            });
+            return client;
+        }
+        var podA = Pod(Client(), snapshots);
+        var podB = Pod(Client(), snapshots);
+
+        var sw = Stopwatch.StartNew();
+        await Task.WhenAll(
+            podA.Deliver([new LiveChange(LiveTopics.Queue)], changeID),
+            podB.Deliver([new LiveChange(LiveTopics.Queue)], changeID));
+        sw.Stop();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(attempt, Is.EqualTo(2), "the failed winner's attempt, and the waiter's retry");
+            Assert.That(notices, Has.Count.EqualTo(1), "the failed winner's own notice");
+            Assert.That(snapshotsSent, Is.EqualTo(new[] { "{\"count\":7}" }), "the waiter's successful retry");
+            Assert.That(sw.Elapsed, Is.LessThan(LiveDelivery.BuildWait),
+                "the waiter noticed the lock was released and retried, rather than waiting out BuildWait for nothing");
+        }
+    }
+
+    [Test]
+    public async Task ALateReleaseFromADeadPod_DoesNotDeleteAnotherPodsLock()
+    {
+        var changeID = Guid.NewGuid();
+        string? lockKey = null;
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            // Simulate a different pod taking over this key's lock while the original build is still in flight
+            var raw = (await Process().ConnectAsync()).GetDatabase();
+            await raw.StringSetAsync(lockKey!, "someone-elses-token", LiveDelivery.LockTtl);
+            return new QueueLiveDto(1);
+        });
+        var client = Substitute.For<ILiveHubClient>();
+        var pod = Pod(client, snapshots);
+        lockKey = $"{pod.CacheKey(LiveTopics.Queue, SeasonViewer.Public, changeID)}:lock";
+
+        await pod.Deliver([new LiveChange(LiveTopics.Queue)], changeID);
+
+        var db = (await Process().ConnectAsync()).GetDatabase();
+        var value = await db.StringGetAsync(lockKey);
+        Assert.That(value.ToString(), Is.EqualTo("someone-elses-token"),
+            "a late release from the original builder must never delete a different pod's lock");
+    }
+
+    [Test]
+    public async Task APodArrivingAfterDataExpires_BuildsFreshRightAway_NotAfterWaitingOnAnOwnerThatLetGo()
+    {
+        var changeID = Guid.NewGuid();
+        var built = 0;
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            var n = Interlocked.Increment(ref built);
+            return Task.FromResult<object?>(new QueueLiveDto(n));
+        });
+        var clientA = Substitute.For<ILiveHubClient>();
+        await Pod(clientA, snapshots).Deliver([new LiveChange(LiveTopics.Queue)], changeID); // builds, stores, and releases its own lock right away
+
+        // Past the data's TTL; the lock was released long before that, right after the build above
+        await Task.Delay(LiveDelivery.DataTtl + TimeSpan.FromSeconds(1));
+
+        var clientB = Substitute.For<ILiveHubClient>();
+        var sw = Stopwatch.StartNew();
+        await Pod(clientB, snapshots).Deliver([new LiveChange(LiveTopics.Queue)], changeID);
+        sw.Stop();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(built, Is.EqualTo(2), "the data (and the long-released lock) were both gone: a fresh build");
+            Assert.That(sw.Elapsed, Is.LessThan(LiveDelivery.BuildWait), "won a fresh lock at once, never waited on an owner long gone");
+        }
+    }
+
+    [Test]
     public async Task APodThatTakesTooLongToBuild_IsNotWaitedOnForever()
     {
         var changeID = Guid.NewGuid();
@@ -385,25 +600,23 @@ public class LiveRedisTests
     {
         var changeID = Guid.NewGuid();
         var configuration = Configuration();
-        // Simulate another pod already building both topics (never finishing): pre-take every lock
-        var raw = (await Process().ConnectAsync()).GetDatabase();
-        string LockKeyOf(string topic) => $"{AppRedisExtensions.Key(configuration, "livebuild",
-            LiveSnapshots.DependsOnViewer(topic) ? $"{changeID:N}:{topic}:{SeasonViewer.Public}" : $"{changeID:N}:{topic}")}:lock";
-        foreach (var topic in new[] { LiveTopics.Queue, LiveTopics.Seasons })
-            await raw.StringSetAsync(LockKeyOf(topic), RedisValue.EmptyString, LiveDelivery.LockTtl, When.NotExists);
-
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
-        snapshots.For(Arg.Any<string>(), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(1));
-        var client = Substitute.For<ILiveHubClient>();
         var watchers = new LiveWatchers();
         watchers.Watch(LiveTopics.Queue, "a", SeasonViewer.Public);
         watchers.Watch(LiveTopics.Seasons, "b", SeasonViewer.Public);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(Arg.Any<string>(), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(1));
+        var client = Substitute.For<ILiveHubClient>();
         var hub = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
         hub.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(client);
         var services = new ServiceCollection();
         services.AddScoped(_ => snapshots);
         var delivery = new LiveDelivery(watchers, hub, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             NullLogger<LiveDelivery>.Instance, configuration, Process());
+
+        // Simulate another pod already building both topics (never finishing): pre-take every lock, under the real key
+        var raw = (await Process().ConnectAsync()).GetDatabase();
+        foreach (var topic in new[] { LiveTopics.Queue, LiveTopics.Seasons })
+            await raw.StringSetAsync($"{delivery.CacheKey(topic, SeasonViewer.Public, changeID)}:lock", RedisValue.EmptyString, LiveDelivery.LockTtl, When.NotExists);
 
         var sw = Stopwatch.StartNew();
         await delivery.Deliver([new LiveChange(LiveTopics.Queue), new LiveChange(LiveTopics.Seasons)], changeID);

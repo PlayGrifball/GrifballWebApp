@@ -29,7 +29,7 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
     public static readonly RedisChannel RelayChannel = RedisChannel.Literal("live-changed");
 
     /// <summary>
-    /// What goes out on <see cref="RelayChannel"/>: the changes, and this publish's own ID. The ID, not the changes'
+    /// What goes out on <see cref="RelayChannel"/> now: the changes, and this publish's own ID. The ID, not the changes'
     /// content, is this change's identity (<see cref="LiveDelivery.Deliver"/>'s cache key): two publishes with the very
     /// same topics (two draft picks moments apart, both touching <c>draft:4</c>) are still two changes, each its own build.
     /// </summary>
@@ -105,39 +105,85 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
     /// <summary>A message of <see cref="RelayChannel"/> for <paramref name="changeID"/>'s change (a test's own, or this class's).</summary>
     public static string Serialize(Guid changeID, IReadOnlyCollection<LiveChange> changes) => JsonSerializer.Serialize(new Relayed(changeID, [.. changes]));
 
-    /// <summary>The changes in a message of <see cref="RelayChannel"/>; none for one that isn't one.</summary>
-    public static List<LiveChange> Parse(string? message) => TryParse(message)?.Changes ?? [];
+    /// <summary>The changes in a message of <see cref="RelayChannel"/>; none for one that's neither shape <see cref="ParseRelayed"/> knows.</summary>
+    public static List<LiveChange> Parse(string? message) => ParseRelayed(message)?.Changes ?? [];
 
     /// <summary>
     /// The change a message of <see cref="RelayChannel"/> is: the same on every pod that gets it, and different from every
-    /// other message's, whatever its changes (<see cref="LiveDelivery.Deliver"/>'s cache key); null for one that isn't one.
+    /// other message's, whatever its changes (<see cref="LiveDelivery.Deliver"/>'s cache key); null for one with none - an
+    /// older message (before this went out, or a worker still on an older image mid-rollout) as well as one that's neither
+    /// shape <see cref="ParseRelayed"/> knows.
     /// </summary>
-    public static Guid? ChangeIDOf(string? message) => TryParse(message)?.ChangeID;
+    public static Guid? ChangeIDOf(string? message) => ParseRelayed(message)?.ChangeID;
 
-    private static Relayed? TryParse(string? message)
+    /// <summary>
+    /// A relayed message's changes and its own ID, parsed once for both (a caller after only one of them still parses
+    /// once, through <see cref="Parse"/> or <see cref="ChangeIDOf"/> alone). Accepts the current shape (an object with its
+    /// own ID) and the older one from before this (a plain array, so it always builds its own - there's no ID to share a
+    /// build by); null for a message that's neither, which a caller with somewhere to log it should.
+    /// </summary>
+    public static RelayedMessage? ParseRelayed(string? message)
     {
+        if (message is null)
+            return new RelayedMessage([], null);
         try
         {
-            return message is null ? null : JsonSerializer.Deserialize<Relayed>(message);
+            var envelope = JsonSerializer.Deserialize<Relayed>(message);
+            return new RelayedMessage(envelope?.Changes ?? [], envelope?.ChangeID);
         }
         catch (JsonException)
         {
-            return null;
+            try
+            {
+                var changes = JsonSerializer.Deserialize<List<LiveChange>>(message);
+                if (changes is not null)
+                    return new RelayedMessage(changes, null);
+            }
+            catch (JsonException)
+            {
+                // Neither shape: the caller logs it, with the message itself
+            }
         }
+        return null;
     }
 }
 
+/// <summary>A relayed message's own changes, and its own ID when it has one (<see cref="LiveUpdates.ParseRelayed"/>).</summary>
+public sealed record RelayedMessage(List<LiveChange> Changes, Guid? ChangeID);
+
 /// <summary>Scaled out, on an API process: the changes any process published (<see cref="LiveUpdates.RelayChannel"/>), to this one's pages.</summary>
-public sealed class LiveRelayListener(LiveDelivery delivery, AppRedis? redis = null) : IHostedService
+public sealed class LiveRelayListener(LiveDelivery delivery, ILogger<LiveRelayListener> logger, AppRedis? redis = null) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        // Deliver logs its own failures (a build, a send) and isn't canceled here, so it doesn't throw. Every pod gets the
-        // same message, so the same change ID (LiveUpdates.ChangeIDOf): the first to build a topic's data for it keeps the
-        // others from building their own (LiveDelivery.Deliver).
+        // Every message delivered in the background, not awaited here: this subscription's own queue would otherwise
+        // hold the next message back for however long this one's slowest topic takes (a lost lock race, waiting out
+        // BuildWait). LiveDelivery.Deliver still keeps each topic's own changes in the order they were relayed.
         redis?.WhenConnected(connection => connection.GetSubscriber().Subscribe(LiveUpdates.RelayChannel)
-            .OnMessage(message => delivery.Deliver(LiveUpdates.Parse(message.Message), LiveUpdates.ChangeIDOf(message.Message), CancellationToken.None)));
+            .OnMessage(message =>
+            {
+                _ = DeliverAsync(message.Message);
+                return Task.CompletedTask;
+            }));
         return Task.CompletedTask;
+    }
+
+    private async Task DeliverAsync(string? message)
+    {
+        var relayed = LiveUpdates.ParseRelayed(message);
+        if (relayed is null)
+        {
+            logger.LogWarning("A relayed change was neither the current shape nor the older one: {Message}", message);
+            return;
+        }
+        try
+        {
+            await delivery.Deliver(relayed.Changes, relayed.ChangeID, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not deliver a relayed change");
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -229,20 +275,27 @@ public sealed class LiveWatchers
 /// <remarks>
 /// Scaled out, every pod that watches a topic gets the same relayed change and would build the same data: the first here
 /// for a given <c>changeID</c> (the same on every pod for that change, never another's: <see cref="LiveUpdates.ChangeIDOf"/>)
-/// keeps it in Redis a few seconds (<see cref="DataTtl"/>) under a lock (<see cref="LockTtl"/>, held well past
-/// <see cref="BuildWait"/> so a slow build is never joined by a second pod taking a freshly-expired lock); the rest read it
-/// instead of building their own. A pod that can't take the lock in time, or can't reach Redis at all, builds its own
-/// rather than keep its watchers waiting; a build that fails outright is never cached as "nothing to show", so the next
-/// pod gets a real attempt. A call with no <c>changeID</c> (this pod's own local delivery, never shared with another)
-/// always builds its own, as does every pod when Redis isn't configured. Every topic (and viewer) builds and sends
-/// alongside the others, so one pod's wait on one topic never delays another's.
+/// takes a lock under an owner token of its own (<see cref="LockTtl"/>, a safety net for one that dies mid-build, well past
+/// <see cref="BuildWait"/> so a late pod never finds it freshly expired while that pod is simply slow), builds, keeps the
+/// result in Redis a few seconds for the rest to read (<see cref="DataTtl"/>), and releases its lock right away - by a
+/// compare-and-delete on its own token, so a build that outlives its lock (and so outlives being anyone's responsibility)
+/// never deletes a different pod's. A build that fails outright is never cached as "nothing to show" (the lock is
+/// released without storing, so the next pod gets a real attempt); a pod that finds neither a build nor a lock while
+/// waiting takes its own shot immediately rather than wait out the rest of <see cref="BuildWait"/> for nothing. A pod that
+/// can't take the lock in time, or can't reach Redis at all, builds its own rather than keep its watchers waiting. A call
+/// with no <c>changeID</c> (this pod's own local delivery, never shared with another) always builds its own, as does
+/// every pod when Redis isn't configured. Every topic (and viewer) a change touches builds and sends alongside the
+/// others (up to <see cref="MaxConcurrentBuilds"/> at once), so one pod's wait on one topic never delays another's; two
+/// changes to the very same topic still reach its watchers in the order they were relayed (<see cref="EnqueueForTopic"/>).
 /// </remarks>
 public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILiveHubClient> hub, IServiceScopeFactory scopes,
-    ILogger<LiveDelivery> logger, IConfiguration configuration, AppRedis? redis = null)
+    ILogger<LiveDelivery> logger, IConfiguration configuration, AppRedis? redis = null, TimeProvider? time = null)
 {
     private static readonly JsonSerializerOptions Json = ApiJson.Options();
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
 
-    /// <summary>How long a topic's built data is kept for the other pods to read.</summary>
+    /// <summary>How long a topic's built data is kept for the other pods to read: long enough for a pod that was already
+    /// waiting on the lock, or one still arriving, to read it before it's gone.</summary>
     public static readonly TimeSpan DataTtl = TimeSpan.FromSeconds(5);
 
     /// <summary>How long a pod that lost the race for the lock waits for the winner's data before building its own.</summary>
@@ -251,11 +304,23 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
     /// <summary>
     /// How long one pod holds the lock to build: well past <see cref="BuildWait"/>, so every pod that lost the race gives
     /// up and builds its own before a late-arriving pod could ever find the lock expired and take a fresh one, building
-    /// the same change again alongside a winner that is simply slow.
+    /// the same change again alongside a winner that is simply slow. The happy path never waits this long: the winner
+    /// releases its own lock right after storing (or failing), so this is only a safety net for one that dies mid-build.
     /// </summary>
     public static readonly TimeSpan LockTtl = BuildWait + TimeSpan.FromSeconds(10);
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>How many of a change's topics (and viewers) build at once: unbounded would open one scope - one
+    /// DbContext - per watched topic simultaneously (an import touching dozens at once, on every pod).</summary>
+    public const int MaxConcurrentBuilds = 4;
+
+    /// <summary>Deletes the lock at KEYS[1] only if it still holds the value this pod set it to (ARGV[1]): a compare-and-
+    /// delete, so a release that outlives its own lock's TTL never takes a different pod's newer one.</summary>
+    private const string ReleaseLockScript = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+
+    private readonly Lock _topicQueueGate = new();
+    private readonly Dictionary<string, Task> _topicQueues = new(StringComparer.Ordinal);
 
     public async Task Deliver(IReadOnlyCollection<LiveChange> changes, Guid? changeID = null, CancellationToken ct = default)
     {
@@ -269,6 +334,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
         }
         var topics = changes.Where(c => c.UserID is null).Select(c => c.Topic).ToList();
         topics.AddRange(await ProfilesOfAccounts(topics, ct));
+        var toBuild = new List<(string Topic, SeasonViewer Viewer, IReadOnlyList<string> Connections)>();
         foreach (var topic in topics.Distinct(StringComparer.Ordinal))
         {
             var watching = watchers.Of(topic);
@@ -276,17 +342,50 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
                 continue;
             if (!LiveSnapshots.Pushes(topic))
             {
-                sends.Add(Send(watching.Select(w => w.ConnectionID).ToList(), topic, null));
+                sends.Add(EnqueueForTopic(topic, SeasonViewer.Public, () => Send(watching.Select(w => w.ConnectionID).ToList(), topic, null)));
                 continue;
             }
             var byViewer = LiveSnapshots.DependsOnViewer(topic)
                 ? watching.GroupBy(w => w.Viewer).Select(g => (Viewer: g.Key, Connections: g.Select(w => w.ConnectionID).ToList())).ToList()
                 : [(watching[0].Viewer, watching.Select(w => w.ConnectionID).ToList())];
-            // Every topic (and viewer) alongside the rest: a lock lost on one never delays the others' builds and sends
-            foreach (var (viewer, connections) in byViewer)
-                sends.Add(BuildAndSend(topic, viewer, connections, changeID, ct));
+            toBuild.AddRange(byViewer.Select(bv => (topic, bv.Viewer, (IReadOnlyList<string>)bv.Connections)));
         }
+        if (toBuild.Count > 0)
+            sends.Add(Parallel.ForEachAsync(toBuild, new ParallelOptions { MaxDegreeOfParallelism = MaxConcurrentBuilds, CancellationToken = ct },
+                (item, token) => new ValueTask(EnqueueForTopic(item.Topic, item.Viewer,
+                    () => BuildAndSend(item.Topic, item.Viewer, item.Connections, changeID, token)))));
         await Task.WhenAll(sends);
+    }
+
+    /// <summary>
+    /// Chains <paramref name="work"/> after whatever is already queued for <paramref name="topic"/> (and
+    /// <paramref name="viewer"/>, for one whose data depends on it), so two changes to the same topic are always built
+    /// and sent in the order they were relayed - even though different topics, and different relayed messages, never
+    /// wait on one another.
+    /// </summary>
+    private Task EnqueueForTopic(string topic, SeasonViewer viewer, Func<Task> work)
+    {
+        var key = LiveSnapshots.DependsOnViewer(topic) ? $"{topic}:{viewer}" : topic;
+        lock (_topicQueueGate)
+        {
+            var previous = _topicQueues.TryGetValue(key, out var pending) ? pending : Task.CompletedTask;
+            var next = Chain(previous, work);
+            _topicQueues[key] = next;
+            return next;
+        }
+    }
+
+    private static async Task Chain(Task previous, Func<Task> work)
+    {
+        try
+        {
+            await previous;
+        }
+        catch
+        {
+            // A previous item's own failure is already logged where it happened; it must never stop this one
+        }
+        await work();
     }
 
     private async Task BuildAndSend(string topic, SeasonViewer viewer, IReadOnlyList<string> connections, Guid? changeID, CancellationToken ct)
@@ -334,45 +433,66 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
         if (redis is null || changeID is null)
             return (await BuildNow(topic, viewer, ct)).Data;
         var key = CacheKey(topic, viewer, changeID.Value);
-        IDatabase db;
         try
         {
-            db = (await redis.ConnectAsync()).GetDatabase();
+            var db = (await redis.ConnectAsync()).GetDatabase();
             var cached = await db.StringGetAsync(key);
             if (!cached.IsNull)
                 return Decode(cached);
-            if (!await db.StringSetAsync($"{key}:lock", RedisValue.EmptyString, LockTtl, When.NotExists))
-                return await WaitForBuild(db, key, topic, viewer, ct);
+            var owner = NewLockOwner();
+            if (await db.StringSetAsync($"{key}:lock", owner, LockTtl, When.NotExists))
+                return await BuildAndRelease(db, key, owner, topic, viewer, ct);
+            return await WaitForBuild(db, key, topic, viewer, ct);
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException)
         {
             logger.LogWarning(ex, "Could not build {Topic}'s data once across the pods: building it here", topic);
             return (await BuildNow(topic, viewer, ct)).Data;
         }
+    }
 
-        // Won the lock: build regardless of what Redis does from here. A failed build is never cached as "nothing to
-        // show" (the lock is dropped instead, so the next pod gets a real attempt); a store failure after a successful
-        // build must never cost a second one, so it's caught on its own and the data already built is still returned.
+    /// <summary>
+    /// Builds <paramref name="topic"/>'s data, having already won <paramref name="key"/>'s lock under
+    /// <paramref name="owner"/>. Stores the result for the other pods unless the build failed outright (never cached as
+    /// "nothing to show"); always releases the lock, by a compare-and-delete on <paramref name="owner"/>, so a release
+    /// this late (the build outlived <see cref="LockTtl"/>) can never take a different pod's newer lock.
+    /// </summary>
+    private async Task<string?> BuildAndRelease(IDatabase db, string key, string owner, string topic, SeasonViewer viewer, CancellationToken ct)
+    {
         var built = await BuildNow(topic, viewer, ct);
         try
         {
-            if (built.Failed)
-                await db.KeyDeleteAsync($"{key}:lock");
-            else
+            if (!built.Failed)
                 await db.StringSetAsync(key, Encode(built.Data), DataTtl);
-            return built.Data;
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException)
         {
             logger.LogWarning(ex, "Built {Topic}'s data but could not cache it for the other pods", topic);
-            return built.Data;
         }
+        try
+        {
+            await ReleaseLock(db, key, owner);
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException)
+        {
+            logger.LogWarning(ex, "Could not release {Topic}'s build lock: it will expire on its own", topic);
+        }
+        return built.Data;
     }
 
+    private static Task<RedisResult> ReleaseLock(IDatabase db, string key, string owner)
+        => db.ScriptEvaluateAsync(ReleaseLockScript, [$"{key}:lock"], [owner]);
+
+    /// <summary>A token only this attempt at the lock uses, so its release (<see cref="ReleaseLock"/>) can never be
+    /// mistaken for a different pod's attempt at the very same key.</summary>
+    private static string NewLockOwner() => Guid.NewGuid().ToString("N");
+
     /// <summary>
-    /// Waits for the pod that is building <paramref name="topic"/>'s data under <paramref name="key"/>; builds it here once
-    /// <see cref="BuildWait"/> passes without it (that pod may be gone, or its build failed), rather than keep this pod's
-    /// watchers waiting. Checks before every sleep, so a build that already finished is never delayed a whole poll for it.
+    /// Waits for the pod building <paramref name="topic"/>'s data under <paramref name="key"/>; builds it here once
+    /// <see cref="BuildWait"/> passes without it (that pod may be gone, or its build failed). Checks before every sleep, so
+    /// a build that already finished is never delayed a whole poll for it; a poll that finds neither the data nor the
+    /// lock (its builder released without storing, or died before ever taking it) takes a shot at the lock right away,
+    /// rather than wait out the rest of <see cref="BuildWait"/> for nothing.
     /// </summary>
     private async Task<string?> WaitForBuild(IDatabase db, string key, string topic, SeasonViewer viewer, CancellationToken ct)
     {
@@ -385,7 +505,10 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
                 var cached = await db.StringGetAsync(key);
                 if (!cached.IsNull)
                     return Decode(cached);
-                await Task.Delay(PollInterval, linked.Token);
+                var owner = NewLockOwner();
+                if (await db.StringSetAsync($"{key}:lock", owner, LockTtl, When.NotExists))
+                    return await BuildAndRelease(db, key, owner, topic, viewer, ct);
+                await Task.Delay(PollInterval, _time, linked.Token);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -397,7 +520,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
     /// <summary>The key a build of <paramref name="topic"/> as <paramref name="viewer"/> sees it, for <paramref name="changeID"/>
     /// alone: a topic that doesn't depend on the viewer (<see cref="LiveSnapshots.DependsOnViewer"/>) shares one key across
     /// viewers, so pods whose watchers happen to differ still share the one build.</summary>
-    private string CacheKey(string topic, SeasonViewer viewer, Guid changeID) => AppRedisExtensions.Key(configuration, "livebuild",
+    internal string CacheKey(string topic, SeasonViewer viewer, Guid changeID) => AppRedisExtensions.Key(configuration, "livebuild",
         LiveSnapshots.DependsOnViewer(topic) ? $"{changeID:N}:{topic}:{viewer}" : $"{changeID:N}:{topic}");
 
     /// <summary>A cached value: empty for a build with nothing to show (never a missing key, which means no one has built yet).</summary>

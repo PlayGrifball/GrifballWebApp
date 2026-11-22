@@ -187,6 +187,29 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         }
     }
 
+    [Test]
+    public void ParseRelayed_AlsoAcceptsTheOlderPlainArrayShape_WithNoChangeIDToShareABuildBy()
+    {
+        // The shape before #540 (and what a worker still on an older image would publish mid-rollout): just the
+        // changes, no envelope around them
+        const string oldShapeMessage = "[{\"Topic\":\"season:1\",\"UserID\":null},{\"Topic\":\"queue:me\",\"UserID\":7}]";
+
+        var relayed = LiveUpdates.ParseRelayed(oldShapeMessage);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(relayed, Is.Not.Null);
+            Assert.That(relayed!.ChangeID, Is.Null, "no change ID: it always builds its own, never shares a cached build");
+            Assert.That(relayed.Changes.Select(c => c.Topic), Is.EqualTo(new[] { "season:1", "queue:me" }));
+        }
+    }
+
+    [TestCase("not json")]
+    [TestCase("42")]
+    [TestCase("true")]
+    public void ParseRelayed_IsNull_ForAMessageThatIsNeitherShape(string garbled)
+        => Assert.That(LiveUpdates.ParseRelayed(garbled), Is.Null);
+
     private LiveDelivery Delivery(LiveSnapshots snapshots)
     {
         var connectionString = Db.Database.GetConnectionString()!;

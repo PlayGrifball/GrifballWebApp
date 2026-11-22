@@ -170,9 +170,9 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         }
     }
 
-    private LiveDelivery Delivery(IServiceScopeFactory? scopes = null, AppRedis? redis = null, IConfiguration? configuration = null)
+    private LiveDelivery Delivery(IServiceScopeFactory? scopes = null, AppRedis? redis = null, IConfiguration? configuration = null, TimeProvider? time = null)
         => new(_watchers, _hubContext, scopes ?? new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
-            NullLogger<LiveDelivery>.Instance, configuration ?? new ConfigurationBuilder().Build(), redis);
+            NullLogger<LiveDelivery>.Instance, configuration ?? new ConfigurationBuilder().Build(), redis, time);
 
     /// <summary>
     /// A Redis whose reads succeed (nothing cached yet); its first write (the lock, always called with exactly 4 args -
@@ -306,17 +306,43 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
     {
         _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
         var redis = LockLostRedis("{\"count\":3}");
+        // Never advanced: a real wait on it (Task.Delay(PollInterval, fakeTime, ...)) would hang forever without
+        // Advance(), so completing at all - within the short real-time guard below - proves it checked before
+        // ever sleeping, with no reliance on wall-clock timing to tell a fix from the bug.
+        var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
 
-        // Lost the lock race (LockLostRedis), then found the data on WaitForBuild's own first check. A real Task.Delay
-        // runs regardless of mocking, so a check-then-sleep bug would show up here as a genuine ~100ms (PollInterval).
-        var sw = Stopwatch.StartNew();
-        await Delivery(redis: redis).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
-        sw.Stop();
+        await Delivery(redis: redis, time: fakeTime).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid()).WaitAsync(TimeSpan.FromSeconds(2));
+
+        await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
+    }
+
+    [Test]
+    public async Task Deliver_CapsHowManyTopicsBuildAtOnce()
+    {
+        var gate = new Lock();
+        var concurrent = 0;
+        var peak = 0;
+        async Task<object?> Build(NSubstitute.Core.CallInfo _)
+        {
+            lock (gate)
+                peak = Math.Max(peak, ++concurrent);
+            await Task.Delay(TimeSpan.FromMilliseconds(100));
+            lock (gate)
+                concurrent--;
+            return new QueueLiveDto(1);
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(Arg.Any<string>(), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(Build);
+        var topics = Enumerable.Range(1, 10).Select(LiveTopics.Draft).ToList();
+        foreach (var topic in topics)
+            _watchers.Watch(topic, $"conn-{topic}", SeasonViewer.Public);
+
+        await Delivery(Scopes(snapshots)).Deliver([.. topics.Select(t => new LiveChange(t))]);
 
         using (Assert.EnterMultipleScope())
         {
-            await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
-            Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromMilliseconds(50)), "found on the first check, not after a sleep");
+            Assert.That(peak, Is.LessThanOrEqualTo(LiveDelivery.MaxConcurrentBuilds), "no more topics than the cap building at once");
+            Assert.That(peak, Is.GreaterThan(1), "real concurrency happened (not accidentally serial)");
         }
     }
 }
