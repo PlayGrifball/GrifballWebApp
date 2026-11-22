@@ -37,6 +37,18 @@ describe('StatFlagsStore', () => {
     expect(store.flags()).toEqual([flag]);
   });
 
+  it('reloading keeps the list shown while it loads again', () => {
+    store.load();
+    http.expectOne('/api/stat-flags').flush([flag]);
+    expect(store.loading()).toBeFalse();
+
+    store.load();
+
+    expect(store.loading()).toBeFalse();
+    expect(store.flags()).toEqual([flag]);
+    http.expectOne('/api/stat-flags').flush([flag]);
+  });
+
   it('dismisses a flag, dropping it from the list shown', () => {
     store.load();
     http.expectOne('/api/stat-flags').flush([flag]);

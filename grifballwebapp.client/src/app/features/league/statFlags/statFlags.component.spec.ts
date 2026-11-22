@@ -76,4 +76,10 @@ describe('StatFlagsComponent', () => {
 
     expect(rules.every(rule => component.ruleLabel(rule) !== rule)).toBeTrue();
   });
+
+  it('labels an unknown rule (a future one the client hasn\'t caught up to) with its own name', () => {
+    http.expectOne('/api/stat-flags').flush([]);
+
+    expect(component.ruleLabel('SomeFutureRule' as StatFlagRule)).toBe('SomeFutureRule');
+  });
 });

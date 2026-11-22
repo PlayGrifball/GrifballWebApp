@@ -1,0 +1,176 @@
+using GrifballWebApp.Application.StatFlags;
+using GrifballWebApp.Application.Test.TestDoubles;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Time.Testing;
+using static GrifballWebApp.Application.Test.SeasonMatchUnitTestData;
+
+namespace GrifballWebApp.Application.Test;
+
+/// <summary>StaffStatFlagService (#548): the staff flags page's list and count, the match page's markers, and
+/// dismissing a flag, on the fake IApplicationDbContext.</summary>
+[TestFixture]
+internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
+{
+    private static readonly DateTime FoundAt = new(2026, 1, 20, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly Guid MatchID = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+    private FakeTimeProvider _time = null!;
+    private StaffStatFlagService _staff = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _time = new FakeTimeProvider(new DateTimeOffset(2026, 1, 21, 0, 0, 0, TimeSpan.Zero));
+        _staff = new StaffStatFlagService(Context, _time);
+    }
+
+    private RecordedGame SeedGame(string sourceKey, int? seasonID = null)
+    {
+        var game = RecordedGame.Seed(sourceKey, gameVersionID: Halo3, seasonID: seasonID);
+        Context.RecordedGames.Add(game);
+        return game;
+    }
+
+    [Test]
+    public async Task OpenFlagsAsync_ReturnsOnlyOpenOnes_NewestFirst()
+    {
+        var game = SeedGame("g1");
+        await Context.SaveChangesAsync();
+        var older = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "older", FoundAt);
+        var newer = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "newer", FoundAt.AddHours(1));
+        var dismissed = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "dismissed", FoundAt);
+        dismissed.Dismiss(3, FoundAt);
+        Context.StatFlags.AddRange(older, newer, dismissed);
+        await Context.SaveChangesAsync();
+
+        var flags = await _staff.OpenFlagsAsync();
+
+        Assert.That(flags.Select(f => f.Reason), Is.EqualTo(new[] { "newer", "older" }));
+    }
+
+    [Test]
+    public async Task OpenFlagCountAsync_CountsOnlyOpenFlags()
+    {
+        var game = SeedGame("g1");
+        await Context.SaveChangesAsync();
+        var open = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "open", FoundAt);
+        var dismissed = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "dismissed", FoundAt);
+        dismissed.Dismiss(null, FoundAt);
+        Context.StatFlags.AddRange(open, dismissed);
+        await Context.SaveChangesAsync();
+
+        Assert.That(await _staff.OpenFlagCountAsync(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task OpenFlagsForGameAsync_OfARecordedGame_FindsItsFlags_NotAMatchs()
+    {
+        var game = SeedGame("g1");
+        await Context.SaveChangesAsync();
+        Context.Matches.Add(Domain.Halo.Match.Seed(MatchID));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "of the recorded game", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "of the match", FoundAt));
+        await Context.SaveChangesAsync();
+
+        var flags = await _staff.OpenFlagsForGameAsync(null, game.RecordedGameID);
+
+        Assert.That(flags.Select(f => f.Reason), Is.EqualTo(new[] { "of the recorded game" }));
+    }
+
+    [Test]
+    public async Task OpenFlagsForGameAsync_OfAMatch_FindsItsFlags_NotARecordedGames()
+    {
+        var game = SeedGame("g1");
+        await Context.SaveChangesAsync();
+        Context.Matches.Add(Domain.Halo.Match.Seed(MatchID));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "of the recorded game", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "of the match", FoundAt));
+        await Context.SaveChangesAsync();
+
+        var flags = await _staff.OpenFlagsForGameAsync(MatchID, null);
+
+        Assert.That(flags.Select(f => f.Reason), Is.EqualTo(new[] { "of the match" }));
+    }
+
+    [Test]
+    public async Task OpenFlagsForSeasonMatchAsync_FindsFlagsOfEitherKindOfGame_WithTheirGameNumber()
+    {
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.EnterByHand(new RecordedGameFacts(Halo3));
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+        seeded.SeasonMatch.AddGame(game, 1);
+        await Context.SaveChangesAsync();
+        Context.Matches.Add(Domain.Halo.Match.Seed(MatchID));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "of this match's game", FoundAt));
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "of an unrelated match", FoundAt));
+        await Context.SaveChangesAsync();
+
+        var flags = await _staff.OpenFlagsForSeasonMatchAsync(seeded.SeasonMatch.SeasonMatchID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flags.Select(f => f.Reason), Is.EqualTo(new[] { "of this match's game" }));
+            Assert.That(flags[0].SeasonMatchID, Is.EqualTo(seeded.SeasonMatch.SeasonMatchID));
+            Assert.That(flags[0].GameNumber, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task TheFlagsReturned_NameThePlayer_WhenTheRuleIsAboutOne()
+    {
+        var seeded = await SeedAsync(Context);
+        var game = SeedGame("g1");
+        await Context.SaveChangesAsync();
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, seeded.HomeUsers[0].Id, "a player's stat", FoundAt));
+        await Context.SaveChangesAsync();
+
+        var flags = await _staff.OpenFlagsAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flags[0].PlayerUserID, Is.EqualTo(seeded.HomeUsers[0].Id));
+            Assert.That(flags[0].PlayerName, Is.EqualTo("GT" + HomeXbox[0]));
+        }
+    }
+
+    [Test]
+    public async Task TheFlagsReturned_NameNoPlayer_WhenTheirPlayerHasBeenMergedAway()
+    {
+        var game = SeedGame("g1");
+        await Context.SaveChangesAsync();
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, 999, "a merged-away player's stat", FoundAt));
+        await Context.SaveChangesAsync();
+
+        var flags = await _staff.OpenFlagsAsync();
+
+        Assert.That(flags[0].PlayerName, Is.Null);
+    }
+
+    [Test]
+    public async Task Dismiss_RecordsWhoAndWhen()
+    {
+        var game = SeedGame("g1");
+        await Context.SaveChangesAsync();
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt);
+        Context.StatFlags.Add(flag);
+        await Context.SaveChangesAsync();
+
+        await _staff.Dismiss(flag.StatFlagID);
+
+        var dismissed = await Context.StatFlags.AsNoTracking().SingleAsync(f => f.StatFlagID == flag.StatFlagID);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dismissed.IsOpen, Is.False);
+            Assert.That(dismissed.DismissedAt, Is.EqualTo(_time.GetUtcNow().UtcDateTime));
+        }
+    }
+
+    [Test]
+    public void Dismiss_ThatDoesNotExist_Throws()
+        => Assert.That(async () => await _staff.Dismiss(999), Throws.InstanceOf<StatFlagNotFoundException>());
+}

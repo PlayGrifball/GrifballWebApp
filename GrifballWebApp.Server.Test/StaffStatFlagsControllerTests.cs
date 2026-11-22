@@ -44,6 +44,19 @@ public class StaffStatFlagsControllerDatabaseUnitTests : SqliteGrifballContextFi
     }
 
     [Test]
+    public async Task ForSeasonMatch_IgnoresFlagsOfGamesInNoSeries()
+    {
+        // A pulled match not yet reported to any season match: its flag doesn't belong to season match 7's series
+        Db.Matches.Add(Domain.Halo.Match.Seed(MatchID));
+        Db.StatFlags.Add(StatFlag.Found(StatFlagRule.ImpossibleAccuracy, MatchID, null, null, "unrelated", FoundAt));
+        await Db.SaveChangesAsync();
+
+        var flags = await Controller().ForSeasonMatch(7, CancellationToken.None);
+
+        Assert.That(flags, Is.Empty);
+    }
+
+    [Test]
     public async Task Dismiss_ClosesTheFlag_AndReturnsNoContent()
     {
         Db.Matches.Add(Domain.Halo.Match.Seed(MatchID));

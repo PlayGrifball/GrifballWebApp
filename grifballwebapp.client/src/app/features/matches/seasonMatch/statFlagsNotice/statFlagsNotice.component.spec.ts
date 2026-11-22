@@ -68,4 +68,18 @@ describe('StatFlagsNoticeComponent', () => {
 
     expect(console.error).toHaveBeenCalled();
   });
+
+  it('logs, rather than throws, when dismissing fails, leaving the flag shown', async () => {
+    spyOn(console, 'error');
+    fixture.detectChanges();
+    http.expectOne('/api/season-matches/12/stat-flags').flush([flag]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    fixture.componentInstance.dismiss(flag);
+    http.expectOne('/api/stat-flags/7/dismiss').flush('x', { status: 500, statusText: 'Server Error' });
+
+    expect(console.error).toHaveBeenCalled();
+    expect(fixture.componentInstance.flags()).toEqual([flag]);
+  });
 });
