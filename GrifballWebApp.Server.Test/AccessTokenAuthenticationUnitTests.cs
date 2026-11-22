@@ -158,8 +158,11 @@ public class AccessTokenAuthenticationUnitTests
 
         await AccessTokenAuthentication.RefuseHubConnections(context, _ => { called = true; return Task.CompletedTask; });
 
-        Assert.That(called, Is.False);
-        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(called, Is.False);
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
+        }
     }
 
     [Test]

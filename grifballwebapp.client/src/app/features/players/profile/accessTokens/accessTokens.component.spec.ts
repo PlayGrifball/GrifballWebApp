@@ -57,6 +57,14 @@ describe('AccessTokensComponent', () => {
     expect(rows[1].querySelector('.at-expired')!.textContent).toContain('expired');
   });
 
+  it('falls back to the raw value for a scope the page does not know', async () => {
+    // Defensive: every real AccessTokenScope is in TOKEN_SCOPES, but a mismatch should still show something.
+    http.expectOne(listUrl).flush([]);
+    await settle();
+
+    expect(fixture.componentInstance.scopeLabel('Unknown' as never)).toBe('Unknown');
+  });
+
   it('says when there are none', async () => {
     http.expectOne(listUrl).flush([]);
     await settle();
