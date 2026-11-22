@@ -76,7 +76,7 @@ describe('StatFlagsNoticeComponent', () => {
     fixture.detectChanges();
 
     expect(first.cancelled).toBeTrue();
-    expect(fixture.componentInstance.flags().length).toBe(1);
+    expect(fixture.componentInstance.flags()).toHaveSize(1);
   });
 
   it('logs, rather than throws, when loading fails', async () => {
