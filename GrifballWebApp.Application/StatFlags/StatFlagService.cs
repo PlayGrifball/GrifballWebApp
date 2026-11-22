@@ -484,9 +484,17 @@ public class StatFlagService
             {
                 _context.StatFlags.Add(StatFlag.Found(finding.Rule, matchID, recordedGameID, seasonMatchID, finding.PlayerUserID, finding.Reason, now, finding.Discriminator));
                 changed = true;
+                continue;
             }
-            else if (flag.Rewrite(finding.Reason, now))
+            if (flag.Rewrite(finding.Reason, now))
                 changed = true;
+            // Matched by discriminator (a Halo finding, third review): the player may have linked (or merged) since
+            // the flag was found, which Rewrite itself never touches
+            if (finding.Discriminator is not null && flag.PlayerUserID != finding.PlayerUserID)
+            {
+                flag.CatchUpPlayer(finding.PlayerUserID);
+                changed = true;
+            }
         }
 
         foreach (var stale in existing.Where(f => f.IsOpen && !findings.Any(fi => IdentityMatches(fi.Rule, fi.PlayerUserID, fi.Discriminator, f))))

@@ -26,7 +26,7 @@ internal static class ContextCrossings
         {
             ["Halo"] = ["Match", "Outcomes"],
             ["LateLeague"] = ["MatchedMatch"],
-            ["League"] = ["Season", "SeriesGame", "Team"],
+            ["League"] = ["Season", "SeasonMatch", "SeriesGame", "Team"],
             ["Players"] = ["User", "XboxUser"],
             ["Shared"] = ["AggregatePartAttribute", "AggregateRootAttribute", "AuditableEntity", "GameVersion", "IDomainEvent", "RaisesDomainEvents"],
         },

@@ -716,6 +716,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         // #548, third review: a Halo finding's identity is always the player's XUID, linked or not - linking an
         // account later must rewrite the same flag in place, never orphan it (leaving it stuck open forever) and
         // raise a new one for the same finding
+        Context.XboxUsers.Add(XboxUser.FromXbox(555, "GT555"));
         var match = Domain.Halo.Match.Seed(Guid.NewGuid());
         match.AddTeam(0, 1, Outcomes.Won);
         match.AddParticipant(0, 555, new MatchParticipantStats { Kills = -1, Deaths = 2 });

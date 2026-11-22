@@ -156,6 +156,26 @@ public class StatFlagAggregateTests
     }
 
     [Test]
+    public void CatchUpPlayer_SetsThePlayer_WithoutReopeningOrChangingFoundAt()
+    {
+        // #548, third review: an account linking (or merging) must change who a Halo finding is attributed to
+        // without acting like the finding itself changed
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, null, "reason", FoundAt, discriminator: 555);
+        flag.Dismiss(3, FoundAt.AddDays(1));
+        ClearEvents(flag);
+
+        flag.CatchUpPlayer(42);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.PlayerUserID, Is.EqualTo(42));
+            Assert.That(flag.IsOpen, Is.False, "Still dismissed: only who it's attributed to changed, not the finding");
+            Assert.That(flag.FoundAt, Is.EqualTo(FoundAt));
+            Assert.That(Events(flag), Is.Empty);
+        }
+    }
+
+    [Test]
     public void Found_WithADiscriminator_KeepsIt()
     {
         var flag = StatFlag.Found(StatFlagRule.TeamSmallerThanFormat, MatchID, null, null, null, "Side 1 fielded 1 player(s)", FoundAt, discriminator: 1);

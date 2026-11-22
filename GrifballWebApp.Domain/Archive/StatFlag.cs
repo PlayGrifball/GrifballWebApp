@@ -140,4 +140,9 @@ public class StatFlag : AuditableEntity
     /// <summary>A re-run no longer finds what this (still open) flag found: it's about to be removed
     /// (StatFlagService.ReconcileAsync), which raises nothing of its own - this says so instead, before it's gone.</summary>
     public void Clear() => Raise(new StatFlagCleared(this));
+
+    /// <summary>Catches a Halo finding's player up once the account it names is linked (or merged away): unlike
+    /// <see cref="Rewrite"/>, never reopens a dismissed flag or changes <see cref="FoundAt"/> - only who it's
+    /// attributed to, so staff see the right player link even for a finding keyed by XUID (third review).</summary>
+    public void CatchUpPlayer(int? playerUserID) => PlayerUserID = playerUserID;
 }
