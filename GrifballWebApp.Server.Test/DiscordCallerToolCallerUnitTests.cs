@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Server.Commands;
 
@@ -74,6 +75,52 @@ public class DiscordCallerToolCallerUnitTests : SqliteGrifballContextFixture
         var caller = await new DiscordCaller(Db).AsToolCaller(5);
 
         Assert.That(caller.SignedIn, Is.False);
+    }
+
+    private async Task AddLogin(int userId, string provider, ulong key)
+    {
+        Db.UserLogins.Add(new UserLogin { UserId = userId, LoginProvider = provider, ProviderKey = key.ToString(), ProviderDisplayName = provider });
+        await Db.SaveChangesAsync();
+    }
+
+    [Test]
+    public async Task ASecondDiscordAccountThatSignsIn_IsTheSameAccount_AndSignedIn()
+    {
+        var user = await AddUser(5, "Linked", "Commissioner");
+        await AddLogin(user.Id, "Discord", 99);
+
+        var caller = await new DiscordCaller(Db).AsToolCaller(99);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(caller.UserID, Is.EqualTo(user.Id));
+            Assert.That(caller.Roles, Is.EqualTo(Commissioner));
+            Assert.That(caller.SignedIn, Is.True);
+        }
+        Assert.That((await new DiscordCaller(Db).Find(99))?.UserID, Is.EqualTo(user.Id), "The commands too");
+    }
+
+    [Test]
+    public async Task ADiscordIdHeldByOneAccount_BeatsAnotherAccountsLoginWithIt()
+    {
+        var holder = await AddUser(5, "Holder");
+        var other = await AddUser(6, "Other");
+        await AddLogin(other.Id, "Discord", 5);
+
+        var caller = await new DiscordCaller(Db).AsToolCaller(5);
+
+        Assert.That(caller.UserID, Is.EqualTo(holder.Id));
+    }
+
+    [Test]
+    public async Task ALoginFromAnotherProvider_IsNotADiscordAccount()
+    {
+        var user = await AddUser(5, "Linked");
+        await AddLogin(user.Id, "Google", 99);
+
+        var caller = await new DiscordCaller(Db).AsToolCaller(99);
+
+        Assert.That(caller, Is.SameAs(ToolCaller.Anonymous));
     }
 
     [Test]
