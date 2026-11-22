@@ -78,7 +78,7 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
         {
             Status = StatusCodes.Status401Unauthorized,
             Title = authenticated?.Failure?.Message ?? "Not signed in.",
-        }, options: null, contentType: "application/problem+json");
+        }, options: null, contentType: "application/problem+json", cancellationToken: Context.RequestAborted);
     }
 
     /// <summary>Whether <paramref name="user"/> was signed in by an access token (<see cref="TokenIdClaimType"/>), whatever its scope.</summary>
@@ -103,6 +103,6 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
         {
             Status = StatusCodes.Status403Forbidden,
             Title = "The access token is read-only.",
-        }, options: null, contentType: "application/problem+json");
+        }, options: null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
     }
 }
