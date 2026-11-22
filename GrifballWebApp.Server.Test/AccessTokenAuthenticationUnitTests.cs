@@ -282,14 +282,14 @@ public class AccessTokenAuthenticationUnitTests
     private sealed class ClassDeniesFixture
     {
         [AllowAccessToken]
-        public void MethodAllows() { }
+        public static void MethodAllows() { }
     }
 
     [AllowAccessToken]
     private sealed class ClassAllowsFixture
     {
         [DenyAccessToken]
-        public void MethodDenies() { }
+        public static void MethodDenies() { }
     }
 
     private static ControllerActionDescriptor ControllerAction(Type controllerType, string methodName) => new()

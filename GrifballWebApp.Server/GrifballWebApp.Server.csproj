@@ -77,6 +77,10 @@
     <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Server.Test" />
+  </ItemGroup>
+
   <!--
     GitInfo.CommitShortHash and GitInfo.CommitDate (the footer's BUILD, telemetry's service version), from git before
     each compile. Only the commit's own values, so the same commit compiles to the same bytes (docs/reproducible-builds.md):
