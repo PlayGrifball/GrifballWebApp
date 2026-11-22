@@ -161,11 +161,12 @@ public class LiveRedisTests
         await watching.Received(1).Changed(LiveTopics.Player(5));
     }
 
-    /// <summary>A pod's LiveDelivery, its own LiveWatchers and Redis connection, watching queue's single connection.</summary>
-    private LiveDelivery Pod(ILiveHubClient client, LiveSnapshots snapshots)
+    /// <summary>A pod's LiveDelivery, its own LiveWatchers and Redis connection, with one connection watching <paramref name="topic"/>
+    /// as <paramref name="viewer"/> (its own single connection: "conn" for every pod, since each has its own LiveWatchers).</summary>
+    private LiveDelivery Pod(ILiveHubClient client, LiveSnapshots snapshots, string topic = LiveTopics.Queue, SeasonViewer viewer = SeasonViewer.Public)
     {
         var watchers = new LiveWatchers();
-        watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        watchers.Watch(topic, "conn", viewer);
         var hub = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
         hub.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(client);
         var services = new ServiceCollection();
@@ -196,12 +197,99 @@ public class LiveRedisTests
             podA.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1"),
             podB.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1"));
 
+        // A third pod, once the data is already sitting in Redis: reads it too, without building or taking the lock
+        var clientC = Substitute.For<ILiveHubClient>();
+        await Pod(clientC, snapshots).Deliver([new LiveChange(LiveTopics.Queue)], "batch-1");
+
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(built, Is.EqualTo(1), "one pod built it, the other read it from Redis");
+            Assert.That(built, Is.EqualTo(1), "one pod built it, the others read it from Redis");
             await clientA.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
             await clientB.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
+            await clientC.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
         }
+    }
+
+    [Test]
+    public async Task AChangeWithNoDataToShow_IsCachedToo_SoOnlyOnePodBuildsIt()
+    {
+        var built = 0;
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            Interlocked.Increment(ref built);
+            return Task.FromResult<object?>(null);
+        });
+        var clientA = Substitute.For<ILiveHubClient>();
+        var clientB = Substitute.For<ILiveHubClient>();
+        var podA = Pod(clientA, snapshots);
+        var podB = Pod(clientB, snapshots);
+
+        // Sequential, so the second definitely finds the first's (empty) result already cached
+        await podA.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1");
+        await podB.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(built, Is.EqualTo(1), "nothing to show is cached too, so the second pod doesn't rebuild it");
+            await clientA.Received(1).Changed(LiveTopics.Queue);
+            await clientB.Received(1).Changed(LiveTopics.Queue);
+        }
+    }
+
+    [Test]
+    public async Task APodThatTakesTooLongToBuild_IsNotWaitedOnForever()
+    {
+        var calls = 0;
+        async Task<object?> Build(NSubstitute.Core.CallInfo _)
+        {
+            // The first call here is the lock's winner; make it take longer than BuildWait, as if that pod died mid-build
+            if (Interlocked.Increment(ref calls) == 1)
+                await Task.Delay(LiveDelivery.BuildWait + TimeSpan.FromSeconds(1));
+            return new QueueLiveDto(calls);
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(Build);
+        var clientA = Substitute.For<ILiveHubClient>();
+        var clientB = Substitute.For<ILiveHubClient>();
+        var podA = Pod(clientA, snapshots);
+        var podB = Pod(clientB, snapshots);
+
+        await Task.WhenAll(
+            podA.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1"),
+            podB.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            // The lock's winner builds the slow data; the other gives up waiting for it and builds its own
+            await clientA.Received(1).Snapshot(LiveTopics.Queue, Arg.Is<string>(json => json is "{\"count\":1}" or "{\"count\":2}"));
+            await clientB.Received(1).Snapshot(LiveTopics.Queue, Arg.Is<string>(json => json is "{\"count\":1}" or "{\"count\":2}"));
+            Assert.That(calls, Is.EqualTo(2), "the slow winner's build, and the one the pod that gave up on it built for itself");
+        }
+    }
+
+    [Test]
+    public async Task TwoPodsSharingRedis_ForAViewerDependentTopic_BuildOncePerViewer()
+    {
+        var built = 0;
+        async Task<object?> Build(NSubstitute.Core.CallInfo _)
+        {
+            Interlocked.Increment(ref built);
+            await Task.Delay(300);
+            return new SeasonsLiveDto([]);
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Seasons, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(Build);
+        var clientPublic = Substitute.For<ILiveHubClient>();
+        var clientStaff = Substitute.For<ILiveHubClient>();
+        var podPublic = Pod(clientPublic, snapshots, LiveTopics.Seasons, SeasonViewer.Public);
+        var podStaff = Pod(clientStaff, snapshots, LiveTopics.Seasons, SeasonViewer.Staff);
+
+        await Task.WhenAll(
+            podPublic.Deliver([new LiveChange(LiveTopics.Seasons)], "batch-1"),
+            podStaff.Deliver([new LiveChange(LiveTopics.Seasons)], "batch-1"));
+
+        Assert.That(built, Is.EqualTo(2), "a different viewer is a different build, even under the same batch key");
     }
 
     [Test]

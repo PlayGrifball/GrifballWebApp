@@ -170,6 +170,20 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     [TestCase("[{\"Topic\":\"season:1\",\"UserID\":null},{\"Topic\":\"queue:me\",\"UserID\":7}]", ExpectedResult = 2)]
     public int TheRelaysMessage_IsTheChanges(string? message) => LiveUpdates.Parse(message).Count;
 
+    [Test]
+    public void BatchKeyOf_IsTheSameForTheSameMessage_AndDifferentForADifferentOne()
+    {
+        var first = LiveUpdates.BatchKeyOf("[{\"Topic\":\"queue\"}]");
+        var same = LiveUpdates.BatchKeyOf("[{\"Topic\":\"queue\"}]");
+        var different = LiveUpdates.BatchKeyOf("[{\"Topic\":\"season:1\"}]");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(same, Is.EqualTo(first));
+            Assert.That(different, Is.Not.EqualTo(first));
+        }
+    }
+
     private LiveDelivery Delivery(LiveSnapshots snapshots)
     {
         var connectionString = Db.Database.GetConnectionString()!;
