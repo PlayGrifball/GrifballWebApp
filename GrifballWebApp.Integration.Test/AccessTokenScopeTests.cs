@@ -302,7 +302,7 @@ public class AccessTokenScopeTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
-            Assert.That(await Reason(response), Does.Contain("REST API only"));
+            Assert.That(await Reason(response), Does.Contain("MCP server only"));
         }
     }
 

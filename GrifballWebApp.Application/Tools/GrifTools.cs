@@ -175,9 +175,9 @@ public static class GrifTools
     /// <summary>
     /// Whether a read-only access token may list or call the tool named <paramref name="name"/>: it is in
     /// <see cref="EffectByName"/> and read-only there. A name <see cref="EffectByName"/> does not know fails closed
-    /// (false, hidden and refused), unlike <see cref="IReadOnlyDictionary{TKey,TValue}.GetValueOrDefault">GetValueOrDefault</see>,
-    /// whose default for a missing key is <c>default(ToolEffect)</c>, which is <see cref="ToolEffect.ReadsOnly"/> (0):
-    /// that would make an unknown name read-only by accident instead of refusing it.
+    /// (false, hidden and refused), unlike <c>GetValueOrDefault</c>, whose default for a missing key is
+    /// <c>default(ToolEffect)</c>, which is <see cref="ToolEffect.ReadsOnly"/> (0): that would make an unknown name
+    /// read-only by accident instead of refusing it.
     /// </summary>
     public static bool IsReadOnlyTool(string name) => EffectByName.TryGetValue(name, out var effect) && effect is ToolEffect.ReadsOnly;
 
