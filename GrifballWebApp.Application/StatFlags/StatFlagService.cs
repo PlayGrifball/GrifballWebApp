@@ -26,7 +26,7 @@ public class StatFlagService
         _time = time ?? TimeProvider.System;
     }
 
-    /// <summary>What one rule found: <paramref name="playerUserID"/> is null when the rule is about the whole game (a
+    /// <summary>What one rule found: <paramref name="PlayerUserID"/> is null when the rule is about the whole game (a
     /// team, the series), not one player.</summary>
     private sealed record Finding(StatFlagRule Rule, int? PlayerUserID, string Reason);
 

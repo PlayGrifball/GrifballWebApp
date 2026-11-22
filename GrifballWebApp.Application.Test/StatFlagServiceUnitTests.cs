@@ -242,14 +242,15 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task CheckMatchAsync_ANegativeStat_IsFlagged_NamingThePlayerWhenTheyreLinked()
     {
-        // HomeXbox[0] (101) is already seeded.HomeUsers[0]'s own Xbox account (SeasonMatchUnitTestData.NewUser)
+        // HomeXbox[0] (101) is already seeded.HomeUsers[0]'s own Xbox account (SeasonMatchUnitTestData.NewUser); 999
+        // is nobody's (HomeXbox, AwayXbox and OtherXbox never reach it)
         var seeded = await SeedAsync(Context);
-        Context.XboxUsers.Add(XboxUser.FromXbox(202, "GT202"));
+        Context.XboxUsers.Add(XboxUser.FromXbox(999, "GT999"));
         var match = Domain.Halo.Match.Seed(Guid.NewGuid());
         match.AddTeam(0, 1, Outcomes.Won);
         match.AddTeam(1, 0, Outcomes.Lost);
         match.AddParticipant(0, HomeXbox[0], new MatchParticipantStats { Kills = -1, Deaths = 2 });
-        match.AddParticipant(1, 202, new MatchParticipantStats { Assists = -3 });
+        match.AddParticipant(1, 999, new MatchParticipantStats { Assists = -3 });
         Context.Matches.Add(match);
         await Context.SaveChangesAsync();
 
