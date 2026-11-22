@@ -23,7 +23,10 @@ public class StatFlagAggregateTests
         {
             Assert.That(flag.Rule, Is.EqualTo(StatFlagRule.ImpossibleAccuracy));
             Assert.That(flag.MatchID, Is.EqualTo(MatchID));
+            // Set from the key alone (CheckGame); the navigations are EF's to load, nothing of Found's own
+            Assert.That(flag.Match, Is.Null);
             Assert.That(flag.RecordedGameID, Is.Null);
+            Assert.That(flag.RecordedGame, Is.Null);
             Assert.That(flag.PlayerUserID, Is.EqualTo(5));
             Assert.That(flag.Reason, Is.EqualTo("105% accuracy"));
             Assert.That(flag.FoundAt, Is.EqualTo(FoundAt));

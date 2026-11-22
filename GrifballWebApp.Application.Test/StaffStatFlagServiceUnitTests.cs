@@ -4,8 +4,10 @@ using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NSubstitute;
 using static GrifballWebApp.Application.Test.SeasonMatchUnitTestData;
 
 namespace GrifballWebApp.Application.Test;
@@ -179,4 +181,32 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     [Test]
     public void Dismiss_ThatDoesNotExist_Throws()
         => Assert.That(async () => await _staff.Dismiss(999), Throws.InstanceOf<StatFlagNotFoundException>());
+
+    [Test]
+    public async Task Dismiss_RecordsWhoSignedIn_WhenSomeoneIs()
+    {
+        var game = SeedGame("g1");
+        await Context.SaveChangesAsync();
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt);
+        Context.StatFlags.Add(flag);
+        await Context.SaveChangesAsync();
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.GetCurrentUserId().Returns(3);
+        var staff = new StaffStatFlagService(Context, _time, currentUser);
+
+        await staff.Dismiss(flag.StatFlagID);
+
+        var dismissed = await Context.StatFlags.AsNoTracking().SingleAsync(f => f.StatFlagID == flag.StatFlagID);
+        Assert.That(dismissed.DismissedByUserID, Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task OpenFlagCountAsync_WithNoTimeProviderGiven_StillWorks()
+    {
+        var game = SeedGame("g1");
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt));
+        await Context.SaveChangesAsync();
+
+        Assert.That(await new StaffStatFlagService(Context).OpenFlagCountAsync(), Is.EqualTo(1));
+    }
 }

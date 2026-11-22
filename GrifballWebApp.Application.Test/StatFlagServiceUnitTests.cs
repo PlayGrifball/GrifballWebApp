@@ -180,6 +180,23 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task CheckRecordedGameAsync_WhereTheWinnerDoesNotMatchTheScores_IsFlagged()
+    {
+        // Built directly, bypassing SeasonMatchService.SetManualSidesAndPlayers (which always derives the winner from
+        // the scores): WinnerDoesNotMatchScoresFindings is a safety net for a save path that sets them separately
+        var game = RecordedGame.Seed("mismatched-winner", gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
+        game.SeedSide(1, outcome: Outcomes.Lost, score: 5, name: "Home");
+        game.SeedSide(2, outcome: Outcomes.Won, score: 1, name: "Away");
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.WinnerDoesNotMatchScores);
+        Assert.That(flag.Reason, Does.Contain("Home"));
+    }
+
+    [Test]
     public async Task CheckRecordedGameAsync_ANegativeStat_IsFlagged()
     {
         var seeded = await SeedAsync(Context);
