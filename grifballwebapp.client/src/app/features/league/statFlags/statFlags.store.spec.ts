@@ -59,6 +59,13 @@ describe('StatFlagsStore', () => {
     expect(store.flags()).toEqual([]);
   });
 
+  it('dismissing before anything has loaded leaves the list null', () => {
+    store.dismiss(flag.statFlagID);
+    http.expectOne({ method: 'POST', url: '/api/stat-flags/7/dismiss' }).flush(null);
+
+    expect(store.flags()).toBeNull();
+  });
+
   it('logs, rather than throws, when dismissing fails', () => {
     spyOn(console, 'error');
     store.load();

@@ -197,6 +197,60 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task CheckRecordedGameAsync_WhereTheWinnerDoesNotMatchTheScores_WithNoTeamName_NamesTheSideByNumber()
+    {
+        // Same safety net as above, but with no side name recorded: the reason falls back to "Side <n>"
+        var game = RecordedGame.Seed("mismatched-winner-unnamed", gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
+        game.SeedSide(1, outcome: Outcomes.Lost, score: 5);
+        game.SeedSide(2, outcome: Outcomes.Won, score: 1);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.WinnerDoesNotMatchScores);
+        Assert.That(flag.Reason, Does.Contain("Side 1"));
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_WhereTheScoreDoesNotMatchGoals_WithNoTeamName_NamesTheSideByNumber()
+    {
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.Seed("score-mismatch-unnamed", gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
+        var home = game.SeedSide(1, score: 3);
+        game.SeedSide(2, score: 1);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[0].Id, 1, "GT1", Kills: 0, Deaths: 0, Assists: 0) { Goals = 1 }, home);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.ScoreDoesNotMatchGoals);
+        Assert.That(flag.Reason, Does.Contain("Side 1's score is 3"));
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_WhereATeamIsSmallerThanTheFormat_WithNoTeamName_NamesTheSideByNumber()
+    {
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.Seed("team-size-unnamed", gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
+        var home = game.SeedSide(1);
+        var away = game.SeedSide(2);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[0].Id, 1, "GT1", Kills: 0, Deaths: 0, Assists: 0), home);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.AwayUsers[0].Id, 2, "GT2", Kills: 0, Deaths: 0, Assists: 0), away);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.AwayUsers[1].Id, 2, "GT3", Kills: 0, Deaths: 0, Assists: 0), away);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.AwayUsers[2].Id, 2, "GT4", Kills: 0, Deaths: 0, Assists: 0), away);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.AwayUsers[3].Id, 2, "GT5", Kills: 0, Deaths: 0, Assists: 0), away);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.TeamSmallerThanFormat);
+        Assert.That(flag.Reason, Does.Contain("Side 1 fielded 1 player"));
+    }
+
+    [Test]
     public async Task CheckRecordedGameAsync_ANegativeStat_IsFlagged()
     {
         var seeded = await SeedAsync(Context);
