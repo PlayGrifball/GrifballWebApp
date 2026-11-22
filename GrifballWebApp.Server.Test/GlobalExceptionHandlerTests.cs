@@ -67,6 +67,7 @@ public class GlobalExceptionHandlerTests
         yield return new TestCaseData(new GrifballWebApp.Application.Signups.SignupTeamNameTooLongException(), 400, GrifballWebApp.Application.Signups.SignupTeamNameTooLongException.Reason).SetName("SignupTeamNameTooLongException_Is400");
         yield return new TestCaseData(new GrifballWebApp.Application.Profile.MergeConflictException("Both users are on different teams"), 409, "Both users are on different teams").SetName("MergeConflictException_Is409");
         yield return new TestCaseData(new GrifballWebApp.Application.Profile.UserHasHistoricalStatsException(7), 409, "User has historical stats; merge instead.").SetName("UserHasHistoricalStatsException_Is409");
+        yield return new TestCaseData(new GrifballWebApp.Application.Profile.MergeDeniedToAccessTokenException(), 403, "An access token may not merge accounts, or undo a merge.").SetName("MergeDeniedToAccessTokenException_Is403");
         yield return new TestCaseData(new GrifballWebApp.Application.Historical.GamertagClaimException("There is no claim 7"), 400, "There is no claim 7").SetName("GamertagClaimException_Is400");
         yield return new TestCaseData(new GrifballWebApp.Application.Historical.GamertagClaimConflictException("Changed"), 409, "Changed").SetName("GamertagClaimConflictException_Is409");
         yield return new TestCaseData(new GrifballWebApp.Application.EventOrganizer.SeasonRefusedException("Name taken", 409), 409, "Name taken").SetName("SeasonRefusedException_KeepsItsStatus");

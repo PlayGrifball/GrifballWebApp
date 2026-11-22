@@ -144,7 +144,9 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
             return;
         }
 
-        await WriteProblemAsync(context, StatusCodes.Status401Unauthorized, result.Failure?.Message ?? "The access token is invalid.");
+        // Never NoResult here: that only happens above (already excluded) or when BearerToken is null, and
+        // BrowserAuth.AccessToken being non-null already means it isn't. Always a Fail with a reason.
+        await WriteProblemAsync(context, StatusCodes.Status401Unauthorized, result.Failure!.Message);
     }
 
     /// <summary>

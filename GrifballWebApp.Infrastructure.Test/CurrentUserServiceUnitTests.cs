@@ -102,4 +102,34 @@ public class CurrentUserServiceUnitTests
 
         Assert.That(service.GetCurrentUserId(), Is.EqualTo(123));
     }
+
+    [Test]
+    public void IsAccessToken_TheHttpContextsUserHasTheTokenIdClaim_IsTrue()
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(AccessTokenClaimTypes.TokenId, "abc")]));
+        var http = Substitute.For<IHttpContextAccessor>();
+        http.HttpContext.Returns(new DefaultHttpContext { User = principal });
+
+        Assert.That(Service(http).IsAccessToken, Is.True);
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void IsAccessToken_WithoutTheClaim_IsFalse_WhetherSignedInOrNot(bool authenticated)
+    {
+        var http = Substitute.For<IHttpContextAccessor>();
+        http.HttpContext.Returns(new DefaultHttpContext { User = authenticated ? Authenticated("1") : new ClaimsPrincipal() });
+
+        Assert.That(Service(http).IsAccessToken, Is.False);
+    }
+
+    [Test]
+    public void IsAccessToken_NoHttpContextAtAll_IsFalse()
+    {
+        // A job or the Discord bot has no HttpContext: never an access token's request.
+        var http = Substitute.For<IHttpContextAccessor>();
+        http.HttpContext.Returns((HttpContext?)null);
+
+        Assert.That(Service(http).IsAccessToken, Is.False);
+    }
 }
