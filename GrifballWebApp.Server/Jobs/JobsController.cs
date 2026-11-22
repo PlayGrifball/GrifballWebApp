@@ -39,8 +39,8 @@ public class JobsController : ControllerBase
         => await _jobs.History(new JobKey(name, group), Math.Clamp(take, 1, MaxHistory), ct);
 
     /// <summary>Runs a job now, outside its schedule. Sysadmins only. Refused for an access token when the job can end
-    /// up merging a user (<see cref="JobsService.MergeCapableJobs"/>): that can't be caught where the merge actually
-    /// happens, which runs later with no request of its own.</summary>
+    /// up merging a user (<c>JobsService.MergeCapableJobs</c>, private to that class): that can't be caught where the
+    /// merge actually happens, which runs later with no request of its own.</summary>
     [HttpPost("jobs/{group}/{name}/run", Name = "RunJob")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]

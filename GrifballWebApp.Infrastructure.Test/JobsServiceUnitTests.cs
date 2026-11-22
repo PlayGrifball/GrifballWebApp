@@ -1,5 +1,6 @@
 using Quartz;
 using Quartz.Extensibility;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure.Jobs;
 using NSubstitute;
 using static GrifballWebApp.Infrastructure.Test.JobsTestData;
@@ -21,6 +22,7 @@ public class JobsServiceUnitTests
     private readonly ISchedulerFactory _schedulers = Substitute.For<ISchedulerFactory>();
     private readonly IScheduler _scheduler = Substitute.For<IScheduler>();
     private readonly IExecutionHistoryStore _history = Substitute.For<IExecutionHistoryStore>();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private const string SchedulerName = "test-scheduler";
 
     [SetUp]
@@ -36,7 +38,7 @@ public class JobsServiceUnitTests
     }
 
     private JobsService Service(RecurringJobs? recurring = null, TimeProvider? time = null)
-        => new(_schedulers, _history, recurring ?? new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))), time ?? TimeProvider.System);
+        => new(_schedulers, _history, recurring ?? new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))), time ?? TimeProvider.System, _currentUser);
 
     private static JobHeader HeaderOf(JobKey key, string? description = null) => new(key, description, typeof(CountingJob).FullName!, true, false, false, false);
 

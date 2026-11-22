@@ -46,10 +46,11 @@ public sealed class DenyAccessTokenFilter : IAsyncAuthorizationFilter
     }
 
     /// <summary>
-    /// The nearest explicit choice wins, same as <see cref="GrifballWebApp.Architecture.Test.AccessTokenAuthorizationTests"/>
-    /// expects: the action's own <see cref="DenyAccessTokenAttribute"/> or <see cref="AllowAccessTokenAttribute"/>, if it
-    /// has one, decides it; only when it has neither does its controller's apply. A method <c>[AllowAccessToken]</c> on a
-    /// class marked <c>[DenyAccessToken]</c> (or the reverse) is the method's choice, not the class's.
+    /// The nearest explicit choice wins, same as <c>GrifballWebApp.Architecture.Test.AccessTokenAuthorizationTests</c>
+    /// (a different assembly, not referenced here) expects: the action's own <see cref="DenyAccessTokenAttribute"/> or
+    /// <see cref="AllowAccessTokenAttribute"/>, if it has one, decides it; only when it has neither does its controller's
+    /// apply. A method <c>[AllowAccessToken]</c> on a class marked <c>[DenyAccessToken]</c> (or the reverse) is the
+    /// method's choice, not the class's.
     /// </summary>
     internal static bool IsDenied(ActionDescriptor action)
     {
