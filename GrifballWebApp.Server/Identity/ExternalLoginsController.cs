@@ -45,6 +45,7 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>The external providers this server is configured for.</summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [HttpGet("external-logins/providers", Name = "GetExternalProviders")]
     [ProducesResponseType<List<ExternalProviderDto>>(StatusCodes.Status200OK)]
     public async Task<List<ExternalProviderDto>> Providers()
@@ -56,6 +57,7 @@ public class ExternalLoginsController : ControllerBase
     }
 
     /// <summary>The signed-in user's external logins, whether they have a password, and the providers they can link.</summary>
+    [AllowAccessToken]
     [ProducesResponseType(typeof(LinkedLoginsDto), StatusCodes.Status200OK)]
     [HttpGet("me/external-logins", Name = "GetMyExternalLogins")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -91,6 +93,7 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>Full-page navigation target: sends the browser to the provider to link it to the user named in the token.</summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [HttpGet("external-logins/link", Name = "ExternalLoginLink")]
     [ProducesResponseType(StatusCodes.Status302Found)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -172,6 +175,7 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>Sysadmin: a user's external logins.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     [ProducesResponseType(typeof(LinkedLoginsDto), StatusCodes.Status200OK)]
     [HttpGet("users/{userID:int}/external-logins", Name = "GetUserExternalLogins")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]

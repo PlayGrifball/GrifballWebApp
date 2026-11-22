@@ -3,15 +3,18 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Infrastructure.Historical;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Historical;
 
 /// <summary>
 /// Gamertag claims (roster matches the import suggests, placeholders users claimed by setting a gamertag) and the
-/// gamertag history they write: sysadmin only, like merging users (approving a claim merges a placeholder).
+/// gamertag history they write: sysadmin only, like merging users (approving a claim merges a placeholder). A normal
+/// staff action, same as the MCP tools (decide_gamertag_claim): a token may call it.
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
+[AllowAccessToken]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 public class GamertagClaimsController : ControllerBase

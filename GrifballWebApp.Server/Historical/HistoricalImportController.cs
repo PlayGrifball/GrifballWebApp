@@ -7,6 +7,7 @@ using GrifballWebApp.Infrastructure.Historical;
 using GrifballWebApp.Historical.Sources;
 using GrifballWebApp.Historical.Import;
 using GrifballWebApp.Historical.Worker;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Historical;
 
@@ -16,9 +17,11 @@ namespace GrifballWebApp.Server.Historical;
 /// and on a schedule, HistoricalRefreshJob) and imports their snapshots: <see cref="Preview"/> shows what an import would remove, then
 /// <see cref="ApplyPreview"/> imports it. A compiled archive can still be uploaded (<see cref="Import"/>). Everything runs
 /// in the background (HistoricalImportWorker, in the worker role): each action returns 202 with the job's ID, and
-/// <see cref="Job"/> reports its progress and result. Running an import again with the same data changes nothing.
+/// <see cref="Job"/> reports its progress and result. Running an import again with the same data changes nothing. A normal
+/// staff action throughout, like AdminController's own pulls: a token may call any of it.
 /// </summary>
 [ApiController]
+[AllowAccessToken]
 public class HistoricalImportController : ControllerBase
 {
     private readonly HistoricalImportJobs _jobs;

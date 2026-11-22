@@ -102,6 +102,8 @@ public class AccessTokenService
             return (null, $"A token needs a name of 1 to {MaxNameLength} characters.");
         if (request.Days is < 1 or > MaxDays)
             return (null, $"A token lasts 1 to {MaxDays} days.");
+        if (!Enum.IsDefined(request.Scope))
+            return (null, "Scope must be Mcp, Api or Both.");
         if (await TokensOf(userID).CountAsync(ct) >= MaxTokensPerUser)
             return (null, $"You have {MaxTokensPerUser} tokens already: revoke one first.");
 

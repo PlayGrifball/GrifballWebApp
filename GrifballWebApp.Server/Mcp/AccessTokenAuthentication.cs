@@ -14,7 +14,9 @@ namespace GrifballWebApp.Server.Mcp;
 /// who made the token, with their roles as they are now. Both the MCP endpoint (<see cref="GrifMcp"/>) and, since a token may
 /// have <see cref="AccessTokenScope.Api"/> or <see cref="AccessTokenScope.Both"/>, the REST API's default scheme
 /// (<see cref="BrowserAuth.SelectScheme"/>) ask for this scheme; a browser's cookie never does. A token whose scope doesn't
-/// include the surface it was sent to fails with a reason instead of signing in (<see cref="GrifMcp.IsMcpRequest"/>).
+/// include the surface it was sent to fails with a reason instead of signing in (<see cref="GrifMcp.IsMcpRequest"/>). Hubs
+/// are never a surface a token opens (<see cref="RefuseHubConnections"/> refuses the connection outright): a hub is a
+/// browser feature, where the read-only and scope rules below don't apply, and a connection would outlive revoking the token.
 /// </summary>
 public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSchemeOptions>
 {
@@ -40,9 +42,11 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!BrowserAuth.HasBearerToken(Request))
+        // RefuseHubConnections already refuses the request outright; this is the belt the braces are for.
+        if (BrowserAuth.IsHubRequest(Context))
             return AuthenticateResult.NoResult();
-        var token = Request.Headers.Authorization.ToString()["Bearer ".Length..].Trim();
+        if (BrowserAuth.BearerToken(Context) is not { } token)
+            return AuthenticateResult.NoResult();
 
         var authenticated = await _tokens.Authenticate(token, Context.RequestAborted);
         if (authenticated is null)
@@ -90,6 +94,23 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
 
     /// <summary>GET and HEAD: what a read-only token may still do on the REST API (MCP's own tools say read-only differently).</summary>
     public static bool IsReadMethod(string method) => HttpMethods.IsGet(method) || HttpMethods.IsHead(method);
+
+    /// <summary>
+    /// Middleware: refuses a <c>grif_</c> access token's attempt to open a hub (negotiate or the connection) with 401, whatever
+    /// its scope or read-only flag. Hubs are the browser's own: a read-only check by HTTP method means nothing to a persistent
+    /// connection's calls, and a connection a token opened would stay signed in after the token is revoked.
+    /// </summary>
+    public static Task RefuseHubConnections(HttpContext context, RequestDelegate next)
+    {
+        if (!BrowserAuth.IsHubRequest(context) || BrowserAuth.BearerToken(context) is not { } token || !token.StartsWith(AccessTokenService.Prefix, StringComparison.Ordinal))
+            return next(context);
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return context.Response.WriteAsJsonAsync(new ProblemDetails
+        {
+            Status = StatusCodes.Status401Unauthorized,
+            Title = "Access tokens don't open hubs: those stay the browser's own session.",
+        }, options: null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
+    }
 
     /// <summary>
     /// Middleware: refuses a write (not <see cref="IsReadMethod"/>) from a read-only token's user with 403, saying why. Skips the

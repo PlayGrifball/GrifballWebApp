@@ -1,14 +1,17 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Telemetry.Query;
 
 /// <summary>
 /// The Telemetry page (sysadmin only): this app's own logs, metrics and traces, read back from Loki, Prometheus and
-/// Tempo (<see cref="TelemetryQueryService"/>). An unconfigured backend is a 404, a failing one a 502.
+/// Tempo (<see cref="TelemetryQueryService"/>). An unconfigured backend is a 404, a failing one a 502. All reads: a
+/// token may call any of it.
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
+[AllowAccessToken]
 public class TelemetryController : ControllerBase
 {
     public const int MaxSearchLength = 200;

@@ -138,6 +138,20 @@ public class AccessTokenServiceTests
     }
 
     [Test]
+    public async Task Create_RefusesAnUndefinedScope()
+    {
+        // JsonStringEnumConverter accepts an out-of-range integer on the wire; the service must still refuse it
+        // rather than store a scope that opens nothing and gives a misleading reason on every use.
+        var (created, refusal) = await _tokens.Create(_user.Id, new CreateAccessTokenRequest("bad-scope", 30, (AccessTokenScope)7));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(created, Is.Null);
+            Assert.That(refusal, Does.Contain("Mcp, Api or Both"));
+        }
+    }
+
+    [Test]
     public async Task ARowStoredBeforeScopesExisted_AuthenticatesAsMcpOnly_NotReadOnly()
     {
         // The JSON a row held before Scope and ReadOnly existed: deserializing it must default them, not throw.

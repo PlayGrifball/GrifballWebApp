@@ -3,15 +3,18 @@ using Microsoft.AspNetCore.Mvc;
 using Quartz;
 using System.Text.Json.Serialization;
 using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Jobs;
 
 /// <summary>
 /// The Jobs page (sysadmin only): the background jobs Quartz runs on the worker, their schedules and runs, and running,
-/// pausing and rescheduling them (<see cref="JobsService"/>).
+/// pausing and rescheduling them (<see cref="JobsService"/>). Normal staff writes, same as the MCP tools (list_jobs,
+/// run_job, set_job_paused): a token may call any of it.
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
+[AllowAccessToken]
 public class JobsController : ControllerBase
 {
     /// <summary>The most runs one history request returns.</summary>

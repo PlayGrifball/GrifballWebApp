@@ -45,6 +45,9 @@ public static partial class BrowserAuth
     public static bool HasBearerToken(HttpRequest request)
         => request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Whether this request is to a SignalR hub endpoint (negotiate or the connection).</summary>
+    public static bool IsHubRequest(HttpContext context) => context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is not null;
+
     /// <summary>
     /// The bearer token a hub request carries in its query: SignalR's browser client sends it there on the WebSocket and
     /// server-sent events, which can't carry headers. Null for any other request (a token in the query of an API call
@@ -52,7 +55,7 @@ public static partial class BrowserAuth
     /// </summary>
     public static string? HubAccessToken(HttpContext context)
     {
-        if (context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is null)
+        if (!IsHubRequest(context))
             return null;
         var token = context.Request.Query[HubAccessTokenParameter].ToString();
         return token.Length > 0 ? token : null;

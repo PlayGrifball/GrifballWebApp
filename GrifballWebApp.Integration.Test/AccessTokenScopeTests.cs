@@ -23,13 +23,16 @@ namespace GrifballWebApp.Integration.Test;
 /// MCP-only behaviour this builds on. Non-parallelizable because Program.Main swaps the static Serilog logger.
 /// </summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [NonParallelizable]
 public class AccessTokenScopeTests
 {
     private const string Password = "Smoke-Test-Password-1";
 
-    private string _connectionString = null!;
-    private WebApplicationFactory<ServerProgram> _factory = null!;
+    // Static: InstancePerTestCase makes a new instance per test, but the factory and its database are the fixture's
+    // own, started once (DatabaseConversionTests does the same).
+    private static string _connectionString = null!;
+    private static WebApplicationFactory<ServerProgram> _factory = null!;
 
     private static string UserName => PreviewSmokeUsers.UserNames[0];
 
@@ -43,7 +46,7 @@ public class AccessTokenScopeTests
     }
 
     [OneTimeSetUp]
-    public void OneTimeSetUp()
+    public static void OneTimeSetUp()
     {
         _connectionString = TestDatabase.ConnectionString(SetUpFixture.DatabaseContainer, $"AccessTokenScopeDb_{Guid.NewGuid():N}");
         _factory = new PreviewFactory(new()
@@ -58,7 +61,7 @@ public class AccessTokenScopeTests
     }
 
     [OneTimeTearDown]
-    public async Task OneTimeTearDown()
+    public static async Task OneTimeTearDown()
     {
         await _factory.DisposeAsync();
         await TestDatabase.DropDatabase(_connectionString, ifExists: true);
@@ -238,6 +241,25 @@ public class AccessTokenScopeTests
     }
 
     [Test]
+    public async Task AReadOnlyToken_OnMcp_AlsoHidesAndRefusesAQueuedHaloPull()
+    {
+        // A pull isn't ToolEffect.ChangesData, but it does save games it finds: read-only must still hide and refuse
+        // it, the same as the REST API's 403 on a write.
+        var created = await NewAccessToken(AccessTokenScope.Mcp, readOnly: true);
+        await using var mcp = await Connect(created.Token);
+
+        var tools = await mcp.ListToolsAsync();
+        var refused = await mcp.CallToolAsync("pull_xbox_account_games", new Dictionary<string, object?> { ["gamertag"] = "NobodyHasThisGamertag" });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(tools.Select(t => t.Name), Does.Not.Contain("pull_xbox_account_games"));
+            Assert.That(refused.IsError, Is.True);
+            Assert.That(Text(refused), Does.Contain("read-only"));
+        }
+    }
+
+    [Test]
     public async Task ANonReadOnlyToken_OnMcp_StillListsAndCallsChangingTools()
     {
         var created = await NewAccessToken(AccessTokenScope.Mcp, readOnly: false);
@@ -245,7 +267,11 @@ public class AccessTokenScopeTests
 
         var tools = await mcp.ListToolsAsync();
 
-        Assert.That(tools.Select(t => t.Name), Does.Contain("decide_gamertag_claim"), "the smoke user is a sysadmin, and the token isn't read-only");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(tools.Select(t => t.Name), Does.Contain("decide_gamertag_claim"), "the smoke user is a sysadmin, and the token isn't read-only");
+            Assert.That(tools.Select(t => t.Name), Does.Contain("pull_xbox_account_games"), "a queued pull is still there too");
+        }
     }
 
     // ---------- Never allowed with any token (DenyAccessTokenAttribute) ----------

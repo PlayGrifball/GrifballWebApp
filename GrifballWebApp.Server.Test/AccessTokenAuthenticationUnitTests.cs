@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.SignalR;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -15,6 +16,7 @@ namespace GrifballWebApp.Server.Test;
 /// flow is covered by the integration tests (AccessTokenScopeTests, McpServerTests).
 /// </summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class AccessTokenAuthenticationUnitTests
 {
     private static ClaimsPrincipal User(string? tokenId = null, string? tokenName = null, bool? readOnly = null)
@@ -112,6 +114,74 @@ public class AccessTokenAuthenticationUnitTests
             Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
             Assert.That(body, Does.Contain("read-only"));
         }
+    }
+
+    // ---------- RefuseHubConnections ----------
+
+    private static DefaultHttpContext HubRequest(string method, string query = "")
+    {
+        var context = Context(method, "/" + GrifballWebApp.Server.Live.LiveHub.Path);
+        context.Request.QueryString = new QueryString(query);
+        context.SetEndpoint(new Endpoint(_ => Task.CompletedTask, new EndpointMetadataCollection(new HubMetadata(typeof(GrifballWebApp.Server.Live.LiveHub))), "hub"));
+        return context;
+    }
+
+    private static string AGrifToken => "grif_" + new string('0', 32) + "_secret";
+
+    [Test]
+    public async Task RefuseHubConnections_Refuses401_AGrifTokenInTheHeader()
+    {
+        var context = HubRequest("GET");
+        context.Request.Headers.Authorization = "Bearer " + AGrifToken;
+        context.Response.Body = new MemoryStream();
+        var called = false;
+
+        await AccessTokenAuthentication.RefuseHubConnections(context, _ => { called = true; return Task.CompletedTask; });
+
+        context.Response.Body.Position = 0;
+        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(called, Is.False);
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
+            Assert.That(body, Does.Contain("don't open hubs"));
+        }
+    }
+
+    [Test]
+    public async Task RefuseHubConnections_Refuses401_AGrifTokenInTheQuery()
+    {
+        // SignalR's browser client can't send a header on the WebSocket, so it sends the token in the query instead.
+        var context = HubRequest("GET", "?access_token=" + Uri.EscapeDataString(AGrifToken));
+        context.Response.Body = new MemoryStream();
+        var called = false;
+
+        await AccessTokenAuthentication.RefuseHubConnections(context, _ => { called = true; return Task.CompletedTask; });
+
+        Assert.That(called, Is.False);
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
+    }
+
+    [Test]
+    public async Task RefuseHubConnections_PassesNonHubRequests_AndHubRequestsWithoutAGrifToken()
+    {
+        var called = 0;
+        Task Next(HttpContext _) { called++; return Task.CompletedTask; }
+
+        // Not a hub at all, even with a grif_ token
+        var api = Context("GET", "/seasons");
+        api.Request.Headers.Authorization = "Bearer " + AGrifToken;
+        await AccessTokenAuthentication.RefuseHubConnections(api, Next);
+
+        // A hub, but no bearer token at all (a browser's cookie)
+        await AccessTokenAuthentication.RefuseHubConnections(HubRequest("GET"), Next);
+
+        // A hub, with the API's own short-lived bearer token (not grif_)
+        var ownBearer = HubRequest("GET");
+        ownBearer.Request.Headers.Authorization = "Bearer not-a-grif-token";
+        await AccessTokenAuthentication.RefuseHubConnections(ownBearer, Next);
+
+        Assert.That(called, Is.EqualTo(3));
     }
 
     // ---------- DenyAccessTokenFilter ----------

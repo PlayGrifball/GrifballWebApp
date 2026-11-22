@@ -55,7 +55,7 @@
       @for (t of rows(); track t.id) {
         <li>
           <span class="at-token-name">{{t.name}}</span>
-          <span class="hud-muted">{{t.scope}}{{t.readOnly ? ', read-only' : ''}}</span>
+          <span class="hud-muted">{{scopeLabel(t.scope)}}{{t.readOnly ? ', read-only' : ''}}</span>
           <span class="hud-muted">made {{t.createdAt | date: 'mediumDate'}}</span>
           <span [class.at-expired]="isExpired(t)" class="hud-muted">{{isExpired(t) ? 'expired' : 'expires'}} {{t.expiresAt | date: 'mediumDate'}}</span>
           <button type="button" class="hud-btn at-btn" (click)="revoke(t)">Revoke</button>

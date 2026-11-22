@@ -56,6 +56,11 @@ export class AccessTokensComponent {
     return new Date(token.expiresAt).getTime() <= Date.now();
   }
 
+  /** How the token's scope reads on the page (TOKEN_SCOPES' label), not its raw value. */
+  scopeLabel(scope: AccessTokenScope): string {
+    return this.scopes.find(s => s.value === scope)?.label ?? scope;
+  }
+
   create(): void {
     const name = this.name().trim();
     if (name)

@@ -479,6 +479,8 @@ public class Program
 
             // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.
             app.Use(BrowserAuth.RefuseForeignHubRequests);
+            // Hubs are the browser's own; an access token never opens one (#549)
+            app.Use(AccessTokenAuthentication.RefuseHubConnections);
 
             // The site's live updates and who is on it, signed in or out (LiveHub)
             app.MapHub<LiveHub>(LiveHub.Path, options => { options.CloseOnAuthenticationExpiration = true; });
