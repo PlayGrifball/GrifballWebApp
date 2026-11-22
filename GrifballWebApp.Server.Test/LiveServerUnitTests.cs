@@ -174,18 +174,23 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         => new(_watchers, _hubContext, scopes ?? new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             NullLogger<LiveDelivery>.Instance, configuration ?? new ConfigurationBuilder().Build(), redis);
 
-    /// <summary>A Redis whose reads succeed (nothing cached yet); its first write (the lock) succeeds, its second (the
-    /// data, once a build is done) fails with <paramref name="storeFailure"/> (a <see cref="RedisException"/> or a
-    /// <see cref="TimeoutException"/>). Sequential by call order. The callbacks return <c>bool</c> (NSubstitute's
-    /// Task-unwrapping overload - the same form <c>LiveSnapshots.For</c> doubles elsewhere in this file use to throw);
-    /// three earlier versions passed already-built <c>Task&lt;bool&gt;</c> values instead (the plain generic overload,
-    /// not the Task-aware one) and the lock was never actually won in any of them.</summary>
+    /// <summary>
+    /// A Redis whose reads succeed (nothing cached yet); its first write (the lock, always called with exactly 4 args -
+    /// key, value, expiry, when - binding to <c>IDatabaseAsync</c>'s older 4-parameter overload with no
+    /// <see cref="CommandFlags"/>) succeeds; its second (the data, always called with exactly 3 args once a build is
+    /// done, binding to the newer <see cref="Expiration"/>/<see cref="ValueCondition"/>-based overload) fails with
+    /// <paramref name="storeFailure"/> (a <see cref="RedisException"/> or a <see cref="TimeoutException"/>). The two
+    /// calls are, genuinely, two different overloads: four earlier versions of this double configured only one
+    /// (mostly the 5-parameter one with <see cref="CommandFlags"/>, which neither production call actually binds to),
+    /// so neither ever matched and the lock was never won.
+    /// </summary>
     private static AppRedis FlakyStoreRedis(Exception storeFailure)
     {
         var db = Substitute.For<IDatabase>();
         db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
-        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
-            .Returns(_ => true, _ => throw storeFailure);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(true);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<Expiration>(), Arg.Any<ValueCondition>(), Arg.Any<CommandFlags>())
+            .Returns(_ => throw storeFailure);
         var connection = Substitute.For<IConnectionMultiplexer>();
         connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
         return new AppRedis(_ => Task.FromResult(connection));
@@ -198,7 +203,7 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
     {
         var db = Substitute.For<IDatabase>();
         db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null, data);
-        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(false);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(false);
         var connection = Substitute.For<IConnectionMultiplexer>();
         connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
         return new AppRedis(_ => Task.FromResult(connection));
@@ -270,61 +275,6 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         await Delivery(Scopes(snapshots), DownRedis()).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
 
         await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
-    }
-
-    [Test]
-    public async Task Diagnostic_MockedStringSetAsync_ReturnsTrueThenThrows()
-    {
-        // Isolates the exact NSubstitute setup FlakyStoreRedis relies on, with no AppRedis/LiveDelivery involved, to
-        // find out why the "won the lock" branch keeps looking unreached further up the stack.
-        var db = Substitute.For<IDatabase>();
-        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
-            .Returns(_ => true, _ => throw new RedisException("boom"));
-
-        var first = await db.StringSetAsync("a:lock", RedisValue.EmptyString, TimeSpan.FromSeconds(1), When.NotExists);
-        RedisException? caught = null;
-        try
-        {
-            await db.StringSetAsync("a", "data", TimeSpan.FromSeconds(1));
-        }
-        catch (RedisException ex)
-        {
-            caught = ex;
-        }
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(first, Is.True, "the first call");
-            Assert.That(caught, Is.Not.Null, "the second call throws");
-        }
-    }
-
-    [Test]
-    public async Task Diagnostic_MockedStringSetAsync_WithKeepTtlOverload_ReturnsTrueThenThrows()
-    {
-        // Same as the Diagnostic above, but configuring the overload with the extra "keepTtl" bool, in case the
-        // 5-parameter one is a default interface method that forwards to this one underneath (so NSubstitute never
-        // actually intercepts calls at the 5-parameter signature).
-        var db = Substitute.For<IDatabase>();
-        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
-            .Returns(_ => true, _ => throw new RedisException("boom"));
-
-        var first = await db.StringSetAsync("a:lock", RedisValue.EmptyString, TimeSpan.FromSeconds(1), When.NotExists);
-        RedisException? caught = null;
-        try
-        {
-            await db.StringSetAsync("a", "data", TimeSpan.FromSeconds(1));
-        }
-        catch (RedisException ex)
-        {
-            caught = ex;
-        }
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(first, Is.True, "the first call");
-            Assert.That(caught, Is.Not.Null, "the second call throws");
-        }
     }
 
     [TestCase(typeof(RedisException))]
