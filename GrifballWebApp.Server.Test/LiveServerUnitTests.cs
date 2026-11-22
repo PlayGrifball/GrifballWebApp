@@ -178,9 +178,9 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
     {
         var db = Substitute.For<IDatabase>();
         db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
-        db.StringSetAsync(Arg.Is<RedisKey>(k => ((string)k).EndsWith(":lock", StringComparison.Ordinal)), Arg.Any<RedisValue>(),
+        db.StringSetAsync(Arg.Is<RedisKey>(k => k.ToString().EndsWith(":lock", StringComparison.Ordinal)), Arg.Any<RedisValue>(),
             Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(true);
-        db.StringSetAsync(Arg.Is<RedisKey>(k => !((string)k).EndsWith(":lock", StringComparison.Ordinal)), Arg.Any<RedisValue>(),
+        db.StringSetAsync(Arg.Is<RedisKey>(k => !k.ToString().EndsWith(":lock", StringComparison.Ordinal)), Arg.Any<RedisValue>(),
             Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(Task.FromException<bool>(new RedisException("could not store")));
         var connection = Substitute.For<IConnectionMultiplexer>();
         connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
