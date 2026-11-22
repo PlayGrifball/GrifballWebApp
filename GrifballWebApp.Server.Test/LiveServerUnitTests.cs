@@ -191,7 +191,7 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
         db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(true);
         db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
-            .Returns(_ => throw storeFailure);
+            .Returns<bool>(_ => throw storeFailure);
         var connection = Substitute.For<IConnectionMultiplexer>();
         connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
         return new AppRedis(_ => Task.FromResult(connection));
