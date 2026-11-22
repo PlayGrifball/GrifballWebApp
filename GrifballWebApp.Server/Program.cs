@@ -24,6 +24,8 @@ using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Telemetry;
 using GrifballWebApp.Server.Telemetry.Browser;
 using GrifballWebApp.Server.Telemetry.Query;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -140,7 +142,10 @@ public class Program
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-        builder.Services.AddProblemDetails();
+        // Every ProblemDetails response through IProblemDetailsService (the access token rules, #549) gets a trace ID too,
+        // as GlobalExceptionHandler's own already do.
+        builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+            context.ProblemDetails.Extensions["traceId"] = System.Diagnostics.Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
 
         builder.Services.AddSignalR(options =>
         {
@@ -252,7 +257,24 @@ public class Program
     /// <summary>ASP.NET Core Identity on the app's users, and the browser's session cookie.</summary>
     private static void AddIdentity(IServiceCollection services)
     {
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            // The access token rules (deny metadata, read-only by method) through ASP.NET's own authorization for an
+            // endpoint with no authorize metadata at all (the fallback policy: the minimal build-info endpoints today,
+            // any future one with neither [Authorize] nor [AllowAnonymous]). That is genuinely every such endpoint,
+            // unlike the default policy: ASP.NET only combines the default policy into a bare [Authorize], never into
+            // [Authorize(Roles = ...)] or a named Policy (confirmed on learn.microsoft.com/aspnet/core/security/
+            // authorization/policies#default-and-fallback-policies), which is how almost every sensitive MVC action
+            // here is actually written - so a default-policy requirement would look like it covers them and silently
+            // not. DenyAccessTokenFilter (an MVC filter, which runs for every action regardless of how it is
+            // authorized) and RefuseWritesFromReadOnlyTokens (middleware, before routing-dependent authorization even
+            // runs) stay registered as the actual enforcement for MVC controllers (#549 review).
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .AddRequirements(new AccessTokenAuthorizationRequirement())
+                .Build();
+        });
+        services.AddSingleton<IAuthorizationHandler, AccessTokenAuthorizationHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, AccessTokenAuthorizationResultHandler>();
 
         services.AddIdentity<User, Role>(options =>
         {
@@ -460,6 +482,9 @@ public class Program
         // pipeline, where the Discord callback (/signin-discord) would see the frontend's http and send
         // Discord a redirect_uri other than the https one the sign-in started with (invalid_grant).
         app.UseAuthentication();
+        // A presented grif_ token that failed to authenticate: 401 everywhere, even an [AllowAnonymous] action, before
+        // it could otherwise fall back to an anonymous 200 (#549)
+        app.Use(AccessTokenAuthentication.RequireAValidToken);
         // A read-only access token's write: 403 saying why, before role checks give a less specific one (#549)
         app.Use(AccessTokenAuthentication.RefuseWritesFromReadOnlyTokens);
         app.UseAuthorization();

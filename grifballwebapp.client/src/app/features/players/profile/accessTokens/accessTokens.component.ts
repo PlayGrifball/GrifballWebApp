@@ -1,5 +1,7 @@
 import { DOCUMENT, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import type { AccessTokenDto, AccessTokenScope } from '@api/models';
 import { AccessTokensStore } from './accessTokens.store';
@@ -21,7 +23,7 @@ export const TOKEN_SCOPES: ReadonlyArray<{ value: AccessTokenScope; label: strin
  */
 @Component({
   selector: 'app-access-tokens',
-  imports: [DatePipe, MatCheckboxModule],
+  imports: [DatePipe, MatCheckboxModule, ReactiveFormsModule],
   templateUrl: './accessTokens.component.html',
   styleUrl: './accessTokens.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,16 +35,22 @@ export class AccessTokensComponent {
 
   readonly lifetimes = TOKEN_LIFETIMES;
   readonly scopes = TOKEN_SCOPES;
-  readonly name = signal('');
-  readonly days = signal<number>(90);
-  readonly scope = signal<AccessTokenScope>('Mcp');
-  readonly readOnly = signal(false);
+  readonly form = new FormGroup({
+    name: new FormControl('', { nonNullable: true }),
+    days: new FormControl<number>(90, { nonNullable: true }),
+    scope: new FormControl<AccessTokenScope>('Mcp', { nonNullable: true }),
+    readOnly: new FormControl(false, { nonNullable: true }),
+  });
+  /** The name field's own value as a signal: the only form value the template reads reactively (the submit button's disabled state). */
+  private readonly name = toSignal(this.form.controls.name.valueChanges, { initialValue: this.form.controls.name.value });
+
   readonly creating = this.store.creating;
   /** The token just made, shown this once. */
   readonly created = this.store.created;
   /** The just-made token's scope, so the Claude Code command only shows when it opens MCP. */
   readonly createdScope = this.store.createdScope;
   readonly showsMcpCommand = computed(() => this.createdScope() !== 'Api');
+  readonly canCreate = computed(() => !this.creating() && this.name().trim().length > 0);
 
   /** The MCP server's address on this site. */
   readonly endpoint = computed(() => `${this.document.location.origin}/api/mcp`);
@@ -62,9 +70,10 @@ export class AccessTokensComponent {
   }
 
   create(): void {
-    const name = this.name().trim();
-    if (name)
-      this.store.create(name, this.days(), this.scope(), this.readOnly(), () => this.name.set(''));
+    const { name, days, scope, readOnly } = this.form.getRawValue();
+    const trimmed = name.trim();
+    if (trimmed)
+      this.store.create(trimmed, days, scope, readOnly, () => this.form.controls.name.setValue(''));
   }
 
   revoke(token: AccessTokenDto): void {

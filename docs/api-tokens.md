@@ -25,25 +25,29 @@ curl https://grifball.xyz/api/seasons/3 -H "Authorization: Bearer grif_..."
 
 - It acts as the user who made it, with their roles as they are now (as MCP does).
 - No antiforgery token is needed: that's only for a browser's cookie session.
-- A token whose scope doesn't include the REST API (an MCP-only one) is refused with 401, saying so.
+- A token whose scope doesn't include the REST API (an MCP-only one) is refused with 401, saying so. So is a token
+  that's unknown, revoked or expired, on every endpoint, including an anonymous read such as `GET /seasons`: a
+  `grif_` token that was sent but didn't authenticate is never silently treated as no token at all.
 
 ## Read-only
 
 A read-only token may call `GET` and `HEAD` only; any other method is refused with 403, saying the token is
 read-only. On the MCP server, a read-only token's tools are its read-only ones: a tool that changes data
-(the `ChangingData` classes, staff's actions) isn't listed or callable.
+(the `ChangingData` classes, staff's actions) isn't listed or callable, and neither is one that queues a pull
+from Halo (`QueuesHaloPull`): it saves games it finds, even though it doesn't change or delete anything itself.
 
 ## What a token can never do
 
 Whatever its scope or read-only flag, a token may not:
 
 - make, list or revoke tokens;
-- change the account's password, email or linked logins;
+- change the account's email or linked logins;
 - merge accounts, or undo a merge;
 - delete the account.
 
-These stay the browser's own (or, for a password reset, a one-time link's). Calling one of these endpoints with
-a token is refused with 403.
+These stay the browser's own. Calling one of these endpoints with a token is refused with 403. Resetting the
+password is different: it's allowed with a token, because the one-time reset link's own token in the request body
+is the real boundary there, not who (or what) is sending the request - denying it on top would protect nothing.
 
 ## Logs
 

@@ -62,8 +62,7 @@ public static partial class BrowserAuth
     }
 
     /// <summary>Whether the request carries a bearer token (and so is not a browser's cookie session).</summary>
-    public static bool HasBearerToken(HttpContext context)
-        => HasBearerToken(context.Request) || HubAccessToken(context) is not null;
+    public static bool HasBearerToken(HttpContext context) => BearerToken(context) is not null;
 
     /// <summary>The bearer token's own value, from the header or (for a hub) the query; null without one.</summary>
     public static string? BearerToken(HttpContext context)
@@ -120,7 +119,7 @@ public static partial class BrowserAuth
     /// <summary>Middleware: refuses <see cref="IsForeignHubRequest"/> requests to any hub endpoint with 403.</summary>
     public static Task RefuseForeignHubRequests(HttpContext context, RequestDelegate next)
     {
-        if (context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is null || !IsForeignHubRequest(context))
+        if (!IsHubRequest(context) || !IsForeignHubRequest(context))
             return next(context);
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(BrowserAuth).FullName!);
         LogRefusedHubRequest(logger, context.Request.Path);

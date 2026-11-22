@@ -3,7 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccessTokensComponent } from './accessTokens.component';
-import type { AccessTokenDto } from '@api/models';
+import type { AccessTokenDto, AccessTokenScope } from '@api/models';
 
 const listUrl = '/api/identity/access-tokens';
 
@@ -40,6 +40,19 @@ describe('AccessTokensComponent', () => {
     const input = el().querySelector<HTMLInputElement>('#at-name')!;
     input.value = value;
     input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+  }
+
+  // The lifetime and scope <select>s bind with [ngValue] (so the form keeps a number and a real AccessTokenScope,
+  // not strings off the DOM), which Angular tracks by an internal id rather than the option's literal attribute, so
+  // the form's own control is what a test drives, same as a user picking an option would end up setting it to.
+  function setDays(days: number): void {
+    fixture.componentInstance.form.controls.days.setValue(days);
+    fixture.detectChanges();
+  }
+
+  function setScope(scope: AccessTokenScope): void {
+    fixture.componentInstance.form.controls.scope.setValue(scope);
     fixture.detectChanges();
   }
 
@@ -101,12 +114,8 @@ describe('AccessTokensComponent', () => {
   it('makes a token for the lifetime, scope and read-only flag picked, and says why one was refused', async () => {
     http.expectOne(listUrl).flush([]);
     await settle();
-    const select = el().querySelector<HTMLSelectElement>('#at-days')!;
-    select.value = '365';
-    select.dispatchEvent(new Event('change'));
-    const scopeSelect = el().querySelector<HTMLSelectElement>('#at-scope')!;
-    scopeSelect.value = 'Api';
-    scopeSelect.dispatchEvent(new Event('change'));
+    setDays(365);
+    setScope('Api');
     el().querySelector<HTMLInputElement>('#at-readonly input')!.click();
     fixture.detectChanges();
     typeName('Desktop');
@@ -125,9 +134,7 @@ describe('AccessTokensComponent', () => {
   it('leaves out the Claude Code command for a token scoped to the REST API only', async () => {
     http.expectOne(listUrl).flush([]);
     await settle();
-    const scopeSelect = el().querySelector<HTMLSelectElement>('#at-scope')!;
-    scopeSelect.value = 'Api';
-    scopeSelect.dispatchEvent(new Event('change'));
+    setScope('Api');
     typeName('Script');
 
     button('Make a token').click();

@@ -50,7 +50,7 @@ public static class GrifMcp
                     var readOnly = AccessTokenAuthentication.IsReadOnly(request.User!);
                     result.Tools = result.Tools
                         .Where(t => caller.IsInAnyRole(GrifTools.RolesByName.GetValueOrDefault(t.Name, [])))
-                        .Where(t => !readOnly || GrifTools.EffectByName.GetValueOrDefault(t.Name) is ToolEffect.ReadsOnly)
+                        .Where(t => !readOnly || GrifTools.IsReadOnlyTool(t.Name))
                         .ToList();
                     return result;
                 })
@@ -61,7 +61,7 @@ public static class GrifMcp
                     {
                         var name = request.Params?.Name ?? "";
                         Caller(request.User!).Require(GrifTools.RolesByName.GetValueOrDefault(name, []));
-                        if (AccessTokenAuthentication.IsReadOnly(request.User!) && GrifTools.EffectByName.GetValueOrDefault(name) is not ToolEffect.ReadsOnly)
+                        if (AccessTokenAuthentication.IsReadOnly(request.User!) && !GrifTools.IsReadOnlyTool(name))
                             throw new McpException("The access token is read-only: it may not call a tool that changes data.");
                         return await next(request, ct);
                     }

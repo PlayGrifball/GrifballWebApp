@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -63,9 +64,32 @@ public class AccessTokenAuthenticationUnitTests
     public void IsReadMethod_OnlyGetOrHead(string method, bool expected)
         => Assert.That(AccessTokenAuthentication.IsReadMethod(method), Is.EqualTo(expected));
 
+    /// <summary>
+    /// A stand-in for the real <see cref="IProblemDetailsService"/> (registered through <c>AddProblemDetails</c> in Program):
+    /// just enough to let <see cref="AccessTokenAuthentication"/>'s refusals write their body in a unit test with no host.
+    /// </summary>
+    private sealed class StubProblemDetailsService : IProblemDetailsService
+    {
+        public ValueTask<bool> WriteAsync(ProblemDetailsContext context)
+        {
+            context.HttpContext.Response.ContentType = "application/problem+json";
+            return new ValueTask<bool>(WriteBodyAsync(context));
+        }
+
+        private static async Task<bool> WriteBodyAsync(ProblemDetailsContext context)
+        {
+            await context.HttpContext.Response.WriteAsJsonAsync(context.ProblemDetails, context.HttpContext.RequestAborted);
+            return true;
+        }
+    }
+
+    private static readonly IServiceProvider Services = new ServiceCollection()
+        .AddSingleton<IProblemDetailsService, StubProblemDetailsService>()
+        .BuildServiceProvider();
+
     private static DefaultHttpContext Context(string method, string path, ClaimsPrincipal? user = null)
     {
-        var context = new DefaultHttpContext { User = user ?? new ClaimsPrincipal(new ClaimsIdentity()) };
+        var context = new DefaultHttpContext { User = user ?? new ClaimsPrincipal(new ClaimsIdentity()), RequestServices = Services };
         context.Request.Method = method;
         context.Request.Path = path;
         return context;
@@ -185,6 +209,28 @@ public class AccessTokenAuthenticationUnitTests
         await AccessTokenAuthentication.RefuseHubConnections(ownBearer, Next);
 
         Assert.That(called, Is.EqualTo(3));
+    }
+
+    // ---------- RequireAValidToken ----------
+
+    [Test]
+    public async Task RequireAValidToken_PassesRequestsWithNoGrifTokenToAuthenticate()
+    {
+        // These all return before ever calling AuthenticateAsync, so no host or auth system is needed for this test;
+        // AccessTokenScopeTests covers the "a grif_ token was presented but failed to authenticate" 401 end to end.
+        var called = 0;
+        Task Next(HttpContext _) { called++; return Task.CompletedTask; }
+
+        await AccessTokenAuthentication.RequireAValidToken(Context("GET", "/seasons"), Next); // no bearer token at all
+        var ownBearer = Context("GET", "/seasons");
+        ownBearer.Request.Headers.Authorization = "Bearer not-a-grif-token";
+        await AccessTokenAuthentication.RequireAValidToken(ownBearer, Next); // the API's own bearer token, not grif_
+        await AccessTokenAuthentication.RequireAValidToken(HubRequest("GET"), Next); // a hub: RefuseHubConnections' job
+        var hubWithToken = HubRequest("GET");
+        hubWithToken.Request.Headers.Authorization = "Bearer " + AGrifToken;
+        await AccessTokenAuthentication.RequireAValidToken(hubWithToken, Next); // a hub with a grif_ token too
+
+        Assert.That(called, Is.EqualTo(4));
     }
 
     // ---------- DenyAccessTokenFilter ----------

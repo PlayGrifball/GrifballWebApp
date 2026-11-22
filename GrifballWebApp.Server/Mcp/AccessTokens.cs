@@ -6,6 +6,7 @@ using GrifballWebApp.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace GrifballWebApp.Server.Mcp;
 
@@ -70,13 +71,22 @@ public class AccessTokenService
     private const int IdLength = 32;
     private const int SecretBytes = 32;
 
+    /// <summary>How briefly <see cref="Authenticate"/> caches a validated token, keyed by its ID: long enough that a
+    /// burst of calls on the same token (an MCP client, a script) skips the row lookup most of the time, short enough
+    /// that a stale entry on another pod matters little. <see cref="Revoke"/> also evicts its own pod's entry at once,
+    /// so a revoke takes effect immediately for whatever already knows the token was just revoked (the tests, a script
+    /// revoking its own token then retrying).</summary>
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(30);
+
     private readonly GrifballContext _context;
     private readonly TimeProvider _time;
+    private readonly IMemoryCache _cache;
 
-    public AccessTokenService(GrifballContext context, TimeProvider time)
+    public AccessTokenService(GrifballContext context, TimeProvider time, IMemoryCache cache)
     {
         _context = context;
         _time = time;
+        _cache = cache;
     }
 
     /// <summary>
@@ -87,7 +97,18 @@ public class AccessTokenService
     private sealed record Stored(string Hash, string Name, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt,
         AccessTokenScope Scope = AccessTokenScope.Mcp, bool ReadOnly = false);
 
+    /// <summary>The cached, already-verified facts of a token row, keyed by the token's ID (<see cref="CacheKey"/>): its hash
+    /// is still checked against the presented secret on every call (<see cref="Authenticate"/>), so a cache hit skips the row
+    /// lookup, never the signature check. The user is always fetched fresh, not cached, so a lockout or role change applies
+    /// at once, as it already did before caching existed.</summary>
+    private sealed record CachedToken(string Hash, int UserId, string Name, AccessTokenScope Scope, bool ReadOnly, DateTimeOffset ExpiresAt);
+
+    private static string CacheKey(string id) => $"{LoginProvider}:{id}";
+
     private static string HashOf(string secret) => Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(secret)));
+
+    private static bool SecretMatches(string secret, string hash)
+        => CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(HashOf(secret)), Encoding.ASCII.GetBytes(hash));
 
     private IQueryable<IdentityUserToken<int>> TokensOf(int userID)
         => _context.UserTokens.Where(t => t.UserId == userID && t.LoginProvider == LoginProvider);
@@ -132,9 +153,16 @@ public class AccessTokenService
             .ToList();
     }
 
-    /// <summary>Deletes one of the user's tokens; false when they have none with that ID.</summary>
+    /// <summary>Deletes one of the user's tokens; false when they have none with that ID. Evicts the cache entry
+    /// <see cref="Authenticate"/> may have made for it (<see cref="CacheTtl"/>'s own remarks), so a revoke this pod
+    /// knows about takes effect for it at once.</summary>
     public async Task<bool> Revoke(int userID, string id, CancellationToken ct = default)
-        => await TokensOf(userID).Where(t => t.Name == id).ExecuteDeleteAsync(ct) > 0;
+    {
+        var removed = await TokensOf(userID).Where(t => t.Name == id).ExecuteDeleteAsync(ct) > 0;
+        if (removed)
+            _cache.Remove(CacheKey(id));
+        return removed;
+    }
 
     /// <summary>The token's owner and its own facts, when it is well formed, known, unexpired and its secret matches; else null.</summary>
     public async Task<AuthenticatedAccessToken?> Authenticate(string token, CancellationToken ct = default)
@@ -144,20 +172,30 @@ public class AccessTokenService
             return null;
         var id = token.Substring(Prefix.Length, IdLength);
         var secret = token[(Prefix.Length + IdLength + 1)..];
+        var now = _time.GetUtcNow();
 
+        if (_cache.TryGetValue<CachedToken>(CacheKey(id), out var cached) && cached is not null)
+        {
+            if (!SecretMatches(secret, cached.Hash) || cached.ExpiresAt <= now)
+                return null;
+            var cachedUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == cached.UserId, ct);
+            return cachedUser is null ? null : new AuthenticatedAccessToken(cachedUser, id, cached.Name, cached.Scope, cached.ReadOnly);
+        }
+
+        // Token row and user in one query (a join), not two sequential round trips: every token-signed REST or MCP call
+        // used to pay for both.
         var row = await _context.UserTokens.AsNoTracking()
             .Where(t => t.LoginProvider == LoginProvider && t.Name == id)
-            .Select(t => new { t.UserId, t.Value })
+            .Join(_context.Users.AsNoTracking(), t => t.UserId, u => u.Id, (t, u) => new { t.Value, User = u })
             .FirstOrDefaultAsync(ct);
         if (row is null)
             return null;
 
         var stored = JsonSerializer.Deserialize<Stored>(row.Value!)!;
-        var matches = CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(HashOf(secret)), Encoding.ASCII.GetBytes(stored.Hash));
-        if (!matches || stored.ExpiresAt <= _time.GetUtcNow())
+        if (!SecretMatches(secret, stored.Hash) || stored.ExpiresAt <= now)
             return null;
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == row.UserId, ct);
-        return user is null ? null : new AuthenticatedAccessToken(user, id, stored.Name, stored.Scope, stored.ReadOnly);
+        _cache.Set(CacheKey(id), new CachedToken(stored.Hash, row.User.Id, stored.Name, stored.Scope, stored.ReadOnly, stored.ExpiresAt), CacheTtl);
+        return new AuthenticatedAccessToken(row.User, id, stored.Name, stored.Scope, stored.ReadOnly);
     }
 }

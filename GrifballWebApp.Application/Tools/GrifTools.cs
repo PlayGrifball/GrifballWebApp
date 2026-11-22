@@ -164,9 +164,22 @@ public static class GrifTools
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> RolesByName
         = All.SelectMany(set => Methods(set.Type)).ToDictionary(Name, Roles);
 
-    /// <summary>Every tool's effect by its name, for a host that knows only the name (a read-only access token's filter, which leaves out <see cref="ToolEffect.ChangesData"/>).</summary>
+    /// <summary>
+    /// Every tool's effect by its name, for a host that knows only the name (a read-only access token's filter, which
+    /// keeps only <see cref="ToolEffect.ReadsOnly"/> tools: not <see cref="ToolEffect.ChangesData"/>, and not
+    /// <see cref="ToolEffect.QueuesHaloPull"/> either, which saves games it finds).
+    /// </summary>
     public static readonly IReadOnlyDictionary<string, ToolEffect> EffectByName
         = All.SelectMany(set => Methods(set.Type).Select(m => (Name: Name(m), set.Effect))).ToDictionary(t => t.Name, t => t.Effect);
+
+    /// <summary>
+    /// Whether a read-only access token may list or call the tool named <paramref name="name"/>: it is in
+    /// <see cref="EffectByName"/> and read-only there. A name <see cref="EffectByName"/> does not know fails closed
+    /// (false, hidden and refused), unlike <see cref="IReadOnlyDictionary{TKey,TValue}.GetValueOrDefault">GetValueOrDefault</see>,
+    /// whose default for a missing key is <c>default(ToolEffect)</c>, which is <see cref="ToolEffect.ReadsOnly"/> (0):
+    /// that would make an unknown name read-only by accident instead of refusing it.
+    /// </summary>
+    public static bool IsReadOnlyTool(string name) => EffectByName.TryGetValue(name, out var effect) && effect is ToolEffect.ReadsOnly;
 
     /// <summary>A class's tools: its own public instance methods with a [Description].</summary>
     public static IEnumerable<MethodInfo> Methods(Type type)

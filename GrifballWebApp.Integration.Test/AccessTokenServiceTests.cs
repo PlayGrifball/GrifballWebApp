@@ -3,6 +3,7 @@ using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Mcp;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Time.Testing;
 
 namespace GrifballWebApp.Integration.Test;
@@ -23,7 +24,7 @@ public class AccessTokenServiceTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _tokens = new AccessTokenService(_context, _time);
+        _tokens = new AccessTokenService(_context, _time, new MemoryCache(new MemoryCacheOptions()));
         _user = User.Seed(userName: "token-owner", displayName: "Token Owner");
         _other = User.Seed(userName: "someone-else", displayName: "Someone Else");
         _context.Users.AddRange(_user, _other);
@@ -102,6 +103,50 @@ public class AccessTokenServiceTests
             Assert.That(await _tokens.Authenticate(mine.Token), Is.Null);
             Assert.That(await _tokens.Authenticate(theirs.Token), Is.Not.Null);
         }
+    }
+
+    [Test]
+    public async Task Revoke_TakesEffectImmediately_EvenThoughAuthenticateCachesTheRow()
+    {
+        var created = await Create(_user);
+        Assert.That(await _tokens.Authenticate(created.Token), Is.Not.Null, "warms the cache for this ID");
+
+        await _tokens.Revoke(_user.Id, created.AccessToken.ID);
+
+        Assert.That(await _tokens.Authenticate(created.Token), Is.Null, "the cached row must not outlive the revoke");
+    }
+
+    [Test]
+    public async Task ACachedToken_StillRefusesAWrongSecret()
+    {
+        // A cache hit must still check the secret's hash: caching by ID alone, without this, would let anything
+        // claiming a cached ID in without its actual secret.
+        var created = await Create(_user);
+        await _tokens.Authenticate(created.Token); // warms the cache for this ID
+        var wrongSecret = created.Token[..^1] + (created.Token[^1] == 'A' ? 'B' : 'A');
+
+        Assert.That(await _tokens.Authenticate(wrongSecret), Is.Null);
+    }
+
+    [Test]
+    public async Task ACachedToken_StillStopsWorking_WhenItExpires()
+    {
+        var created = await Create(_user, days: 1);
+        Assert.That(await _tokens.Authenticate(created.Token), Is.Not.Null, "warms the cache for this ID");
+
+        _time.Advance(TimeSpan.FromDays(1));
+
+        Assert.That(await _tokens.Authenticate(created.Token), Is.Null, "the cached row's own expiry still applies");
+    }
+
+    [Test]
+    public async Task ACachedToken_WhoseUserIsGone_SignsNobodyIn()
+    {
+        var created = await Create(_user);
+        await _tokens.Authenticate(created.Token); // warms the cache for this ID
+        await _context.Users.Where(u => u.Id == _user.Id).ExecuteDeleteAsync();
+
+        Assert.That(await _tokens.Authenticate(created.Token), Is.Null);
     }
 
     [Test]

@@ -29,12 +29,19 @@ public class AccessTokenAuthorizationTests
 
     private static string Name(MethodInfo action) => $"{action.DeclaringType!.Name}.{action.Name}";
 
-    /// <summary>The roles an action's own [Authorize] names (its method's, else its controller's); empty for none, or for [AllowAnonymous].</summary>
+    /// <summary>
+    /// The roles an action requires: its method's own <see cref="AuthorizeAttribute"/>(s) combined with its controller's,
+    /// since both apply at runtime (a bare method-level <c>[Authorize]</c> with no roles does not hide the controller's
+    /// <c>Roles="Sysadmin"</c>). <see cref="MemberInfo.GetCustomAttributes{T}"/>, plural, so an action with more than one
+    /// <c>[Authorize]</c> (legal: <see cref="AttributeUsageAttribute.AllowMultiple"/> is true for it) does not throw the
+    /// way the singular <see cref="MemberInfo.GetCustomAttribute{T}"/> would. Empty for none, or for [AllowAnonymous].
+    /// </summary>
     private static string[] Roles(MethodInfo action)
-    {
-        var authorize = action.GetCustomAttribute<AuthorizeAttribute>(inherit: true) ?? action.DeclaringType!.GetCustomAttribute<AuthorizeAttribute>(inherit: true);
-        return authorize?.Roles?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
-    }
+        => action.GetCustomAttributes<AuthorizeAttribute>(inherit: true)
+            .Concat(action.DeclaringType!.GetCustomAttributes<AuthorizeAttribute>(inherit: true))
+            .SelectMany(a => a.Roles?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [])
+            .Distinct()
+            .ToArray();
 
     /// <summary>Sysadmin and no other role, or a controller this rule names regardless of its own roles.</summary>
     private static bool IsSensitive(MethodInfo action)
@@ -45,6 +52,10 @@ public class AccessTokenAuthorizationTests
             || action.GetCustomAttribute<AllowAccessTokenAttribute>(inherit: true) is not null
             || action.DeclaringType!.GetCustomAttribute<DenyAccessTokenAttribute>(inherit: true) is not null
             || action.DeclaringType!.GetCustomAttribute<AllowAccessTokenAttribute>(inherit: true) is not null;
+
+    private static bool IsDenied(MethodInfo action)
+        => action.GetCustomAttribute<DenyAccessTokenAttribute>(inherit: true) is not null
+            || action.DeclaringType!.GetCustomAttribute<DenyAccessTokenAttribute>(inherit: true) is not null;
 
     [Test]
     public void EverySensitiveAction_ChoosesExplicitly_ForAccessTokens()
@@ -60,5 +71,56 @@ public class AccessTokenAuthorizationTests
             Assert.That(sensitive.Any(a => AccountControllers.Contains(a.DeclaringType)), Is.True, "the account-controller rule matches something");
             Assert.That(undecided, Is.Empty, "mark it [DenyAccessToken] or [AllowAccessToken]");
         }
+    }
+
+    /// <summary>
+    /// Every action that merges one user into another, or undoes such a merge (<see cref="MergesUsersAttribute"/>),
+    /// wherever it lives, must be <see cref="DenyAccessTokenAttribute"/>: a leaked sysadmin token must never be able to
+    /// merge, or merge and then be unable to undo it (a controller's own <c>[AllowAccessToken]</c> must not cover one of
+    /// these just because most of that controller's other actions are fine for a token).
+    /// </summary>
+    [Test]
+    public void EveryMergeAction_DeniesAccessTokens()
+    {
+        var merges = Actions().Where(a => a.GetCustomAttribute<MergesUsersAttribute>(inherit: true) is not null).ToList();
+        var allowed = merges.Where(a => !IsDenied(a)).Select(Name).ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            // The rule matches something today, so a change to it can't silently stop testing anything.
+            Assert.That(merges, Is.Not.Empty);
+            Assert.That(allowed, Is.Empty, "a merge or undo-merge action must be [DenyAccessToken]");
+        }
+    }
+
+    /// <summary>A method-level bare [Authorize] must not hide a controller's Roles="Sysadmin": both apply at runtime.</summary>
+    [Test]
+    public void Roles_CombinesClassAndMethodAuthorizeAttributes()
+    {
+        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.BareAuthorize))!;
+
+        var roles = Roles(method);
+
+        Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }));
+    }
+
+    /// <summary>More than one [Authorize] on the same action or controller (legal) must not throw.</summary>
+    [Test]
+    public void Roles_NeverThrowsOnMultipleAuthorizeAttributes()
+    {
+        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.TwoAuthorizeAttributes))!;
+
+        Assert.That(() => Roles(method), Throws.Nothing);
+    }
+
+    [Authorize(Roles = "Sysadmin")]
+    private sealed class RolesFixture
+    {
+        [Authorize]
+        public void BareAuthorize() { }
+
+        [Authorize(Roles = "Commissioner")]
+        [Authorize(AuthenticationSchemes = "Bearer")]
+        public void TwoAuthorizeAttributes() { }
     }
 }

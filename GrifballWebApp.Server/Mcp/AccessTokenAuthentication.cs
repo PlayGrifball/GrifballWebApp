@@ -78,12 +78,7 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
     {
         // HandleAuthenticateOnceSafeAsync never returns null, so only Failure's own absence (NoResult, no token at all) needs the fallback.
         var authenticated = await HandleAuthenticateOnceSafeAsync();
-        Response.StatusCode = StatusCodes.Status401Unauthorized;
-        await Response.WriteAsJsonAsync(new ProblemDetails
-        {
-            Status = StatusCodes.Status401Unauthorized,
-            Title = authenticated.Failure?.Message ?? "Not signed in.",
-        }, options: null, contentType: "application/problem+json", cancellationToken: Context.RequestAborted);
+        await WriteProblemAsync(Context, StatusCodes.Status401Unauthorized, authenticated.Failure?.Message ?? "Not signed in.");
     }
 
     /// <summary>Whether <paramref name="user"/> was signed in by an access token (<see cref="TokenIdClaimType"/>), whatever its scope.</summary>
@@ -104,12 +99,7 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
     {
         if (!BrowserAuth.IsHubRequest(context) || BrowserAuth.BearerToken(context) is not { } token || !token.StartsWith(AccessTokenService.Prefix, StringComparison.Ordinal))
             return next(context);
-        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-        return context.Response.WriteAsJsonAsync(new ProblemDetails
-        {
-            Status = StatusCodes.Status401Unauthorized,
-            Title = "Access tokens don't open hubs: those stay the browser's own session.",
-        }, options: null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
+        return WriteProblemAsync(context, StatusCodes.Status401Unauthorized, "Access tokens don't open hubs: those stay the browser's own session.");
     }
 
     /// <summary>
@@ -120,11 +110,51 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
     {
         if (GrifMcp.IsMcpRequest(context) || IsReadMethod(context.Request.Method) || !IsReadOnly(context.User))
             return next(context);
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        return context.Response.WriteAsJsonAsync(new ProblemDetails
+        return WriteProblemAsync(context, StatusCodes.Status403Forbidden, "The access token is read-only.");
+    }
+
+    /// <summary>
+    /// Middleware: a presented <c>grif_</c> token that fails to authenticate (unknown, revoked, expired, a locked account, or
+    /// the wrong surface for its scope) is refused with 401 on every endpoint, even an <see cref="Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute"/>
+    /// one. ASP.NET's own authorization (and so a requirement on its default or fallback policy) skips those entirely, which
+    /// would otherwise let a dropped or wrong Authorization header silently fall back to an anonymous 200 instead of a 401
+    /// (the docs' own example, an anonymous <c>GET /seasons</c>, with an MCP-only, revoked or expired token). Skips hubs,
+    /// which <see cref="RefuseHubConnections"/> already refuses with its own, more specific reason. Calling
+    /// <see cref="AuthenticationHttpContextExtensions.AuthenticateAsync(HttpContext, string)"/> again for this scheme reuses
+    /// <see cref="HandleAuthenticateAsync"/>'s own cached result for the request (the handler instance is cached per scheme
+    /// per request), so this costs no extra lookup when <c>UseAuthentication</c> already ran it.
+    /// </summary>
+    public static async Task RequireAValidToken(HttpContext context, RequestDelegate next)
+    {
+        if (BrowserAuth.IsHubRequest(context) || BrowserAuth.BearerToken(context) is not { } token || !token.StartsWith(AccessTokenService.Prefix, StringComparison.Ordinal))
         {
-            Status = StatusCodes.Status403Forbidden,
-            Title = "The access token is read-only.",
-        }, options: null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
+            await next(context);
+            return;
+        }
+
+        var result = await context.AuthenticateAsync(SchemeName);
+        if (result.Succeeded)
+        {
+            await next(context);
+            return;
+        }
+
+        await WriteProblemAsync(context, StatusCodes.Status401Unauthorized, result.Failure?.Message ?? "The access token is invalid.");
+    }
+
+    /// <summary>
+    /// The 401/403 body for every refusal above and <see cref="HandleChallengeAsync"/>, through <see cref="IProblemDetailsService"/>
+    /// (registered once, <c>AddProblemDetails</c> in Program) instead of each writing its own JSON by hand, so they share whatever
+    /// the app customises on every problem response (the trace ID). Falls back to writing the body itself if the service declines
+    /// (no formatter matched the request), which it practically never does for these: every caller here is a plain API client.
+    /// </summary>
+    private static async Task WriteProblemAsync(HttpContext context, int status, string title)
+    {
+        context.Response.StatusCode = status;
+        var problem = new ProblemDetails { Status = status, Title = title };
+        var written = await context.RequestServices.GetRequiredService<IProblemDetailsService>()
+            .WriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = problem });
+        if (!written)
+            await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
     }
 }

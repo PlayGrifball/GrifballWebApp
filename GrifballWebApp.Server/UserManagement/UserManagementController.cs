@@ -74,6 +74,7 @@ public class UserManagementController : ControllerBase
     }
 
     /// <summary>Merges one user into another, moving the source user's data onto the target and deleting it. Sysadmins only.</summary>
+    [MergesUsers]
     [DenyAccessToken]
     [HttpPost("user-merges", Name = "MergeUser")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

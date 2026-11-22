@@ -274,6 +274,62 @@ public class AccessTokenScopeTests
         }
     }
 
+    // ---------- A presented but invalid token: 401 everywhere, even an [AllowAnonymous] endpoint ----------
+
+    [Test]
+    public async Task AnUnknownToken_Is401_OnAnAllowAnonymousEndpoint_NotASilentAnonymous200()
+    {
+        // The docs' own example (api-tokens.md): an anonymous read, GET /seasons, with a token that doesn't exist.
+        using var client = Client($"{AccessTokenService.Prefix}{new string('0', 32)}_not-a-real-secret");
+
+        using var response = await client.GetAsync("/seasons");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(await Reason(response), Does.Contain("unknown, revoked or expired"));
+        }
+    }
+
+    [Test]
+    public async Task AnMcpOnlyToken_Is401_OnAnAllowAnonymousRestEndpoint_NotASilentAnonymous200()
+    {
+        var created = await NewAccessToken(AccessTokenScope.Mcp);
+        using var client = Client(created.Token);
+
+        using var response = await client.GetAsync("/seasons");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(await Reason(response), Does.Contain("REST API only"));
+        }
+    }
+
+    [Test]
+    public async Task ARevokedToken_Is401_OnAnAllowAnonymousEndpoint_NotASilentAnonymous200()
+    {
+        var created = await NewAccessToken(AccessTokenScope.Api);
+        using var revoker = Client(await ApiToken());
+        await revoker.PostAsync($"/identity/access-tokens/{created.AccessToken.ID}/revoke", null);
+        using var client = Client(created.Token);
+
+        using var response = await client.GetAsync("/seasons");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+    }
+
+    [Test]
+    public async Task AValidToken_StillReachesAnAllowAnonymousEndpoint_AsNormal()
+    {
+        var created = await NewAccessToken(AccessTokenScope.Api);
+        using var client = Client(created.Token);
+
+        using var response = await client.GetAsync("/seasons");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
     // ---------- Never allowed with any token (DenyAccessTokenAttribute) ----------
 
     private static async Task<string> ReadWriteApiToken() => (await NewAccessToken(AccessTokenScope.Both)).Token;

@@ -499,4 +499,22 @@ public class GrifToolsTests
                 .Select(m => GrifTools.RolesByName[GrifTools.Name(m)]), Has.None.Empty, "every staff tool names its roles");
         }
     }
+
+    [Test]
+    public void IsReadOnlyTool_AnUnknownName_FailsClosed()
+    {
+        // GetValueOrDefault's default for a missing key is default(ToolEffect), which is ReadsOnly (0): that would make
+        // an unknown tool name read-only by accident. IsReadOnlyTool must refuse it instead (#549 review).
+        Assert.That(GrifTools.IsReadOnlyTool("not_a_real_tool"), Is.False);
+    }
+
+    [Test]
+    public void IsReadOnlyTool_AgreesWithEffectByName_ForEveryRealTool()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            foreach (var (name, effect) in GrifTools.EffectByName)
+                Assert.That(GrifTools.IsReadOnlyTool(name), Is.EqualTo(effect is ToolEffect.ReadsOnly), name);
+        }
+    }
 }

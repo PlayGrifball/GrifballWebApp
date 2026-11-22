@@ -7,32 +7,31 @@
     for the details. Its scope can't be changed after it's made.
   </p>
 
-  <form class="at-form" (submit)="$event.preventDefault(); create()">
+  <form class="at-form" [formGroup]="form" (ngSubmit)="create()">
     <div class="at-field">
       <label class="at-label" for="at-name">Name</label>
-      <input id="at-name" class="at-input" type="text" maxlength="100" autocomplete="off" placeholder="Claude Code" [value]="name()"
-        (input)="name.set($any($event.target).value)">
+      <input id="at-name" class="at-input" type="text" maxlength="100" autocomplete="off" placeholder="Claude Code" formControlName="name">
     </div>
     <div class="at-field">
       <label class="at-label" for="at-days">Lasts</label>
-      <select id="at-days" class="at-input" (change)="days.set(+$any($event.target).value)">
+      <select id="at-days" class="at-input" formControlName="days">
         @for (d of lifetimes; track d) {
-          <option [value]="d" [selected]="d === days()">{{d}} days</option>
+          <option [ngValue]="d">{{d}} days</option>
         }
       </select>
     </div>
     <div class="at-field">
       <label class="at-label" for="at-scope">Where</label>
-      <select id="at-scope" class="at-input" (change)="scope.set($any($event.target).value)">
+      <select id="at-scope" class="at-input" formControlName="scope">
         @for (s of scopes; track s.value) {
-          <option [value]="s.value" [selected]="s.value === scope()">{{s.label}}</option>
+          <option [ngValue]="s.value">{{s.label}}</option>
         }
       </select>
     </div>
     <div class="at-field at-field--checkbox">
-      <mat-checkbox id="at-readonly" [checked]="readOnly()" (change)="readOnly.set($event.checked)">Read-only</mat-checkbox>
+      <mat-checkbox id="at-readonly" formControlName="readOnly">Read-only</mat-checkbox>
     </div>
-    <button type="submit" class="hud-btn at-btn" [disabled]="creating() || !name().trim()">Make a token</button>
+    <button type="submit" class="hud-btn at-btn" [disabled]="!canCreate()">Make a token</button>
   </form>
 
   @if (created(); as token) {
