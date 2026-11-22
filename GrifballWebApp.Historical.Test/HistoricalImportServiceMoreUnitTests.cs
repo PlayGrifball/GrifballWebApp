@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
@@ -38,7 +39,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     {
         _dataPull = Substitute.For<IDataPullService>();
         _service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>());
     }
 
     /// <summary>MCC Cup 2016: Alpha One and Alpha Two on Alpha, Beta One on Beta.</summary>

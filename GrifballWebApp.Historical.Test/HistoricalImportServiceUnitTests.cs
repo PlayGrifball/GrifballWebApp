@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Archive;
@@ -40,7 +41,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     {
         _dataPull = Substitute.For<IDataPullService>();
         _service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>());
     }
 
     // HistoricalSourceID is "{workbook}/{sheet}" verbatim (HistoricalKeys.SeasonSourceId): the workbook is slugged
@@ -476,7 +477,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     {
         var logger = new FakeLogger<HistoricalImportService>();
         var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            logger, new GamertagMatching(Context), TimeProvider.System);
+            logger, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>());
 
         var report = await service.Import(Input(
             Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10)),

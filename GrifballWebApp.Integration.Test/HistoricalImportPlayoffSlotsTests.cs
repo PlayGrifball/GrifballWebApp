@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Integration.Test;
@@ -37,7 +38,7 @@ public class HistoricalImportPlayoffSlotsTests
     {
         _context = await TestDatabase.NewGrifballContext();
         _service = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance,
-            new GamertagMatching(_context), TimeProvider.System);
+            new GamertagMatching(_context), TimeProvider.System, Substitute.For<IUserMergeService>());
     }
 
     [TearDown]

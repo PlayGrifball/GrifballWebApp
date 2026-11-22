@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
@@ -35,7 +36,7 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     public void SetUp()
     {
         _service = new HistoricalImportService(Context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>());
     }
 
     private static ArchiveBracketSeries Series(Bracket bracket, int round, int number, string home, string away, SeasonMatchSide? winner = null,

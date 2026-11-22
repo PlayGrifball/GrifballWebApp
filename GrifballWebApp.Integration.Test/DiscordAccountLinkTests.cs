@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using IdentitySignInResult = Microsoft.AspNetCore.Identity.SignInResult;
 using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Integration.Test;
@@ -31,7 +32,7 @@ public class DiscordAccountLinkServiceTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>());
+        _service = new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>(), Substitute.For<IUserMergeService>());
     }
 
     [TearDown]
@@ -265,7 +266,7 @@ public class IdentityControllerDiscordLinkTests
                 ? IdentitySignInResult.Failed : IdentitySignInResult.Success);
         _controller = new IdentityController(Substitute.For<ILogger<IdentityController>>(), _userManager, _signInManager,
             Substitute.For<IOptionsMonitor<BearerTokenOptions>>(), TimeProvider.System, Substitute.For<IUserManagementService>(),
-            new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>()));
+            new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>(), Substitute.For<IUserMergeService>()));
         _controller.WithAnonymousUser();
         _controller.HttpContext.RequestServices = new ServiceCollection().AddSingleton(Substitute.For<IAuthenticationService>()).BuildServiceProvider();
     }

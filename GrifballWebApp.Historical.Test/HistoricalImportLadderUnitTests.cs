@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.LateLeague;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +27,7 @@ internal sealed class HistoricalImportLadderUnitTests : ApplicationDbContextTest
     public void SetUp()
     {
         _service = new HistoricalImportService(Context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>());
     }
 
     private static LadderStanding Rank(string gamertag, int? position, string? league = "Silver", int? mmr = 350) => new()

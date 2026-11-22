@@ -11,6 +11,7 @@ using NSubstitute;
 using Match = GrifballWebApp.Domain.Halo.Match;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Historical.Import;
 
@@ -39,7 +40,7 @@ public class HistoricalImportRecordedGamesTests
     {
         _context = await TestDatabase.NewGrifballContext();
         _service = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance,
-            new GamertagMatching(_context), TimeProvider.System);
+            new GamertagMatching(_context), TimeProvider.System, Substitute.For<IUserMergeService>());
     }
 
     [TearDown]
@@ -475,7 +476,7 @@ public class HistoricalImportRecordedGamesTests
     public async Task ALateLeagueSeasonThatFails_IsRolledBack_AndReported()
     {
         var failing = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
-            new GamertagMatching(_context), new BrokenClock());
+            new GamertagMatching(_context), new BrokenClock(), Substitute.For<IUserMergeService>());
 
         var report = await failing.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
 

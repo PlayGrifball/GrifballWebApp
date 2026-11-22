@@ -191,7 +191,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(new TeamCommandsHandler(lookups, new TeamPageService(Db, _time), new TeamHistoryService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), vods, urls))
             .AddSingleton(new MatchCommandsHandler(lookups, seasonMatches, new MatchDetailsService(Db), urls, null!, null!))
             .AddSingleton(recentMatches)
-            .AddSingleton(new DiscordSetGamertag(Db, Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null), _setGamertag))
+            .AddSingleton(new DiscordSetGamertag(Db, Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null), _setGamertag, Substitute.For<IUserMergeService>()))
             .AddSingleton(new MatchmakingButtonHandler(membership, Substitute.For<IServiceScopeFactory>(), Db, null!, null!, new RecordingLogger<MatchmakingButtonHandler>()))
             .AddSingleton(new SignupButtonHandler(Db, signups, urls))
             .AddSingleton(new MatchmakingStringMenuHandler(Db, null!, null!))

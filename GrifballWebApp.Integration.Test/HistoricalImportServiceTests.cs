@@ -58,7 +58,7 @@ public class HistoricalImportServiceTests
         _context = await TestDatabase.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
         _service = new HistoricalImportService(_context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance,
-            new GamertagMatching(_context), TimeProvider.System);
+            new GamertagMatching(_context), TimeProvider.System, Substitute.For<IUserMergeService>());
     }
 
     [TearDown]

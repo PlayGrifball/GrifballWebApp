@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -34,7 +35,7 @@ public class ExternalLoginsControllerDatabaseTests
         _signInManager = Substitute.For<SignInManager<User>>(
             _userManager, Substitute.For<IHttpContextAccessor>(),
             Substitute.For<IUserClaimsPrincipalFactory<User>>(), null, null, null, null);
-        _controller = new ExternalLoginsController(_signInManager, new ExternalLoginService(_userManager, new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>())), new EphemeralDataProtectionProvider());
+        _controller = new ExternalLoginsController(_signInManager, new ExternalLoginService(_userManager, new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>(), Substitute.For<IUserMergeService>())), new EphemeralDataProtectionProvider());
     }
 
     [TearDown]

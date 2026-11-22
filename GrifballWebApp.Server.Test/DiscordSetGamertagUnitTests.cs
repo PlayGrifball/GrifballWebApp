@@ -47,7 +47,7 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
         var elsewhere = User.Register("someoneElse");
         elsewhere.LinkDiscord(DiscordUser.FromDiscord(111, "other"));
         users.FindByLoginAsync("Discord", "909090").Returns(elsewhere);
-        var handler = new DiscordSetGamertag(Db, users, Substitute.For<ISetGamertagService>());
+        var handler = new DiscordSetGamertag(Db, users, Substitute.For<ISetGamertagService>(), Substitute.For<IUserMergeService>());
         var discord = new CommandContextRecorder(discordUserId: 909090);
 
         await handler.SetGamertag(discord.Context, "NewGamertag");
@@ -60,7 +60,7 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
     {
         var setGamertag = Substitute.For<ISetGamertagService>();
         setGamertag.SetGamertag(Arg.Any<int>(), "NewGamertag").Returns((string?)null);
-        var handler = new DiscordSetGamertag(Db, RealUsers(), setGamertag);
+        var handler = new DiscordSetGamertag(Db, RealUsers(), setGamertag, Substitute.For<IUserMergeService>());
         var discord = new CommandContextRecorder(discordUserId: 555555);
         discord.Context.Interaction.User.Username.Returns("NewPlayer");
 
@@ -90,7 +90,7 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
         var discord = new CommandContextRecorder(discordUserId: 555555);
         discord.Context.Interaction.User.Username.Returns("NewPlayer");
 
-        await new DiscordSetGamertag(Db, users, setGamertag).SetGamertag(discord.Context, "Taken");
+        await new DiscordSetGamertag(Db, users, setGamertag, Substitute.For<IUserMergeService>()).SetGamertag(discord.Context, "Taken");
 
         Db.ChangeTracker.Clear();
         var linked = await Db.Users.SingleAsync(u => u.Id == siteAccount.Id);
@@ -111,7 +111,7 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
         var discord = new CommandContextRecorder(discordUserId: 555555);
         discord.Context.Interaction.User.Username.Returns("NewPlayer");
 
-        await new DiscordSetGamertag(Db, users, setGamertag).SetGamertag(discord.Context, "NewGamertag");
+        await new DiscordSetGamertag(Db, users, setGamertag, Substitute.For<IUserMergeService>()).SetGamertag(discord.Context, "NewGamertag");
 
         Assert.That(discord.Content(), Is.EqualTo("Failed to create user account"));
         await setGamertag.DidNotReceiveWithAnyArgs().SetGamertag(default, default!);

@@ -75,7 +75,8 @@ public class ModalInteractionsTests
         var discordSetGamertag = new DiscordSetGamertag(
             _context,
             _scope.ServiceProvider.GetRequiredService<UserManager<User>>(),
-            _setGamertagService);
+            _setGamertagService,
+            Substitute.For<IUserMergeService>());
         return (discordSetGamertag, context.ToDiscordContext());
     }
 
