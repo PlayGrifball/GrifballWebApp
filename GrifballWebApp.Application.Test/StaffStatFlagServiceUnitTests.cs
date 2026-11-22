@@ -204,6 +204,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     public async Task OpenFlagCountAsync_WithNoTimeProviderGiven_StillWorks()
     {
         var game = SeedGame("g1");
+        await Context.SaveChangesAsync();
         Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt));
         await Context.SaveChangesAsync();
 
