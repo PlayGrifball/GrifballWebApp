@@ -174,15 +174,16 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         => new(_watchers, _hubContext, scopes ?? new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             NullLogger<LiveDelivery>.Instance, configuration ?? new ConfigurationBuilder().Build(), redis);
 
-    /// <summary>A Redis whose reads succeed (nothing cached yet) and whose lock is taken, but storing a build fails.</summary>
-    private static AppRedis FlakyStoreRedis()
+    /// <summary>A Redis whose reads succeed (nothing cached yet) and whose lock is taken, but storing a build fails
+    /// with <paramref name="storeFailure"/> (a <see cref="RedisException"/> or a <see cref="TimeoutException"/>).</summary>
+    private static AppRedis FlakyStoreRedis(Exception storeFailure)
     {
         var db = Substitute.For<IDatabase>();
         db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
         db.StringSetAsync(Arg.Is<RedisKey>(k => k.ToString().EndsWith(":lock", StringComparison.Ordinal)), Arg.Any<RedisValue>(),
             Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(true);
         db.StringSetAsync(Arg.Is<RedisKey>(k => !k.ToString().EndsWith(":lock", StringComparison.Ordinal)), Arg.Any<RedisValue>(),
-            Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(Task.FromException<bool>(new RedisException("could not store")));
+            Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(Task.FromException<bool>(storeFailure));
         var connection = Substitute.For<IConnectionMultiplexer>();
         connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
         return new AppRedis(_ => Task.FromResult(connection));
@@ -269,8 +270,9 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
     }
 
-    [Test]
-    public async Task AStoreFailureAfterABuild_ReturnsTheDataAlreadyBuilt_RatherThanBuildingAgain()
+    [TestCase(typeof(RedisException))]
+    [TestCase(typeof(TimeoutException))]
+    public async Task AStoreFailureAfterABuild_ReturnsTheDataAlreadyBuilt_RatherThanBuildingAgain(Type exceptionType)
     {
         var built = 0;
         var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
@@ -280,8 +282,9 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
             return Task.FromResult<object?>(new QueueLiveDto(5));
         });
         _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var storeFailure = (Exception)Activator.CreateInstance(exceptionType, "could not store")!;
 
-        await Delivery(Scopes(snapshots), FlakyStoreRedis()).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+        await Delivery(Scopes(snapshots), FlakyStoreRedis(storeFailure)).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
 
         using (Assert.EnterMultipleScope())
         {
