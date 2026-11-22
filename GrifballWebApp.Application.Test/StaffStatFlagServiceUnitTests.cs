@@ -49,7 +49,12 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
 
         var flags = await _staff.OpenFlagsAsync();
 
-        Assert.That(flags.Select(f => f.Reason), Is.EqualTo(new[] { "newer", "older" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flags, Has.Count.EqualTo(2));
+            Assert.That(flags[0].Reason, Is.EqualTo("newer"));
+            Assert.That(flags[1].Reason, Is.EqualTo("older"));
+        }
     }
 
     [Test]
@@ -78,7 +83,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
 
         var flags = await _staff.OpenFlagsForGameAsync(null, game.RecordedGameID);
 
-        Assert.That(flags.Select(f => f.Reason), Is.EqualTo(new[] { "of the recorded game" }));
+        Assert.That(flags.Single().Reason, Is.EqualTo("of the recorded game"));
     }
 
     [Test]
@@ -93,7 +98,7 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
 
         var flags = await _staff.OpenFlagsForGameAsync(MatchID, null);
 
-        Assert.That(flags.Select(f => f.Reason), Is.EqualTo(new[] { "of the match" }));
+        Assert.That(flags.Single().Reason, Is.EqualTo("of the match"));
     }
 
     [Test]
@@ -114,7 +119,8 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(flags.Select(f => f.Reason), Is.EqualTo(new[] { "of this match's game" }));
+            Assert.That(flags, Has.Count.EqualTo(1));
+            Assert.That(flags[0].Reason, Is.EqualTo("of this match's game"));
             Assert.That(flags[0].SeasonMatchID, Is.EqualTo(seeded.SeasonMatch.SeasonMatchID));
             Assert.That(flags[0].GameNumber, Is.EqualTo(1));
         }
