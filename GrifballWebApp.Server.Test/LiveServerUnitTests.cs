@@ -176,20 +176,21 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
 
     /// <summary>
     /// A Redis whose reads succeed (nothing cached yet); its first write (the lock, always called with exactly 4 args -
-    /// key, value, expiry, when - binding to <c>IDatabaseAsync</c>'s older 4-parameter overload with no
-    /// <see cref="CommandFlags"/>) succeeds; its second (the data, always called with exactly 3 args once a build is
-    /// done, binding to the newer <see cref="Expiration"/>/<see cref="ValueCondition"/>-based overload) fails with
-    /// <paramref name="storeFailure"/> (a <see cref="RedisException"/> or a <see cref="TimeoutException"/>). The two
-    /// calls are, genuinely, two different overloads: four earlier versions of this double configured only one
-    /// (mostly the 5-parameter one with <see cref="CommandFlags"/>, which neither production call actually binds to),
-    /// so neither ever matched and the lock was never won.
+    /// key, value, expiry, when - binding to <c>IDatabaseAsync</c>'s older, hidden 4-parameter overload with neither
+    /// <c>keepTtl</c> nor <see cref="CommandFlags"/>) succeeds; its second (the data, always called with exactly 3 args
+    /// once a build is done, binding to the newer, visible overload with a defaulted <c>keepTtl</c> bool before
+    /// <c>when</c>) fails with <paramref name="storeFailure"/> (a <see cref="RedisException"/> or a
+    /// <see cref="TimeoutException"/>). The two calls really are two different overloads (confirmed from
+    /// IDatabaseAsync's own source for the version here): earlier versions of this double configured a single
+    /// 5-parameter (..., When, CommandFlags) shape that matches neither, so neither call was ever actually
+    /// intercepted and the lock was never won.
     /// </summary>
     private static AppRedis FlakyStoreRedis(Exception storeFailure)
     {
         var db = Substitute.For<IDatabase>();
         db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
         db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(true);
-        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<Expiration>(), Arg.Any<ValueCondition>(), Arg.Any<CommandFlags>())
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
             .Returns(_ => throw storeFailure);
         var connection = Substitute.For<IConnectionMultiplexer>();
         connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
