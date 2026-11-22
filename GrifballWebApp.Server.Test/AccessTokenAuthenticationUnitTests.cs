@@ -104,12 +104,12 @@ public class AccessTokenAuthenticationUnitTests
 
         await AccessTokenAuthentication.RefuseWritesFromReadOnlyTokens(context, _ => { called = true; return Task.CompletedTask; });
 
+        context.Response.Body.Position = 0;
+        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(called, Is.False);
             Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
-            context.Response.Body.Position = 0;
-            var body = new StreamReader(context.Response.Body).ReadToEnd();
             Assert.That(body, Does.Contain("read-only"));
         }
     }
