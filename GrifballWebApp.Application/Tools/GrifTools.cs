@@ -165,12 +165,27 @@ public static class GrifTools
         = All.SelectMany(set => Methods(set.Type)).ToDictionary(Name, Roles);
 
     /// <summary>
+    /// Every tool as a chat model's function, made once (its schema read from the method, its class's factory worked out): each call
+    /// runs as the caller its arguments carry (<see cref="InAScopeOfItsOwn"/> binds it), so a reply only binds its caller. Declared
+    /// here, ahead of where it's otherwise used, so <see cref="EffectByName"/> can derive from this one list instead of
+    /// walking <see cref="All"/> a second time.
+    /// </summary>
+    private static readonly (MethodInfo Method, AIFunction Function, ToolEffect Effect)[] Functions = All.SelectMany(set =>
+        {
+            var create = Factory(set.Type);
+            return Methods(set.Type).Select(method => (method, (AIFunction)AIFunctionFactory.Create(method,
+                args => create(args.Services!, (ToolCaller)args.Context![typeof(ToolCaller)]!),
+                new AIFunctionFactoryOptions { Name = Name(method) }), set.Effect));
+        }).ToArray();
+
+    /// <summary>
     /// Every tool's effect by its name, for a host that knows only the name (a read-only access token's filter, which
     /// keeps only <see cref="ToolEffect.ReadsOnly"/> tools: not <see cref="ToolEffect.ChangesData"/>, and not
-    /// <see cref="ToolEffect.QueuesHaloPull"/> either, which saves games it finds).
+    /// <see cref="ToolEffect.QueuesHaloPull"/> either, which saves games it finds). Derived from <see cref="Functions"/>,
+    /// the one list every tool's name and effect already come from, rather than re-deriving it from <see cref="All"/>.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, ToolEffect> EffectByName
-        = All.SelectMany(set => Methods(set.Type).Select(m => (Name: Name(m), set.Effect))).ToDictionary(t => t.Name, t => t.Effect);
+        = Functions.ToDictionary(t => Name(t.Method), t => t.Effect);
 
     /// <summary>
     /// Whether a read-only access token may list or call the tool named <paramref name="name"/>: it is in
@@ -241,19 +256,6 @@ public static class GrifTools
 
     /// <summary>The tools that change data, found once.</summary>
     private static readonly MethodInfo[] ChangingDataTools = ChangingData.SelectMany(Methods).ToArray();
-
-    /// <summary>
-    /// Every tool as a chat model's function, made once (its schema read from the method, its class's factory worked out): each call
-    /// runs as the caller its arguments carry (<see cref="InAScopeOfItsOwn"/> binds it), so a reply only binds its caller.
-    /// </summary>
-    private static readonly (MethodInfo Method, AIFunction Function, ToolEffect Effect)[] Functions = All.SelectMany(set =>
-        {
-            var create = Factory(set.Type);
-            return Methods(set.Type).Select(method => (method, (AIFunction)AIFunctionFactory.Create(method,
-                args => create(args.Services!, (ToolCaller)args.Context![typeof(ToolCaller)]!),
-                new AIFunctionFactoryOptions { Name = Name(method) }), set.Effect));
-        })
-        .ToArray();
 
     /// <summary>
     /// The tag on a chat tool call's <c>execute_tool</c> span that says how it went: <c>ok</c>, <c>refused</c> (a

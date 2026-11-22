@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Scheduler;
 using Microsoft.Extensions.Time.Testing;
@@ -45,7 +46,8 @@ public class StaffToolPortsUnitTests
     private JobControl Control()
     {
         var recurring = new RecurringJobs().AddOnDemand<ScheduleRecommendationJob>("schedule-recommendation", "Works out a schedule");
-        return new JobControl(new JobsService(_schedulers, _history, recurring, new FakeTimeProvider(Now)));
+        var currentUser = Substitute.For<ICurrentUserService>();
+        return new JobControl(new JobsService(_schedulers, _history, recurring, new FakeTimeProvider(Now), currentUser));
     }
 
     [Test]

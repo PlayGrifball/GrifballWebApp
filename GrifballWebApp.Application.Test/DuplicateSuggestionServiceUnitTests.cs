@@ -24,7 +24,7 @@ internal sealed class DuplicateSuggestionServiceUnitTests : ApplicationDbContext
     [SetUp]
     public void SetUp()
     {
-        _merges = new UserMergeService(Context);
+        _merges = new UserMergeService(Context, Substitute.For<ICurrentUserService>());
         _service = new DuplicateSuggestionService(Context, _merges, new FakeTimeProvider(Now));
     }
 

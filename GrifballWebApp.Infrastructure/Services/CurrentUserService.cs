@@ -56,5 +56,5 @@ public class CurrentUserService : ICurrentUserService
     /// <summary>Read straight off the current request's principal, not cached: a job or the Discord bot has no
     /// HttpContext at all, so this is false for both, same as it is for a browser's cookie session.</summary>
     public bool IsAccessToken
-        => _httpContextAccessor.HttpContext?.User.HasClaim(c => c.Type == AccessTokenClaimTypes.TokenId) == true;
+        => _httpContextAccessor.HttpContext is { } context && AccessTokenClaimTypes.IsAccessToken(context.User);
 }

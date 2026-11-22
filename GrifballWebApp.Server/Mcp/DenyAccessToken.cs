@@ -1,4 +1,6 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace GrifballWebApp.Server.Mcp;
@@ -35,10 +37,28 @@ public sealed class DenyAccessTokenFilter : IAsyncAuthorizationFilter
     {
         if (!AccessTokenAuthentication.IsAccessToken(context.HttpContext.User))
             return;
-        if (!context.ActionDescriptor.EndpointMetadata.OfType<DenyAccessTokenAttribute>().Any())
+        if (!IsDenied(context.ActionDescriptor))
             return;
 
         await AccessTokenAuthentication.WriteProblemAsync(context.HttpContext, StatusCodes.Status403Forbidden, "An access token may not do this.");
         context.Result = new EmptyResult();
+    }
+
+    /// <summary>
+    /// The nearest explicit choice wins, same as <see cref="GrifballWebApp.Architecture.Test.AccessTokenAuthorizationTests"/>
+    /// expects: the action's own <see cref="DenyAccessTokenAttribute"/> or <see cref="AllowAccessTokenAttribute"/>, if it
+    /// has one, decides it; only when it has neither does its controller's apply. A method <c>[AllowAccessToken]</c> on a
+    /// class marked <c>[DenyAccessToken]</c> (or the reverse) is the method's choice, not the class's.
+    /// </summary>
+    internal static bool IsDenied(ActionDescriptor action)
+    {
+        if (action is not ControllerActionDescriptor controllerAction)
+            return action.EndpointMetadata.OfType<DenyAccessTokenAttribute>().Any();
+
+        if (controllerAction.MethodInfo.GetCustomAttribute<DenyAccessTokenAttribute>(inherit: true) is not null)
+            return true;
+        if (controllerAction.MethodInfo.GetCustomAttribute<AllowAccessTokenAttribute>(inherit: true) is not null)
+            return false;
+        return controllerAction.ControllerTypeInfo.GetCustomAttribute<DenyAccessTokenAttribute>(inherit: true) is not null;
     }
 }

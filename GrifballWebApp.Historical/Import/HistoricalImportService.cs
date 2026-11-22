@@ -190,7 +190,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     private readonly GrifballWebApp.Application.Profile.IUserMergeService _merges;
 
     public HistoricalImportService(IApplicationDbContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger, GamertagMatching matching, TimeProvider timeProvider,
-        GrifballWebApp.Application.Profile.IUserMergeService? merges = null)
+        GrifballWebApp.Application.Profile.IUserMergeService merges)
     {
         _context = context;
         _dataPullService = dataPullService;
@@ -198,7 +198,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         _logger = logger;
         _matching = matching;
         _timeProvider = timeProvider;
-        _merges = merges ?? new GrifballWebApp.Application.Profile.UserMergeService(context, timeProvider);
+        _merges = merges;
     }
 
     /// <summary>A season to import: its archive entries (regular season and playoffs), titles and Waypoint matches.</summary>

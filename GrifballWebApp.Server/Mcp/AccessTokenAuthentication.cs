@@ -86,8 +86,10 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
         await WriteProblemAsync(Context, StatusCodes.Status401Unauthorized, authenticated.Failure?.Message ?? "Not signed in.");
     }
 
-    /// <summary>Whether <paramref name="user"/> was signed in by an access token (<see cref="TokenIdClaimType"/>), whatever its scope.</summary>
-    public static bool IsAccessToken(ClaimsPrincipal user) => user.HasClaim(c => c.Type == TokenIdClaimType);
+    /// <summary>Whether <paramref name="user"/> was signed in by an access token (<see cref="TokenIdClaimType"/>), whatever its scope.
+    /// An alias for <see cref="AccessTokenClaimTypes.IsAccessToken"/>, kept here since so much of this feature already names it this
+    /// way; <see cref="ICurrentUserService.IsAccessToken"/>'s own implementation shares that same one check.</summary>
+    public static bool IsAccessToken(ClaimsPrincipal user) => AccessTokenClaimTypes.IsAccessToken(user);
 
     /// <summary>Whether the access token that signed <paramref name="user"/> in is read-only; false for anyone else.</summary>
     public static bool IsReadOnly(ClaimsPrincipal user) => string.Equals(user.FindFirstValue(ReadOnlyClaimType), "true", StringComparison.Ordinal);
@@ -153,12 +155,16 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
     /// The 401/403 body for every refusal above, <see cref="HandleChallengeAsync"/> and <see cref="DenyAccessTokenFilter"/>,
     /// through <see cref="IProblemDetailsService"/> (registered once, <c>AddProblemDetails</c> in Program) instead of each
     /// writing its own JSON by hand, so they share whatever the app customises on every problem response (the trace ID).
-    /// Internal, not private: the filter lives in a different file (same assembly) but the same rule.
+    /// <see cref="IProblemDetailsService.TryWriteAsync"/>, not <c>WriteAsync</c>: that one throws when no registered
+    /// writer can answer the request's <c>Accept</c> header (<c>text/html</c>, or <c>text/event-stream</c> for a hub's
+    /// server-sent events fallback), which <see cref="GlobalExceptionHandler"/> would then turn into a 500 - the status
+    /// code this already set is the fallback when nothing can write a body. Internal, not private: the filter lives in
+    /// a different file (same assembly) but the same rule.
     /// </summary>
     internal static async Task WriteProblemAsync(HttpContext context, int status, string title)
     {
         context.Response.StatusCode = status;
         await context.RequestServices.GetRequiredService<IProblemDetailsService>()
-            .WriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = new ProblemDetails { Status = status, Title = title } });
+            .TryWriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = new ProblemDetails { Status = status, Title = title } });
     }
 }

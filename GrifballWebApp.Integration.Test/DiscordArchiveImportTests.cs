@@ -2,6 +2,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -35,7 +36,7 @@ public class DiscordArchiveImportTests
     {
         _context = await TestDatabase.NewGrifballContext();
         _import = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
-            new GamertagMatching(_context), TimeProvider.System, new UserMergeService(_context));
+            new GamertagMatching(_context), TimeProvider.System, new UserMergeService(_context, Substitute.For<ICurrentUserService>()));
     }
 
     [TearDown]
@@ -72,7 +73,7 @@ public class DiscordArchiveImportTests
 
         // The person signs in with Discord: the sign-in finds no account to join (a placeholder is none), makes theirs,
         // and linking it merges the placeholder in
-        var links = new DiscordAccountLinkService(_context, NullLogger<DiscordAccountLinkService>.Instance, new UserMergeService(_context));
+        var links = new DiscordAccountLinkService(_context, NullLogger<DiscordAccountLinkService>.Instance, new UserMergeService(_context, Substitute.For<ICurrentUserService>()));
         Assert.That(await links.FindBotLinkedUserAsync(DiscordAccountLinkService.DiscordProvider, Discord.ToString()), Is.Null);
         var person = User.Seed(userName: "activehate");
         _context.Users.Add(person);
@@ -104,7 +105,7 @@ public class DiscordArchiveImportTests
         var season = await _context.AddSeason("Clash");
         await _context.AddTeam(season, "A", person, 1);
         await _context.AddTeam(season, "B", placeholder, 2);
-        var links = new DiscordAccountLinkService(_context, NullLogger<DiscordAccountLinkService>.Instance, new UserMergeService(_context));
+        var links = new DiscordAccountLinkService(_context, NullLogger<DiscordAccountLinkService>.Instance, new UserMergeService(_context, Substitute.For<ICurrentUserService>()));
 
         var result = await links.LinkAsync(person, DiscordAccountLinkService.DiscordProvider, Discord.ToString(), "ActiveHate");
 
@@ -139,7 +140,7 @@ public class DiscordArchiveImportTests
         dummy.NormalizedUserName = "NOTAPLACEHOLDER";
         dummy.Rename(displayName);
         await _context.SaveChangesAsync();
-        var links = new DiscordAccountLinkService(_context, NullLogger<DiscordAccountLinkService>.Instance, new UserMergeService(_context));
+        var links = new DiscordAccountLinkService(_context, NullLogger<DiscordAccountLinkService>.Instance, new UserMergeService(_context, Substitute.For<ICurrentUserService>()));
 
         var result = await links.LinkAsync(person, DiscordAccountLinkService.DiscordProvider, Discord.ToString(), "ActiveHate");
 
@@ -332,7 +333,7 @@ public class DiscordArchiveImportTests
         await Import(Player("Someone Else"));
         var claim = await _context.GamertagClaims.SingleAsync();
 
-        await new GamertagClaimService(_context, new UserMergeService(_context)).Approve(claim.GamertagClaimID);
+        await new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())).Approve(claim.GamertagClaimID);
 
         _context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())

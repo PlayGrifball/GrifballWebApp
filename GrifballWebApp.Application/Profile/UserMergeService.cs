@@ -31,11 +31,16 @@ public class UserMergeService : IUserMergeService
 {
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
-    private readonly ICurrentUserService? _currentUser;
+    private readonly ICurrentUserService _currentUser;
     /// <summary>The merge in progress: every SaveChanges of it goes through this, so the audit record has all it changed.</summary>
     private MergeManifestRecorder _recorder = null!;
 
-    public UserMergeService(IApplicationDbContext context, TimeProvider? time = null, ICurrentUserService? currentUser = null)
+    /// <summary>
+    /// <paramref name="currentUser"/> is required, not optional: an omitted one used to default to signed in (not a
+    /// token), the one way <see cref="RefuseAnAccessToken"/> could fail open (#549 review). Every caller - including
+    /// every test - must say explicitly whether the current request is a token's.
+    /// </summary>
+    public UserMergeService(IApplicationDbContext context, ICurrentUserService currentUser, TimeProvider? time = null)
     {
         _context = context;
         _time = time ?? TimeProvider.System;
@@ -46,7 +51,7 @@ public class UserMergeService : IUserMergeService
     /// the REST endpoints): a personal access token may never merge, whatever marked the caller's own endpoint (#549).</summary>
     private void RefuseAnAccessToken()
     {
-        if (_currentUser?.IsAccessToken == true)
+        if (_currentUser.IsAccessToken)
             throw new MergeDeniedToAccessTokenException();
     }
 
@@ -129,7 +134,7 @@ public class UserMergeService : IUserMergeService
         if (options.TransferChampionships)
             await TransferChampionships(mergeToId, mergeFromId, ct);
 
-        await SettleClaims(mergeTo, mergeFromId, options.TriggeredByUserID ?? _currentUser?.GetCurrentUserId(), ct);
+        await SettleClaims(mergeTo, mergeFromId, options.TriggeredByUserID ?? _currentUser.GetCurrentUserId(), ct);
 
         // Delete just in case it doesnt cascade
         var rolesToDelete = await _context.UserRoles.Where(x => x.UserId == mergeFromId).ToArrayAsync(ct);
@@ -157,7 +162,7 @@ public class UserMergeService : IUserMergeService
         _context.UserMerges.Add(UserMerge.Record(
             mergedAt: _time.GetUtcNow().UtcDateTime,
             trigger: options.Trigger,
-            triggeredByUserID: options.TriggeredByUserID ?? _currentUser?.GetCurrentUserId(),
+            triggeredByUserID: options.TriggeredByUserID ?? _currentUser.GetCurrentUserId(),
             reason: options.Reason,
             sourceUserID: mergeFromId,
             sourceUserName: sourceUserName,

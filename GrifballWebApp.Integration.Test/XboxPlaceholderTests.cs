@@ -3,6 +3,7 @@ using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -162,7 +163,7 @@ public class XboxPlaceholderTests
         var getsert = Substitute.For<IGetsertXboxUserService>();
         getsert.GetsertXboxUserByGamertag("GT301", Arg.Any<CancellationToken>())
             .Returns(async _ => ((XboxUser?)await _context.XboxUsers.Include(x => x.User).FirstAsync(x => x.XboxUserID == 301), (string?)null));
-        var service = new SetGamertagService(_context, getsert, new UserMergeService(_context), _matching);
+        var service = new SetGamertagService(_context, getsert, new UserMergeService(_context, Substitute.For<ICurrentUserService>()), _matching);
 
         var error = await service.SetGamertag(person.Id, "GT301");
 
@@ -190,7 +191,7 @@ public class XboxPlaceholderTests
         _context.GamertagClaims.Add(claim);
         await _context.SaveChangesAsync();
 
-        await new GamertagClaimService(_context, new UserMergeService(_context)).Approve(claim.GamertagClaimID);
+        await new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())).Approve(claim.GamertagClaimID);
 
         _context.ChangeTracker.Clear();
         var merge = await _context.UserMerges.SingleAsync();

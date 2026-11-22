@@ -87,7 +87,7 @@ public class GamertagClaimAggregateTests
             var currentUser = Substitute.For<ICurrentUserService>();
             currentUser.GetCurrentUserId().Returns(sysadmin.Id);
             var time = new FakeTimeProvider(At);
-            var service = new GamertagClaimService(context, new UserMergeService(context), currentUser, time);
+            var service = new GamertagClaimService(context, new UserMergeService(context, currentUser), currentUser, time);
 
             await service.Approve(approved.GamertagClaimID);
             time.Advance(TimeSpan.FromHours(1));
@@ -128,7 +128,7 @@ public class GamertagClaimAggregateTests
             var currentUser = Substitute.For<ICurrentUserService>();
             currentUser.GetCurrentUserId().Returns(sysadmin.Id);
 
-            await new UserMergeService(context, new FakeTimeProvider(At), currentUser).Merge(real.Id, placeholder.Id);
+            await new UserMergeService(context, currentUser, new FakeTimeProvider(At)).Merge(real.Id, placeholder.Id);
 
             context.ChangeTracker.Clear();
             var claim = await context.GamertagClaims.SingleAsync();
@@ -163,7 +163,7 @@ public class GamertagClaimAggregateTests
             var currentUser = Substitute.For<ICurrentUserService>();
             currentUser.GetCurrentUserId().Returns(signedIn.Id);
 
-            await new UserMergeService(context, new FakeTimeProvider(At), currentUser)
+            await new UserMergeService(context, currentUser, new FakeTimeProvider(At))
                 .Merge(real.Id, placeholder.Id, MergeOptions.For(MergeTrigger.Manual, triggeredByUserId: triggeredBy.Id));
 
             context.ChangeTracker.Clear();
@@ -207,7 +207,7 @@ public class GamertagClaimAggregateTests
             context.GamertagClaims.AddRange(rejectedByOld, approvedByOld, bySomeone, pending);
             await context.SaveChangesAsync();
 
-            await new UserMergeService(context, new FakeTimeProvider(At.AddDays(1))).Merge(admin.Id, oldAdmin.Id);
+            await new UserMergeService(context, Substitute.For<ICurrentUserService>(), new FakeTimeProvider(At.AddDays(1))).Merge(admin.Id, oldAdmin.Id);
 
             context.ChangeTracker.Clear();
             var claims = await context.GamertagClaims.ToDictionaryAsync(c => c.GamertagClaimID, c => (c.Status, c.DecidedAt, c.DecidedByUserID));

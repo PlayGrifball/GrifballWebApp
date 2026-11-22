@@ -14,6 +14,7 @@ using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Infrastructure.Teams;
@@ -52,7 +53,7 @@ public class AdminCommandsTests
         _handler = new AdminCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new RescheduleService(_context, new ContextOutbox(_context)),
             new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(new RescheduleService(_context, new ContextOutbox(_context)), new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context)),
             new SeasonMatchService(_context, _dataPull, brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), brackets, teams,
-            new ScheduleRecommendations(_context, TimeProvider.System), runs: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context)),
+            new ScheduleRecommendations(_context, TimeProvider.System), runs: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())),
             _dataPull, urls);
         _commissioner = await _context.AddUser("commish", gamertag: "CommishGT", discordName: "commish", commissioner: true);
     }

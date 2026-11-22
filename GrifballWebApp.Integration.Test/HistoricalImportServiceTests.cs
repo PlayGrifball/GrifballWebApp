@@ -154,7 +154,7 @@ public class HistoricalImportServiceTests
         var real = User.Seed(userName: "real");
         _context.Users.Add(real);
         await _context.SaveChangesAsync();
-        await new UserMergeService(_context).Merge(real.Id, dummy.Id);
+        await new UserMergeService(_context, Substitute.For<ICurrentUserService>()).Merge(real.Id, dummy.Id);
         _context.ChangeTracker.Clear();
 
         var again = await _service.Import(input);
@@ -1453,7 +1453,7 @@ public class HistoricalImportServiceTests
             Assert.That(await _context.PlayerSeasonStats.CountAsync(s => s.Gamertag == "Old B"), Is.EqualTo(1), "Not merged automatically");
         }
 
-        await new GamertagClaimService(_context, new UserMergeService(_context)).Approve(claim.GamertagClaimID);
+        await new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())).Approve(claim.GamertagClaimID);
         _context.ChangeTracker.Clear();
 
         var newB = await _context.Users.SingleAsync(u => u.XboxUserID == 2);

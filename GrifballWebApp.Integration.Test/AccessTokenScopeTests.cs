@@ -292,6 +292,21 @@ public class AccessTokenScopeTests
     }
 
     [Test]
+    public async Task AnUnknownToken_Is401_NotA500_WhenTheClientAsksForHtml()
+    {
+        // IProblemDetailsService's default writer only answers application/json, application/problem+json or a
+        // wildcard: an Accept it doesn't support (a browser's own default, text/html) must still get the 401 this
+        // already decided on, not a 500 from WriteAsync throwing where TryWriteAsync just declines to write a body.
+        using var client = Client($"{AccessTokenService.Prefix}{new string('0', 32)}_not-a-real-secret");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/seasons");
+        request.Headers.Accept.ParseAdd("text/html");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+    }
+
+    [Test]
     public async Task AnMcpOnlyToken_Is401_OnAnAllowAnonymousRestEndpoint_NotASilentAnonymous200()
     {
         var created = await NewAccessToken(AccessTokenScope.Mcp);

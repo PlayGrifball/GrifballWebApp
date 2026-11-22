@@ -6,6 +6,7 @@ using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
+using NSubstitute;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -43,7 +44,7 @@ public class UserGamertagClaimTests
         _context = await TestDatabase.NewGrifballContext();
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _service = New(5);
-        _sysadmin = new GamertagClaimService(_context, new UserMergeService(_context, _time));
+        _sysadmin = new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>(), _time));
         _user = User.Seed(userName: "me", xboxUser: XboxUser.FromXbox(10, "Me Now"));
         _placeholder = User.Seed(userName: "historical:Old Me", normalizedUserName: "HISTORICAL:OLD ME", displayName: "Old Me", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
@@ -247,7 +248,7 @@ public class UserGamertagClaimTests
         _context.Users.Add(other);
         await _context.SaveChangesAsync();
 
-        await new UserMergeService(_context).Merge(other.Id, _user.Id);
+        await new UserMergeService(_context, Substitute.For<ICurrentUserService>()).Merge(other.Id, _user.Id);
 
         Assert.That(await _context.GamertagClaims.Select(c => c.ClaimantUserID).SingleAsync(), Is.EqualTo(other.Id));
     }

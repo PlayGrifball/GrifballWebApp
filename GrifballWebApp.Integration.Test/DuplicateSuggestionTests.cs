@@ -2,6 +2,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -26,7 +27,7 @@ public class DuplicateSuggestionTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new DuplicateSuggestionService(_context, new UserMergeService(_context), new FakeTimeProvider());
+        _service = new DuplicateSuggestionService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>()), new FakeTimeProvider());
     }
 
     [TearDown]
@@ -141,7 +142,7 @@ public class DuplicateSuggestionTests
         var now = new DateTimeOffset(2026, 11, 8, 12, 0, 0, TimeSpan.Zero);
         var currentUser = NSubstitute.Substitute.For<GrifballWebApp.Domain.Shared.ICurrentUserService>();
         currentUser.GetCurrentUserId().Returns(42);
-        var service = new DuplicateSuggestionService(_context, new UserMergeService(_context), new FakeTimeProvider(now), currentUser);
+        var service = new DuplicateSuggestionService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>()), new FakeTimeProvider(now), currentUser);
 
         await service.Dismiss(real.Id, placeholder.Id);
 
@@ -172,7 +173,7 @@ public class DuplicateSuggestionTests
         var two = Placeholder("Grunt Padree");
         var padre = Real("Grunt Padre", 2);
         await _context.SaveChangesAsync();
-        var controller = new GamertagClaimsController(new GamertagClaimService(_context, new UserMergeService(_context)),
+        var controller = new GamertagClaimsController(new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())),
             new XuidLookupService(_context, NSubstitute.Substitute.For<Surprenant.Grunt.Core.IHaloInfiniteClient>(), new GamertagMatching(_context), Options.Create(new XuidLookupOptions()), TimeProvider.System),
             new XuidLookupSignal(), _service);
 

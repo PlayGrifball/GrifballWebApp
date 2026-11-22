@@ -29,7 +29,7 @@ public class SetGamertagServiceTests
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
 
         // We'll test user merge service too
-        _userMergeService = new UserMergeService(_context);
+        _userMergeService = new UserMergeService(_context, Substitute.For<ICurrentUserService>());
 
         _setGamertagService = new SetGamertagService(
             _context,

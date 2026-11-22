@@ -343,7 +343,8 @@ public class JobsTests
 
         // Its default starts at once (Job(..., startIn: null)): the reset's trigger would be due while it's replaced
         var resettable = new JobsService(host.Services.GetRequiredService<ISchedulerFactory>(), host.Services.GetRequiredService<IExecutionHistoryStore>(),
-            new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))), TimeProvider.System);
+            new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))), TimeProvider.System,
+            host.Services.GetRequiredService<GrifballWebApp.Domain.Shared.ICurrentUserService>());
         var before = DateTimeOffset.UtcNow;
         Assert.That(await resettable.ResetSchedule(Key), Is.EqualTo(JobChange.Done));
 

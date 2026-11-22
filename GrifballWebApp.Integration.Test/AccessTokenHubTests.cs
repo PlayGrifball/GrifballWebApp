@@ -155,4 +155,19 @@ public class AccessTokenHubTests
 
         Assert.That(failure, Is.Not.Null, "the connection must be refused, whatever the token's scope or read-only flag");
     }
+
+    [Test]
+    public async Task AnAccessToken_OpeningAHub_Is401_NotA500_WithAnEventStreamAccept()
+    {
+        // SignalR's server-sent events fallback asks for text/event-stream, which IProblemDetailsService's default
+        // writer doesn't support: WriteAsync would throw there (turning this refusal into a 500); TryWriteAsync doesn't.
+        var token = await NewAccessToken(AccessTokenScope.Api, false);
+        using var client = Client(token);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/" + LiveHub.Path);
+        request.Headers.Accept.ParseAdd("text/event-stream");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+    }
 }

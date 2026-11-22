@@ -1,8 +1,10 @@
+using System.Reflection;
 using System.Security.Claims;
 using GrifballWebApp.Server.Mcp;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.SignalR;
@@ -272,5 +274,69 @@ public class AccessTokenAuthenticationUnitTests
             Assert.That(httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
             Assert.That(body, Does.Contain("may not do this"));
         }
+    }
+
+    // ---------- DenyAccessTokenFilter: the nearest attribute wins ----------
+
+    [DenyAccessToken]
+    private sealed class ClassDeniesFixture
+    {
+        [AllowAccessToken]
+        public void MethodAllows() { }
+    }
+
+    [AllowAccessToken]
+    private sealed class ClassAllowsFixture
+    {
+        [DenyAccessToken]
+        public void MethodDenies() { }
+    }
+
+    private static ControllerActionDescriptor ControllerAction(Type controllerType, string methodName) => new()
+    {
+        MethodInfo = controllerType.GetMethod(methodName)!,
+        ControllerTypeInfo = controllerType.GetTypeInfo(),
+    };
+
+    private static AuthorizationFilterContext ControllerFilterContext(HttpContext httpContext, ControllerActionDescriptor action)
+        => new(new ActionContext(httpContext, new RouteData(), action), []);
+
+    [Test]
+    public void IsDenied_AMethodAllow_OverridesAClassDeny()
+    {
+        var action = ControllerAction(typeof(ClassDeniesFixture), nameof(ClassDeniesFixture.MethodAllows));
+
+        Assert.That(DenyAccessTokenFilter.IsDenied(action), Is.False);
+    }
+
+    [Test]
+    public void IsDenied_AMethodDeny_OverridesAClassAllow()
+    {
+        var action = ControllerAction(typeof(ClassAllowsFixture), nameof(ClassAllowsFixture.MethodDenies));
+
+        Assert.That(DenyAccessTokenFilter.IsDenied(action), Is.True);
+    }
+
+    [Test]
+    public async Task DenyAccessTokenFilter_PassesAnAccessToken_WhenTheMethodAllowsDespiteTheClassDenying()
+    {
+        var httpContext = Context("POST", "/anything", User(tokenId: "a"));
+        var context = ControllerFilterContext(httpContext, ControllerAction(typeof(ClassDeniesFixture), nameof(ClassDeniesFixture.MethodAllows)));
+
+        await new DenyAccessTokenFilter().OnAuthorizationAsync(context);
+
+        Assert.That(context.Result, Is.Null);
+    }
+
+    [Test]
+    public async Task DenyAccessTokenFilter_Refuses403_WhenTheMethodDeniesDespiteTheClassAllowing()
+    {
+        var httpContext = Context("POST", "/anything", User(tokenId: "a"));
+        httpContext.Response.Body = new MemoryStream();
+        var context = ControllerFilterContext(httpContext, ControllerAction(typeof(ClassAllowsFixture), nameof(ClassAllowsFixture.MethodDenies)));
+
+        await new DenyAccessTokenFilter().OnAuthorizationAsync(context);
+
+        Assert.That(context.Result, Is.InstanceOf<EmptyResult>());
     }
 }

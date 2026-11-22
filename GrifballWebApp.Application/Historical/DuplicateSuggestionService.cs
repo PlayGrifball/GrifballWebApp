@@ -66,6 +66,18 @@ public partial class DuplicateSuggestionService
         _currentUser = currentUser;
     }
 
+    /// <summary>A non-null stand-in for <see cref="SuggestAsync"/>'s read-only <c>UserMergeService</c>, which never
+    /// merges (so never asks <see cref="ICurrentUserService.IsAccessToken"/>): just enough to satisfy its constructor,
+    /// which requires one.</summary>
+    private sealed class NotAnAccessToken : ICurrentUserService
+    {
+        public static readonly NotAnAccessToken Instance = new();
+        public bool IsAccessToken => false;
+        public int? GetCurrentUserId() => null;
+        public void SetCurrentUserId(int userId) { }
+        public void SetCurrentUserIdFromClaims(System.Security.Claims.ClaimsPrincipal? user) { }
+    }
+
     /// <summary>Edits allowed between two loose keys of this length: none for short gamertags (one letter changes a
     /// short name into another's), one up to 7, two from 8.</summary>
     public static int Allowed(int length) => length <= 4 ? 0 : length <= 7 ? 1 : 2;
@@ -208,7 +220,9 @@ public partial class DuplicateSuggestionService
     /// </summary>
     private async Task<List<DuplicateSuggestionDto>> SuggestAsync(List<Pair> pairs, int max, CancellationToken ct)
     {
-        var checker = new UserMergeService(_context);
+        // Read-only (ConflictAsync never merges, so RefuseAnAccessToken, which only Merge calls, never runs here):
+        // NotAnAccessToken is just a non-null ICurrentUserService now that the constructor requires one.
+        var checker = new UserMergeService(_context, NotAnAccessToken.Instance);
         var result = new List<DuplicateSuggestionDto>();
         var ordered = pairs.OrderBy(p => p.Match).ThenBy(p => p.Edits).ThenBy(p => p.To.IsPlaceholder)
             .ThenBy(p => p.From.Gamertag, StringComparer.OrdinalIgnoreCase).Take(max * 4);

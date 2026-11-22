@@ -30,7 +30,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
     [SetUp]
     public void SetUp()
     {
-        _service = new UserMergeService(Context);
+        _service = new UserMergeService(Context, Substitute.For<ICurrentUserService>());
     }
 
     private async Task<(User To, User From)> TwoUsers(long? fromDiscord = null, long? toDiscord = null)
@@ -655,7 +655,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
             // The caller's own change, left unsaved: the merge saves it inside its transaction, so only a rollback keeps it out
             (await racing.Users.SingleAsync(x => x.Id == to.Id)).Rename("Saved by the failed merge");
             // Not a MergeConflictException: callers take that to mean nothing changed, and carry on
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing).Merge(to.Id, from.Id));
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing, Substitute.For<ICurrentUserService>()).Merge(to.Id, from.Id));
             Assert.That(ex!.Message, Does.Contain("while they were being merged"));
         }
 

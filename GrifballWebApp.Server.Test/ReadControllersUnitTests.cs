@@ -68,7 +68,7 @@ public class ReadControllersUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task UserMerges_ListsNone_AndAnUnknownMergeIsNotFound()
     {
-        var controller = new UserMergesController(new UserMergeAuditService(Db, _time));
+        var controller = new UserMergesController(new UserMergeAuditService(Db, _time, Substitute.For<GrifballWebApp.Domain.Shared.ICurrentUserService>()));
 
         var list = await controller.List(new PaginationFilter { PageNumber = 1, PageSize = 10 }, CancellationToken.None);
         var missing = await controller.Get(999, CancellationToken.None);

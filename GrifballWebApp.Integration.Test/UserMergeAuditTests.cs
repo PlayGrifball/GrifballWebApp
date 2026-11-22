@@ -40,8 +40,8 @@ public class UserMergeAuditTests
     {
         _context = await TestDatabase.NewGrifballContext();
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
-        _merges = new UserMergeService(_context, _time);
-        _audit = new UserMergeAuditService(_context, _time);
+        _merges = new UserMergeService(_context, Substitute.For<ICurrentUserService>(), _time);
+        _audit = new UserMergeAuditService(_context, _time, Substitute.For<ICurrentUserService>());
         _real = User.Seed(userName: "real", displayName: "Real", mmr: 1200, wins: 3, losses: 1, xboxUser: XboxUser.FromXbox(10, "Real Tag"));
         _placeholder = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
@@ -313,7 +313,7 @@ public class UserMergeAuditTests
         await _context.SaveChangesAsync();
         await _merges.Merge(_real.Id, _placeholder.Id);
         // The stats move again: the real user is merged into another account
-        await new UserMergeService(_context, _time).Merge(second.Id, _real.Id);
+        await new UserMergeService(_context, Substitute.For<ICurrentUserService>(), _time).Merge(second.Id, _real.Id);
         var merges = await _context.UserMerges.OrderBy(m => m.UserMergeID).ToListAsync();
 
         var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => _audit.Undo(merges[0].UserMergeID, null));
@@ -330,11 +330,11 @@ public class UserMergeAuditTests
         await _context.SaveChangesAsync();
         var before = await Snapshot();
         await _merges.Merge(_real.Id, _placeholder.Id);
-        await new UserMergeService(_context, _time).Merge(second.Id, _real.Id);
+        await new UserMergeService(_context, Substitute.For<ICurrentUserService>(), _time).Merge(second.Id, _real.Id);
         var merges = await _context.UserMerges.OrderBy(m => m.UserMergeID).Select(m => m.UserMergeID).ToListAsync();
 
-        await new UserMergeAuditService(_context, _time).Undo(merges[1], null);
-        await new UserMergeAuditService(_context.NewContextLike(), _time).Undo(merges[0], null);
+        await new UserMergeAuditService(_context, _time, Substitute.For<ICurrentUserService>()).Undo(merges[1], null);
+        await new UserMergeAuditService(_context.NewContextLike(), _time, Substitute.For<ICurrentUserService>()).Undo(merges[0], null);
 
         Assert.That(await Snapshot(), Is.EqualTo(before));
     }
@@ -346,7 +346,7 @@ public class UserMergeAuditTests
         var mergeId = (await _context.UserMerges.SingleAsync()).UserMergeID;
         await _audit.Undo(mergeId, null);
 
-        var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => new UserMergeAuditService(_context.NewContextLike(), _time).Undo(mergeId, null));
+        var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => new UserMergeAuditService(_context.NewContextLike(), _time, Substitute.For<ICurrentUserService>()).Undo(mergeId, null));
 
         Assert.That(ex!.Message, Does.Contain("undone already"));
     }
@@ -366,7 +366,7 @@ public class UserMergeAuditTests
         await using var racing = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).AddInterceptors(rival).Options);
 
-        var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => new UserMergeAuditService(racing, _time).Undo(mergeId, "mine"));
+        var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => new UserMergeAuditService(racing, _time, Substitute.For<ICurrentUserService>()).Undo(mergeId, "mine"));
 
         await using var fresh = _context.NewContextLike();
         var record = await fresh.UserMerges.AsNoTracking().SingleAsync();
@@ -489,7 +489,7 @@ public class UserMergeAuditTests
         _context.Users.Add(other);
         await _context.SaveChangesAsync();
         await _merges.Merge(_real.Id, _placeholder.Id, MergeOptions.For(MergeTrigger.SetGamertag, "set gamertag Real Tag", _real.Id));
-        await new UserMergeService(_context, _time).Merge(_real.Id, other.Id, MergeOptions.For(MergeTrigger.DuplicateSuggestion));
+        await new UserMergeService(_context, Substitute.For<ICurrentUserService>(), _time).Merge(_real.Id, other.Id, MergeOptions.For(MergeTrigger.DuplicateSuggestion));
 
         var page = await _audit.List(new PaginationFilter(1, 10));
         var detail = await _audit.Get(page.Results.Last().UserMergeID);

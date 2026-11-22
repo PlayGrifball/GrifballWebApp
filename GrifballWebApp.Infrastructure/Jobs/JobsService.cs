@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Shared;
 using Quartz;
 using Quartz.Extensibility;
 
@@ -81,6 +82,10 @@ public enum JobChange
     NotFound,
     /// <summary>Not now: off, on demand (it needs its page's input), no trigger yet (no worker has started), or not a recurring job.</summary>
     Conflict,
+    /// <summary>A personal access token tried to run a job that can end up merging a user
+    /// (<see cref="JobsService.MergeCapableJobs"/>): refused, since the merge (through a queue, with no HTTP request of
+    /// its own by the time it runs) happens too late for <c>ICurrentUserService.IsAccessToken</c> to catch it there.</summary>
+    DeniedToAccessToken,
 }
 
 /// <summary>
@@ -96,17 +101,28 @@ public class JobsService
     /// <summary>How far ahead a paused job's rescheduled trigger starts at the earliest (<see cref="Replace"/>).</summary>
     public static readonly TimeSpan PausedStartGrace = TimeSpan.FromMinutes(1);
 
+    /// <summary>
+    /// Jobs whose trigger starts work that can end up merging a user, through a queue the worker drains later with no
+    /// HTTP request of its own (<see cref="JobChange.DeniedToAccessToken"/>): traced from every
+    /// <c>IUserMergeService</c> consumer up to the jobs that can reach one (#549 review). Update this if a new job
+    /// starts reaching one. <c>HistoricalRefreshJob</c>'s own key, by its raw strings (not a reference to it: that type
+    /// is in a different project this one doesn't otherwise depend on) - its own file documents the same key.
+    /// </summary>
+    private static readonly JobKey[] MergeCapableJobs = [new JobKey("historical-refresh", RecurringJobs.Group)];
+
     private readonly ISchedulerFactory _schedulers;
     private readonly IExecutionHistoryStore _history;
     private readonly RecurringJobs _recurring;
     private readonly TimeProvider _time;
+    private readonly ICurrentUserService _currentUser;
 
-    public JobsService(ISchedulerFactory schedulers, IExecutionHistoryStore history, RecurringJobs recurring, TimeProvider time)
+    public JobsService(ISchedulerFactory schedulers, IExecutionHistoryStore history, RecurringJobs recurring, TimeProvider time, ICurrentUserService currentUser)
     {
         _schedulers = schedulers;
         _history = history;
         _recurring = recurring;
         _time = time;
+        _currentUser = currentUser;
     }
 
     public async Task<JobsOverviewDto> Overview(CancellationToken ct = default)
@@ -210,6 +226,9 @@ public class JobsService
     /// </summary>
     public async Task<JobChange> RunNow(JobKey key, int? byUserID = null, CancellationToken ct = default)
     {
+        if (_currentUser.IsAccessToken && MergeCapableJobs.Contains(key))
+            return JobChange.DeniedToAccessToken;
+
         var scheduler = await _schedulers.GetScheduler(ct);
         if (!await scheduler.Exists(key, ct))
             return JobChange.NotFound;

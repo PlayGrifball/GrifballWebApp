@@ -165,7 +165,7 @@ public class TeamAggregateDatabaseTests
         var placeholder = await _context.AddUser("placeholder");
         var real = await _context.AddUser("real");
         var team = await _context.AddTeam(season, "A", placeholder, 3, real);
-        var service = new UserMergeService(_context, TimeProvider.System);
+        var service = new UserMergeService(_context, Substitute.For<ICurrentUserService>(), TimeProvider.System);
 
         await service.Merge(real.Id, placeholder.Id, new MergeOptions(), CancellationToken.None);
         _context.ChangeTracker.Clear();

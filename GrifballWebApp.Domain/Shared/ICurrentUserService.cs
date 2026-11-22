@@ -28,4 +28,12 @@ public static class AccessTokenClaimTypes
 {
     /// <summary>The token's own ID, never its secret.</summary>
     public const string TokenId = "grif:access_token_id";
+
+    /// <summary>
+    /// Whether <paramref name="user"/> was signed in by a personal access token, whatever its scope: the one check,
+    /// shared by <c>AccessTokenAuthentication.IsAccessToken</c> (an alias kept there for the code that already names
+    /// it that way) and <see cref="ICurrentUserService.IsAccessToken"/>'s implementation, instead of each testing the
+    /// claim itself.
+    /// </summary>
+    public static bool IsAccessToken(ClaimsPrincipal user) => user.HasClaim(c => c.Type == TokenId);
 }

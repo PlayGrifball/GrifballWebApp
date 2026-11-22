@@ -75,7 +75,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
             null!,
             new ScheduleRecommendations(Db, time),
             _quartz is null ? null! : new ScheduleRecommendationRuns(_quartz.OnDemand),
-            new JobsService(_schedulers, history, new RecurringJobs(), time),
+            new JobsService(_schedulers, history, new RecurringJobs(), time, Substitute.For<GrifballWebApp.Domain.Shared.ICurrentUserService>()),
             new GamertagClaimService(Db, Substitute.For<IUserMergeService>(), null, time),
             Substitute.For<IDataPullService>(),
             Urls());

@@ -330,7 +330,7 @@ public class PersonalCommandsTests
         await _handler.Claim(_discord.Context, "Old Me");
         await _handler.Claim(second.Context, "Older Me");
         var older = await _context.GamertagClaims.SingleAsync(x => x.Gamertag == "Older Me");
-        await new GrifballWebApp.Application.Historical.GamertagClaimService(_context, new GrifballWebApp.Application.Profile.UserMergeService(_context))
+        await new GrifballWebApp.Application.Historical.GamertagClaimService(_context, new GrifballWebApp.Application.Profile.UserMergeService(_context, Substitute.For<GrifballWebApp.Domain.Shared.ICurrentUserService>()))
             .Reject(older.GamertagClaimID, "Not you");
         _context.ChangeTracker.Clear();
         await _handler.Claims(list.Context);
