@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using GrifballWebApp.Application.Database;
@@ -106,6 +108,13 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
             return [];
         }
     }
+
+    /// <summary>
+    /// A short, stable name for a relayed message: the same on every pod that gets it (<see cref="LiveRelayListener"/>), so
+    /// they can share one build of what it asks for (<see cref="LiveDelivery"/>) rather than each building their own, and a
+    /// different one for every other message, so a later change never reads an earlier one's build.
+    /// </summary>
+    public static string BatchKeyOf(string? message) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(message ?? "")));
 }
 
 /// <summary>Scaled out, on an API process: the changes any process published (<see cref="LiveUpdates.RelayChannel"/>), to this one's pages.</summary>
@@ -113,9 +122,11 @@ public sealed class LiveRelayListener(LiveDelivery delivery, AppRedis? redis = n
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        // Deliver logs its own failures (a build, a send) and isn't canceled here, so it doesn't throw
+        // Deliver logs its own failures (a build, a send) and isn't canceled here, so it doesn't throw. Every pod gets the
+        // same message, so the same batch key (LiveUpdates.BatchKeyOf): the first to build a topic's data for it keeps the
+        // others from building their own (LiveDelivery.Deliver).
         redis?.WhenConnected(connection => connection.GetSubscriber().Subscribe(LiveUpdates.RelayChannel)
-            .OnMessage(message => delivery.Deliver(LiveUpdates.Parse(message.Message), CancellationToken.None)));
+            .OnMessage(message => delivery.Deliver(LiveUpdates.Parse(message.Message), CancellationToken.None, LiveUpdates.BatchKeyOf(message.Message))));
         return Task.CompletedTask;
     }
 
@@ -205,12 +216,35 @@ public sealed class LiveWatchers
 /// the API gives it (<see cref="ApiJson"/>); the rest are notices, and their pages read again. A topic nobody here watches
 /// costs nothing. Data that can't be built is a notice instead.
 /// </summary>
+/// <remarks>
+/// Scaled out, every pod that watches a topic gets the same relayed change and would build the same data: the first here
+/// for a given <c>batchKey</c> (<see cref="LiveUpdates.BatchKeyOf"/>, the same on every pod for that change) keeps it in
+/// Redis a few seconds (<see cref="DataTtl"/>) under a short lock (<see cref="LockTtl"/>), so the rest read it instead of
+/// building their own; a pod that can't take the lock in time (<see cref="BuildWait"/>), or can't reach Redis at all,
+/// builds its own rather than keep its watchers waiting. A call with no <c>batchKey</c> (this pod's own local delivery,
+/// never shared with another) always builds its own, as does every pod when Redis isn't configured.
+/// </remarks>
 public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILiveHubClient> hub, IServiceScopeFactory scopes,
-    ILogger<LiveDelivery> logger)
+    ILogger<LiveDelivery> logger, AppRedis? redis = null, string? prefix = null)
 {
     private static readonly JsonSerializerOptions Json = ApiJson.Options();
 
-    public async Task Deliver(IReadOnlyCollection<LiveChange> changes, CancellationToken ct = default)
+    /// <summary>How long a topic's built data is kept for the other pods to read.</summary>
+    public static readonly TimeSpan DataTtl = TimeSpan.FromSeconds(5);
+
+    /// <summary>How long one pod holds the lock to build: comfortably more than a build normally takes.</summary>
+    public static readonly TimeSpan LockTtl = TimeSpan.FromSeconds(3);
+
+    /// <summary>How long a pod that lost the race for the lock waits for the winner's data before building its own.</summary>
+    public static readonly TimeSpan BuildWait = TimeSpan.FromSeconds(3);
+
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>The app's keys (<see cref="AppRedisExtensions.ChannelPrefix"/>), under their own namespace: raw string keys
+    /// aren't covered by <see cref="AppRedis"/>'s channel prefix (that's pub/sub alone).</summary>
+    private readonly string _keyPrefix = $"{prefix ?? AppRedisExtensions.DefaultChannelPrefix}:livebuild:";
+
+    public async Task Deliver(IReadOnlyCollection<LiveChange> changes, CancellationToken ct = default, string? batchKey = null)
     {
         // A user's own: to their connections here (each API process tells its own, so each connection hears it once)
         foreach (var change in changes.Where(c => c.UserID is not null))
@@ -235,7 +269,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
                 ? watching.GroupBy(w => w.Viewer).Select(g => (Viewer: g.Key, Connections: g.Select(w => w.ConnectionID).ToList())).ToList()
                 : [(watching[0].Viewer, watching.Select(w => w.ConnectionID).ToList())];
             foreach (var (viewer, connections) in byViewer)
-                await Send(connections, topic, await Build(topic, viewer, ct));
+                await Send(connections, topic, await Build(topic, viewer, batchKey, ct));
         }
     }
 
@@ -271,7 +305,71 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
         }
     }
 
-    private async Task<string?> Build(string topic, SeasonViewer viewer, CancellationToken ct)
+    /// <summary>
+    /// <paramref name="topic"/>'s data as <paramref name="viewer"/> sees it: built here alone when there's no
+    /// <paramref name="batchKey"/> or no Redis; otherwise shared with every other pod building the same change (see the
+    /// class remarks).
+    /// </summary>
+    private async Task<string?> Build(string topic, SeasonViewer viewer, string? batchKey, CancellationToken ct)
+    {
+        if (redis is null || batchKey is null)
+            return await BuildNow(topic, viewer, ct);
+        var key = CacheKey(topic, viewer, batchKey);
+        try
+        {
+            var db = (await redis.ConnectAsync()).GetDatabase();
+            var cached = await db.StringGetAsync(key);
+            if (!cached.IsNull)
+                return cached.IsNullOrEmpty ? null : cached.ToString();
+            if (await db.StringSetAsync($"{key}:lock", RedisValue.EmptyString, LockTtl, When.NotExists))
+            {
+                var data = await BuildNow(topic, viewer, ct);
+                // Stored even when there's nothing to show (an empty string, not a missing key), so a pod that lost the
+                // race doesn't wait out BuildWait for data this change never had.
+                RedisValue stored = data is null ? RedisValue.EmptyString : data;
+                await db.StringSetAsync(key, stored, DataTtl);
+                return data;
+            }
+            return await WaitForBuild(db, key, topic, viewer, ct);
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException)
+        {
+            logger.LogWarning(ex, "Could not build {Topic}'s data once across the pods: building it here", topic);
+            return await BuildNow(topic, viewer, ct);
+        }
+    }
+
+    /// <summary>
+    /// Waits for the pod that is building <paramref name="topic"/>'s data under <paramref name="key"/>; builds it here once
+    /// <see cref="BuildWait"/> passes without it (that pod may be gone), rather than keep this pod's watchers waiting.
+    /// </summary>
+    private async Task<string?> WaitForBuild(IDatabase db, string key, string topic, SeasonViewer viewer, CancellationToken ct)
+    {
+        using var giveUp = new CancellationTokenSource(BuildWait);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, giveUp.Token);
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(PollInterval, linked.Token);
+                var cached = await db.StringGetAsync(key);
+                if (!cached.IsNull)
+                    return cached.IsNullOrEmpty ? null : cached.ToString();
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return await BuildNow(topic, viewer, ct);
+        }
+    }
+
+    /// <summary>The key a build of <paramref name="topic"/> as <paramref name="viewer"/> sees it, for <paramref name="batchKey"/>'s
+    /// change alone: a topic that doesn't depend on the viewer (<see cref="LiveSnapshots.DependsOnViewer"/>) shares one key
+    /// across viewers, so pods whose watchers happen to differ still share the one build.</summary>
+    private string CacheKey(string topic, SeasonViewer viewer, string batchKey)
+        => LiveSnapshots.DependsOnViewer(topic) ? $"{_keyPrefix}{batchKey}:{topic}:{viewer}" : $"{_keyPrefix}{batchKey}:{topic}";
+
+    private async Task<string?> BuildNow(string topic, SeasonViewer viewer, CancellationToken ct)
     {
         await using var scope = scopes.CreateAsyncScope();
         try

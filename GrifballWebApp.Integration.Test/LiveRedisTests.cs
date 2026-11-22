@@ -160,4 +160,68 @@ public class LiveRedisTests
         await listener.StopAsync(CancellationToken.None);
         await watching.Received(1).Changed(LiveTopics.Player(5));
     }
+
+    /// <summary>A pod's LiveDelivery, its own LiveWatchers and Redis connection, watching queue's single connection.</summary>
+    private LiveDelivery Pod(ILiveHubClient client, LiveSnapshots snapshots)
+    {
+        var watchers = new LiveWatchers();
+        watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var hub = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
+        hub.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(client);
+        var services = new ServiceCollection();
+        services.AddScoped(_ => snapshots);
+        return new LiveDelivery(watchers, hub, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<LiveDelivery>.Instance, Process(), _prefix);
+    }
+
+    [Test]
+    public async Task TwoPodsSharingRedis_ForTheSameChange_BuildTheTopicsDataOnce()
+    {
+        var built = 0;
+        async Task<object?> SlowBuild(NSubstitute.Core.CallInfo _)
+        {
+            Interlocked.Increment(ref built);
+            await Task.Delay(500);
+            return new QueueLiveDto(3);
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        // Slow enough that the pod that loses the lock race is still waiting, not building its own, when this finishes
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(SlowBuild);
+        var clientA = Substitute.For<ILiveHubClient>();
+        var clientB = Substitute.For<ILiveHubClient>();
+        var podA = Pod(clientA, snapshots);
+        var podB = Pod(clientB, snapshots);
+
+        await Task.WhenAll(
+            podA.Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-1"),
+            podB.Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-1"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(built, Is.EqualTo(1), "one pod built it, the other read it from Redis");
+            await clientA.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
+            await clientB.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
+        }
+    }
+
+    [Test]
+    public async Task ALaterChange_NeverReadsAnEarlierChangesData()
+    {
+        var counts = new Queue<int>([1, 2]);
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult<object?>(new QueueLiveDto(counts.Dequeue())));
+        var client = Substitute.For<ILiveHubClient>();
+        var pod = Pod(client, snapshots);
+
+        // Two changes moments apart, well inside the cached data's TTL: each must get its own build, under its own batch key
+        await pod.Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-1");
+        await pod.Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-2");
+
+        using (Assert.EnterMultipleScope())
+        {
+            await client.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":1}");
+            await client.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":2}");
+        }
+    }
 }

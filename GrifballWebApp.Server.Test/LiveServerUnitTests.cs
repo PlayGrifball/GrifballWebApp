@@ -35,13 +35,16 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
     [SetUp]
     public void SetUp() => _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(_everyone);
 
-    /// <summary>Scopes whose IApplicationDbContext is a context of their own on the test's database, as a request's is.</summary>
-    private IServiceScopeFactory Scopes()
+    /// <summary>Scopes whose IApplicationDbContext is a context of their own on the test's database, as a request's is;
+    /// <paramref name="snapshots"/>'s too, when a test builds a topic's data.</summary>
+    private IServiceScopeFactory Scopes(LiveSnapshots? snapshots = null)
     {
         var connectionString = Db.Database.GetConnectionString()!;
         var services = new ServiceCollection();
         services.AddScoped<IApplicationDbContext>(_ => new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString).Options));
+        if (snapshots is not null)
+            services.AddScoped(_ => snapshots);
         return services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
     }
 
@@ -166,9 +169,9 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         }
     }
 
-    private LiveDelivery Delivery()
-        => new(_watchers, _hubContext, new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
-            NullLogger<LiveDelivery>.Instance);
+    private LiveDelivery Delivery(IServiceScopeFactory? scopes = null, AppRedis? redis = null)
+        => new(_watchers, _hubContext, scopes ?? new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<LiveDelivery>.Instance, redis);
 
     /// <summary>The pages watching player:5 here, told through <paramref name="told"/> once they are.</summary>
     private ILiveHubClient WatchingPlayerFive(TaskCompletionSource told)
@@ -222,5 +225,19 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
 
         Assert.That(async () => await Delivery().Deliver([new LiveChange(LiveTopics.Player(5))], CancellationToken.None), Throws.Nothing);
         await watching.Received(1).Changed(LiveTopics.Player(5));
+    }
+
+    [Test]
+    public async Task Delivery_RedisUnreachable_StillBuildsItsOwnData()
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(3));
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+
+        // A batch key, as it would come scaled out through the relay: with Redis unreachable, caching across pods is
+        // skipped and this pod builds it anyway, rather than leave its own watchers with nothing
+        await Delivery(Scopes(snapshots), DownRedis()).Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-1");
+
+        await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
     }
 }
