@@ -695,6 +695,33 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
         }
     }
 
+    [Test]
+    public async Task ReportMatch_ReplacingAnImportedRecordedGame_ClearsTheStaleSeriesFlagItKeptOutsideTheSeries()
+    {
+        // #548: the imported game survives being replaced (only a game entered by hand is deleted), so its series flag
+        // is no longer reachable through the series once it's out - ReportMatch must clear it directly
+        var seeded = await SeedAsync(Context, bestOf: 3);
+        var imported = RecordedGame.Seed("unit/stale-series", gameVersionID: Halo3);
+        imported.SeedSide(1, seeded.SeasonMatch.HomeTeamID, Outcomes.Won, 1);
+        imported.SeedSide(2, seeded.SeasonMatch.AwayTeamID, Outcomes.Lost, 0);
+        Context.RecordedGames.Add(imported);
+        var replaced = seeded.SeasonMatch.Game(1, recorded: imported);
+        seeded.SeasonMatch.Scored(0, 1);
+        await Context.SaveChangesAsync();
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, imported.RecordedGameID, null, "stale", DateTime.UtcNow));
+        await Context.SaveChangesAsync();
+        await AddMatchAsync(Context, 1, InSeason, HomeXbox, Outcomes.Won, AwayXbox, Outcomes.Lost);
+        Context.ChangeTracker.Clear();
+
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, MatchID(1), replaced.SeriesGameID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.RecordedGames.AnyAsync(g => g.RecordedGameID == imported.RecordedGameID), Is.True);
+            Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.DismissedAt == null), Is.False);
+        }
+    }
+
     #endregion
 
     #region Forfeits

@@ -106,6 +106,7 @@ public class StatFlag : AuditableEntity
         {
             DismissedAt = null;
             DismissedByUserID = null;
+            Raise(new StatFlagReopened(this));
         }
     }
 
@@ -118,5 +119,10 @@ public class StatFlag : AuditableEntity
             return;
         DismissedAt = dismissedAt;
         DismissedByUserID = dismissedByUserID;
+        Raise(new StatFlagDismissed(this));
     }
+
+    /// <summary>A re-run no longer finds what this (still open) flag found: it's about to be removed
+    /// (StatFlagService.ReconcileAsync), which raises nothing of its own - this says so instead, before it's gone.</summary>
+    public void Clear() => Raise(new StatFlagCleared(this));
 }

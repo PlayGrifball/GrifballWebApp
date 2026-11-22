@@ -110,6 +110,27 @@ public class HistoricalImportRecordedGamesTests
     }
 
     [Test]
+    public async Task RecordedGames_AGamesOutcomeChangedOnAReimport_ReChecksItsAlreadyLinkedSeries()
+    {
+        // #548: a 2-0 series; the archive later corrects game 2's outcome (now 1-1), which only LinkSeries recomputes
+        // for a newly-linked series - a re-import must still re-check this already-linked one
+        await _service.Import(Summer2015(
+            Game(Summer, "s/1", T, [.. Alpha, .. Bravo]),
+            Game(Summer, "s/2", T.AddMinutes(30), [.. Alpha, .. Bravo])));
+
+        await _service.Import(Summer2015(
+            Game(Summer, "s/1", T, [.. Alpha, .. Bravo]),
+            Game(Summer, "s/2", T.AddMinutes(30), [.. Alpha, .. Bravo], side1Won: false)));
+
+        var flag = await _context.StatFlags.AsNoTracking().SingleAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.IsOpen, Is.True);
+            Assert.That(flag.Reason, Does.Contain("2-0"));
+        }
+    }
+
+    [Test]
     public async Task ATeamGoneFromTheArchive_LeavesItsRecordedSides_ForTheTeamTheyAreNow()
     {
         await _service.Import(Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo])));
@@ -200,6 +221,10 @@ public class HistoricalImportRecordedGamesTests
     public async Task RecordedGames_NoLongerInTheArchive_Go_AndAScrimNowLeavesItsSeries()
     {
         await _service.Import(Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo]), Game(Summer, "s/2", T.AddDays(2), [.. Alpha, .. Bravo])));
+        // #548: a stale flag from an earlier run, on the game that survives (unlinked, not removed: it's a scrim now)
+        var survivor = await _context.RecordedGames.AsNoTracking().SingleAsync(g => g.SourceKey == "s/2");
+        _context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, survivor.RecordedGameID, null, "stale", T));
+        await _context.SaveChangesAsync();
 
         var report = await _service.Import(Summer2015(Game(Summer, "s/2", T.AddDays(2), [.. Alpha, .. Bravo], scrim: true)));
 
@@ -209,6 +234,7 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(expectedArray1));
             Assert.That(await _context.Set<SeriesGame>().AnyAsync(), Is.False);
             Assert.That(await _context.SeasonMatches.AnyAsync(), Is.False, "Series left with no games go");
+            Assert.That(await _context.StatFlags.AnyAsync(f => f.DismissedAt == null), Is.False, "Unlinked (not removed, so not cascaded): cleared directly");
         }
     }
 

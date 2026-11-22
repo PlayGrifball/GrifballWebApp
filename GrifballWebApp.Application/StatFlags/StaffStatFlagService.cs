@@ -74,11 +74,25 @@ public class StaffStatFlagService
         var seriesGamesByRecordedGame = await _context.SeasonSeriesGames.Where(g => g.RecordedGameID != null && recordedGameIDs.Contains(g.RecordedGameID!.Value))
             .ToDictionaryAsync(g => g.RecordedGameID!.Value, g => ((int?)g.SeasonMatchID, (int?)g.GameNumber), ct);
 
+        // A recorded game outside any series (an imported scrim, a Late League matchmaking game) has no page to link
+        // to: shown by its date and sides instead.
+        var outsideASeries = recordedGameIDs.Except(seriesGamesByRecordedGame.Keys).ToList();
+        var gameInfoByRecordedGame = outsideASeries.Count == 0 ? [] : await _context.RecordedGames
+            .Where(g => outsideASeries.Contains(g.RecordedGameID))
+            .Select(g => new
+            {
+                g.RecordedGameID,
+                g.PlayedAt,
+                Teams = g.Teams.OrderBy(t => t.Side).Select(t => t.Name).ToList(),
+            })
+            .ToDictionaryAsync(g => g.RecordedGameID, ct);
+
         return flags.Select(f =>
         {
             var (seasonMatchID, gameNumber) = f.MatchID is Guid matchID ? seriesGamesByMatch.GetValueOrDefault(matchID)
                 : f.RecordedGameID is int recordedGameID ? seriesGamesByRecordedGame.GetValueOrDefault(recordedGameID)
                 : (null, null);
+            var outside = seasonMatchID is null && f.RecordedGameID is int gameID ? gameInfoByRecordedGame.GetValueOrDefault(gameID) : null;
             return new StatFlagDto
             {
                 StatFlagID = f.StatFlagID,
@@ -91,6 +105,8 @@ public class StaffStatFlagService
                 PlayerName = f.PlayerUserID is int playerID ? nameByID.GetValueOrDefault(playerID) : null,
                 Reason = f.Reason,
                 FoundAt = f.FoundAt,
+                GamePlayedAt = outside?.PlayedAt,
+                GameTeams = outside is null ? null : string.Join(" vs ", outside.Teams.Select(n => n ?? "?")),
             };
         }).ToList();
     }

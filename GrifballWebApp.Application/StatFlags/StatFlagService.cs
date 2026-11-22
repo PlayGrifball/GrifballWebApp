@@ -3,6 +3,8 @@ using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Application.StatFlags;
@@ -10,20 +12,28 @@ namespace GrifballWebApp.Application.StatFlags;
 /// <summary>
 /// Plain-rule anomaly checks for game stats (#548): runs <see cref="StatFlagRule"/>'s rules against a game just saved -
 /// by hand (<see cref="CheckRecordedGameAsync"/>, for a manual game), by a Halo pull (<see cref="CheckMatchAsync"/>), or
-/// by the historical import (<see cref="CheckRecordedGameAsync"/> again, called the same way) - and reconciles the
-/// result onto the game's <see cref="StatFlag"/>s: an open flag no longer found is removed, one still found is brought
-/// up to date in place (never doubled), and a new finding is added. A flag never changes the game it's about: it only
-/// tells staff something is worth a look (<see cref="StaffStatFlagService"/> is how they see and dismiss them).
+/// by the historical import (<see cref="CheckRecordedGameAsync"/> again, called the same way, or batched -
+/// <see cref="CheckRecordedGamesAsync"/>) - and reconciles the result onto the game's <see cref="StatFlag"/>s: an open
+/// flag no longer found is removed, one still found is brought up to date in place (never doubled), and a new finding
+/// is added. A flag never changes the game it's about: it only tells staff something is worth a look
+/// (<see cref="StaffStatFlagService"/> is how they see and dismiss them).
+///
+/// Every public method here is safe to call after the action it follows is already decided: a failure (a transient DB
+/// error, a translation bug) is logged and let go, detaching anything of its own left tracked, rather than rolling
+/// back a commissioner's save or an import. Called after the save that made the game real (its key is real), never
+/// inside the transaction that makes it, so a check failing never takes the save down with it.
 /// </summary>
 public class StatFlagService
 {
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
+    private readonly ILogger<StatFlagService> _logger;
 
-    public StatFlagService(IApplicationDbContext context, TimeProvider? time = null)
+    public StatFlagService(IApplicationDbContext context, TimeProvider? time = null, ILogger<StatFlagService>? logger = null)
     {
         _context = context;
         _time = time ?? TimeProvider.System;
+        _logger = logger ?? NullLogger<StatFlagService>.Instance;
     }
 
     /// <summary>What one rule found: <paramref name="PlayerUserID"/> is null when the rule is about the whole game (a
@@ -51,14 +61,17 @@ public class StatFlagService
     /// <summary>
     /// Runs every rule that applies to <paramref name="game"/> (the "any game" rules always; the hand-entered ones only
     /// for a game entered by hand, <see cref="RecordedGame.IsManual"/>) and reconciles the result onto its flags, never
-    /// touching a flag of a rule this game isn't checked by (<see cref="ReconcileAsync"/>'s <c>ownedRules</c>) - a
-    /// StatFlagRule.SeriesDoesNotMatchGames flag the series check left on this same game, say. Called after the game
-    /// itself is saved (its RecordedGameID is a real one): by manual match entry, right after <c>AddManualGame</c> or
-    /// <c>EditManualGame</c> save, with the season match already loaded there (<paramref name="seasonMatch"/>); by the
-    /// historical import, with no season match (a game it imports always counts through its series, never
-    /// <see cref="RecordedGame.IsManual"/>, so the hand-entered rules never run there).
+    /// touching a flag of a rule this game isn't checked by (<c>ownedRules</c>) - a StatFlagRule.SeriesDoesNotMatchGames
+    /// flag the series check left on this same game, say. Called after the game itself is saved (its RecordedGameID is
+    /// a real one): by manual match entry, right after <c>AddManualGame</c> or <c>EditManualGame</c> save, with the
+    /// season match already loaded there (<paramref name="seasonMatch"/>); by the historical import, with no season
+    /// match (a game it imports always counts through its series, never <see cref="RecordedGame.IsManual"/>, so the
+    /// hand-entered rules never run there) - or, for many games at once, <see cref="CheckRecordedGamesAsync"/>.
     /// </summary>
-    public async Task CheckRecordedGameAsync(RecordedGame game, SeasonMatch? seasonMatch, CancellationToken ct = default)
+    public Task CheckRecordedGameAsync(RecordedGame game, SeasonMatch? seasonMatch, CancellationToken ct = default) =>
+        SafelyAsync(() => CheckRecordedGameCoreAsync(game, seasonMatch, ct), $"recorded game {game.RecordedGameID}");
+
+    private async Task CheckRecordedGameCoreAsync(RecordedGame game, SeasonMatch? seasonMatch, CancellationToken ct)
     {
         var now = _time.GetUtcNow().UtcDateTime;
         var findings = new List<Finding>();
@@ -73,16 +86,54 @@ public class StatFlagService
     }
 
     /// <summary>
+    /// The "any game" rules (never manual: the historical import's recorded games, <see cref="RecordedGame.IsManual"/>
+    /// is always false for them) for many games at once - the import's own, batched rather than one
+    /// <see cref="CheckRecordedGameAsync"/> a game: one query for every game's existing flags, one save for all of
+    /// them.
+    /// </summary>
+    public Task CheckRecordedGamesAsync(IReadOnlyCollection<RecordedGame> games, CancellationToken ct = default) =>
+        SafelyAsync(() => CheckRecordedGamesCoreAsync(games, ct), $"{games.Count} recorded game(s)");
+
+    private async Task CheckRecordedGamesCoreAsync(IReadOnlyCollection<RecordedGame> games, CancellationToken ct)
+    {
+        if (games.Count == 0)
+            return;
+        var now = _time.GetUtcNow().UtcDateTime;
+        var gameIDs = games.Select(g => g.RecordedGameID).ToList();
+        var existingByGame = (await _context.StatFlags
+                .Where(f => f.RecordedGameID != null && gameIDs.Contains(f.RecordedGameID.Value))
+                .Where(f => RecordedGameRules.Contains(f.Rule))
+                .ToListAsync(ct))
+            .GroupBy(f => f.RecordedGameID!.Value).ToDictionary(g => g.Key, g => g.ToList());
+
+        var anyChange = false;
+        foreach (var game in games)
+        {
+            var findings = NegativeStatFindings(game).ToList();
+            var existing = existingByGame.GetValueOrDefault(game.RecordedGameID, []);
+            anyChange |= ReconcileInMemory(null, game.RecordedGameID, findings, existing, now);
+        }
+        if (anyChange)
+            await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
     /// Runs the "any game" rules that apply to a Halo Infinite match (accuracy and shots, negative stats, an undecoded
     /// custom score) and reconciles the result onto its flags. Called from the one place every Halo pull saves a match
     /// (DataPullService.SaveMatch), once the match itself is saved, so a match is checked once whether it ends up
-    /// reported to a season match or not. <paramref name="match"/> is already loaded with its teams and participants
-    /// (it was just saved); <paramref name="userIDByXuid"/> and <paramref name="gamertagByXuid"/>, when the caller
-    /// already has them (a bulk pull, looking them up once for every match rather than once a match), are used as
-    /// given - otherwise looked up here, for a match checked on its own.
+    /// reported to a season match or not - and again whenever it's decoded again (CustomScoreLayouts.DecodeAsync, a
+    /// variant's layout filled in by the backfill). <paramref name="match"/> is already loaded with its teams and
+    /// participants; <paramref name="userIDByXuid"/> and <paramref name="gamertagByXuid"/>, when the caller already
+    /// has them (a bulk pull, looking them up once for every match rather than once a match), are used as given -
+    /// otherwise looked up here, for a match checked on its own. <paramref name="isNewMatch"/>, true for a match this
+    /// call is saving for the first time, skips the existing-flags query: it can't have any yet.
     /// </summary>
-    public async Task CheckMatchAsync(Match match, IReadOnlyDictionary<long, int>? userIDByXuid = null,
-        IReadOnlyDictionary<long, string>? gamertagByXuid = null, CancellationToken ct = default)
+    public Task CheckMatchAsync(Match match, IReadOnlyDictionary<long, int>? userIDByXuid = null,
+        IReadOnlyDictionary<long, string>? gamertagByXuid = null, bool isNewMatch = false, CancellationToken ct = default) =>
+        SafelyAsync(() => CheckMatchCoreAsync(match, userIDByXuid, gamertagByXuid, isNewMatch, ct), $"match {match.MatchID}");
+
+    private async Task CheckMatchCoreAsync(Match match, IReadOnlyDictionary<long, int>? userIDByXuid,
+        IReadOnlyDictionary<long, string>? gamertagByXuid, bool isNewMatch, CancellationToken ct)
     {
         var xuids = match.MatchTeams.SelectMany(t => t.MatchParticipants).Select(p => p.XboxUserID).Distinct().ToList();
         userIDByXuid ??= await _context.Users.Where(u => u.XboxUserID != null && xuids.Contains(u.XboxUserID!.Value))
@@ -98,7 +149,7 @@ public class StatFlagService
             findings.Add(new Finding(StatFlagRule.UndecodedCustomScore, null,
                 "The match's custom game mode couldn't be decoded (#217): its players' scores are still Halo's packed numbers, not goals"));
 
-        await ReconcileAsync(match.MatchID, null, findings, _time.GetUtcNow().UtcDateTime, MatchRules, ct);
+        await ReconcileAsync(match.MatchID, null, findings, _time.GetUtcNow().UtcDateTime, MatchRules, ct, skipExistingQuery: isNewMatch);
     }
 
     /// <summary>
@@ -109,9 +160,15 @@ public class StatFlagService
     /// every time such a game is reported, so skipping it here misses nothing a live report wouldn't already have
     /// caught. The finding, when there is one, is attached to the series' last recorded game, a flag always being of
     /// one game; otherwise any flag left on one of the series' games by an earlier run - no longer decided by games, a
-    /// Waypoint game now in the mix, undone, reopened - is cleared rather than left stuck open for good.
+    /// Waypoint game now in the mix, undone, reopened - is cleared rather than left stuck open for good. Called
+    /// whenever a game is added, replaced or removed, the series is forfeited or undone, and whenever a Waypoint game
+    /// joins it (SeasonMatchService.ReportMatch) even though that alone never raises the finding, since it may be what
+    /// clears one an earlier, all-recorded state left.
     /// </summary>
-    public async Task CheckSeriesGamesAsync(int seasonMatchID, CancellationToken ct = default)
+    public Task CheckSeriesGamesAsync(int seasonMatchID, CancellationToken ct = default) =>
+        SafelyAsync(() => CheckSeriesGamesCoreAsync(seasonMatchID, ct), $"season match {seasonMatchID}'s series");
+
+    private async Task CheckSeriesGamesCoreAsync(int seasonMatchID, CancellationToken ct)
     {
         var seasonMatch = await _context.SeasonMatches
             .Include(m => m.SeriesGames).ThenInclude(g => g.RecordedGame!.Teams)
@@ -140,12 +197,31 @@ public class StatFlagService
         }
 
         var now = _time.GetUtcNow().UtcDateTime;
+        // One query for every game of the series' existing flags, one save for them all: not once a game.
+        var existingByGame = (await _context.StatFlags
+                .Where(f => f.RecordedGameID != null && recordedGameIDs.Contains(f.RecordedGameID.Value))
+                .Where(f => SeriesRules.Contains(f.Rule))
+                .ToListAsync(ct))
+            .GroupBy(f => f.RecordedGameID!.Value).ToDictionary(g => g.Key, g => g.ToList());
+
         // Every game of the series is reconciled, not only the one the finding (if any) attaches to: an earlier run
         // may have left this flag on a different game (the series' "last" one at the time), which would otherwise
         // never be looked at again once that's no longer the last, or no longer applies at all.
+        var anyChange = false;
         foreach (var id in recordedGameIDs)
-            await ReconcileAsync(null, id, id == lastGameID ? findings : [], now, SeriesRules, ct);
+            anyChange |= ReconcileInMemory(null, id, id == lastGameID ? findings : [], existingByGame.GetValueOrDefault(id, []), now);
+        if (anyChange)
+            await _context.SaveChangesAsync(ct);
     }
+
+    /// <summary>
+    /// Clears any open SeriesDoesNotMatchGames flag on a game just taken out of its series for good - replaced, removed
+    /// by hand, or unlinked by the import (a stale or scrim game) - whose RecordedGameID the caller captured before the
+    /// unlink: once it's out, <see cref="CheckSeriesGamesAsync"/> can no longer reach it through the series.
+    /// </summary>
+    public Task ClearSeriesFlagAsync(int recordedGameID, CancellationToken ct = default) =>
+        SafelyAsync(() => ReconcileAsync(null, recordedGameID, [], _time.GetUtcNow().UtcDateTime, SeriesRules, ct),
+            $"clearing game {recordedGameID}'s series flag");
 
     #region Hand-entered rules (RecordedGame.IsManual only)
 
@@ -238,12 +314,15 @@ public class StatFlagService
         }
     }
 
+    /// <summary>Score isn't checked here (unlike a recorded game's): a Halo match's Score includes suicides and
+    /// betrayals, which normal play can easily make negative - and an undecoded custom score (StatFlagRule.UndecodedCustomScore)
+    /// already flags that same match on its own. Kills, deaths, assists and goals, as the rule's own doc says.</summary>
     private static IEnumerable<Finding> NegativeStatFindings(Match match, IReadOnlyDictionary<long, int> userIDByXuid,
         IReadOnlyDictionary<long, string> gamertagByXuid)
     {
         foreach (var p in match.MatchTeams.SelectMany(t => t.MatchParticipants))
         {
-            var bad = NegativeStats(("kills", p.Kills), ("deaths", p.Deaths), ("assists", p.Assists), ("score", p.Score), ("goals", p.Goals ?? 0));
+            var bad = NegativeStats(("kills", p.Kills), ("deaths", p.Deaths), ("assists", p.Assists), ("goals", p.Goals ?? 0));
             if (bad is not null)
             {
                 var playerID = userIDByXuid.GetValueOrDefault(p.XboxUserID) is int id and > 0 ? id : (int?)null;
@@ -285,20 +364,35 @@ public class StatFlagService
     #endregion
 
     /// <summary>
-    /// Brings a game's flags up to date with what was just found: an open flag for a (rule, player, discriminator)
-    /// still found is rewritten in place; one no longer found is removed; a new finding is added. A dismissed flag is
-    /// left to <see cref="StatFlag.Rewrite"/>'s own rule (stays dismissed unless its reason changed). Only ever touches
-    /// flags of a rule in <paramref name="ownedRules"/> - the rules the caller actually ran - so one check never
-    /// removes a flag another check left on the same game (a series check's game is often also a hand-entered game's).
+    /// Brings a game's flags up to date with what was just found, querying its existing ones first unless
+    /// <paramref name="skipExistingQuery"/> (a match just inserted: it can't have any). See
+    /// <see cref="ReconcileInMemory"/> for the rest.
     /// </summary>
     private async Task ReconcileAsync(Guid? matchID, int? recordedGameID, List<Finding> findings, DateTime now,
-        IReadOnlySet<StatFlagRule> ownedRules, CancellationToken ct)
+        IReadOnlySet<StatFlagRule> ownedRules, CancellationToken ct, bool skipExistingQuery = false)
     {
-        var existing = await _context.StatFlags
-            .Where(f => matchID != null ? f.MatchID == matchID : f.RecordedGameID == recordedGameID)
-            .Where(f => ownedRules.Contains(f.Rule))
-            .ToListAsync(ct);
+        var existing = skipExistingQuery
+            ? []
+            : await _context.StatFlags
+                .Where(f => matchID != null ? f.MatchID == matchID : f.RecordedGameID == recordedGameID)
+                .Where(f => ownedRules.Contains(f.Rule))
+                .ToListAsync(ct);
 
+        if (ReconcileInMemory(matchID, recordedGameID, findings, existing, now))
+            await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// An open flag for a (rule, player, discriminator) still found is rewritten in place; one no longer found is
+    /// removed (<see cref="StatFlag.Clear"/>, then); a new finding is added. A dismissed flag is left to
+    /// <see cref="StatFlag.Rewrite"/>'s own rule (stays dismissed unless its reason changed). Nothing but
+    /// <paramref name="existing"/> is read or touched, so a caller checking many games at once
+    /// (<see cref="CheckRecordedGamesAsync"/>, the series check) can batch the query and the save around many calls of
+    /// this. Returns whether anything changed, so an all-quiet batch saves nothing.
+    /// </summary>
+    private bool ReconcileInMemory(Guid? matchID, int? recordedGameID, List<Finding> findings, List<StatFlag> existing, DateTime now)
+    {
+        var changed = false;
         foreach (var finding in findings)
         {
             var flag = existing.FirstOrDefault(f => f.Rule == finding.Rule && f.PlayerUserID == finding.PlayerUserID && f.Discriminator == finding.Discriminator);
@@ -306,12 +400,36 @@ public class StatFlagService
                 _context.StatFlags.Add(StatFlag.Found(finding.Rule, matchID, recordedGameID, finding.PlayerUserID, finding.Reason, now, finding.Discriminator));
             else
                 flag.Rewrite(finding.Reason, now);
+            // A new flag, or an existing one Rewrite may have changed (its wording, or reopened): either way, worth a save
+            changed = true;
         }
 
         foreach (var stale in existing.Where(f => f.IsOpen && !findings.Any(fi => fi.Rule == f.Rule && fi.PlayerUserID == f.PlayerUserID && fi.Discriminator == f.Discriminator)))
+        {
+            stale.Clear();
             _context.StatFlags.Remove(stale);
+            changed = true;
+        }
+        return changed;
+    }
 
-        if (findings.Count > 0 || existing.Count > 0)
-            await _context.SaveChangesAsync(ct);
+    /// <summary>
+    /// Runs <paramref name="action"/>, logging and letting go of a failure (never <see cref="OperationCanceledException"/>)
+    /// rather than passing it on: a check never rolls back the action it followed. Detaches anything of this check's
+    /// own a failure left tracked (<see cref="StatFlag.Found"/>, <see cref="StatFlag.Rewrite"/> and the removal above
+    /// all go through this context), so the next unrelated save on it doesn't try to save that too.
+    /// </summary>
+    private async Task SafelyAsync(Func<Task> action, string what)
+    {
+        try
+        {
+            await action();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            _logger.LogError(e, "Stat flag check failed ({What}); the action it followed went through regardless", what);
+            foreach (var entry in _context.ChangeTracker.Entries<StatFlag>().Where(e => e.State is not EntityState.Unchanged).ToList())
+                entry.State = EntityState.Detached;
+        }
     }
 }

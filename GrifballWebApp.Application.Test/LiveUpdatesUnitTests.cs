@@ -408,6 +408,9 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         yield return Case(new RecordedGameChanged(RecordedGame.Seed("game-2")), "lateleague", "RecordedGameChanged of Late League");
         yield return Case(new RecordedGameChanged(TeamsGame()), "season:5 team:3", "RecordedGameChanged of a season's team");
         yield return Case(new StatFlagFound(StatFlag.Found(StatFlagRule.NegativeStat, null, 41, null, "reason", Now)), "staff:statflags");
+        yield return Case(new StatFlagDismissed(StatFlag.Found(StatFlagRule.NegativeStat, null, 41, null, "reason", Now)), "staff:statflags");
+        yield return Case(new StatFlagReopened(StatFlag.Found(StatFlagRule.NegativeStat, null, 41, null, "reason", Now)), "staff:statflags");
+        yield return Case(new StatFlagCleared(StatFlag.Found(StatFlagRule.NegativeStat, null, 41, null, "reason", Now)), "staff:statflags");
     }
 
     [TestCaseSource(nameof(EveryEvent))]

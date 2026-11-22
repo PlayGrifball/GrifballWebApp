@@ -1,5 +1,4 @@
-﻿using GrifballWebApp.Domain.Archive;
-using GrifballWebApp.Domain.Halo;
+﻿using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
@@ -249,9 +248,11 @@ public partial class DataPullService : IDataPullService
 
     /// <summary>Saves the games one at a time (the context isn't shared between threads). Returns how many were saved.
     /// <paramref name="userIDByXuid"/> and <paramref name="gamertagByXuid"/> are the stat flag checks' own lookups,
-    /// made once for the whole bag rather than once a match (StatFlagService.CheckMatchAsync).</summary>
+    /// made once for the whole bag rather than once a match (StatFlagService.CheckMatchAsync); a player getserted
+    /// during a save (new to the whole batch) is added to <paramref name="gamertagByXuid"/> as it's resolved, so a
+    /// later match of the same bag still names them rather than their bare XUID.</summary>
     private async Task<int> SaveMatchesAsync(IEnumerable<MatchStats> matchStatsBag, IReadOnlySet<long> knownXboxUserIDs,
-        IReadOnlyDictionary<long, int> userIDByXuid, IReadOnlyDictionary<long, string> gamertagByXuid, CancellationToken ct)
+        IReadOnlyDictionary<long, int> userIDByXuid, Dictionary<long, string> gamertagByXuid, CancellationToken ct)
     {
         // Could also do this in parallel foreach but would need a seperate context for each.
         // Each save looked through every entity the context tracks for changes, the games saved before it too, so each was
@@ -461,9 +462,10 @@ public partial class DataPullService : IDataPullService
 
     /// <summary>Saves the game; false when it isn't saved (not a team game). <paramref name="userIDByXuid"/> and
     /// <paramref name="gamertagByXuid"/> are the stat flag checks' lookups, given when the caller already has them for
-    /// the whole pull; null for a match saved on its own, where CheckMatchAsync looks them up itself.</summary>
+    /// the whole pull; null for a match saved on its own, where CheckMatchAsync looks them up itself. A player
+    /// getserted here (new to the whole batch, not only this match) updates <paramref name="gamertagByXuid"/> in place.</summary>
     private async Task<bool> SaveMatch(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs,
-        IReadOnlyDictionary<long, int>? userIDByXuid, IReadOnlyDictionary<long, string>? gamertagByXuid, CancellationToken ct)
+        IReadOnlyDictionary<long, int>? userIDByXuid, Dictionary<long, string>? gamertagByXuid, CancellationToken ct)
     {
         var matchID = matchStats.MatchId;
 
@@ -500,6 +502,10 @@ public partial class DataPullService : IDataPullService
                 throw new Exception("XUID not long");
             }
             var xboxUser = knownXboxUserIDs?.Contains(xuidLong) is true ? null : await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong, ct);
+            // Getserted just now: new to the whole batch, not only this match. The shared lookup (built before any
+            // match was saved) would otherwise still show them by their bare XUID when the stat flag check runs.
+            if (xboxUser is not null && gamertagByXuid is not null)
+                gamertagByXuid[xuidLong] = xboxUser.Gamertag;
 
             var stats = x.PlayerTeamStats.Where(pts => pts.TeamId == x.LastTeamId).FirstOrDefault()?.Stats.CoreStats
                 ?? throw new Exception("Failed to find last team stats");
@@ -565,29 +571,11 @@ public partial class DataPullService : IDataPullService
             ForgetAdded(match);
             throw;
         }
-        await CheckStatFlagsAsync(match, userIDByXuid, gamertagByXuid, ct);
+        // #548: plain anomaly checks (impossible numbers, an undecoded custom score), never anything that changes the
+        // match - it's saved either way. A failed check is StatFlagService's own to log and let go, never failing the
+        // rest of the pull. isNewMatch: true - it was just added above, so it can't have an existing flag yet.
+        await _statFlags.CheckMatchAsync(match, userIDByXuid, gamertagByXuid, isNewMatch: true, ct);
         return true;
-    }
-
-    /// <summary>#548: plain anomaly checks (impossible numbers, an undecoded custom score), never anything that changes
-    /// the match - it's saved either way. A failure here (a transient DB error) is logged and let go rather than
-    /// failing the rest of the pull, detaching anything it left tracked so the next match's save doesn't trip over
-    /// it.</summary>
-    private async Task CheckStatFlagsAsync(Match match, IReadOnlyDictionary<long, int>? userIDByXuid,
-        IReadOnlyDictionary<long, string>? gamertagByXuid, CancellationToken ct)
-    {
-        try
-        {
-            await _statFlags.CheckMatchAsync(match, userIDByXuid, gamertagByXuid, ct);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            _logger.LogError(e, "Stat flag check failed for match {MatchID}; the match itself was saved fine", match.MatchID);
-            // What it may have left tracked (StatFlagService.ReconcileAsync adds, rewrites and removes StatFlags): let
-            // go, so the next SaveChangesAsync on this context doesn't try to save it too.
-            foreach (var entry in _grifballContext.ChangeTracker.Entries<StatFlag>().Where(e => e.State is not EntityState.Unchanged).ToList())
-                entry.State = EntityState.Detached;
-        }
     }
 
     private void ForgetAdded(Match match)

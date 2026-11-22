@@ -39,27 +39,37 @@ public partial class SeasonMatchService
     /// <summary>
     /// Makes room for a game that replaces one of the series (the commissioner's choice, never a guess): the result its
     /// games decided is taken back (in a bracket, what it sent on, as <see cref="RemoveGame"/>), and the game replaced
-    /// is unreported (<see cref="Unreport"/>). Returns the game number the new game takes, so it plays the same part.
+    /// is unreported (<see cref="Unreport"/>). Returns the game number the new game takes, so it plays the same part,
+    /// and the RecordedGameID of a kept (non-manual) game whose series flag the caller should clear once it's committed.
     /// </summary>
-    private async Task<int> ReplaceAsync(SeasonMatch seasonMatch, int seriesGameID, CancellationToken ct)
+    private async Task<(int GameNumber, int? ClearedRecordedGameID)> ReplaceAsync(SeasonMatch seasonMatch, int seriesGameID, CancellationToken ct)
     {
         var replaced = SeriesGameOf(seasonMatch, seriesGameID);
         await ReopenAsync(seasonMatch, ct);
-        Unreport(seasonMatch, replaced);
+        var cleared = Unreport(seasonMatch, replaced);
         // Gone before the new game takes its number
         await SavingSeries(() => _context.SaveChangesAsync(ct));
-        return replaced.GameNumber;
+        return (replaced.GameNumber, cleared);
     }
 
     /// <summary>
     /// Takes a game out of the series: a Waypoint game goes back to the possible matches, to be reported again; a game
-    /// entered by hand has nothing to go back to, so it is deleted.
+    /// entered by hand has nothing to go back to, so it is deleted (its flags cascade with it). Returns the
+    /// RecordedGameID of a kept (non-manual, imported) game: it keeps whatever series flag was on it
+    /// (StatFlagRule.SeriesDoesNotMatchGames, say), which only <see cref="StatFlagService.ClearSeriesFlagAsync"/> can
+    /// still reach once it's out of the series. Null for a Waypoint game (carries no series flag of its own) or a
+    /// deleted one.
     /// </summary>
-    private void Unreport(SeasonMatch seasonMatch, SeriesGame game)
+    private int? Unreport(SeasonMatch seasonMatch, SeriesGame game)
     {
+        var recordedGameID = game.RecordedGameID;
         _context.RemoveSeriesGame(seasonMatch, game);
         if (game.RecordedGame is { IsManual: true } manual)
+        {
             _context.RemoveRecordedGame(manual);
+            return null;
+        }
+        return recordedGameID;
     }
 
     private static SeriesGame SeriesGameOf(SeasonMatch seasonMatch, int seriesGameID) =>
@@ -81,7 +91,10 @@ public partial class SeasonMatchService
             RefuseNewGame(seasonMatch);
 
         var users = await ValidateManualGame(dto, seasonMatch, null, ct);
-        var number = dto.ReplacesSeriesGameID is int replaces ? await ReplaceAsync(seasonMatch, replaces, ct) : 0;
+        int? clearedRecordedGameID = null;
+        var number = 0;
+        if (dto.ReplacesSeriesGameID is int replaces)
+            (number, clearedRecordedGameID) = await ReplaceAsync(seasonMatch, replaces, ct);
 
         // No season of its own: the game counts for its season through its series game only (RecordedGame.EnterByHand)
         var game = RecordedGame.EnterByHand(ManualFacts(seasonMatch, dto));
@@ -95,10 +108,14 @@ public partial class SeasonMatchService
             await _context.SaveChangesAsync(ct);
         });
         await AwardChampionship(seasonMatch, ct);
-        // #548: anomaly checks on the game just entered, and on the series it's now part of
+        await transaction.CommitAsync(ct);
+        // #548: anomaly checks on the game just entered, the series it's now part of, and - replacing a kept, imported
+        // game - the series flag that game's own RecordedGameID can't be reached through the series by any more. After
+        // the commit: a failing check must never roll back the game this saved.
+        if (clearedRecordedGameID is int id)
+            await _statFlags.ClearSeriesFlagAsync(id, ct);
         await _statFlags.CheckRecordedGameAsync(game, seasonMatch, ct);
         await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
-        await transaction.CommitAsync(ct);
         return game.RecordedGameID;
     }
 
@@ -138,10 +155,11 @@ public partial class SeasonMatchService
             await _context.SaveChangesAsync(ct);
         });
         await AwardChampionship(seasonMatch, ct);
-        // #548: the edit may have changed what the hand-entered rules and the series-sum rule find
+        await transaction.CommitAsync(ct);
+        // #548: the edit may have changed what the hand-entered rules and the series-sum rule find. After the commit:
+        // a failing check must never roll back the edit.
         await _statFlags.CheckRecordedGameAsync(game, seasonMatch, ct);
         await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
-        await transaction.CommitAsync(ct);
     }
 
     /// <summary>
@@ -157,7 +175,7 @@ public partial class SeasonMatchService
         var seriesGame = SeriesGameOf(seasonMatch, seriesGameID);
 
         await ReopenAsync(seasonMatch, ct);
-        Unreport(seasonMatch, seriesGame);
+        var cleared = Unreport(seasonMatch, seriesGame);
 
         await SavingSeries(async () =>
         {
@@ -167,9 +185,13 @@ public partial class SeasonMatchService
             await _context.SaveChangesAsync(ct);
         });
         await AwardChampionship(seasonMatch, ct);
-        // #548: the series' remaining games may no longer (or may now) add up to its result
-        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
         await transaction.CommitAsync(ct);
+        // #548: the series' remaining games may no longer (or may now) add up to its result; a kept, imported game just
+        // removed from the series keeps whatever series flag was on it unless it's explicitly cleared here - the series
+        // check alone can't reach it any more. After the commit: a failing check must never roll back the removal.
+        if (cleared is int id)
+            await _statFlags.ClearSeriesFlagAsync(id, ct);
+        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
     }
 
     /// <summary>

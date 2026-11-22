@@ -1,4 +1,5 @@
 using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Domain.Test;
 
@@ -13,6 +14,9 @@ public class StatFlagAggregateTests
 {
     private static readonly DateTime FoundAt = new(2026, 11, 20, 12, 0, 0, DateTimeKind.Utc);
     private static readonly Guid MatchID = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+    private static IReadOnlyList<IDomainEvent> Events(StatFlag flag) => ((IHasDomainEvents)flag).DomainEvents;
+    private static void ClearEvents(StatFlag flag) => ((IHasDomainEvents)flag).ClearDomainEvents();
 
     [Test]
     public void Found_OfAMatch_SetsItsFieldsAndIsOpen()
@@ -96,6 +100,40 @@ public class StatFlagAggregateTests
     }
 
     [Test]
+    public void Dismiss_RaisesStatFlagDismissed()
+    {
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, "reason", FoundAt);
+        ClearEvents(flag);
+
+        flag.Dismiss(3, FoundAt.AddDays(1));
+
+        Assert.That(Events(flag), Is.EqualTo(new IDomainEvent[] { new StatFlagDismissed(flag) }));
+    }
+
+    [Test]
+    public void Dismiss_AlreadyDismissed_RaisesNothing()
+    {
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, "reason", FoundAt);
+        flag.Dismiss(3, FoundAt.AddDays(1));
+        ClearEvents(flag);
+
+        flag.Dismiss(7, FoundAt.AddDays(2));
+
+        Assert.That(Events(flag), Is.Empty);
+    }
+
+    [Test]
+    public void Clear_RaisesStatFlagCleared()
+    {
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, "reason", FoundAt);
+        ClearEvents(flag);
+
+        flag.Clear();
+
+        Assert.That(Events(flag), Is.EqualTo(new IDomainEvent[] { new StatFlagCleared(flag) }));
+    }
+
+    [Test]
     public void Found_WithADiscriminator_KeepsIt()
     {
         var flag = StatFlag.Found(StatFlagRule.TeamSmallerThanFormat, MatchID, null, null, "Side 1 fielded 1 player(s)", FoundAt, discriminator: 1);
@@ -161,5 +199,40 @@ public class StatFlagAggregateTests
             Assert.That(flag.Reason, Is.EqualTo("a different reason"));
             Assert.That(flag.FoundAt, Is.EqualTo(rewrittenAt));
         }
+    }
+
+    [Test]
+    public void Rewrite_WhileDismissed_WithADifferentReason_RaisesStatFlagReopened()
+    {
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, "reason", FoundAt);
+        flag.Dismiss(3, FoundAt.AddDays(1));
+        ClearEvents(flag);
+
+        flag.Rewrite("a different reason", FoundAt.AddDays(2));
+
+        Assert.That(Events(flag), Is.EqualTo(new IDomainEvent[] { new StatFlagReopened(flag) }));
+    }
+
+    [Test]
+    public void Rewrite_WhileOpen_RaisesNothing()
+    {
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, "first reason", FoundAt);
+        ClearEvents(flag);
+
+        flag.Rewrite("second reason", FoundAt.AddDays(1));
+
+        Assert.That(Events(flag), Is.Empty);
+    }
+
+    [Test]
+    public void Rewrite_WhileDismissed_WithTheSameReason_RaisesNothing()
+    {
+        var flag = StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, "reason", FoundAt);
+        flag.Dismiss(3, FoundAt.AddDays(1));
+        ClearEvents(flag);
+
+        flag.Rewrite("reason", FoundAt.AddDays(2));
+
+        Assert.That(Events(flag), Is.Empty);
     }
 }

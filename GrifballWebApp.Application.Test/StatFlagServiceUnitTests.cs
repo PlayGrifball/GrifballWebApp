@@ -390,6 +390,23 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task CheckMatchAsync_ANegativeScoreAlone_IsNotFlagged()
+    {
+        // #548: Score includes suicides and betrayals, which normal play can easily make negative; kills, deaths,
+        // assists and goals only, as the rule's own doc says
+        Context.XboxUsers.Add(XboxUser.FromXbox(101, "GT101"));
+        var match = Domain.Halo.Match.Seed(Guid.NewGuid());
+        match.AddTeam(0, 1, Outcomes.Won);
+        match.AddParticipant(0, 101, new MatchParticipantStats { Score = -5, Kills = 1, Deaths = 1, Assists = 1 });
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckMatchAsync(match);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.NegativeStat), Is.False);
+    }
+
+    [Test]
     public async Task CheckMatchAsync_TwoUnlinkedPlayersBothNegative_AreTwoFlags_AndFixingOneLeavesTheOther()
     {
         // Neither 998 nor 999 is anyone's Xbox account: without a discriminator both findings would share the same

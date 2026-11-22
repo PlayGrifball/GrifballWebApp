@@ -331,8 +331,9 @@ public partial class SeasonMatchService
             throw new SeasonMatchActionNotAllowedException("You cannot report a match for a season match that does not have both teams assigned");
 
         var number = 0;
+        int? clearedRecordedGameID = null;
         if (replacesSeriesGameID is int replaces)
-            number = await ReplaceAsync(seasonMatch, replaces, ct);
+            (number, clearedRecordedGameID) = await ReplaceAsync(seasonMatch, replaces, ct);
         else
             RefuseNewGame(seasonMatch);
 
@@ -344,9 +345,14 @@ public partial class SeasonMatchService
             await _context.SaveChangesAsync(ct);
         });
         await AwardChampionship(seasonMatch, ct);
-        // #548: no StatFlagService.CheckSeriesGamesAsync call here - a reported match always adds a Match game, and
-        // that check is only ever for a series decided entirely by recorded games, so it would be a no-op every time.
         await transaction.CommitAsync(ct);
+        // #548: the series now has a Match game, so CheckSeriesGamesAsync never raises SeriesDoesNotMatchGames for it -
+        // but it's still run, to clear one an earlier, all-recorded state left open (replacing a game, or into a
+        // reopened series); a replaced, kept (imported) game is cleared directly, since it's no longer reachable
+        // through the series. After the commit: a failing check must never roll back the report.
+        if (clearedRecordedGameID is int id)
+            await _statFlags.ClearSeriesFlagAsync(id, ct);
+        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
 
         // A league game now: its players nobody signed up as (subs) get a placeholder, so their stats in it count. After the
         // report, not in it: two reports sharing a sub would both insert its placeholder, and the second report would roll
@@ -638,11 +644,12 @@ public partial class SeasonMatchService
 
         await _context.SaveChangesAsync(ct);
         await AwardChampionship(seasonMatch, ct);
+        await transaction.CommitAsync(ct);
         // #548: a forfeit never decides a match that was already decided by games (ForfeitResult.AlreadyDecided above),
         // so there is never a SeriesDoesNotMatchGames flag to clear here; re-checked anyway for the same reason as
-        // UndoResult - nothing this method does should leave a stale flag behind undetected.
+        // UndoResult - nothing this method does should leave a stale flag behind undetected. After the commit: a
+        // failing check must never roll back the forfeit.
         await _statFlags.CheckSeriesGamesAsync(seasonMatchID, ct);
-        await transaction.CommitAsync(ct);
     }
 
     /// <summary>
@@ -672,24 +679,35 @@ public partial class SeasonMatchService
         var forfeited = seasonMatch.DecidedBy is SeasonMatchDecision.Forfeit;
 
         seasonMatch.Reopen();
-        // #548: reopened, so no longer decided by games - any SeriesDoesNotMatchGames flag on one of its games no
-        // longer applies. Checked here, before the games below are cleared (and their link to the series gone with
-        // them): afterward there would be nothing left to find that flag by.
-        await _statFlags.CheckSeriesGamesAsync(seasonMatchID, ct);
+        // A kept (non-manual, imported) game's RecordedGameID, captured before it's taken out of the series below:
+        // once it's out, only StatFlagService.ClearSeriesFlagAsync can still reach its series flag.
+        var clearedRecordedGameIDs = new List<int>();
         // A forfeit did not come from the games: they and their score stay, and the series goes on from them. Any
         // other undo clears the games too
         if (forfeited is false)
         {
             var games = _context.ClearSeries(seasonMatch);
-            // Frees the games so they can be reported again; a game entered by hand has nothing to go back to, so it
-            // is deleted (the confirmation says so)
-            foreach (var game in games.Where(g => g.RecordedGame is { IsManual: true }))
-                _context.RemoveRecordedGame(game.RecordedGame!);
+            foreach (var game in games)
+            {
+                // Frees the games so they can be reported again; a game entered by hand has nothing to go back to, so
+                // it is deleted (the confirmation says so, and its flags cascade with it)
+                if (game.RecordedGame is { IsManual: true } manual)
+                    _context.RemoveRecordedGame(manual);
+                else if (game.RecordedGameID is int id)
+                    clearedRecordedGameIDs.Add(id);
+            }
         }
 
         await _context.SaveChangesAsync(ct);
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
+        // #548: reopened, so no longer decided by games - any SeriesDoesNotMatchGames flag on one of its games no
+        // longer applies. A game cleared from the series above (forfeited is false) is cleared directly, since it's no
+        // longer reachable through the series; the series itself (forfeited is true, or with no games left) is
+        // re-checked too. After the commit: a failing check must never roll back the undo.
+        foreach (var id in clearedRecordedGameIDs)
+            await _statFlags.ClearSeriesFlagAsync(id, ct);
+        await _statFlags.CheckSeriesGamesAsync(seasonMatchID, ct);
     }
 
     private class TeamsDto

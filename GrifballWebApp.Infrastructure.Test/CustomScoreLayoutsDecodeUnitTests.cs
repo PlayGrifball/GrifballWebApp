@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
@@ -66,6 +67,37 @@ public class CustomScoreLayoutsDecodeUnitTests : SqliteContextFixture
         {
             Assert.That(saved.ScoreLayout, Is.EqualTo(CustomScoreLayout.Plain));
             Assert.That(saved.MatchTeams.SelectMany(t => t.MatchParticipants).Select(p => p.Goals), Is.EquivalentTo(new int?[] { 5, 3 }));
+        }
+    }
+
+    [Test]
+    public async Task DecodeAsync_AMatchThatStaysUndecoded_FlagsTheUndecodedCustomScore()
+    {
+        // #548: re-decoding must re-run the stat flag check, the same as the first save does
+        // SL26-era numbers whose goals add up under no layout (CustomScoreDecoderTests.NoLayoutFits_ItsUndecoded_NoGoalsCounted)
+        var matchId = Guid.NewGuid();
+        var match = Match.Seed(matchId);
+        match.AddTeam(0, 5, Outcomes.Won);
+        match.AddTeam(1, 2, Outcomes.Lost);
+        var x1 = ++_nextXuid;
+        var x2 = ++_nextXuid;
+        var x3 = ++_nextXuid;
+        var x4 = ++_nextXuid;
+        match.AddParticipant(0, x1, new MatchParticipantStats { Score = 3000000, PersonalScore = 15010100 }, [], XboxUser.FromXbox(x1, "A"));
+        match.AddParticipant(0, x2, new MatchParticipantStats { Score = 3000000, PersonalScore = 19030200 }, [], XboxUser.FromXbox(x2, "B"));
+        match.AddParticipant(1, x3, new MatchParticipantStats { Score = 2000000, PersonalScore = 18020000 }, [], XboxUser.FromXbox(x3, "C"));
+        match.AddParticipant(1, x4, new MatchParticipantStats { Score = 5000000, PersonalScore = 53110300 }, [], XboxUser.FromXbox(x4, "D"));
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var changed = await _layouts.DecodeAsync([]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(changed, Is.EqualTo(1));
+            var flag = await Context.Set<StatFlag>().AsNoTracking().SingleAsync(f => f.MatchID == matchId);
+            Assert.That(flag.Rule, Is.EqualTo(StatFlagRule.UndecodedCustomScore));
         }
     }
 

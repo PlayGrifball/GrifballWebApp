@@ -130,6 +130,51 @@ internal sealed class StaffStatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task TheFlagsReturned_ShowTheGamesDateAndTeams_WhenItsARecordedGameOutsideAnySeries()
+    {
+        // #548: an imported scrim, or a Late League matchmaking game, has no page to link to (no SeasonMatchID, no
+        // MatchID): shown by its date and sides instead
+        var game = RecordedGame.Seed("g1", gameVersionID: Halo3, playedAt: FoundAt.AddDays(-1));
+        game.SeedSide(1, outcome: Outcomes.Won, score: 3, name: "Reds");
+        game.SeedSide(2, outcome: Outcomes.Lost, score: 1, name: "Blues");
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt));
+        await Context.SaveChangesAsync();
+
+        var flags = await _staff.OpenFlagsAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flags[0].SeasonMatchID, Is.Null);
+            Assert.That(flags[0].GamePlayedAt, Is.EqualTo(game.PlayedAt));
+            Assert.That(flags[0].GameTeams, Is.EqualTo("Reds vs Blues"));
+        }
+    }
+
+    [Test]
+    public async Task TheFlagsReturned_ShowNoGameTeams_WhenTheGameIsInASeries()
+    {
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.EnterByHand(new RecordedGameFacts(Halo3));
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+        seeded.SeasonMatch.AddGame(game, 1);
+        await Context.SaveChangesAsync();
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.NegativeStat, null, game.RecordedGameID, null, "reason", FoundAt));
+        await Context.SaveChangesAsync();
+
+        var flags = await _staff.OpenFlagsAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flags[0].SeasonMatchID, Is.Not.Null);
+            Assert.That(flags[0].GameTeams, Is.Null);
+            Assert.That(flags[0].GamePlayedAt, Is.Null);
+        }
+    }
+
+    [Test]
     public async Task Dismiss_RecordsWhoAndWhen()
     {
         var game = SeedGame("g1");

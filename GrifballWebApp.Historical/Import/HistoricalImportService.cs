@@ -1632,7 +1632,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (stale.MatchedMatch is { } matched)
                 _context.RemoveArchivedMatch(matched);
             if (stale.SeriesGame is not null)
-                await Unlink(stale, ct);
+                await UnlinkTracking(stale, run, ct);
             _context.RemoveRecordedGame(stale);
             counts.RecordedGamesRemoved++;
         }
@@ -1641,9 +1641,16 @@ public partial class HistoricalImportService : IHistoricalImportService
         if (run.WithoutTeam.Count > 0 && teams.ByName.Count > 0)
             Warn(counts, $"{group.SourceId}: {run.WithoutTeam.Count} recorded game(s) with a side that is none of the season's teams (by its players' teams or its name): {string.Join(", ", run.WithoutTeam)}");
         // #548: every game kept this run (new or re-imported) has its RecordedGameID now; never one entered by hand,
-        // so only the "any game" rules run (StatFlagService.CheckRecordedGameAsync)
-        foreach (var game in run.Kept)
-            await _statFlags.CheckRecordedGameAsync(game, null, ct);
+        // so only the "any game" rules run - batched (one flags query, one save) rather than once a game
+        // (StatFlagService.CheckRecordedGamesAsync)
+        await _statFlags.CheckRecordedGamesAsync([.. run.Kept], ct);
+        // A game unlinked above (a stale or scrim game, Unlink) that survives: its series flag is no longer reachable
+        // through the series, so it's cleared directly. A series still standing after one of its games was unlinked,
+        // or whose games changed sides or outcome on a re-import, is re-checked (not only one newly linked, LinkSeries).
+        foreach (var id in run.ClearedRecordedGameIDs)
+            await _statFlags.ClearSeriesFlagAsync(id, ct);
+        foreach (var id in run.SeasonMatchIDsToRecheck)
+            await _statFlags.CheckSeriesGamesAsync(id, ct);
         return run.ToLink;
     }
 
@@ -1663,6 +1670,13 @@ public partial class HistoricalImportService : IHistoricalImportService
         public HashSet<string> Seen { get; } = new(StringComparer.OrdinalIgnoreCase);
         public List<ImportedGame> ToLink { get; } = [];
         public List<string> WithoutTeam { get; } = [];
+        /// <summary>#548: a game taken out of its series this run (Unlink) that survives: its RecordedGameID, for
+        /// StatFlagService.ClearSeriesFlagAsync once the whole run is saved.</summary>
+        public HashSet<int> ClearedRecordedGameIDs { get; } = [];
+        /// <summary>#548: every season match whose series this run may have changed - a game unlinked from it, or
+        /// re-imported still in it (its sides or outcome may have changed) - for StatFlagService.CheckSeriesGamesAsync
+        /// once the whole run is saved.</summary>
+        public HashSet<int> SeasonMatchIDsToRecheck { get; } = [];
     }
 
     /// <summary>One recorded game of <see cref="ImportRecordedGames"/>.</summary>
@@ -1762,18 +1776,37 @@ public partial class HistoricalImportService : IHistoricalImportService
             _context.RemoveArchivedMatch(matched);
         // A scrim is in no series: out of one an earlier import put it in (by the sides that series counted)
         if (input.IsScrim && game.SeriesGame is not null)
-            await Unlink(game, ct);
+            await UnlinkTracking(game, run, ct);
+        // #548: still in a series (the common case, re-imported): its sides or outcome may have changed, so the
+        // series is re-checked once the whole run is saved (StatFlagService.CheckSeriesGamesAsync) - not only a
+        // series newly linked this run (LinkSeries)
+        if (game.SeriesGame is { } linked)
+            run.SeasonMatchIDsToRecheck.Add(linked.SeasonMatchID);
         game.Reimport(facts, run.Season.SeasonID);
         return game;
+    }
+
+    /// <summary>Unlink (below), tracked onto <paramref name="run"/> for StatFlagService once the whole run is saved.</summary>
+    private async Task UnlinkTracking(RecordedGame game, RecordedGamesRun run, CancellationToken ct)
+    {
+        var (cleared, recheck) = await Unlink(game, ct);
+        if (cleared is int id)
+            run.ClearedRecordedGameIDs.Add(id);
+        if (recheck is int seasonMatchID)
+            run.SeasonMatchIDsToRecheck.Add(seasonMatchID);
     }
 
     /// <summary>
     /// Takes a recorded game out of its series, through the series (<see cref="SeasonMatch.RemoveImportedGame"/>): its win
     /// comes off the score and the series is worked out again from the games left, as the import first worked it out. A
-    /// series left with no games goes. Called before the game's sides are updated: they are the sides its win was counted by.
+    /// series left with no games goes. Called before the game's sides are updated: they are the sides its win was counted
+    /// by. Returns the game's own RecordedGameID (it's out of the series for good: StatFlagService.ClearSeriesFlagAsync
+    /// is the only thing that can still reach its series flag) and, when the series survives with games left, its
+    /// SeasonMatchID, to re-check once the whole run is saved.
     /// </summary>
-    private async Task Unlink(RecordedGame game, CancellationToken ct)
+    private async Task<(int? Cleared, int? StillHasSeries)> Unlink(RecordedGame game, CancellationToken ct)
     {
+        var recordedGameID = game.RecordedGameID;
         var seriesGame = game.SeriesGame!;
         var match = await _context.SeasonMatches.Include(m => m.SeriesGames).Include(m => m.BracketMatch)
             .FirstAsync(m => m.SeasonMatchID == seriesGame.SeasonMatchID, ct);
@@ -1781,12 +1814,14 @@ public partial class HistoricalImportService : IHistoricalImportService
         {
             DetachSheetGame(match, seriesGame);
             await _context.SaveChangesAsync(ct);
-            return;
+            return (recordedGameID, match.SeasonMatchID);
         }
         var (homeWon, awayWon) = WinsIn(game, match);
-        if (!_context.RemoveImportedSeriesGame(match, seriesGame, homeWon, awayWon))
+        var stillHasGames = _context.RemoveImportedSeriesGame(match, seriesGame, homeWon, awayWon);
+        if (!stillHasGames)
             _context.SeasonMatches.Remove(match);
         await _context.SaveChangesAsync(ct);
+        return (recordedGameID, stillHasGames ? match.SeasonMatchID : null);
     }
 
     /// <summary>

@@ -108,7 +108,7 @@ public static class LiveChanges
             : All(T.LateLeague),
         // #548: the staff list and the dashboard's count; which game it's about isn't loaded here, so its own page
         // (a match-pull's page, the season match page) isn't told to reload - left for later
-        StatFlagFound => All(T.StaffStatFlags),
+        StatFlagFound or StatFlagDismissed or StatFlagReopened or StatFlagCleared => All(T.StaffStatFlags),
 
         _ => [],
     };
