@@ -193,8 +193,8 @@ public class LiveRedisTests
         var podB = Pod(clientB, snapshots);
 
         await Task.WhenAll(
-            podA.Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-1"),
-            podB.Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-1"));
+            podA.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1"),
+            podB.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1"));
 
         using (Assert.EnterMultipleScope())
         {
@@ -215,8 +215,8 @@ public class LiveRedisTests
         var pod = Pod(client, snapshots);
 
         // Two changes moments apart, well inside the cached data's TTL: each must get its own build, under its own batch key
-        await pod.Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-1");
-        await pod.Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-2");
+        await pod.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1");
+        await pod.Deliver([new LiveChange(LiveTopics.Queue)], "batch-2");
 
         using (Assert.EnterMultipleScope())
         {

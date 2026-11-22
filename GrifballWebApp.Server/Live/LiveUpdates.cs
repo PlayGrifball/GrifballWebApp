@@ -93,7 +93,7 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
             }
         }
         if (delivery is not null)
-            await delivery.Deliver(list, ct);
+            await delivery.Deliver(list, ct: ct);
     }
 
     /// <summary>The changes in a message of <see cref="RelayChannel"/>; none for one that isn't a list of them.</summary>
@@ -126,7 +126,7 @@ public sealed class LiveRelayListener(LiveDelivery delivery, AppRedis? redis = n
         // same message, so the same batch key (LiveUpdates.BatchKeyOf): the first to build a topic's data for it keeps the
         // others from building their own (LiveDelivery.Deliver).
         redis?.WhenConnected(connection => connection.GetSubscriber().Subscribe(LiveUpdates.RelayChannel)
-            .OnMessage(message => delivery.Deliver(LiveUpdates.Parse(message.Message), CancellationToken.None, LiveUpdates.BatchKeyOf(message.Message))));
+            .OnMessage(message => delivery.Deliver(LiveUpdates.Parse(message.Message), LiveUpdates.BatchKeyOf(message.Message), CancellationToken.None)));
         return Task.CompletedTask;
     }
 
@@ -244,7 +244,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
     /// aren't covered by <see cref="AppRedis"/>'s channel prefix (that's pub/sub alone).</summary>
     private readonly string _keyPrefix = $"{prefix ?? AppRedisExtensions.DefaultChannelPrefix}:livebuild:";
 
-    public async Task Deliver(IReadOnlyCollection<LiveChange> changes, CancellationToken ct = default, string? batchKey = null)
+    public async Task Deliver(IReadOnlyCollection<LiveChange> changes, string? batchKey = null, CancellationToken ct = default)
     {
         // A user's own: to their connections here (each API process tells its own, so each connection hears it once)
         foreach (var change in changes.Where(c => c.UserID is not null))

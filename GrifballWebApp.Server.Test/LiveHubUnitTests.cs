@@ -379,7 +379,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
         _watchers.Watch(LiveTopics.Draft(4), "a", SeasonViewer.Public);
 
-        Assert.That(async () => await Delivery(snapshots).Deliver([new LiveChange(LiveTopics.Draft(4))], canceled.Token), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await Delivery(snapshots).Deliver([new LiveChange(LiveTopics.Draft(4))], ct: canceled.Token), Throws.InstanceOf<OperationCanceledException>());
         await watchers.DidNotReceive().Changed(Arg.Any<string>());
     }
 

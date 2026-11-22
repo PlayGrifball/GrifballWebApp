@@ -223,7 +223,7 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watching);
         _watchers.Watch(LiveTopics.Player(5), "conn", SeasonViewer.Public);
 
-        Assert.That(async () => await Delivery().Deliver([new LiveChange(LiveTopics.Player(5))], CancellationToken.None), Throws.Nothing);
+        Assert.That(async () => await Delivery().Deliver([new LiveChange(LiveTopics.Player(5))], ct: CancellationToken.None), Throws.Nothing);
         await watching.Received(1).Changed(LiveTopics.Player(5));
     }
 
@@ -236,7 +236,7 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
 
         // A batch key, as it would come scaled out through the relay: with Redis unreachable, caching across pods is
         // skipped and this pod builds it anyway, rather than leave its own watchers with nothing
-        await Delivery(Scopes(snapshots), DownRedis()).Deliver([new LiveChange(LiveTopics.Queue)], CancellationToken.None, "batch-1");
+        await Delivery(Scopes(snapshots), DownRedis()).Deliver([new LiveChange(LiveTopics.Queue)], "batch-1");
 
         await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
     }
