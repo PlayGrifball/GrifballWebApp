@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using StackExchange.Redis;
@@ -320,7 +321,8 @@ public class LiveRedisTests
 
     /// <summary>A pod's LiveDelivery, its own LiveWatchers and Redis connection, with one connection watching <paramref name="topic"/>
     /// as <paramref name="viewer"/> (its own single connection: "conn" for every pod, since each has its own LiveWatchers).</summary>
-    private LiveDelivery Pod(ILiveHubClient client, LiveSnapshots snapshots, string topic = LiveTopics.Queue, SeasonViewer viewer = SeasonViewer.Public)
+    private LiveDelivery Pod(ILiveHubClient client, LiveSnapshots snapshots, string topic = LiveTopics.Queue, SeasonViewer viewer = SeasonViewer.Public,
+        LiveOptions? liveOptions = null)
     {
         var watchers = new LiveWatchers();
         watchers.Watch(topic, "conn", viewer);
@@ -329,7 +331,7 @@ public class LiveRedisTests
         var services = new ServiceCollection();
         services.AddScoped(_ => snapshots);
         return new LiveDelivery(watchers, hub, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
-            NullLogger<LiveDelivery>.Instance, Configuration(), Process());
+            NullLogger<LiveDelivery>.Instance, Configuration(), Process(), liveOptions: liveOptions is null ? null : Options.Create(liveOptions));
     }
 
     [Test]
@@ -482,7 +484,7 @@ public class LiveRedisTests
             Assert.That(attempt, Is.EqualTo(2), "the failed winner's attempt, and the waiter's retry");
             Assert.That(notices, Has.Count.EqualTo(1), "the failed winner's own notice");
             Assert.That(snapshotsSent, Is.EqualTo(CountOfSeven), "the waiter's successful retry");
-            Assert.That(sw.Elapsed, Is.LessThan(LiveDelivery.BuildWait),
+            Assert.That(sw.Elapsed, Is.LessThan(LiveOptions.Default.BuildWait),
                 "the waiter noticed the lock was released and retried, rather than waiting out BuildWait for nothing");
         }
     }
@@ -496,7 +498,7 @@ public class LiveRedisTests
         {
             // Simulate a different pod taking over this key's lock while the original build is still in flight
             var raw = (await Process().ConnectAsync()).GetDatabase();
-            await raw.StringSetAsync(lockKey!, "someone-elses-token", LiveDelivery.LockTtl);
+            await raw.StringSetAsync(lockKey!, "someone-elses-token", LiveOptions.Default.LockTtl);
             return new QueueLiveDto(1);
         }
         var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
@@ -528,7 +530,7 @@ public class LiveRedisTests
         await Pod(clientA, snapshots).Deliver([new LiveChange(LiveTopics.Queue)], changeID); // builds, stores, and releases its own lock right away
 
         // Past the data's TTL; the lock was released long before that, right after the build above
-        await Task.Delay(LiveDelivery.DataTtl + TimeSpan.FromSeconds(1));
+        await Task.Delay(LiveOptions.Default.DataTtl + TimeSpan.FromSeconds(1));
 
         var clientB = Substitute.For<ILiveHubClient>();
         var sw = Stopwatch.StartNew();
@@ -538,7 +540,7 @@ public class LiveRedisTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(built, Is.EqualTo(2), "the data (and the long-released lock) were both gone: a fresh build");
-            Assert.That(sw.Elapsed, Is.LessThan(LiveDelivery.BuildWait), "won a fresh lock at once, never waited on an owner long gone");
+            Assert.That(sw.Elapsed, Is.LessThan(LiveOptions.Default.BuildWait), "won a fresh lock at once, never waited on an owner long gone");
         }
     }
 
@@ -551,7 +553,7 @@ public class LiveRedisTests
         {
             // The first call here is the lock's winner; make it take longer than BuildWait, as if that pod died mid-build
             if (Interlocked.Increment(ref calls) == 1)
-                await Task.Delay(LiveDelivery.BuildWait + TimeSpan.FromSeconds(1));
+                await Task.Delay(LiveOptions.Default.BuildWait + TimeSpan.FromSeconds(1));
             return new QueueLiveDto(calls);
         }
         var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
@@ -623,13 +625,13 @@ public class LiveRedisTests
         // Simulate another pod already building both topics (never finishing): pre-take every lock, under the real key
         var raw = (await Process().ConnectAsync()).GetDatabase();
         foreach (var topic in new[] { LiveTopics.Queue, LiveTopics.Seasons })
-            await raw.StringSetAsync($"{delivery.CacheKey(topic, SeasonViewer.Public, changeID)}:lock", RedisValue.EmptyString, LiveDelivery.LockTtl, When.NotExists);
+            await raw.StringSetAsync($"{delivery.CacheKey(topic, SeasonViewer.Public, changeID)}:lock", RedisValue.EmptyString, LiveOptions.Default.LockTtl, When.NotExists);
 
         var sw = Stopwatch.StartNew();
         await delivery.Deliver([new LiveChange(LiveTopics.Queue), new LiveChange(LiveTopics.Seasons)], changeID);
         sw.Stop();
 
-        Assert.That(sw.Elapsed, Is.LessThan(LiveDelivery.BuildWait + TimeSpan.FromSeconds(2)),
+        Assert.That(sw.Elapsed, Is.LessThan(LiveOptions.Default.BuildWait + TimeSpan.FromSeconds(2)),
             "both topics waited out BuildWait alongside each other, not one after the other");
     }
 
@@ -676,6 +678,35 @@ public class LiveRedisTests
         {
             await client.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":1}");
             await client.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":2}");
+        }
+    }
+
+    [Test]
+    public async Task SharedBuildsOff_NeverTouchesTheLockOrDataKeys_AndStillDelivers()
+    {
+        var changeID = Guid.NewGuid();
+        var built = 0;
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            Interlocked.Increment(ref built);
+            return Task.FromResult<object?>(new QueueLiveDto(5));
+        });
+        var client = Substitute.For<ILiveHubClient>();
+        // A real, reachable Redis (the relay's own connection still works through it) but SharedBuilds off: no lock,
+        // no cached data - this pod must always build its own
+        var pod = Pod(client, snapshots, liveOptions: new LiveOptions { SharedBuilds = false });
+        var key = pod.CacheKey(LiveTopics.Queue, SeasonViewer.Public, changeID);
+
+        await pod.Deliver([new LiveChange(LiveTopics.Queue)], changeID);
+
+        var db = (await Process().ConnectAsync()).GetDatabase();
+        using (Assert.EnterMultipleScope())
+        {
+            await client.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":5}");
+            Assert.That(built, Is.EqualTo(1), "built its own data, same as always when SharedBuilds is off");
+            Assert.That((await db.StringGetAsync(key)).IsNull, "the data key was never written");
+            Assert.That((await db.StringGetAsync($"{key}:lock")).IsNull, "the lock key was never taken");
         }
     }
 }

@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using StackExchange.Redis;
 
@@ -170,9 +171,11 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         }
     }
 
-    private LiveDelivery Delivery(IServiceScopeFactory? scopes = null, AppRedis? redis = null, IConfiguration? configuration = null, TimeProvider? time = null)
+    private LiveDelivery Delivery(IServiceScopeFactory? scopes = null, AppRedis? redis = null, IConfiguration? configuration = null, TimeProvider? time = null,
+        LiveOptions? liveOptions = null)
         => new(_watchers, _hubContext, scopes ?? new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
-            NullLogger<LiveDelivery>.Instance, configuration ?? new ConfigurationBuilder().Build(), redis, time);
+            NullLogger<LiveDelivery>.Instance, configuration ?? new ConfigurationBuilder().Build(), redis, time,
+            liveOptions is null ? null : Options.Create(liveOptions));
 
     /// <summary>
     /// A Redis whose reads succeed (nothing cached yet); its first write (the lock, always called with exactly 4 args -
@@ -306,6 +309,32 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
     }
 
+    [Test]
+    public async Task Deliver_SharedBuildsOff_NeverTouchesTheLockOrDataKeys_AndStillDelivers()
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(6));
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var db = Substitute.For<IDatabase>();
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        var redis = new AppRedis(_ => Task.FromResult(connection));
+
+        // A change ID and a reachable Redis - with SharedBuilds on, this would take the lock and cache the data;
+        // off, it must build its own without ever touching Redis at all
+        await Delivery(Scopes(snapshots), redis, liveOptions: new LiveOptions { SharedBuilds = false })
+            .Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+
+        using (Assert.EnterMultipleScope())
+        {
+            await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":6}");
+            await db.DidNotReceive().StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>());
+            await db.DidNotReceive().StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>());
+            await db.DidNotReceive().StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>());
+            await db.DidNotReceive().ScriptEvaluateAsync(Arg.Any<string>(), Arg.Any<RedisKey[]>(), Arg.Any<RedisValue[]>());
+        }
+    }
+
     [TestCase(typeof(RedisException))]
     [TestCase(typeof(TimeoutException))]
     public async Task AStoreFailureAfterABuild_ReturnsTheDataAlreadyBuilt_RatherThanBuildingAgain(Type exceptionType)
@@ -357,7 +386,7 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":4}");
-            Assert.That(sw.Elapsed, Is.LessThan(LiveDelivery.BuildWait), "won the freed lock on retry at once, rather than waiting out BuildWait for nothing");
+            Assert.That(sw.Elapsed, Is.LessThan(LiveOptions.Default.BuildWait), "won the freed lock on retry at once, rather than waiting out BuildWait for nothing");
         }
     }
 
@@ -422,8 +451,35 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(peak, Is.LessThanOrEqualTo(LiveDelivery.MaxConcurrentBuilds), "no more topics than the cap building at once");
+            Assert.That(peak, Is.LessThanOrEqualTo(LiveOptions.Default.MaxConcurrentBuilds), "no more topics than the cap building at once");
             Assert.That(peak, Is.GreaterThan(1), "real concurrency happened (not accidentally serial)");
         }
+    }
+
+    [Test]
+    public async Task Deliver_AConfiguredMaxConcurrentBuilds_IsUsedInsteadOfTheDefault()
+    {
+        var gate = new Lock();
+        var concurrent = 0;
+        var peak = 0;
+        async Task<object?> Build(NSubstitute.Core.CallInfo _)
+        {
+            lock (gate)
+                peak = Math.Max(peak, ++concurrent);
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
+            lock (gate)
+                concurrent--;
+            return new QueueLiveDto(1);
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(Arg.Any<string>(), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(Build);
+        var topics = Enumerable.Range(1, 5).Select(LiveTopics.Draft).ToList();
+        foreach (var topic in topics)
+            _watchers.Watch(topic, $"conn-{topic}", SeasonViewer.Public);
+
+        // Well below the default (4): if this were still hard-coded, more than one of these five would build at once
+        await Delivery(Scopes(snapshots), liveOptions: new LiveOptions { MaxConcurrentBuilds = 1 }).Deliver([.. topics.Select(t => new LiveChange(t))]);
+
+        Assert.That(peak, Is.EqualTo(1), "the configured limit (1), not the default (4), governed how many built at once");
     }
 }

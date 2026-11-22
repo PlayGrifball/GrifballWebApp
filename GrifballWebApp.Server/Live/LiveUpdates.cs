@@ -8,6 +8,8 @@ using GrifballWebApp.Infrastructure.Redis;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace GrifballWebApp.Server.Live;
@@ -268,6 +270,75 @@ public sealed class LiveWatchers
 }
 
 /// <summary>
+/// <see cref="LiveDelivery"/>'s tuning (the <c>Live</c> configuration section), checked at startup
+/// (<see cref="LiveServiceCollectionExtensions.AddValidatedLiveOptions"/>): every limit and duration positive, and the
+/// build lock outliving the wait for it (<see cref="LockTtl"/> greater than <see cref="BuildWait"/>) - otherwise a late
+/// pod could find an already-expired lock and build the very change a slower winner is still building. Defaults match
+/// what shipped before these were configurable.
+/// </summary>
+public sealed class LiveOptions
+{
+    public const string Section = "Live";
+
+    /// <summary>The defaults, for code (mainly tests) that wants them without going through configuration.</summary>
+    public static readonly LiveOptions Default = new();
+
+    /// <summary>How many of a change's topics (and viewers) build at once (see <see cref="LiveDelivery"/>'s remarks).</summary>
+    public int MaxConcurrentBuilds { get; set; } = 4;
+
+    /// <summary>How long a topic's built data is kept in Redis for the other pods to read.</summary>
+    public TimeSpan DataTtl { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>How long a pod that lost the lock race waits for the winner's data before building its own.</summary>
+    public TimeSpan BuildWait { get; set; } = TimeSpan.FromSeconds(3);
+
+    /// <summary>How long one pod holds the build lock: a dead-builder safety net (see <see cref="LiveDelivery"/>'s
+    /// remarks), not the happy path's hold time.</summary>
+    public TimeSpan LockTtl { get; set; } = TimeSpan.FromSeconds(13);
+
+    /// <summary>
+    /// Whether a change's data is built once and shared across pods through Redis. False (every pod builds its own -
+    /// the behavior before this setting existed) still relays changes between pods through Redis
+    /// (<see cref="LiveUpdates.RelayChannel"/>); only the build lock and the shared data keys go untouched.
+    /// </summary>
+    public bool SharedBuilds { get; set; } = true;
+}
+
+public static class LiveServiceCollectionExtensions
+{
+    /// <summary>
+    /// <see cref="LiveOptions"/> from the <see cref="LiveOptions.Section"/> section, checked at startup: every limit and
+    /// duration positive, and the build lock outliving the wait for it.
+    /// </summary>
+    public static IServiceCollection AddValidatedLiveOptions(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<LiveOptions>()
+            .Bind(configuration.GetSection(LiveOptions.Section))
+            .Validate(options =>
+            {
+                var errors = new List<string>();
+                if (options.MaxConcurrentBuilds < 1)
+                    errors.Add("MaxConcurrentBuilds must be at least 1");
+                if (options.DataTtl <= TimeSpan.Zero)
+                    errors.Add("DataTtl must be positive");
+                if (options.BuildWait <= TimeSpan.Zero)
+                    errors.Add("BuildWait must be positive");
+                if (options.LockTtl <= TimeSpan.Zero)
+                    errors.Add("LockTtl must be positive");
+                if (options.LockTtl <= options.BuildWait)
+                    errors.Add("LockTtl must be greater than BuildWait");
+
+                if (errors.Count > 0)
+                    throw new ArgumentException(string.Join(", ", errors));
+
+                return true;
+            })
+            .ValidateOnStart();
+        return services;
+    }
+}
+
+/// <summary>
 /// On an API process: tells this process's pages watching each changed topic. A topic many watch at once comes with its
 /// data (<see cref="LiveSnapshots"/>), built once here for all of them (once a viewer where it differs by viewer), as
 /// the API gives it (<see cref="ApiJson"/>); the rest are notices, and their pages read again. A topic nobody here watches
@@ -276,45 +347,29 @@ public sealed class LiveWatchers
 /// <remarks>
 /// Scaled out, every pod that watches a topic gets the same relayed change and would build the same data: the first here
 /// for a given <c>changeID</c> (the same on every pod for that change, never another's: <see cref="LiveUpdates.ChangeIDOf"/>)
-/// takes a lock under an owner token of its own (<see cref="LockTtl"/>, a safety net for one that dies mid-build, well past
-/// <see cref="BuildWait"/> so a late pod never finds it freshly expired while that pod is simply slow), builds, keeps the
-/// result in Redis a few seconds for the rest to read (<see cref="DataTtl"/>), and releases its lock right away - by a
-/// compare-and-delete on its own token, so a build that outlives its lock (and so outlives being anyone's responsibility)
-/// never deletes a different pod's. A build that fails outright is never cached as "nothing to show" (the lock is
-/// released without storing, so the next pod gets a real attempt); a pod that finds neither a build nor a lock while
-/// waiting takes its own shot immediately rather than wait out the rest of <see cref="BuildWait"/> for nothing. A pod that
-/// can't take the lock in time, or can't reach Redis at all, builds its own rather than keep its watchers waiting. A call
-/// with no <c>changeID</c> (this pod's own local delivery, never shared with another) always builds its own, as does
-/// every pod when Redis isn't configured. Every topic (and viewer) a change touches builds and sends alongside the
-/// others (up to <see cref="MaxConcurrentBuilds"/> at once), so one pod's wait on one topic never delays another's; two
-/// changes to the very same topic still reach its watchers in the order they were relayed (<see cref="EnqueueForTopic"/>).
+/// takes a lock under an owner token of its own (<see cref="LiveOptions.LockTtl"/>, a safety net for one that dies
+/// mid-build, well past <see cref="LiveOptions.BuildWait"/> so a late pod never finds it freshly expired while that pod
+/// is simply slow), builds, keeps the result in Redis a few seconds for the rest to read
+/// (<see cref="LiveOptions.DataTtl"/>), and releases its lock right away - by a compare-and-delete on its own token, so a
+/// build that outlives its lock (and so outlives being anyone's responsibility) never deletes a different pod's. A build
+/// that fails outright is never cached as "nothing to show" (the lock is released without storing, so the next pod gets
+/// a real attempt); a pod that finds neither a build nor a lock while waiting takes its own shot immediately rather than
+/// wait out the rest of <see cref="LiveOptions.BuildWait"/> for nothing. A pod that can't take the lock in time, or can't
+/// reach Redis at all, builds its own rather than keep its watchers waiting. A call with no <c>changeID</c> (this pod's
+/// own local delivery, never shared with another) always builds its own, as does every pod when Redis isn't configured
+/// or <see cref="LiveOptions.SharedBuilds"/> is false. Every topic (and viewer) a change touches builds and sends
+/// alongside the others (up to <see cref="LiveOptions.MaxConcurrentBuilds"/> at once), so one pod's wait on one topic
+/// never delays another's; two changes to the very same topic still reach its watchers in the order they were relayed
+/// (<see cref="EnqueueForTopic"/>).
 /// </remarks>
 public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILiveHubClient> hub, IServiceScopeFactory scopes,
-    ILogger<LiveDelivery> logger, IConfiguration configuration, AppRedis? redis = null, TimeProvider? time = null)
+    ILogger<LiveDelivery> logger, IConfiguration configuration, AppRedis? redis = null, TimeProvider? time = null, IOptions<LiveOptions>? liveOptions = null)
 {
     private static readonly JsonSerializerOptions Json = ApiJson.Options();
     private readonly TimeProvider _time = time ?? TimeProvider.System;
-
-    /// <summary>How long a topic's built data is kept for the other pods to read: long enough for a pod that was already
-    /// waiting on the lock, or one still arriving, to read it before it's gone.</summary>
-    public static readonly TimeSpan DataTtl = TimeSpan.FromSeconds(5);
-
-    /// <summary>How long a pod that lost the race for the lock waits for the winner's data before building its own.</summary>
-    public static readonly TimeSpan BuildWait = TimeSpan.FromSeconds(3);
-
-    /// <summary>
-    /// How long one pod holds the lock to build: well past <see cref="BuildWait"/>, so every pod that lost the race gives
-    /// up and builds its own before a late-arriving pod could ever find the lock expired and take a fresh one, building
-    /// the same change again alongside a winner that is simply slow. The happy path never waits this long: the winner
-    /// releases its own lock right after storing (or failing), so this is only a safety net for one that dies mid-build.
-    /// </summary>
-    public static readonly TimeSpan LockTtl = BuildWait + TimeSpan.FromSeconds(10);
+    private readonly LiveOptions _options = liveOptions?.Value ?? LiveOptions.Default;
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
-
-    /// <summary>How many of a change's topics (and viewers) build at once: unbounded would open one scope - one
-    /// DbContext - per watched topic simultaneously (an import touching dozens at once, on every pod).</summary>
-    public const int MaxConcurrentBuilds = 4;
 
     /// <summary>Deletes the lock at KEYS[1] only if it still holds the value this pod set it to (ARGV[1]): a compare-and-
     /// delete, so a release that outlives its own lock's TTL never takes a different pod's newer one.</summary>
@@ -352,7 +407,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
             toBuild.AddRange(byViewer.Select(bv => (topic, bv.Viewer, (IReadOnlyList<string>)bv.Connections)));
         }
         if (toBuild.Count > 0)
-            sends.Add(Parallel.ForEachAsync(toBuild, new ParallelOptions { MaxDegreeOfParallelism = MaxConcurrentBuilds, CancellationToken = ct },
+            sends.Add(Parallel.ForEachAsync(toBuild, new ParallelOptions { MaxDegreeOfParallelism = _options.MaxConcurrentBuilds, CancellationToken = ct },
                 (item, token) => new ValueTask(EnqueueForTopic(item.Topic, item.Viewer,
                     () => BuildAndSend(item.Topic, item.Viewer, item.Connections, changeID, token)))));
         await Task.WhenAll(sends);
@@ -427,12 +482,12 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
 
     /// <summary>
     /// <paramref name="topic"/>'s data as <paramref name="viewer"/> sees it: built here alone when there's no
-    /// <paramref name="changeID"/> or no Redis; otherwise shared with every other pod building the same change (see the
-    /// class remarks).
+    /// <paramref name="changeID"/>, no Redis, or <see cref="LiveOptions.SharedBuilds"/> is off; otherwise shared with
+    /// every other pod building the same change (see the class remarks).
     /// </summary>
     private async Task<string?> Build(string topic, SeasonViewer viewer, Guid? changeID, CancellationToken ct)
     {
-        if (redis is null || changeID is null)
+        if (redis is null || changeID is null || !_options.SharedBuilds)
             return (await BuildNow(topic, viewer, ct)).Data;
         var key = CacheKey(topic, viewer, changeID.Value);
         try
@@ -442,7 +497,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
             if (!cached.IsNull)
                 return Decode(cached);
             var owner = NewLockOwner();
-            if (await db.StringSetAsync($"{key}:lock", owner, LockTtl, When.NotExists))
+            if (await db.StringSetAsync($"{key}:lock", owner, _options.LockTtl, When.NotExists))
                 return await BuildAndRelease(db, key, owner, topic, viewer, ct);
             return await WaitForBuild(db, key, topic, viewer, ct);
         }
@@ -457,7 +512,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
     /// Builds <paramref name="topic"/>'s data, having already won <paramref name="key"/>'s lock under
     /// <paramref name="owner"/>. Stores the result for the other pods unless the build failed outright (never cached as
     /// "nothing to show"); always releases the lock, by a compare-and-delete on <paramref name="owner"/>, so a release
-    /// this late (the build outlived <see cref="LockTtl"/>) can never take a different pod's newer lock.
+    /// this late (the build outlived <see cref="LiveOptions.LockTtl"/>) can never take a different pod's newer lock.
     /// </summary>
     private async Task<string?> BuildAndRelease(IDatabase db, string key, string owner, string topic, SeasonViewer viewer, CancellationToken ct)
     {
@@ -465,7 +520,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
         try
         {
             if (!built.Failed)
-                await db.StringSetAsync(key, Encode(built.Data), DataTtl);
+                await db.StringSetAsync(key, Encode(built.Data), _options.DataTtl);
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException)
         {
@@ -491,14 +546,14 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
 
     /// <summary>
     /// Waits for the pod building <paramref name="topic"/>'s data under <paramref name="key"/>; builds it here once
-    /// <see cref="BuildWait"/> passes without it (that pod may be gone, or its build failed). Checks before every sleep, so
-    /// a build that already finished is never delayed a whole poll for it; a poll that finds neither the data nor the
-    /// lock (its builder released without storing, or died before ever taking it) takes a shot at the lock right away,
-    /// rather than wait out the rest of <see cref="BuildWait"/> for nothing.
+    /// <see cref="LiveOptions.BuildWait"/> passes without it (that pod may be gone, or its build failed). Checks before
+    /// every sleep, so a build that already finished is never delayed a whole poll for it; a poll that finds neither the
+    /// data nor the lock (its builder released without storing, or died before ever taking it) takes a shot at the lock
+    /// right away, rather than wait out the rest of <see cref="LiveOptions.BuildWait"/> for nothing.
     /// </summary>
     private async Task<string?> WaitForBuild(IDatabase db, string key, string topic, SeasonViewer viewer, CancellationToken ct)
     {
-        using var giveUp = new CancellationTokenSource(BuildWait);
+        using var giveUp = new CancellationTokenSource(_options.BuildWait);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, giveUp.Token);
         try
         {
@@ -508,7 +563,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
                 if (!cached.IsNull)
                     return Decode(cached);
                 var owner = NewLockOwner();
-                if (await db.StringSetAsync($"{key}:lock", owner, LockTtl, When.NotExists))
+                if (await db.StringSetAsync($"{key}:lock", owner, _options.LockTtl, When.NotExists))
                     return await BuildAndRelease(db, key, owner, topic, viewer, ct);
                 await Task.Delay(PollInterval, _time, linked.Token);
             }
