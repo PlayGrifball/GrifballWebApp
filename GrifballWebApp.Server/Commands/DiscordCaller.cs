@@ -80,13 +80,24 @@ public class DiscordCaller
     /// historical import placeholder, never really signed in), and roles.</summary>
     private sealed record LinkedUser(int Id, long? XboxUserID, string? Gamertag, bool IsDummyUser, List<string> RoleNames);
 
-    /// <summary>The site account linked to this Discord user, if any (<see cref="Find"/> and <see cref="AsToolCaller"/> both read it).</summary>
+    /// <summary>
+    /// The site account linked to this Discord user, if any (<see cref="Find"/> and <see cref="AsToolCaller"/> both read it): the
+    /// one that holds it as its Discord id, else one that signs in with it (a second Discord account on one site account, which
+    /// the link refuses to store but the login keeps).
+    /// </summary>
     private Task<LinkedUser?> Linked(ulong discordUserId, CancellationToken ct)
-        => _context.Users
+    {
+        var id = (long)discordUserId;
+        var key = discordUserId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return _context.Users
             .AsNoTracking()
-            .Where(x => x.DiscordUserID == (long)discordUserId)
+            .Where(x => x.DiscordUserID == id
+                || _context.UserLogins.Any(l => l.UserId == x.Id && l.LoginProvider == DiscordAccountLinkService.DiscordProvider && l.ProviderKey == key))
+            .OrderByDescending(x => x.DiscordUserID == id)
+            .ThenBy(x => x.IsDummyUser)
             .Select(x => new LinkedUser(x.Id, x.XboxUserID, x.XboxUser != null ? x.XboxUser.Gamertag : null, x.IsDummyUser, x.UserRoles.Select(r => r.Role.Name!).ToList()))
             .FirstOrDefaultAsync(ct);
+    }
 
     /// <summary>
     /// The caller, when they have an account with a gamertag and one of <paramref name="roles"/> (none: any account will do).
