@@ -1,5 +1,6 @@
 import { DOCUMENT, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import type { AccessTokenDto, AccessTokenScope } from '@api/models';
 import { AccessTokensStore } from './accessTokens.store';
 
@@ -20,7 +21,7 @@ export const TOKEN_SCOPES: ReadonlyArray<{ value: AccessTokenScope; label: strin
  */
 @Component({
   selector: 'app-access-tokens',
-  imports: [DatePipe],
+  imports: [DatePipe, MatCheckboxModule],
   templateUrl: './accessTokens.component.html',
   styleUrl: './accessTokens.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -30,10 +30,7 @@
       </select>
     </div>
     <div class="at-field at-field--checkbox">
-      <label class="at-label" for="at-readonly">
-        <input id="at-readonly" type="checkbox" [checked]="readOnly()" (change)="readOnly.set($any($event.target).checked)">
-        Read-only
-      </label>
+      <mat-checkbox id="at-readonly" [checked]="readOnly()" (change)="readOnly.set($event.checked)">Read-only</mat-checkbox>
     </div>
     <button type="submit" class="hud-btn at-btn" [disabled]="creating() || !name().trim()">Make a token</button>
   </form>

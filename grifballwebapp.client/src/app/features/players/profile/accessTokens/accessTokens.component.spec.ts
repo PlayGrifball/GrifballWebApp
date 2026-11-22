@@ -99,9 +99,8 @@ describe('AccessTokensComponent', () => {
     const scopeSelect = el().querySelector<HTMLSelectElement>('#at-scope')!;
     scopeSelect.value = 'Api';
     scopeSelect.dispatchEvent(new Event('change'));
-    const readOnly = el().querySelector<HTMLInputElement>('#at-readonly')!;
-    readOnly.checked = true;
-    readOnly.dispatchEvent(new Event('change'));
+    el().querySelector<HTMLInputElement>('#at-readonly input')!.click();
+    fixture.detectChanges();
     typeName('Desktop');
 
     button('Make a token').click();
