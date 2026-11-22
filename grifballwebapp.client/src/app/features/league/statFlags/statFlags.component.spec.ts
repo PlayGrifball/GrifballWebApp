@@ -9,6 +9,7 @@ import { StatFlagsComponent } from './statFlags.component';
 const flag: StatFlagDto = {
   statFlagID: 7, rule: 'NegativeStat', matchID: null, recordedGameID: 101, seasonMatchID: 12, gameNumber: 2,
   playerUserID: 5, playerName: 'Sarge', reason: '-1 kills', foundAt: '2026-11-20T12:00:00Z',
+  gamePlayedAt: null, gameTeams: null,
 };
 
 describe('StatFlagsComponent', () => {
@@ -87,6 +88,7 @@ describe('StatFlagsComponent', () => {
     const haloFlag: StatFlagDto = {
       statFlagID: 8, rule: 'UndecodedCustomScore', matchID: '11111111-1111-1111-1111-111111111111', recordedGameID: null,
       seasonMatchID: null, gameNumber: null, playerUserID: null, playerName: null, reason: 'not decoded', foundAt: '2026-11-20T12:00:00Z',
+      gamePlayedAt: null, gameTeams: null,
     };
     http.expectOne('/api/stat-flags').flush([haloFlag]);
     await fixture.whenStable();
@@ -94,5 +96,20 @@ describe('StatFlagsComponent', () => {
 
     const link: HTMLAnchorElement | null = fixture.nativeElement.querySelector('a[href*="/match/11111111-1111-1111-1111-111111111111"]');
     expect(link).not.toBeNull();
+  });
+
+  it('shows the date and teams of a recorded game outside any series, with no page to link to', async () => {
+    const scrimFlag: StatFlagDto = {
+      statFlagID: 9, rule: 'NegativeStat', matchID: null, recordedGameID: 202,
+      seasonMatchID: null, gameNumber: null, playerUserID: null, playerName: null, reason: '-1 kills', foundAt: '2026-11-20T12:00:00Z',
+      gamePlayedAt: '2026-11-18T12:00:00Z', gameTeams: 'Reds vs Blues',
+    };
+    http.expectOne('/api/stat-flags').flush([scrimFlag]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Reds vs Blues');
+    expect(fixture.nativeElement.querySelector('a[href*="/match/"]')).toBeNull();
   });
 });

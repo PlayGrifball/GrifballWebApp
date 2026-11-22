@@ -13,6 +13,18 @@ export interface StatFlagDto {
    * The flagged game's number in its series, when it's in one (same condition as GrifballWebApp.Application.StatFlags.StatFlagDto.SeasonMatchID).
    */
   gameNumber: number | null;
+
+  /**
+   * When the flagged game is a recorded game outside any series (an imported scrim, a Late League
+   *             matchmaking game): there's no page to link it to, so staff are shown what it was instead - when it was played
+   *             and its sides. Null otherwise (there's a page to link to: GrifballWebApp.Application.StatFlags.StatFlagDto.SeasonMatchID, or the Halo match's own page).
+   */
+  gamePlayedAt: string | null;
+
+  /**
+   * The flagged game's sides, "Team A vs Team B", alongside GrifballWebApp.Application.StatFlags.StatFlagDto.GamePlayedAt.
+   */
+  gameTeams: string | null;
   matchID: string | null;
 
   /**

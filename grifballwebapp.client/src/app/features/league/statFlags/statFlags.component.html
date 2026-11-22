@@ -53,6 +53,9 @@
             <a class="hud-text-link" [routerLink]="['/seasonmatch', flag.seasonMatchID]">Match {{ flag.seasonMatchID }}</a>
             } @else if (flag.matchID) {
             <a class="hud-text-link" [routerLink]="['/match', flag.matchID]">Halo match</a>
+            } @else if (flag.gameTeams) {
+            <!-- A recorded game outside any series (a scrim, a Late League matchmaking game): no page to link to -->
+            <span>{{ flag.gameTeams }}@if (flag.gamePlayedAt) { , {{ formatDateTime(flag.gamePlayedAt) }} }</span>
             }
           </mat-cell>
         </ng-container>

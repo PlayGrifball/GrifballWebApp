@@ -7,6 +7,7 @@ import { StatFlagsStore } from './statFlags.store';
 const flag: StatFlagDto = {
   statFlagID: 7, rule: 'NegativeStat', matchID: null, recordedGameID: 101, seasonMatchID: 12, gameNumber: 2,
   playerUserID: 5, playerName: 'Sarge', reason: '-1 kills', foundAt: '2026-11-20T12:00:00Z',
+  gamePlayedAt: null, gameTeams: null,
 };
 
 describe('StatFlagsStore', () => {

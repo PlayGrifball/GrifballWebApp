@@ -8,6 +8,7 @@ import { StatFlagsNoticeComponent } from './statFlagsNotice.component';
 const flag: StatFlagDto = {
   statFlagID: 7, rule: 'TeamSmallerThanFormat', matchID: null, recordedGameID: 101, seasonMatchID: 12, gameNumber: 2,
   playerUserID: null, playerName: null, reason: 'Home Team fielded 3 player(s)', foundAt: '2026-11-20T12:00:00Z',
+  gamePlayedAt: null, gameTeams: null,
 };
 
 describe('StatFlagsNoticeComponent', () => {

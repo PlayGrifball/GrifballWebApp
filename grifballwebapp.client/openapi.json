@@ -17829,6 +17829,8 @@
         "required": [
           "foundAt",
           "gameNumber",
+          "gamePlayedAt",
+          "gameTeams",
           "matchID",
           "playerName",
           "playerUserID",
@@ -17890,6 +17892,17 @@
           "foundAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "gamePlayedAt": {
+            "type": "string",
+            "description": "When the flagged game is a recorded game outside any series (an imported scrim, a Late League\n            matchmaking game): there's no page to link it to, so staff are shown what it was instead - when it was played\n            and its sides. Null otherwise (there's a page to link to: GrifballWebApp.Application.StatFlags.StatFlagDto.SeasonMatchID, or the Halo match's own page).",
+            "format": "date-time",
+            "nullable": true
+          },
+          "gameTeams": {
+            "type": "string",
+            "description": "The flagged game's sides, \"Team A vs Team B\", alongside GrifballWebApp.Application.StatFlags.StatFlagDto.GamePlayedAt.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
