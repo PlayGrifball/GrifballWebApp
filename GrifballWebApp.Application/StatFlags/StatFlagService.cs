@@ -260,8 +260,8 @@ public class StatFlagService
         return bad.Count == 0 ? null : string.Join(", ", bad) + " (can't be negative)";
     }
 
-    /// <summary>Accuracy over 100%, or shots hit above shots fired. <paramref name="playerID"/> is null for a player not
-    /// (yet) linked to a league account: its own XUID, rather than the player, then tells two such findings apart
+    /// <summary>Accuracy over 100%, or shots hit above shots fired. A player not (yet) linked to a league account has
+    /// no player ID; its own XUID, rather than the player, then tells two such findings apart
     /// (<see cref="Finding.Discriminator"/>), since they'd otherwise all share a (rule, null) key.</summary>
     private static IEnumerable<Finding> AccuracyFindings(Match match, IReadOnlyDictionary<long, int> userIDByXuid,
         IReadOnlyDictionary<long, string> gamertagByXuid)

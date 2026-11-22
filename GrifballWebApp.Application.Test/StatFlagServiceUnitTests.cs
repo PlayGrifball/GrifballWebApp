@@ -88,7 +88,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
 
         await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, dto);
 
-        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.ScoreDoesNotMatchGoals && f.IsOpen), Is.True);
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.ScoreDoesNotMatchGoals && f.DismissedAt == null), Is.True);
     }
 
     [Test]
@@ -298,7 +298,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
 
         await _statFlags.CheckRecordedGameAsync(game, null);
 
-        var open = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.TeamSmallerThanFormat && f.IsOpen).ToListAsync();
+        var open = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.TeamSmallerThanFormat && f.DismissedAt == null).ToListAsync();
         Assert.That(open.Single().Reason, Does.Contain("Side 2"));
     }
 
@@ -419,7 +419,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         corrected.AddParticipant(1, 999, new MatchParticipantStats { Assists = -2 });
         await _statFlags.CheckMatchAsync(corrected);
 
-        var open = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.NegativeStat && f.IsOpen).ToListAsync();
+        var open = await Context.StatFlags.Where(f => f.Rule == StatFlagRule.NegativeStat && f.DismissedAt == null).ToListAsync();
         Assert.That(open.Single().Reason, Does.Contain("-2 assists"));
     }
 
@@ -427,6 +427,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     public async Task CheckMatchAsync_GivenLookupsAlready_UsesThemRatherThanQueryingItsOwn()
     {
         // A bulk pull looks these up once for every match it saves, not once a match (DataPullService.SaveMatchesAsync)
+        Context.XboxUsers.Add(XboxUser.FromXbox(101, "GT101"));
         var match = Domain.Halo.Match.Seed(Guid.NewGuid());
         match.AddTeam(0, 1, Outcomes.Won);
         match.AddParticipant(0, 101, new MatchParticipantStats { Assists = -1 });
@@ -502,7 +503,7 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         // A re-import re-checks the game itself (never seasonMatch, per HistoricalImportService.ImportRecordedGames)
         await _statFlags.CheckRecordedGameAsync(game, null);
 
-        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.IsOpen), Is.True);
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.DismissedAt == null), Is.True);
     }
 
     [Test]
@@ -526,14 +527,14 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         match.AddImportedGame(null, game, 1);
         await Context.SaveChangesAsync();
         await _statFlags.CheckSeriesGamesAsync(match.SeasonMatchID);
-        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.IsOpen), Is.True);
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.DismissedAt == null), Is.True);
 
         // No longer decided by games (UndoResult re-checks right after Reopen, before it clears the games)
         match.Reopen();
         await Context.SaveChangesAsync();
         await _statFlags.CheckSeriesGamesAsync(match.SeasonMatchID);
 
-        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.IsOpen), Is.False);
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.DismissedAt == null), Is.False);
     }
 
     [Test]
