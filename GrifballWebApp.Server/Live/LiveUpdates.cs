@@ -360,12 +360,13 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
                 await db.KeyDeleteAsync($"{key}:lock");
             else
                 await db.StringSetAsync(key, Encode(built.Data), DataTtl);
+            return built.Data;
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException)
         {
             logger.LogWarning(ex, "Built {Topic}'s data but could not cache it for the other pods", topic);
+            return built.Data;
         }
-        return built.Data;
     }
 
     /// <summary>
