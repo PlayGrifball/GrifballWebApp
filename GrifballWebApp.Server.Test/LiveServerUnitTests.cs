@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Seasons;
@@ -187,6 +188,19 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         return new AppRedis(_ => Task.FromResult(connection));
     }
 
+    /// <summary>A Redis whose first read is a cache miss, whose lock is already taken (by "someone else"), and whose
+    /// second read (WaitForBuild's) finds the data: no real Redis latency, so a real <c>Task.Delay</c> before the first
+    /// check (the bug) is the only thing that could make this slow.</summary>
+    private static AppRedis LockLostRedis(RedisValue data)
+    {
+        var db = Substitute.For<IDatabase>();
+        db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null, data);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(false);
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        return new AppRedis(_ => Task.FromResult(connection));
+    }
+
     /// <summary>The pages watching player:5 here, told through <paramref name="told"/> once they are.</summary>
     private ILiveHubClient WatchingPlayerFive(TaskCompletionSource told)
     {
@@ -273,6 +287,25 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         {
             await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":5}");
             Assert.That(built, Is.EqualTo(1), "a store failure after a successful build must not cost a second one");
+        }
+    }
+
+    [Test]
+    public async Task WaitForBuild_ChecksTheCacheBeforeSleeping_SoAnAlreadyFinishedBuildIsNotDelayed()
+    {
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var redis = LockLostRedis("{\"count\":3}");
+
+        // Lost the lock race (LockLostRedis), then found the data on WaitForBuild's own first check. A real Task.Delay
+        // runs regardless of mocking, so a check-then-sleep bug would show up here as a genuine ~100ms (PollInterval).
+        var sw = Stopwatch.StartNew();
+        await Delivery(redis: redis).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+        sw.Stop();
+
+        using (Assert.EnterMultipleScope())
+        {
+            await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
+            Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromMilliseconds(50)), "found on the first check, not after a sleep");
         }
     }
 }

@@ -183,8 +183,10 @@ public class LiveRedisTests
         services.AddScoped(_ => snapshots);
         var delivery = new LiveDelivery(watchers, hub, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             NullLogger<LiveDelivery>.Instance, Configuration(), Process());
-        var listener = new LiveRelayListener(delivery, Process());
+        var apiRedis = Process();
+        var listener = new LiveRelayListener(delivery, apiRedis);
         await listener.StartAsync(CancellationToken.None);
+        await apiRedis.ConnectAsync(); // the subscription only takes effect once connected
         var worker = new LiveUpdates(NullLogger<LiveUpdates>.Instance, Process());
 
         worker.Publish([new LiveChange(LiveTopics.Queue)]);
@@ -409,45 +411,6 @@ public class LiveRedisTests
 
         Assert.That(sw.Elapsed, Is.LessThan(LiveDelivery.BuildWait + TimeSpan.FromSeconds(2)),
             "both topics waited out BuildWait alongside each other, not one after the other");
-    }
-
-    [Test]
-    public async Task WaitForBuild_ChecksTheCacheBeforeSleeping_SoAnAlreadyFinishedBuildIsNotDelayed()
-    {
-        var changeID = Guid.NewGuid();
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
-        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(3)); // no artificial delay
-        var clientA = Substitute.For<ILiveHubClient>();
-        var clientB = Substitute.For<ILiveHubClient>();
-        var redisA = Process();
-        var redisB = Process();
-        // Warmed up first, so the timing below is the Redis round trips alone, not either connection's own setup
-        await redisA.ConnectAsync();
-        await redisB.ConnectAsync();
-        var watchersA = new LiveWatchers();
-        watchersA.Watch(LiveTopics.Queue, "a", SeasonViewer.Public);
-        var watchersB = new LiveWatchers();
-        watchersB.Watch(LiveTopics.Queue, "b", SeasonViewer.Public);
-        var hubA = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
-        hubA.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(clientA);
-        var hubB = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
-        hubB.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(clientB);
-        var services = new ServiceCollection();
-        services.AddScoped(_ => snapshots);
-        var scopes = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
-        var configuration = Configuration();
-        var podA = new LiveDelivery(watchersA, hubA, scopes, NullLogger<LiveDelivery>.Instance, configuration, redisA);
-        var podB = new LiveDelivery(watchersB, hubB, scopes, NullLogger<LiveDelivery>.Instance, configuration, redisB);
-
-        // Both start together: whichever loses the lock race finds the (near-instant) winner's data on its very first
-        // check, never sleeping a whole poll interval for data that was already there
-        var sw = Stopwatch.StartNew();
-        await Task.WhenAll(
-            podA.Deliver([new LiveChange(LiveTopics.Queue)], changeID),
-            podB.Deliver([new LiveChange(LiveTopics.Queue)], changeID));
-        sw.Stop();
-
-        Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromMilliseconds(95)), "found on the first check, not after a sleep");
     }
 
     [Test]
