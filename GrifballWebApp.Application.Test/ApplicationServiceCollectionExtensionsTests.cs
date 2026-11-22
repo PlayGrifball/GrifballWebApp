@@ -31,6 +31,7 @@ using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.UserManagement;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
@@ -140,6 +141,7 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         services.AddScoped(_ => Substitute.For<IGetsertXboxUserService>());
         services.AddScoped(_ => Substitute.For<IPublisher>());
         services.AddScoped(_ => Substitute.For<IDatabaseLocks>());
+        services.AddScoped(_ => Substitute.For<ICurrentUserService>());
         services.AddSingleton(_ => Substitute.For<IDistributedCache>());
         services.AddSingleton(_ => Substitute.For<IChatClientFactory>());
 

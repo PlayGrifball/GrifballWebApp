@@ -40,8 +40,10 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     public void SetUp()
     {
         _dataPull = Substitute.For<IDataPullService>();
+        // A real merge service, not a mock: several tests here check an actual merge's effect (a placeholder gone,
+        // its history moved), the same as the removed optional-merges fallback used to give them for free.
         _service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>());
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, new UserMergeService(Context, Substitute.For<ICurrentUserService>()));
     }
 
     // HistoricalSourceID is "{workbook}/{sheet}" verbatim (HistoricalKeys.SeasonSourceId): the workbook is slugged

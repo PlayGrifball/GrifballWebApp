@@ -3700,7 +3700,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Runs a job now, outside its schedule. Sysadmins only.",
+        "summary": "Runs a job now, outside its schedule. Sysadmins only. Refused for an access token when the job can end\n            up merging a user (`JobsService.MergeCapableJobs`, private to that class): that can't be caught where the\n            merge actually happens, which runs later with no request of its own.",
         "operationId": "RunJob",
         "parameters": [
           {
@@ -3736,6 +3736,16 @@
           },
           "409": {
             "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/problem+json": {
                 "schema": {
