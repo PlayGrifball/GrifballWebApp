@@ -134,6 +134,9 @@ public class UserMergeAuditService
     /// </summary>
     public async Task Undo(int mergeId, string? note, CancellationToken ct = default)
     {
+        if (_currentUser?.IsAccessToken == true)
+            throw new MergeDeniedToAccessTokenException();
+
         var merge = await _context.UserMerges.AsNoTracking().FirstOrDefaultAsync(m => m.UserMergeID == mergeId, ct)
             ?? throw new MergeUndoRefusedException($"There is no merge {mergeId}");
         if (!merge.IsStanding)

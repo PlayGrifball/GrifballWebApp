@@ -44,6 +44,11 @@ public class UserMergeService : IUserMergeService
 
     public async Task Merge(int mergeToId, int mergeFromId, MergeOptions? options = null, CancellationToken ct = default)
     {
+        // The one choke point every merge path reaches (MCP, historical import, a gamertag set onto a placeholder, the
+        // REST endpoints): a personal access token may never merge, whatever marked the caller's own endpoint (#549).
+        if (_currentUser?.IsAccessToken == true)
+            throw new MergeDeniedToAccessTokenException();
+
         if (mergeToId == mergeFromId)
             throw new ArgumentException("Cannot merge a user into itself");
 
@@ -545,6 +550,14 @@ public class MergeOptions
 
 /// <summary>The two users can't be merged as they are, e.g. both are on different teams in one season.</summary>
 public class MergeConflictException(string message) : Exception(message);
+
+/// <summary>
+/// A personal access token tried to merge users, or undo a merge (<see cref="UserMergeService.Merge"/>,
+/// <see cref="UserMergeAuditService.Undo"/>): that stays the browser's own, whatever called the merge (a REST
+/// endpoint, an MCP tool, historical import matching a Discord ID, setting a gamertag onto a placeholder). Maps to
+/// 403 (<c>GlobalExceptionHandler</c>).
+/// </summary>
+public class MergeDeniedToAccessTokenException() : Exception("An access token may not merge accounts, or undo a merge.");
 
 /// <summary>
 /// A user with historical stats or championships can't be deleted (the foreign keys are restricted): merge it

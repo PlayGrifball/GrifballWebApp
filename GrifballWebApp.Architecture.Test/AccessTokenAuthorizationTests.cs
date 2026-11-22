@@ -30,32 +30,38 @@ public class AccessTokenAuthorizationTests
     private static string Name(MethodInfo action) => $"{action.DeclaringType!.Name}.{action.Name}";
 
     /// <summary>
-    /// The roles an action requires: its method's own <see cref="AuthorizeAttribute"/>(s) combined with its controller's,
-    /// since both apply at runtime (a bare method-level <c>[Authorize]</c> with no roles does not hide the controller's
-    /// <c>Roles="Sysadmin"</c>). <see cref="MemberInfo.GetCustomAttributes{T}"/>, plural, so an action with more than one
-    /// <c>[Authorize]</c> (legal: <see cref="AttributeUsageAttribute.AllowMultiple"/> is true for it) does not throw the
-    /// way the singular <see cref="MemberInfo.GetCustomAttribute{T}"/> would. Empty for none, or for [AllowAnonymous].
+    /// Every <see cref="AuthorizeAttribute"/> that applies to the action: its method's own and its controller's, since
+    /// both apply at runtime, stacked and ANDed (a request must satisfy every one). Each is kept separate, not merged
+    /// into one role set: a class <c>Roles="Sysadmin"</c> plus a method <c>Roles="Commissioner"</c> requires both roles
+    /// together (more restrictive than Sysadmin alone, not a weaker "either"), so asking "is any ONE of these,
+    /// by itself, Sysadmin-only" is what finds that this action is at least that sensitive, not asking whether the
+    /// union of every role mentioned anywhere happens to equal exactly one.
     /// </summary>
-    private static string[] Roles(MethodInfo action)
+    private static IEnumerable<AuthorizeAttribute> Authorizes(MethodInfo action)
         => action.GetCustomAttributes<AuthorizeAttribute>(inherit: true)
-            .Concat(action.DeclaringType!.GetCustomAttributes<AuthorizeAttribute>(inherit: true))
-            .SelectMany(a => a.Roles?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [])
-            .Distinct()
-            .ToArray();
+            .Concat(action.DeclaringType!.GetCustomAttributes<AuthorizeAttribute>(inherit: true));
 
-    /// <summary>Sysadmin and no other role, or a controller this rule names regardless of its own roles.</summary>
+    private static string[] RolesOf(AuthorizeAttribute authorize)
+        => authorize.Roles?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
+
+    private static bool IsAllowAnonymous(MethodInfo action)
+        => action.GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null
+            || action.DeclaringType!.GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null;
+
+    /// <summary>
+    /// Sysadmin-only: not <see cref="AllowAnonymousAttribute"/> (which skips authorization outright, whatever
+    /// <see cref="AuthorizeAttribute"/> says), and at least one applicable <c>[Authorize]</c>, by itself, names
+    /// Sysadmin and no other role. Or a controller this rule names regardless of its own roles.
+    /// </summary>
     private static bool IsSensitive(MethodInfo action)
-        => Roles(action) is ["Sysadmin"] || AccountControllers.Contains(action.DeclaringType);
+        => (!IsAllowAnonymous(action) && Authorizes(action).Any(a => RolesOf(a) is ["Sysadmin"]))
+            || AccountControllers.Contains(action.DeclaringType);
 
     private static bool HasAnExplicitChoice(MethodInfo action)
         => action.GetCustomAttribute<DenyAccessTokenAttribute>(inherit: true) is not null
             || action.GetCustomAttribute<AllowAccessTokenAttribute>(inherit: true) is not null
             || action.DeclaringType!.GetCustomAttribute<DenyAccessTokenAttribute>(inherit: true) is not null
             || action.DeclaringType!.GetCustomAttribute<AllowAccessTokenAttribute>(inherit: true) is not null;
-
-    private static bool IsDenied(MethodInfo action)
-        => action.GetCustomAttribute<DenyAccessTokenAttribute>(inherit: true) is not null
-            || action.DeclaringType!.GetCustomAttribute<DenyAccessTokenAttribute>(inherit: true) is not null;
 
     [Test]
     public void EverySensitiveAction_ChoosesExplicitly_ForAccessTokens()
@@ -67,65 +73,45 @@ public class AccessTokenAuthorizationTests
         {
             // Both rules actually match something today, so a change to the rules themselves can't silently stop testing anything.
             Assert.That(sensitive, Is.Not.Empty);
-            Assert.That(sensitive.Any(a => Roles(a) is ["Sysadmin"]), Is.True, "the Sysadmin-only rule matches something");
+            Assert.That(sensitive.Any(a => Authorizes(a).Any(x => RolesOf(x) is ["Sysadmin"])), Is.True, "the Sysadmin-only rule matches something");
             Assert.That(sensitive.Any(a => AccountControllers.Contains(a.DeclaringType)), Is.True, "the account-controller rule matches something");
             Assert.That(undecided, Is.Empty, "mark it [DenyAccessToken] or [AllowAccessToken]");
         }
     }
 
-    /// <summary>
-    /// Every action that merges one user into another, or undoes such a merge (<see cref="MergesUsersAttribute"/>),
-    /// wherever it lives, must be <see cref="DenyAccessTokenAttribute"/>: a leaked sysadmin token must never be able to
-    /// merge, or merge and then be unable to undo it (a controller's own <c>[AllowAccessToken]</c> must not cover one of
-    /// these just because most of that controller's other actions are fine for a token).
-    /// </summary>
-    [Test]
-    public void EveryMergeAction_DeniesAccessTokens()
-    {
-        var merges = Actions().Where(a => a.GetCustomAttribute<MergesUsersAttribute>(inherit: true) is not null).ToList();
-        var allowed = merges.Where(a => !IsDenied(a)).Select(Name).ToList();
-
-        using (Assert.EnterMultipleScope())
-        {
-            // The rule matches something today, so a change to it can't silently stop testing anything.
-            Assert.That(merges, Is.Not.Empty);
-            Assert.That(allowed, Is.Empty, "a merge or undo-merge action must be [DenyAccessToken]");
-        }
-    }
-
-    private static readonly string[] JustSysadmin = ["Sysadmin"];
-
     private const BindingFlags FixtureMethod = BindingFlags.Public | BindingFlags.Static;
 
-    /// <summary>A method-level bare [Authorize] must not hide a controller's Roles="Sysadmin": both apply at runtime.</summary>
+    /// <summary>
+    /// Stacked [Authorize] are ANDed, not unioned: a class Sysadmin + a method Commissioner together require both
+    /// roles, which is at least as sensitive as Sysadmin alone, and must still be caught (by the class attribute,
+    /// looked at by itself) rather than escape because the combined set isn't exactly ["Sysadmin"].
+    /// </summary>
     [Test]
-    public void Roles_CombinesClassAndMethodAuthorizeAttributes()
+    public void IsSensitive_ClassSysadminAndMethodCommissioner_IsStillSensitive()
     {
-        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.BareAuthorize), FixtureMethod)!;
+        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.SysadminAndCommissioner), FixtureMethod)!;
 
-        var roles = Roles(method);
-
-        Assert.That(roles, Is.EqualTo(JustSysadmin));
+        Assert.That(IsSensitive(method), Is.True);
     }
 
-    /// <summary>More than one [Authorize] on the same action or controller (legal) must not throw.</summary>
+    /// <summary>[AllowAnonymous] skips authorization outright: a Sysadmin-named role left on the action or its
+    /// controller by mistake means nothing at runtime, so this must not be flagged sensitive by the role rule.</summary>
     [Test]
-    public void Roles_NeverThrowsOnMultipleAuthorizeAttributes()
+    public void IsSensitive_AllowAnonymousWithSysadminRole_IsNotSensitiveByTheRoleRule()
     {
-        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.TwoAuthorizeAttributes), FixtureMethod)!;
+        var method = typeof(RolesFixture).GetMethod(nameof(RolesFixture.AnonymousDespiteSysadmin), FixtureMethod)!;
 
-        Assert.That(() => Roles(method), Throws.Nothing);
+        Assert.That(IsSensitive(method), Is.False);
     }
 
     /// <summary>A reflection-only fixture (never instantiated): its methods are static since nothing in this test touches an instance.</summary>
     [Authorize(Roles = "Sysadmin")]
     private sealed class RolesFixture
     {
-        [Authorize]
-        public static void BareAuthorize() { }
-
         [Authorize(Roles = "Commissioner")]
-        [Authorize(AuthenticationSchemes = "Bearer")]
-        public static void TwoAuthorizeAttributes() { }
+        public static void SysadminAndCommissioner() { }
+
+        [AllowAnonymous]
+        public static void AnonymousDespiteSysadmin() { }
     }
 }

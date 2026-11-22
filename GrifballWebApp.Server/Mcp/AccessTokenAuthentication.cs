@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Server.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -22,8 +23,12 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
 {
     public const string SchemeName = "AccessToken";
 
-    /// <summary>The token's own ID, on a principal it signed in: never its secret (<see cref="IsAccessToken"/>, the request's logs).</summary>
-    public const string TokenIdClaimType = "grif:access_token_id";
+    /// <summary>
+    /// The token's own ID, on a principal it signed in: never its secret (<see cref="IsAccessToken"/>, the request's logs).
+    /// The same string as <see cref="AccessTokenClaimTypes.TokenId"/>, which is what <see cref="ICurrentUserService.IsAccessToken"/>
+    /// reads: one constant, aliased here so existing code naming <see cref="AccessTokenAuthentication"/> for it still compiles.
+    /// </summary>
+    public const string TokenIdClaimType = AccessTokenClaimTypes.TokenId;
     /// <summary>The token's own name, on a principal it signed in.</summary>
     public const string TokenNameClaimType = "grif:access_token_name";
     /// <summary>Whether the token is read-only, on a principal it signed in: "true" or "false".</summary>
@@ -97,7 +102,7 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
     /// </summary>
     public static Task RefuseHubConnections(HttpContext context, RequestDelegate next)
     {
-        if (!BrowserAuth.IsHubRequest(context) || BrowserAuth.BearerToken(context) is not { } token || !token.StartsWith(AccessTokenService.Prefix, StringComparison.Ordinal))
+        if (!BrowserAuth.IsHubRequest(context) || BrowserAuth.AccessToken(context) is null)
             return next(context);
         return WriteProblemAsync(context, StatusCodes.Status401Unauthorized, "Access tokens don't open hubs: those stay the browser's own session.");
     }
@@ -126,7 +131,7 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
     /// </summary>
     public static async Task RequireAValidToken(HttpContext context, RequestDelegate next)
     {
-        if (BrowserAuth.IsHubRequest(context) || BrowserAuth.BearerToken(context) is not { } token || !token.StartsWith(AccessTokenService.Prefix, StringComparison.Ordinal))
+        if (BrowserAuth.IsHubRequest(context) || BrowserAuth.AccessToken(context) is null)
         {
             await next(context);
             return;
@@ -143,11 +148,12 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
     }
 
     /// <summary>
-    /// The 401/403 body for every refusal above and <see cref="HandleChallengeAsync"/>, through <see cref="IProblemDetailsService"/>
-    /// (registered once, <c>AddProblemDetails</c> in Program) instead of each writing its own JSON by hand, so they share whatever
-    /// the app customises on every problem response (the trace ID).
+    /// The 401/403 body for every refusal above, <see cref="HandleChallengeAsync"/> and <see cref="DenyAccessTokenFilter"/>,
+    /// through <see cref="IProblemDetailsService"/> (registered once, <c>AddProblemDetails</c> in Program) instead of each
+    /// writing its own JSON by hand, so they share whatever the app customises on every problem response (the trace ID).
+    /// Internal, not private: the filter lives in a different file (same assembly) but the same rule.
     /// </summary>
-    private static async Task WriteProblemAsync(HttpContext context, int status, string title)
+    internal static async Task WriteProblemAsync(HttpContext context, int status, string title)
     {
         context.Response.StatusCode = status;
         await context.RequestServices.GetRequiredService<IProblemDetailsService>()

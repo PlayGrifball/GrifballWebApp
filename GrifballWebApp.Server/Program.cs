@@ -24,8 +24,6 @@ using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Telemetry;
 using GrifballWebApp.Server.Telemetry.Browser;
 using GrifballWebApp.Server.Telemetry.Query;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -257,20 +255,7 @@ public class Program
     /// <summary>ASP.NET Core Identity on the app's users, and the browser's session cookie.</summary>
     private static void AddIdentity(IServiceCollection services)
     {
-        // The access token rules (deny metadata, read-only by method) through ASP.NET's own authorization for an
-        // endpoint with no authorize metadata at all (the fallback policy: the minimal build-info endpoints today,
-        // any future one with neither [Authorize] nor [AllowAnonymous]). That is genuinely every such endpoint,
-        // unlike the default policy: ASP.NET only combines the default policy into a bare [Authorize], never into
-        // [Authorize(Roles = ...)] or a named Policy (confirmed on learn.microsoft.com/aspnet/core/security/
-        // authorization/policies#default-and-fallback-policies), which is how almost every sensitive MVC action here
-        // is actually written - so a default-policy requirement would look like it covers them and silently not.
-        // DenyAccessTokenFilter (an MVC filter, which runs for every action regardless of how it is authorized) and
-        // RefuseWritesFromReadOnlyTokens (middleware, before routing-dependent authorization even runs) stay
-        // registered as the actual enforcement for MVC controllers (#549 review).
-        services.AddAuthorizationBuilder()
-            .SetFallbackPolicy(new AuthorizationPolicyBuilder().AddRequirements(new AccessTokenAuthorizationRequirement()).Build());
-        services.AddSingleton<IAuthorizationHandler, AccessTokenAuthorizationHandler>();
-        services.AddSingleton<IAuthorizationMiddlewareResultHandler, AccessTokenAuthorizationResultHandler>();
+        services.AddAuthorization();
 
         services.AddIdentity<User, Role>(options =>
         {

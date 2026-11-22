@@ -42,10 +42,12 @@ Whatever its scope or read-only flag, a token may not:
 
 - make, list or revoke tokens;
 - change the account's email or linked logins;
-- merge accounts, or undo a merge;
 - delete the account.
 
-These stay the browser's own. Calling one of these endpoints with a token is refused with 403. Resetting the
+These stay the browser's own. Calling one of these endpoints with a token is refused with 403. Merging accounts,
+or undoing a merge, is refused the same way, but the rule lives at the merge itself, not on an endpoint list: every
+way to merge (the REST endpoints, the MCP tools, historical import matching a Discord ID, setting a gamertag onto a
+placeholder) ends up at the one merge service, which refuses a token regardless of how it got there. Resetting the
 password is different: it's allowed with a token, because the one-time reset link's own token in the request body
 is the real boundary there, not who (or what) is sending the request - denying it on top would protect nothing.
 

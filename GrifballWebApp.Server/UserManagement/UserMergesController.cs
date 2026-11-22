@@ -36,7 +36,6 @@ public class UserMergesController : ControllerBase
         => await _merges.Get(mergeID, ct) is { } merge ? merge : this.NotFoundProblem("There is no such merge");
 
     /// <summary>Puts back what the merge changed. 409 with the reason when it can't be done.</summary>
-    [MergesUsers]
     [DenyAccessToken]
     [HttpPost("user-merges/{mergeID:int}/undo", Name = "UndoUserMerge")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

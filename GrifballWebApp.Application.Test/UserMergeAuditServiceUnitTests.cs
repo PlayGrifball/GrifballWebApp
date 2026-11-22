@@ -9,6 +9,7 @@ using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NSubstitute;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -95,6 +96,18 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         rows.AddRange((await Context.GamertagClaims.AsNoTracking().OrderBy(c => c.GamertagClaimID).ToListAsync())
             .Select(c => $"Claim {c.GamertagClaimID} {c.Status} {c.PlaceholderUserID} {c.ClaimantUserID}"));
         return rows;
+    }
+
+    [Test]
+    public async Task Undo_RefusesAnAccessToken_EvenWhenEverythingElseWouldSucceed()
+    {
+        await _merges.Merge(_real.Id, _placeholder.Id);
+        var mergeId = await Context.UserMerges.Select(m => m.UserMergeID).SingleAsync();
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.IsAccessToken.Returns(true);
+        var audit = new UserMergeAuditService(Context, _time, currentUser);
+
+        await Assert.ThrowsAsync<MergeDeniedToAccessTokenException>(() => audit.Undo(mergeId, null));
     }
 
     [Test]

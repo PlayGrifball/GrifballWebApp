@@ -236,38 +236,41 @@ public class AccessTokenAuthenticationUnitTests
     }
 
     [Test]
-    public void DenyAccessTokenFilter_DoesNothing_WhenNotAnAccessToken()
+    public async Task DenyAccessTokenFilter_DoesNothing_WhenNotAnAccessToken()
     {
         var context = FilterContext(Context("POST", "/user-merges"), [new DenyAccessTokenAttribute()]);
 
-        new DenyAccessTokenFilter().OnAuthorization(context);
+        await new DenyAccessTokenFilter().OnAuthorizationAsync(context);
 
         Assert.That(context.Result, Is.Null);
     }
 
     [Test]
-    public void DenyAccessTokenFilter_DoesNothing_WithoutTheAttribute()
+    public async Task DenyAccessTokenFilter_DoesNothing_WithoutTheAttribute()
     {
         var context = FilterContext(Context("POST", "/user-merges", User(tokenId: "a")));
 
-        new DenyAccessTokenFilter().OnAuthorization(context);
+        await new DenyAccessTokenFilter().OnAuthorizationAsync(context);
 
         Assert.That(context.Result, Is.Null);
     }
 
     [Test]
-    public void DenyAccessTokenFilter_Refuses403_AnAccessTokenOnAMarkedAction_WhateverItsScopeOrReadOnlyFlag()
+    public async Task DenyAccessTokenFilter_Refuses403_AnAccessTokenOnAMarkedAction_WhateverItsScopeOrReadOnlyFlag()
     {
-        var context = FilterContext(Context("POST", "/user-merges", User(tokenId: "a", readOnly: false)), [new DenyAccessTokenAttribute()]);
+        var httpContext = Context("POST", "/user-merges", User(tokenId: "a", readOnly: false));
+        httpContext.Response.Body = new MemoryStream();
+        var context = FilterContext(httpContext, [new DenyAccessTokenAttribute()]);
 
-        new DenyAccessTokenFilter().OnAuthorization(context);
+        await new DenyAccessTokenFilter().OnAuthorizationAsync(context);
 
+        httpContext.Response.Body.Position = 0;
+        var body = await new StreamReader(httpContext.Response.Body).ReadToEndAsync();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(context.Result, Is.InstanceOf<ObjectResult>());
-            var result = (ObjectResult)context.Result!;
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
-            Assert.That(((ProblemDetails)result.Value!).Title, Does.Contain("may not do this"));
+            Assert.That(context.Result, Is.InstanceOf<EmptyResult>());
+            Assert.That(httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
+            Assert.That(body, Does.Contain("may not do this"));
         }
     }
 }

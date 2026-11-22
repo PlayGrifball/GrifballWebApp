@@ -11,9 +11,10 @@ namespace GrifballWebApp.Server.Historical;
 /// Gamertag claims (roster matches the import suggests, placeholders users claimed by setting a gamertag) and the
 /// gamertag history they write: sysadmin only. Most of this is a normal staff action, same as the MCP tools
 /// (decide_gamertag_claim), that a token may call; approving a claim and merging a suggested duplicate actually merge a
-/// placeholder into another user, so those two stay <see cref="DenyAccessTokenAttribute"/> like every other merge
-/// (<see cref="MergesUsersAttribute"/>): a leaked sysadmin token must be able to merge nothing, not merge then be unable
-/// to undo it.
+/// placeholder into another user, so those two stay <see cref="DenyAccessTokenAttribute"/>, an early, cheap refusal -
+/// the real guarantee against a token merging through either of them, through decide_gamertag_claim on MCP, or through
+/// anything else that reaches a merge, is at the one place every merge path ends up
+/// (<see cref="GrifballWebApp.Application.Profile.UserMergeService.Merge"/>, #549 review).
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
@@ -43,7 +44,6 @@ public class GamertagClaimsController : ControllerBase
 
     /// <summary>Merges a suggested placeholder into the other user (audited).</summary>
     [HttpPost("duplicate-suggestions/merge", Name = "MergeDuplicate")]
-    [MergesUsers]
     [DenyAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
@@ -112,7 +112,6 @@ public class GamertagClaimsController : ControllerBase
 
     /// <summary>Records the gamertag as the Xbox account's and merges the placeholder into the account's user.</summary>
     [HttpPost("gamertag-claims/{claimID:int}/approve", Name = "ApproveGamertagClaim")]
-    [MergesUsers]
     [DenyAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
