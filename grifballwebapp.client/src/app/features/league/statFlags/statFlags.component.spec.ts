@@ -25,6 +25,8 @@ describe('StatFlagsComponent', () => {
     fixture = TestBed.createComponent(StatFlagsComponent);
     component = fixture.componentInstance;
     http = TestBed.inject(HttpTestingController);
+    // ngOnInit (store.load()) runs on the first change detection, not on creation
+    fixture.detectChanges();
   });
 
   afterEach(() => http.verify());

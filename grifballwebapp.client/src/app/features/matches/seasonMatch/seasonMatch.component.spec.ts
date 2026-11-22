@@ -328,7 +328,11 @@ describe('SeasonMatchComponent reporting', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => httpMock.verify());
+  afterEach(() => {
+    // Staff only (#548), not every test's scenario goes through loadPage/load(): drained here so a stray one never fails verify()
+    httpMock.match('/api/season-matches/7/stat-flags').forEach(r => r.flush([]));
+    httpMock.verify();
+  });
 
   function load(dto: SeasonMatchPageDto, matches: PossibleMatchDto[] = []): void {
     httpMock.expectOne('/api/season-matches/7').flush(dto);
@@ -1210,7 +1214,11 @@ describe('SeasonMatchComponent with manual entry', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => httpMock.verify());
+  afterEach(() => {
+    // Staff only (#548), not every test's scenario goes through loadPage/load(): drained here so a stray one never fails verify()
+    httpMock.match('/api/season-matches/7/stat-flags').forEach(r => r.flush([]));
+    httpMock.verify();
+  });
 
   function load(dto: SeasonMatchPageDto): void {
     loadPage(httpMock, fixture, dto);
@@ -1309,7 +1317,11 @@ describe('SeasonMatchComponent lobby', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => httpMock.verify());
+  afterEach(() => {
+    // Staff only (#548), not every test's scenario goes through loadPage/load(): drained here so a stray one never fails verify()
+    httpMock.match('/api/season-matches/7/stat-flags').forEach(r => r.flush([]));
+    httpMock.verify();
+  });
 
   const load = (dto: SeasonMatchPageDto): void => loadPage(httpMock, fixture, dto);
   const el = () => fixture.nativeElement as HTMLElement;
