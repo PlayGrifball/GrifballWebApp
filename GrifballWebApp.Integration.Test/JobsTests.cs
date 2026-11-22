@@ -107,6 +107,7 @@ public class JobsTests
         public void SetCurrentUserIdFromClaims(System.Security.Claims.ClaimsPrincipal? user) { }
         public void SetCurrentUserId(int userId) => _id = userId;
         public int? GetCurrentUserId() => _id;
+        public bool IsAccessToken => false;
     }
 
     public sealed record WhoRuns(int? RequestedByUserID) : IRequestedByUser;
