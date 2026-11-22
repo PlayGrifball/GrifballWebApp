@@ -176,11 +176,13 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         var first = LiveUpdates.BatchKeyOf("[{\"Topic\":\"queue\"}]");
         var same = LiveUpdates.BatchKeyOf("[{\"Topic\":\"queue\"}]");
         var different = LiveUpdates.BatchKeyOf("[{\"Topic\":\"season:1\"}]");
+        var none = LiveUpdates.BatchKeyOf(null);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(same, Is.EqualTo(first));
             Assert.That(different, Is.Not.EqualTo(first));
+            Assert.That(none, Is.Not.EqualTo(first).And.Not.Empty);
         }
     }
 

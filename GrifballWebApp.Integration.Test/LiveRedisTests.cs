@@ -214,26 +214,34 @@ public class LiveRedisTests
     public async Task AChangeWithNoDataToShow_IsCachedToo_SoOnlyOnePodBuildsIt()
     {
         var built = 0;
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
-        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        async Task<object?> Build(NSubstitute.Core.CallInfo _)
         {
             Interlocked.Increment(ref built);
-            return Task.FromResult<object?>(null);
-        });
+            // Slow enough that the pod that loses the lock race is still polling, not finding it already there, when this finishes
+            await Task.Delay(500);
+            return null;
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(Build);
         var clientA = Substitute.For<ILiveHubClient>();
         var clientB = Substitute.For<ILiveHubClient>();
         var podA = Pod(clientA, snapshots);
         var podB = Pod(clientB, snapshots);
 
-        // Sequential, so the second definitely finds the first's (empty) result already cached
-        await podA.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1");
-        await podB.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1");
+        await Task.WhenAll(
+            podA.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1"),
+            podB.Deliver([new LiveChange(LiveTopics.Queue)], "batch-1"));
+
+        // A third pod, once the (empty) result is already sitting in Redis: reads that too, without building
+        var clientC = Substitute.For<ILiveHubClient>();
+        await Pod(clientC, snapshots).Deliver([new LiveChange(LiveTopics.Queue)], "batch-1");
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(built, Is.EqualTo(1), "nothing to show is cached too, so the second pod doesn't rebuild it");
+            Assert.That(built, Is.EqualTo(1), "nothing to show is cached too, so the other pods don't rebuild it");
             await clientA.Received(1).Changed(LiveTopics.Queue);
             await clientB.Received(1).Changed(LiveTopics.Queue);
+            await clientC.Received(1).Changed(LiveTopics.Queue);
         }
     }
 
