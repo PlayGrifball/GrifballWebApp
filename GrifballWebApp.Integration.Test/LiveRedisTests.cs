@@ -312,10 +312,10 @@ public class LiveRedisTests
         await (await publisher.ConnectAsync()).GetSubscriber().PublishAsync(LiveUpdates.RelayChannel, "not json at all");
 
         using var giveUp = new CancellationTokenSource(Patience);
-        while (logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ILogger.Log)) == 0)
+        while (!logger.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILogger.Log)))
             await Task.Delay(TimeSpan.FromMilliseconds(20), giveUp.Token);
         await listener.StopAsync(CancellationToken.None);
-        Assert.That(logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ILogger.Log)), Is.GreaterThan(0), "the garbled message was logged");
+        Assert.That(logger.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILogger.Log)), "the garbled message was logged");
     }
 
     /// <summary>A pod's LiveDelivery, its own LiveWatchers and Redis connection, with one connection watching <paramref name="topic"/>
