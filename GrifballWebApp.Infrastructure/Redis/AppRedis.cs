@@ -143,6 +143,13 @@ public static class AppRedisExtensions
         => configuration[ChannelPrefixKey] is { Length: > 0 } configured ? configured : DefaultChannelPrefix;
 
     /// <summary>
+    /// A key under the app's prefix, namespaced by <paramref name="feature"/>: for a feature whose keys aren't a single
+    /// fixed name (a feature with one key of its own, like <c>presence</c> or a chat wait, keeps its own format).
+    /// </summary>
+    public static string Key(IConfiguration configuration, string feature, string name)
+        => $"{ChannelPrefix(configuration)}:{feature}:{name}";
+
+    /// <summary>
     /// <see cref="AppRedis"/>, once, when <c>ConnectionStrings:Redis</c> is set; false (nothing registered) when it isn't.
     /// </summary>
     public static bool TryAddAppRedis(this IServiceCollection services, IConfiguration configuration)

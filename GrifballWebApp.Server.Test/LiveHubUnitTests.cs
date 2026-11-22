@@ -9,6 +9,7 @@ using GrifballWebApp.Server.Live;
 using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -167,22 +168,22 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     [TestCase(null, ExpectedResult = 0)]
     [TestCase("not json", ExpectedResult = 0)]
     [TestCase("null", ExpectedResult = 0)]
-    [TestCase("[{\"Topic\":\"season:1\",\"UserID\":null},{\"Topic\":\"queue:me\",\"UserID\":7}]", ExpectedResult = 2)]
+    [TestCase("{\"ChangeID\":\"5b3b2b1a-0000-0000-0000-000000000001\",\"Changes\":[{\"Topic\":\"season:1\",\"UserID\":null},{\"Topic\":\"queue:me\",\"UserID\":7}]}", ExpectedResult = 2)]
     public int TheRelaysMessage_IsTheChanges(string? message) => LiveUpdates.Parse(message).Count;
 
     [Test]
-    public void BatchKeyOf_IsTheSameForTheSameMessage_AndDifferentForADifferentOne()
+    public void ChangeIDOf_IsThisPublishsOwnID_TheSameOnEveryPod_AndDifferentFromAnotherPublishs()
     {
-        var first = LiveUpdates.BatchKeyOf("[{\"Topic\":\"queue\"}]");
-        var same = LiveUpdates.BatchKeyOf("[{\"Topic\":\"queue\"}]");
-        var different = LiveUpdates.BatchKeyOf("[{\"Topic\":\"season:1\"}]");
-        var none = LiveUpdates.BatchKeyOf(null);
+        var id = Guid.NewGuid();
+        var message = LiveUpdates.Serialize(id, [new LiveChange(LiveTopics.Queue)]);
+        var otherMessage = LiveUpdates.Serialize(Guid.NewGuid(), [new LiveChange(LiveTopics.Queue)]);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(same, Is.EqualTo(first));
-            Assert.That(different, Is.Not.EqualTo(first));
-            Assert.That(none, Is.Not.EqualTo(first).And.Not.Empty);
+            Assert.That(LiveUpdates.ChangeIDOf(message), Is.EqualTo(id));
+            Assert.That(LiveUpdates.ChangeIDOf(otherMessage), Is.Not.EqualTo(id));
+            Assert.That(LiveUpdates.ChangeIDOf("not json"), Is.Null);
+            Assert.That(LiveUpdates.Parse(message).Select(c => c.Topic), Is.EqualTo(new[] { LiveTopics.Queue }));
         }
     }
 
@@ -193,7 +194,8 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         services.AddScoped(_ => snapshots);
         services.AddScoped<IApplicationDbContext>(_ => new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString).Options));
-        return new LiveDelivery(_watchers, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance);
+        return new LiveDelivery(_watchers, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance,
+            new ConfigurationBuilder().Build());
     }
 
     private static LiveSnapshots NoSnapshots() => Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
@@ -282,7 +284,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
         _watchers.Watch(LiveTopics.Xbox(100), "a", SeasonViewer.Public);
 
-        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
+        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance, new ConfigurationBuilder().Build()).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
 
         using (Assert.EnterMultipleScope())
         {
@@ -301,7 +303,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _watchers.Watch(LiveTopics.Xbox(100), "a", SeasonViewer.Public);
         _watchers.Watch(LiveTopics.Player(5), "b", SeasonViewer.Public);
 
-        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
+        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance, new ConfigurationBuilder().Build()).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
 
         using (Assert.EnterMultipleScope())
         {

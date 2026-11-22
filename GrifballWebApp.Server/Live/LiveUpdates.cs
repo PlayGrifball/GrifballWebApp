@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using GrifballWebApp.Application.Database;
@@ -9,6 +7,7 @@ using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Infrastructure.Redis;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using StackExchange.Redis;
 
 namespace GrifballWebApp.Server.Live;
@@ -28,6 +27,13 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
 
     /// <summary>The channel (under the app's prefix) the changes are published on, for every API process.</summary>
     public static readonly RedisChannel RelayChannel = RedisChannel.Literal("live-changed");
+
+    /// <summary>
+    /// What goes out on <see cref="RelayChannel"/>: the changes, and this publish's own ID. The ID, not the changes'
+    /// content, is this change's identity (<see cref="LiveDelivery.Deliver"/>'s cache key): two publishes with the very
+    /// same topics (two draft picks moments apart, both touching <c>draft:4</c>) are still two changes, each its own build.
+    /// </summary>
+    private sealed record Relayed(Guid ChangeID, List<LiveChange> Changes);
 
     private readonly Lock _gate = new();
     private HashSet<LiveChange> _pending = [];
@@ -67,7 +73,7 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
         }
     }
 
-    /// <summary>Sends what gathered so far to the API processes.</summary>
+    /// <summary>Sends what gathered so far to the API processes, as one change of its own (<see cref="Relayed.ChangeID"/>).</summary>
     public async Task SendPendingAsync(CancellationToken ct = default)
     {
         HashSet<LiveChange> changes;
@@ -83,7 +89,7 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
         {
             try
             {
-                await (await redis.ConnectAsync()).GetSubscriber().PublishAsync(RelayChannel, JsonSerializer.Serialize(list));
+                await (await redis.ConnectAsync()).GetSubscriber().PublishAsync(RelayChannel, Serialize(Guid.NewGuid(), list));
                 return;
             }
             catch (Exception ex) when (ex is RedisException or TimeoutException)
@@ -96,25 +102,29 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
             await delivery.Deliver(list, ct: ct);
     }
 
-    /// <summary>The changes in a message of <see cref="RelayChannel"/>; none for one that isn't a list of them.</summary>
-    public static List<LiveChange> Parse(string? message)
+    /// <summary>A message of <see cref="RelayChannel"/> for <paramref name="changeID"/>'s change (a test's own, or this class's).</summary>
+    public static string Serialize(Guid changeID, IReadOnlyCollection<LiveChange> changes) => JsonSerializer.Serialize(new Relayed(changeID, [.. changes]));
+
+    /// <summary>The changes in a message of <see cref="RelayChannel"/>; none for one that isn't one.</summary>
+    public static List<LiveChange> Parse(string? message) => TryParse(message)?.Changes ?? [];
+
+    /// <summary>
+    /// The change a message of <see cref="RelayChannel"/> is: the same on every pod that gets it, and different from every
+    /// other message's, whatever its changes (<see cref="LiveDelivery.Deliver"/>'s cache key); null for one that isn't one.
+    /// </summary>
+    public static Guid? ChangeIDOf(string? message) => TryParse(message)?.ChangeID;
+
+    private static Relayed? TryParse(string? message)
     {
         try
         {
-            return message is null ? [] : JsonSerializer.Deserialize<List<LiveChange>>(message) ?? [];
+            return message is null ? null : JsonSerializer.Deserialize<Relayed>(message);
         }
         catch (JsonException)
         {
-            return [];
+            return null;
         }
     }
-
-    /// <summary>
-    /// A short, stable name for a relayed message: the same on every pod that gets it (<see cref="LiveRelayListener"/>), so
-    /// they can share one build of what it asks for (<see cref="LiveDelivery"/>) rather than each building their own, and a
-    /// different one for every other message, so a later change never reads an earlier one's build.
-    /// </summary>
-    public static string BatchKeyOf(string? message) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(message ?? "")));
 }
 
 /// <summary>Scaled out, on an API process: the changes any process published (<see cref="LiveUpdates.RelayChannel"/>), to this one's pages.</summary>
@@ -123,10 +133,10 @@ public sealed class LiveRelayListener(LiveDelivery delivery, AppRedis? redis = n
     public Task StartAsync(CancellationToken cancellationToken)
     {
         // Deliver logs its own failures (a build, a send) and isn't canceled here, so it doesn't throw. Every pod gets the
-        // same message, so the same batch key (LiveUpdates.BatchKeyOf): the first to build a topic's data for it keeps the
+        // same message, so the same change ID (LiveUpdates.ChangeIDOf): the first to build a topic's data for it keeps the
         // others from building their own (LiveDelivery.Deliver).
         redis?.WhenConnected(connection => connection.GetSubscriber().Subscribe(LiveUpdates.RelayChannel)
-            .OnMessage(message => delivery.Deliver(LiveUpdates.Parse(message.Message), LiveUpdates.BatchKeyOf(message.Message), CancellationToken.None)));
+            .OnMessage(message => delivery.Deliver(LiveUpdates.Parse(message.Message), LiveUpdates.ChangeIDOf(message.Message), CancellationToken.None)));
         return Task.CompletedTask;
     }
 
@@ -218,40 +228,44 @@ public sealed class LiveWatchers
 /// </summary>
 /// <remarks>
 /// Scaled out, every pod that watches a topic gets the same relayed change and would build the same data: the first here
-/// for a given <c>batchKey</c> (<see cref="LiveUpdates.BatchKeyOf"/>, the same on every pod for that change) keeps it in
-/// Redis a few seconds (<see cref="DataTtl"/>) under a short lock (<see cref="LockTtl"/>), so the rest read it instead of
-/// building their own; a pod that can't take the lock in time (<see cref="BuildWait"/>), or can't reach Redis at all,
-/// builds its own rather than keep its watchers waiting. A call with no <c>batchKey</c> (this pod's own local delivery,
-/// never shared with another) always builds its own, as does every pod when Redis isn't configured.
+/// for a given <c>changeID</c> (the same on every pod for that change, never another's: <see cref="LiveUpdates.ChangeIDOf"/>)
+/// keeps it in Redis a few seconds (<see cref="DataTtl"/>) under a lock (<see cref="LockTtl"/>, held well past
+/// <see cref="BuildWait"/> so a slow build is never joined by a second pod taking a freshly-expired lock); the rest read it
+/// instead of building their own. A pod that can't take the lock in time, or can't reach Redis at all, builds its own
+/// rather than keep its watchers waiting; a build that fails outright is never cached as "nothing to show", so the next
+/// pod gets a real attempt. A call with no <c>changeID</c> (this pod's own local delivery, never shared with another)
+/// always builds its own, as does every pod when Redis isn't configured. Every topic (and viewer) builds and sends
+/// alongside the others, so one pod's wait on one topic never delays another's.
 /// </remarks>
 public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILiveHubClient> hub, IServiceScopeFactory scopes,
-    ILogger<LiveDelivery> logger, AppRedis? redis = null, string? prefix = null)
+    ILogger<LiveDelivery> logger, IConfiguration configuration, AppRedis? redis = null)
 {
     private static readonly JsonSerializerOptions Json = ApiJson.Options();
 
     /// <summary>How long a topic's built data is kept for the other pods to read.</summary>
     public static readonly TimeSpan DataTtl = TimeSpan.FromSeconds(5);
 
-    /// <summary>How long one pod holds the lock to build: comfortably more than a build normally takes.</summary>
-    public static readonly TimeSpan LockTtl = TimeSpan.FromSeconds(3);
-
     /// <summary>How long a pod that lost the race for the lock waits for the winner's data before building its own.</summary>
     public static readonly TimeSpan BuildWait = TimeSpan.FromSeconds(3);
 
+    /// <summary>
+    /// How long one pod holds the lock to build: well past <see cref="BuildWait"/>, so every pod that lost the race gives
+    /// up and builds its own before a late-arriving pod could ever find the lock expired and take a fresh one, building
+    /// the same change again alongside a winner that is simply slow.
+    /// </summary>
+    public static readonly TimeSpan LockTtl = BuildWait + TimeSpan.FromSeconds(10);
+
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
 
-    /// <summary>The app's keys (<see cref="AppRedisExtensions.ChannelPrefix"/>), under their own namespace: raw string keys
-    /// aren't covered by <see cref="AppRedis"/>'s channel prefix (that's pub/sub alone).</summary>
-    private readonly string _keyPrefix = $"{prefix ?? AppRedisExtensions.DefaultChannelPrefix}:livebuild:";
-
-    public async Task Deliver(IReadOnlyCollection<LiveChange> changes, string? batchKey = null, CancellationToken ct = default)
+    public async Task Deliver(IReadOnlyCollection<LiveChange> changes, Guid? changeID = null, CancellationToken ct = default)
     {
+        var sends = new List<Task>();
         // A user's own: to their connections here (each API process tells its own, so each connection hears it once)
         foreach (var change in changes.Where(c => c.UserID is not null))
         {
             var theirs = watchers.OfUser(change.UserID!.Value);
             if (theirs.Count > 0)
-                await Send(theirs, change.Topic, null);
+                sends.Add(Send(theirs, change.Topic, null));
         }
         var topics = changes.Where(c => c.UserID is null).Select(c => c.Topic).ToList();
         topics.AddRange(await ProfilesOfAccounts(topics, ct));
@@ -262,16 +276,21 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
                 continue;
             if (!LiveSnapshots.Pushes(topic))
             {
-                await Send(watching.Select(w => w.ConnectionID).ToList(), topic, null);
+                sends.Add(Send(watching.Select(w => w.ConnectionID).ToList(), topic, null));
                 continue;
             }
             var byViewer = LiveSnapshots.DependsOnViewer(topic)
                 ? watching.GroupBy(w => w.Viewer).Select(g => (Viewer: g.Key, Connections: g.Select(w => w.ConnectionID).ToList())).ToList()
                 : [(watching[0].Viewer, watching.Select(w => w.ConnectionID).ToList())];
+            // Every topic (and viewer) alongside the rest: a lock lost on one never delays the others' builds and sends
             foreach (var (viewer, connections) in byViewer)
-                await Send(connections, topic, await Build(topic, viewer, batchKey, ct));
+                sends.Add(BuildAndSend(topic, viewer, connections, changeID, ct));
         }
+        await Task.WhenAll(sends);
     }
+
+    private async Task BuildAndSend(string topic, SeasonViewer viewer, IReadOnlyList<string> connections, Guid? changeID, CancellationToken ct)
+        => await Send(connections, topic, await Build(topic, viewer, changeID, ct));
 
     /// <summary>
     /// The profiles watched here (<see cref="LiveTopics.Player"/>) of the users whose Xbox accounts changed (a Halo game of
@@ -307,41 +326,52 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
 
     /// <summary>
     /// <paramref name="topic"/>'s data as <paramref name="viewer"/> sees it: built here alone when there's no
-    /// <paramref name="batchKey"/> or no Redis; otherwise shared with every other pod building the same change (see the
+    /// <paramref name="changeID"/> or no Redis; otherwise shared with every other pod building the same change (see the
     /// class remarks).
     /// </summary>
-    private async Task<string?> Build(string topic, SeasonViewer viewer, string? batchKey, CancellationToken ct)
+    private async Task<string?> Build(string topic, SeasonViewer viewer, Guid? changeID, CancellationToken ct)
     {
-        if (redis is null || batchKey is null)
-            return await BuildNow(topic, viewer, ct);
-        var key = CacheKey(topic, viewer, batchKey);
+        if (redis is null || changeID is null)
+            return (await BuildNow(topic, viewer, ct)).Json;
+        var key = CacheKey(topic, viewer, changeID.Value);
+        IDatabase db;
         try
         {
-            var db = (await redis.ConnectAsync()).GetDatabase();
+            db = (await redis.ConnectAsync()).GetDatabase();
             var cached = await db.StringGetAsync(key);
             if (!cached.IsNull)
-                return cached.IsNullOrEmpty ? null : cached.ToString();
-            if (await db.StringSetAsync($"{key}:lock", RedisValue.EmptyString, LockTtl, When.NotExists))
-            {
-                var data = await BuildNow(topic, viewer, ct);
-                // Stored even when there's nothing to show (an empty string, not a missing key), so a pod that lost the
-                // race doesn't wait out BuildWait for data this change never had.
-                RedisValue stored = data is null ? RedisValue.EmptyString : data;
-                await db.StringSetAsync(key, stored, DataTtl);
-                return data;
-            }
-            return await WaitForBuild(db, key, topic, viewer, ct);
+                return Decode(cached);
+            if (!await db.StringSetAsync($"{key}:lock", RedisValue.EmptyString, LockTtl, When.NotExists))
+                return await WaitForBuild(db, key, topic, viewer, ct);
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException)
         {
             logger.LogWarning(ex, "Could not build {Topic}'s data once across the pods: building it here", topic);
-            return await BuildNow(topic, viewer, ct);
+            return (await BuildNow(topic, viewer, ct)).Json;
         }
+
+        // Won the lock: build regardless of what Redis does from here. A failed build is never cached as "nothing to
+        // show" (the lock is dropped instead, so the next pod gets a real attempt); a store failure after a successful
+        // build must never cost a second one, so it's caught on its own and the data already built is still returned.
+        var built = await BuildNow(topic, viewer, ct);
+        try
+        {
+            if (built.Failed)
+                await db.KeyDeleteAsync($"{key}:lock");
+            else
+                await db.StringSetAsync(key, Encode(built.Json), DataTtl);
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException)
+        {
+            logger.LogWarning(ex, "Built {Topic}'s data but could not cache it for the other pods", topic);
+        }
+        return built.Json;
     }
 
     /// <summary>
     /// Waits for the pod that is building <paramref name="topic"/>'s data under <paramref name="key"/>; builds it here once
-    /// <see cref="BuildWait"/> passes without it (that pod may be gone), rather than keep this pod's watchers waiting.
+    /// <see cref="BuildWait"/> passes without it (that pod may be gone, or its build failed), rather than keep this pod's
+    /// watchers waiting. Checks before every sleep, so a build that already finished is never delayed a whole poll for it.
     /// </summary>
     private async Task<string?> WaitForBuild(IDatabase db, string key, string topic, SeasonViewer viewer, CancellationToken ct)
     {
@@ -351,36 +381,47 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
         {
             while (true)
             {
-                await Task.Delay(PollInterval, linked.Token);
                 var cached = await db.StringGetAsync(key);
                 if (!cached.IsNull)
-                    return cached.IsNullOrEmpty ? null : cached.ToString();
+                    return Decode(cached);
+                await Task.Delay(PollInterval, linked.Token);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return await BuildNow(topic, viewer, ct);
+            return (await BuildNow(topic, viewer, ct)).Json;
         }
     }
 
-    /// <summary>The key a build of <paramref name="topic"/> as <paramref name="viewer"/> sees it, for <paramref name="batchKey"/>'s
-    /// change alone: a topic that doesn't depend on the viewer (<see cref="LiveSnapshots.DependsOnViewer"/>) shares one key
-    /// across viewers, so pods whose watchers happen to differ still share the one build.</summary>
-    private string CacheKey(string topic, SeasonViewer viewer, string batchKey)
-        => LiveSnapshots.DependsOnViewer(topic) ? $"{_keyPrefix}{batchKey}:{topic}:{viewer}" : $"{_keyPrefix}{batchKey}:{topic}";
+    /// <summary>The key a build of <paramref name="topic"/> as <paramref name="viewer"/> sees it, for <paramref name="changeID"/>
+    /// alone: a topic that doesn't depend on the viewer (<see cref="LiveSnapshots.DependsOnViewer"/>) shares one key across
+    /// viewers, so pods whose watchers happen to differ still share the one build.</summary>
+    private string CacheKey(string topic, SeasonViewer viewer, Guid changeID) => AppRedisExtensions.Key(configuration, "livebuild",
+        LiveSnapshots.DependsOnViewer(topic) ? $"{changeID:N}:{topic}:{viewer}" : $"{changeID:N}:{topic}");
 
-    private async Task<string?> BuildNow(string topic, SeasonViewer viewer, CancellationToken ct)
+    /// <summary>A cached value: empty for a build with nothing to show (never a missing key, which means no one has built yet).</summary>
+    private static RedisValue Encode(string? json) => json is null ? RedisValue.EmptyString : json;
+
+    private static string? Decode(RedisValue cached) => cached.IsNullOrEmpty ? null : cached.ToString();
+
+    /// <summary>
+    /// A build's own result: its data (null for a topic with nothing to show), and whether it failed outright (an
+    /// exception, logged already here, never cached as "nothing to show" - see the class remarks).
+    /// </summary>
+    private readonly record struct BuildResult(string? Json, bool Failed);
+
+    private async Task<BuildResult> BuildNow(string topic, SeasonViewer viewer, CancellationToken ct)
     {
         await using var scope = scopes.CreateAsyncScope();
         try
         {
             var data = await scope.ServiceProvider.GetRequiredService<LiveSnapshots>().For(topic, viewer, ct);
-            return data is null ? null : JsonSerializer.Serialize(data, data.GetType(), Json);
+            return new(data is null ? null : JsonSerializer.Serialize(data, data.GetType(), Json), Failed: false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             logger.LogWarning(ex, "Could not build {Topic}'s data: its pages read it again", topic);
-            return null;
+            return new(null, Failed: true);
         }
     }
 

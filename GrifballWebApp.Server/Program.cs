@@ -178,9 +178,7 @@ public class Program
             // Where the pages' connections are: what each watches, the changes to them (with the data of the topics many
             // watch, built once here), the other processes' changes through Redis when scaled out
             builder.Services.AddSingleton<LiveWatchers>();
-            // Its own namespace under the app's prefix, so previews sharing a Redis with their own prefix don't share a build
-            builder.Services.AddSingleton<LiveDelivery>(provider => ActivatorUtilities.CreateInstance<LiveDelivery>(provider,
-                AppRedisExtensions.ChannelPrefix(builder.Configuration)));
+            builder.Services.AddSingleton<LiveDelivery>();
             builder.Services.AddHostedService<LiveRelayListener>();
             builder.Services.AddScoped<PresencePages>();
             builder.Services.AddSingleton<IPresenceStore>(provider => provider.GetService<AppRedis>() is { } redis

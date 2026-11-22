@@ -169,9 +169,23 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         }
     }
 
-    private LiveDelivery Delivery(IServiceScopeFactory? scopes = null, AppRedis? redis = null)
+    private LiveDelivery Delivery(IServiceScopeFactory? scopes = null, AppRedis? redis = null, IConfiguration? configuration = null)
         => new(_watchers, _hubContext, scopes ?? new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
-            NullLogger<LiveDelivery>.Instance, redis);
+            NullLogger<LiveDelivery>.Instance, configuration ?? new ConfigurationBuilder().Build(), redis);
+
+    /// <summary>A Redis whose reads succeed (nothing cached yet) and whose lock is taken, but storing a build fails.</summary>
+    private static AppRedis FlakyStoreRedis()
+    {
+        var db = Substitute.For<IDatabase>();
+        db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
+        db.StringSetAsync(Arg.Is<RedisKey>(k => ((string)k).EndsWith(":lock", StringComparison.Ordinal)), Arg.Any<RedisValue>(),
+            Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(true);
+        db.StringSetAsync(Arg.Is<RedisKey>(k => !((string)k).EndsWith(":lock", StringComparison.Ordinal)), Arg.Any<RedisValue>(),
+            Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(Task.FromException<bool>(new RedisException("could not store")));
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        return new AppRedis(_ => Task.FromResult(connection));
+    }
 
     /// <summary>The pages watching player:5 here, told through <paramref name="told"/> once they are.</summary>
     private ILiveHubClient WatchingPlayerFive(TaskCompletionSource told)
@@ -234,10 +248,31 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(3));
         _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
 
-        // A batch key, as it would come scaled out through the relay: with Redis unreachable, caching across pods is
+        // A change ID, as it would come scaled out through the relay: with Redis unreachable, caching across pods is
         // skipped and this pod builds it anyway, rather than leave its own watchers with nothing
-        await Delivery(Scopes(snapshots), DownRedis()).Deliver([new LiveChange(LiveTopics.Queue)], "batch-1");
+        await Delivery(Scopes(snapshots), DownRedis()).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
 
         await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
+    }
+
+    [Test]
+    public async Task AStoreFailureAfterABuild_ReturnsTheDataAlreadyBuilt_RatherThanBuildingAgain()
+    {
+        var built = 0;
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            Interlocked.Increment(ref built);
+            return Task.FromResult<object?>(new QueueLiveDto(5));
+        });
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+
+        await Delivery(Scopes(snapshots), FlakyStoreRedis()).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+
+        using (Assert.EnterMultipleScope())
+        {
+            await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":5}");
+            Assert.That(built, Is.EqualTo(1), "a store failure after a successful build must not cost a second one");
+        }
     }
 }
