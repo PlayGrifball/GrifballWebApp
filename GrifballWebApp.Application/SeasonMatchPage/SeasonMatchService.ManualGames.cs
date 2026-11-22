@@ -56,9 +56,8 @@ public partial class SeasonMatchService
     /// Takes a game out of the series: a Waypoint game goes back to the possible matches, to be reported again; a game
     /// entered by hand has nothing to go back to, so it is deleted (its flags cascade with it). Returns the
     /// RecordedGameID of a kept (non-manual, imported) game: it keeps whatever series flag was on it
-    /// (StatFlagRule.SeriesDoesNotMatchGames, say), which only <see cref="StatFlagService.ClearSeriesFlagAsync"/> can
-    /// still reach once it's out of the series. Null for a Waypoint game (carries no series flag of its own) or a
-    /// deleted one.
+    /// (StatFlagRule.SeriesDoesNotMatchGames, say), which only StatFlagService.ClearSeriesFlagAsync can still reach
+    /// once it's out of the series. Null for a Waypoint game (carries no series flag of its own) or a deleted one.
     /// </summary>
     private int? Unreport(SeasonMatch seasonMatch, SeriesGame game)
     {

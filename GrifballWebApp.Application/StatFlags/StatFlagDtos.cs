@@ -22,7 +22,8 @@ public class StatFlagDto
     public DateTime FoundAt { get; set; }
     /// <summary>When the flagged game is a recorded game outside any series (an imported scrim, a Late League
     /// matchmaking game): there's no page to link it to, so staff are shown what it was instead - when it was played
-    /// and its sides. Null otherwise (there's a page to link to: SeasonMatchID, or the Halo match's own page).</summary>
+    /// and its sides. Null otherwise (there's a page to link to: <see cref="SeasonMatchID"/>, or the Halo match's own
+    /// page).</summary>
     public DateTime? GamePlayedAt { get; set; }
     /// <summary>The flagged game's sides, "Team A vs Team B", alongside <see cref="GamePlayedAt"/>.</summary>
     public string? GameTeams { get; set; }

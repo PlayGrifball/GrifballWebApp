@@ -502,10 +502,7 @@ public partial class DataPullService : IDataPullService
                 throw new Exception("XUID not long");
             }
             var xboxUser = knownXboxUserIDs?.Contains(xuidLong) is true ? null : await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong, ct);
-            // Getserted just now: new to the whole batch, not only this match. The shared lookup (built before any
-            // match was saved) would otherwise still show them by their bare XUID when the stat flag check runs.
-            if (xboxUser is not null && gamertagByXuid is not null)
-                gamertagByXuid[xuidLong] = xboxUser.Gamertag;
+            RememberGamertag(gamertagByXuid, xuidLong, xboxUser);
 
             var stats = x.PlayerTeamStats.Where(pts => pts.TeamId == x.LastTeamId).FirstOrDefault()?.Stats.CoreStats
                 ?? throw new Exception("Failed to find last team stats");
@@ -576,6 +573,15 @@ public partial class DataPullService : IDataPullService
         // rest of the pull. isNewMatch: true - it was just added above, so it can't have an existing flag yet.
         await _statFlags.CheckMatchAsync(match, userIDByXuid, gamertagByXuid, isNewMatch: true, ct);
         return true;
+    }
+
+    /// <summary>A player getserted just now (new to the whole batch, not only this match) updates the shared
+    /// gamertagByXuid lookup in place: built before any match was saved, it would otherwise still show them by their
+    /// bare XUID when the stat flag check runs.</summary>
+    private static void RememberGamertag(Dictionary<long, string>? gamertagByXuid, long xuid, XboxUser? xboxUser)
+    {
+        if (xboxUser is not null && gamertagByXuid is not null)
+            gamertagByXuid[xuid] = xboxUser.Gamertag;
     }
 
     private void ForgetAdded(Match match)
