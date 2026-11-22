@@ -40,7 +40,7 @@ public class StaffStatFlagsControllerDatabaseUnitTests : SqliteGrifballContextFi
 
         var flags = await Controller().List(CancellationToken.None);
 
-        Assert.That(flags.Select(f => f.Reason), Is.EqualTo(new[] { "open one" }));
+        Assert.That(flags.Single().Reason, Is.EqualTo("open one"));
     }
 
     [Test]

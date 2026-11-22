@@ -1,8 +1,8 @@
 namespace GrifballWebApp.Domain.Archive;
 
 /// <summary>
-/// A plain rule a <see cref="StatFlag"/> is found by: fixed, conservative thresholds, each one in
-/// <see cref="StatFlagRules"/> (the Application's StatFlagService), not spread through the checks. Left for later: how
+/// A plain rule a <see cref="StatFlag"/> is found by: fixed, conservative thresholds, each one in one place
+/// (StatFlagThresholds, in the Application's StatFlagService), not spread through the checks. Left for later: how
 /// a game compares to a player's own history, duplicate-game detection, and roster-membership checks (the issue's other
 /// candidate rules).
 /// </summary>

@@ -171,7 +171,8 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
         var recentMatches = new DiscordCommandsHandler(lookups, new GrifballWebApp.Application.Tools.HaloTools(Db, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)));
         _setGamertag.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
         var admin = new AdminCommandsHandler(caller, lookups, reschedules,
-            new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(reschedules, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(Db)), seasonMatches, new MatchPlannerService(Db), brackets, teams,
+            new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(reschedules, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(Db),
+                new GrifballWebApp.Application.StatFlags.StaffStatFlagService(Db)), seasonMatches, new MatchPlannerService(Db), brackets, teams,
             new ScheduleRecommendations(Db, _time), new GrifballWebApp.Infrastructure.Scheduler.ScheduleRecommendationRuns(new OnDemandJobs(schedulers, history)),
             new JobsService(schedulers, history, new RecurringJobs().AddOnDemand<SeasonMatchPullJob>("season-match-pull", "Pulls a match's games"), _time),
             new GamertagClaimService(Db, Substitute.For<IUserMergeService>(), null, _time), dataPull, urls);

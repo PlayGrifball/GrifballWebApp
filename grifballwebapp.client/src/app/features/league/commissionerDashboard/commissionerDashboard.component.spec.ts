@@ -75,7 +75,8 @@ describe('CommissionerDashboardComponent', () => {
         pendingRescheduleCount: 2,
         overdueMatchCount: 1,
         criticalOverdueCount: 0,
-        seasonsNotPublicBySignupsCount: 0
+        seasonsNotPublicBySignupsCount: 0,
+        openStatFlagCount: 0
       },
       pendingReschedules: [
         {
@@ -209,13 +210,13 @@ describe('CommissionerDashboardComponent', () => {
     
     // After the POST completes, the component calls loadDashboardData()
     const refreshReq = httpTestingController.expectOne('/api/commissioner-dashboard');
-    refreshReq.flush({ pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 } });
+    refreshReq.flush({ pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0, openStatFlagCount: 0 } });
   });
 
   describe('reschedule actions', () => {
     const reschedule = { matchRescheduleID: 4, seasonMatchID: 40, homeCaptain: 'A', awayCaptain: 'B',
       reason: 'r', requestedByGamertag: 'p', requestedAt: '2024-01-01T00:00:00Z', status: 'Pending', canApprove: true } as RescheduleDto;
-    const empty = { pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 } };
+    const empty = { pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0, openStatFlagCount: 0 } };
 
     it('reloads the dashboard after the dialog reports a processed request', () => {
       const ref = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
@@ -254,7 +255,7 @@ describe('CommissionerDashboardComponent', () => {
 
     httpTestingController.expectOne('/api/commissioner-dashboard').flush({
       pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [],
-      summary: { pendingRescheduleCount: 4, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 },
+      summary: { pendingRescheduleCount: 4, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0, openStatFlagCount: 0 },
     });
     await fixture.whenStable();
 
@@ -269,7 +270,7 @@ describe('CommissionerDashboardComponent', () => {
       pendingReschedules: [],
       overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'A', awayCaptain: 'B', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 80 }],
       seasonsNotPublicBySignups: [],
-      summary: { pendingRescheduleCount: 0, overdueMatchCount: 1, criticalOverdueCount: 1, seasonsNotPublicBySignupsCount: 0 },
+      summary: { pendingRescheduleCount: 0, overdueMatchCount: 1, criticalOverdueCount: 1, seasonsNotPublicBySignupsCount: 0, openStatFlagCount: 0 },
     });
     await fixture.whenStable();
     (Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]'))[1]).click();
@@ -298,7 +299,7 @@ describe('CommissionerDashboardComponent', () => {
     await fixture.whenStable();
     httpTestingController.expectOne('/api/commissioner-dashboard').flush({
       pendingReschedules: [decided, open], overdueMatches: [], seasonsNotPublicBySignups: [],
-      summary: { pendingRescheduleCount: 2, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 },
+      summary: { pendingRescheduleCount: 2, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0, openStatFlagCount: 0 },
     });
     await fixture.whenStable();
 
@@ -325,7 +326,7 @@ describe('CommissionerDashboardComponent', () => {
         { seasonID: 5, seasonName: 'Spring', signupsOpen: '2026-12-01T00:00:00Z', publicAt: null },
         { seasonID: 6, seasonName: 'Summer', signupsOpen: '2027-03-01T00:00:00Z', publicAt: '2027-03-05T00:00:00Z' },
       ],
-      summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 2 },
+      summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 2, openStatFlagCount: 0 },
     });
     await fixture.whenStable();
 
@@ -340,7 +341,7 @@ describe('CommissionerDashboardComponent', () => {
     await fixture.whenStable();
     httpTestingController.expectOne('/api/commissioner-dashboard').flush({
       pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [],
-      summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 },
+      summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0, openStatFlagCount: 0 },
     });
     await fixture.whenStable();
 

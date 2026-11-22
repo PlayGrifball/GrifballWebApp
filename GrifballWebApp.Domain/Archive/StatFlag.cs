@@ -66,8 +66,8 @@ public class StatFlag : AuditableEntity
     public int? RecordedGameID { get; private set; }
     public RecordedGame? RecordedGame { get; private set; }
     /// <summary>Whose line the rule is about; null when the rule is about the whole game. No foreign key (like
-    /// <see cref="Players.DuplicateDismissal"/>'s user IDs): the player may be merged away later, and the flag still
-    /// names who it was found about.</summary>
+    /// <see cref="GrifballWebApp.Domain.Players.DuplicateDismissal"/>'s user IDs): the player may be merged away later,
+    /// and the flag still names who it was found about.</summary>
     public int? PlayerUserID { get; private set; }
     public string Reason { get; private set; } = null!;
     public DateTime FoundAt { get; private set; }
