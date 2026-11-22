@@ -27,7 +27,7 @@ describe('isStaffGuard', () => {
   it('allows a commissioner once the user is known', async () => {
     const result = firstValueFrom(run());
     commissioner = true;
-    known.next({ isEventOrganizer: true } as MetaInfoResponse);
+    known.next({ isCommissioner: true } as MetaInfoResponse);
     expect(await result).toBe(true);
   });
 

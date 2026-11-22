@@ -499,7 +499,7 @@ public partial class DataPullService : IDataPullService
                 _logger.LogError("Could not parse {XUID}, not long", xuid);
                 throw new Exception("XUID not long");
             }
-            var xboxUser = knownXboxUserIDs?.Contains(xuidLong) is true ? null : await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong);
+            var xboxUser = knownXboxUserIDs?.Contains(xuidLong) is true ? null : await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong, ct);
 
             var stats = x.PlayerTeamStats.Where(pts => pts.TeamId == x.LastTeamId).FirstOrDefault()?.Stats.CoreStats
                 ?? throw new Exception("Failed to find last team stats");
@@ -549,7 +549,7 @@ public partial class DataPullService : IDataPullService
         }
         // Its goals and the mode's other stats, from Score and PersonalScore (#217), set while the game is built and before
         // any of it is tracked. Decoding only reads saved matches, so it adds nothing a failed save would have to let go.
-        await _scoreLayouts.ApplyAsync(match);
+        await _scoreLayouts.ApplyAsync(match, ct);
         // Nothing of the game is added until every player is resolved: a lookup that fails (the gateway down) then leaves
         // nothing tracked for a retry to trip over, and a lookup's own save can't store the game without its players.
         // The match brings its teams, their players and their medals.
@@ -565,9 +565,17 @@ public partial class DataPullService : IDataPullService
             ForgetAdded(match);
             throw;
         }
-        // #548: plain anomaly checks (impossible numbers, an undecoded custom score), never anything that changes the
-        // match. The match is saved either way: a failure here (a transient DB error) is logged and let go rather than
-        // failing the rest of the pull, and leaves nothing of its own tracked for the next match's save to trip over.
+        await CheckStatFlagsAsync(match, userIDByXuid, gamertagByXuid, ct);
+        return true;
+    }
+
+    /// <summary>#548: plain anomaly checks (impossible numbers, an undecoded custom score), never anything that changes
+    /// the match - it's saved either way. A failure here (a transient DB error) is logged and let go rather than
+    /// failing the rest of the pull, detaching anything it left tracked so the next match's save doesn't trip over
+    /// it.</summary>
+    private async Task CheckStatFlagsAsync(Match match, IReadOnlyDictionary<long, int>? userIDByXuid,
+        IReadOnlyDictionary<long, string>? gamertagByXuid, CancellationToken ct)
+    {
         try
         {
             await _statFlags.CheckMatchAsync(match, userIDByXuid, gamertagByXuid, ct);
@@ -575,17 +583,11 @@ public partial class DataPullService : IDataPullService
         catch (Exception e) when (e is not OperationCanceledException)
         {
             _logger.LogError(e, "Stat flag check failed for match {MatchID}; the match itself was saved fine", match.MatchID);
-            ForgetStatFlagChanges();
+            // What it may have left tracked (StatFlagService.ReconcileAsync adds, rewrites and removes StatFlags): let
+            // go, so the next SaveChangesAsync on this context doesn't try to save it too.
+            foreach (var entry in _grifballContext.ChangeTracker.Entries<StatFlag>().Where(e => e.State is not EntityState.Unchanged).ToList())
+                entry.State = EntityState.Detached;
         }
-        return true;
-    }
-
-    /// <summary>What a failed stat flag check may have left tracked (StatFlagService.ReconcileAsync adds, rewrites and
-    /// removes StatFlags): let go, so the next SaveChangesAsync on this context doesn't try to save it too.</summary>
-    private void ForgetStatFlagChanges()
-    {
-        foreach (var entry in _grifballContext.ChangeTracker.Entries<StatFlag>().Where(e => e.State is not EntityState.Unchanged).ToList())
-            entry.State = EntityState.Detached;
     }
 
     private void ForgetAdded(Match match)
