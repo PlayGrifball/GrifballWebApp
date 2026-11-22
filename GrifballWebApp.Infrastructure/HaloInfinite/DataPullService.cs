@@ -7,6 +7,7 @@ using Surprenant.Grunt.Models.HaloInfinite;
 using System.Collections.Concurrent;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.StatFlags;
 using Microsoft.Extensions.Logging;
 
 namespace GrifballWebApp.Infrastructure.HaloInfinite;
@@ -20,14 +21,18 @@ public partial class DataPullService : IDataPullService
 
     // Decodes each match saved; reads a game variant's layout once for every match of it the pull saves
     private readonly CustomScoreLayouts _scoreLayouts;
+    // #548: checked once a match is saved, whether or not it's ever reported to a season match
+    private readonly StatFlagService _statFlags;
 
-    public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClient haloInfiniteClient, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService)
+    public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClient haloInfiniteClient, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService,
+        StatFlagService? statFlags = null)
     {
         _logger = logger;
         _haloInfiniteClient = haloInfiniteClient;
         _grifballContext = grifballContext;
         _getsertXboxUserService = getsertXboxUserService;
         _scoreLayouts = new CustomScoreLayouts(grifballContext);
+        _statFlags = statFlags ?? new StatFlagService(grifballContext);
     }
 
     /// <summary>
@@ -545,6 +550,8 @@ public partial class DataPullService : IDataPullService
             ForgetAdded(match);
             throw;
         }
+        // #548: plain anomaly checks (impossible numbers, an undecoded custom score), never anything that changes the match
+        await _statFlags.CheckMatchAsync(match.MatchID);
         return true;
     }
 

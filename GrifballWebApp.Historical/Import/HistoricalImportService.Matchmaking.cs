@@ -204,6 +204,9 @@ public partial class HistoricalImportService
             counts.RecordedGamesRemoved++;
         }
         await _context.SaveChangesAsync(ct);
+        // #548: never entered by hand, so only the "any game" rules run; no series to check (matchmaking has none)
+        foreach (var game in kept)
+            await _statFlags.CheckRecordedGameAsync(game, null, ct);
     }
 
     /// <summary>One of the season's recorded games, upserted by its SourceKey with its matched match; null when it's skipped.</summary>

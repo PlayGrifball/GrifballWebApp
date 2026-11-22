@@ -95,6 +95,9 @@ public partial class SeasonMatchService
             await _context.SaveChangesAsync(ct);
         });
         await AwardChampionship(seasonMatch, ct);
+        // #548: anomaly checks on the game just entered, and on the series it's now part of
+        await _statFlags.CheckRecordedGameAsync(game, seasonMatch, ct);
+        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
         await transaction.CommitAsync(ct);
         return game.RecordedGameID;
     }
@@ -135,6 +138,9 @@ public partial class SeasonMatchService
             await _context.SaveChangesAsync(ct);
         });
         await AwardChampionship(seasonMatch, ct);
+        // #548: the edit may have changed what the hand-entered rules and the series-sum rule find
+        await _statFlags.CheckRecordedGameAsync(game, seasonMatch, ct);
+        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
         await transaction.CommitAsync(ct);
     }
 
@@ -161,6 +167,8 @@ public partial class SeasonMatchService
             await _context.SaveChangesAsync(ct);
         });
         await AwardChampionship(seasonMatch, ct);
+        // #548: the series' remaining games may no longer (or may now) add up to its result
+        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
         await transaction.CommitAsync(ct);
     }
 

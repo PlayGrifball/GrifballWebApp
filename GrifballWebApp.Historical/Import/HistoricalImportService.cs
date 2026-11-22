@@ -188,9 +188,11 @@ public partial class HistoricalImportService : IHistoricalImportService
     private readonly TimeProvider _timeProvider;
     private readonly GamertagMatching _matching;
     private readonly GrifballWebApp.Application.Profile.IUserMergeService _merges;
+    // #548: every game the import brings in or updates is checked the same way a manual game or a Halo pull is
+    private readonly GrifballWebApp.Application.StatFlags.StatFlagService _statFlags;
 
     public HistoricalImportService(IApplicationDbContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger, GamertagMatching matching, TimeProvider timeProvider,
-        GrifballWebApp.Application.Profile.IUserMergeService? merges = null)
+        GrifballWebApp.Application.Profile.IUserMergeService? merges = null, GrifballWebApp.Application.StatFlags.StatFlagService? statFlags = null)
     {
         _context = context;
         _dataPullService = dataPullService;
@@ -199,6 +201,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         _matching = matching;
         _timeProvider = timeProvider;
         _merges = merges ?? new GrifballWebApp.Application.Profile.UserMergeService(context, timeProvider);
+        _statFlags = statFlags ?? new GrifballWebApp.Application.StatFlags.StatFlagService(context, timeProvider);
     }
 
     /// <summary>A season to import: its archive entries (regular season and playoffs), titles and Waypoint matches.</summary>
@@ -1479,6 +1482,7 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         // Each slot is the team's previous series, or a seed for its first (the bracket's rule: one or the other)
         var bracket = new PlayoffBracket(await _context.SeasonMatches.CountAsync(m => m.SeasonID == season.SeasonID && m.BracketMatch != null, ct));
+        var linked = new List<SeasonMatch>();
         // In the order they were played; a series its source gives no date (a result list's, a forfeit) after the dated ones,
         // in its list's order
         foreach (var played in series.OrderBy(s => s[0].Start is null).ThenBy(s => s[0].Start))
@@ -1502,10 +1506,14 @@ public partial class HistoricalImportService : IHistoricalImportService
             foreach (var (game, index) in played.Select((g, i) => (g, i)))
                 match.AddImportedGame(game.MatchID, game.Recorded, index + 1);
             _context.SeasonMatches.Add(match);
+            linked.Add(match);
             counts.SeasonMatchesCreated++;
             counts.GamesLinked += played.Count;
         }
         await _context.SaveChangesAsync(ct);
+        // #548: whether each new series' games add up to its result (its SeasonMatchID is real now)
+        foreach (var match in linked)
+            await _statFlags.CheckSeriesGamesAsync(match.SeasonMatchID, ct);
     }
 
     /// <summary>Series: the games its source puts in one (<see cref="ImportedGame.Series"/>), and the same two teams' other games,
@@ -1632,6 +1640,10 @@ public partial class HistoricalImportService : IHistoricalImportService
         // Once for the season, not once a game
         if (run.WithoutTeam.Count > 0 && teams.ByName.Count > 0)
             Warn(counts, $"{group.SourceId}: {run.WithoutTeam.Count} recorded game(s) with a side that is none of the season's teams (by its players' teams or its name): {string.Join(", ", run.WithoutTeam)}");
+        // #548: every game kept this run (new or re-imported) has its RecordedGameID now; never one entered by hand,
+        // so only the "any game" rules run (StatFlagService.CheckRecordedGameAsync)
+        foreach (var game in run.Kept)
+            await _statFlags.CheckRecordedGameAsync(game, null, ct);
         return run.ToLink;
     }
 

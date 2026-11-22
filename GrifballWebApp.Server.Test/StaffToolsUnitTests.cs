@@ -16,6 +16,7 @@ using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Application.StatFlags;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Application.Profile;
@@ -65,7 +66,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     private StaffTools Staff(ToolCaller caller)
     {
         var reschedules = new RescheduleService(Db, Substitute.For<IOutbox>());
-        return new(caller, new CommissionerDashboardService(reschedules, new EventOrganizerService(Db)), Claims(), Seasons(), Visibility(), Recommendations(), _runs, _jobs);
+        return new(caller, new CommissionerDashboardService(reschedules, new EventOrganizerService(Db), new StaffStatFlagService(Db)), Claims(), Seasons(), Visibility(), Recommendations(), _runs, _jobs);
     }
 
     private GamertagClaimService Claims() => new(Db, Substitute.For<IUserMergeService>(), null);

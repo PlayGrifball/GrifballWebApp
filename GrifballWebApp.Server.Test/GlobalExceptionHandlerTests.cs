@@ -79,6 +79,7 @@ public class GlobalExceptionHandlerTests
         yield return new TestCaseData(new GrifballWebApp.Application.Reschedule.RescheduleForbiddenException(), 403, "Only players on either team, or a commissioner, can request a reschedule for this match.").SetName("RescheduleForbiddenException_Is403");
         yield return new TestCaseData(new GrifballWebApp.Application.Reschedule.RescheduleAlreadyActiveException(), 409, "There is already an active reschedule request for this match.").SetName("RescheduleAlreadyActiveException_Is409");
         yield return new TestCaseData(new GrifballWebApp.Application.Reschedule.RescheduleAlreadyProcessedException(), 409, "Reschedule request has already been processed").SetName("RescheduleAlreadyProcessedException_Is409");
+        yield return new TestCaseData(new GrifballWebApp.Application.StatFlags.StatFlagNotFoundException(9), 404, "Stat flag 9 does not exist").SetName("StatFlagNotFoundException_Is404");
     }
 
     [TestCaseSource(nameof(ExpectedRefusals))]

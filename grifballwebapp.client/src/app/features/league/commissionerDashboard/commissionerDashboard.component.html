@@ -36,6 +36,11 @@
         <span class="metric-value">{{ data.summary.criticalOverdueCount }}</span>
       </div>
       }
+
+      <a class="hud-panel hud-panel--chamfer cd-metric" routerLink="/stat-flags">
+        <span class="hud-label"><mat-icon aria-hidden="true">flag</mat-icon> Open stat flags</span>
+        <span class="metric-value">{{ data.summary.openStatFlagCount }}</span>
+      </a>
     </div>
 
     <!-- Seasons that won't be public by their signups: players can't sign up for a season they can't see -->

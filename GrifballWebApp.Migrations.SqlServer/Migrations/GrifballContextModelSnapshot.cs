@@ -774,6 +774,68 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Archive.StatFlag", b =>
+                {
+                    b.Property<int>("StatFlagID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StatFlagID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("DismissedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DismissedByUserID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FoundAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("MatchID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PlayerUserID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("RecordedGameID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rule")
+                        .HasColumnType("int");
+
+                    b.HasKey("StatFlagID");
+
+                    b.HasIndex("DismissedAt");
+
+                    b.HasIndex("MatchID");
+
+                    b.HasIndex("RecordedGameID");
+
+                    b.ToTable("StatFlags", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_StatFlags_DismissedByNeedsDismissedAt", "DismissedByUserID IS NULL OR DismissedAt IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Event_StatFlags_OneGame", "(MatchID IS NOT NULL AND RecordedGameID IS NULL) OR (MatchID IS NULL AND RecordedGameID IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Archive.XuidLookup", b =>
                 {
                     b.Property<int>("UserID")
@@ -5222,6 +5284,23 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("RecordedGame");
 
                     b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Archive.StatFlag", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Halo.Match", "Match")
+                        .WithMany()
+                        .HasForeignKey("MatchID")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("GrifballWebApp.Domain.Archive.RecordedGame", "RecordedGame")
+                        .WithMany()
+                        .HasForeignKey("RecordedGameID")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Match");
+
+                    b.Navigation("RecordedGame");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Archive.XuidLookup", b =>

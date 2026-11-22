@@ -57,6 +57,7 @@ public interface IApplicationDbContext
     DbSet<PasswordResetLink> PasswordResetLinks { get; }
     DbSet<ScheduleRecommendation> ScheduleRecommendations { get; }
     DbSet<OutboxMessage> Outbox { get; }
+    DbSet<StatFlag> StatFlags { get; }
 
     // Identity's
     DbSet<User> Users { get; }

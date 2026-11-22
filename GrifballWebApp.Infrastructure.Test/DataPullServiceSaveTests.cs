@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Testing;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure.HaloInfinite;
@@ -158,6 +159,27 @@ public class DataPullServiceSaveTests : SqliteContextFixture
             Assert.That(saved.MatchID, Is.EqualTo(id));
             Assert.That(saved.MatchTeams.OrderBy(t => t.TeamID).Select(t => t.Outcome), Is.EqualTo(WonThenLost));
             Assert.That(await Context.Set<MatchParticipant>().CountAsync(), Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public async Task GetAndSave_APlayerOverTheMaxAccuracy_IsFlagged()
+    {
+        // #548: every Halo pull is checked for plain anomalies once it's saved, whether or not it's ever reported
+        var id = Guid.NewGuid();
+        var player = PlayerOf("xuid(5)", 0, (0, 4));
+        player.PlayerTeamStats.Single().Stats.CoreStats.Accuracy = 150f;
+        var stats = StatsOf(id, [(0, 2), (1, 3)], player, PlayerOf("xuid(6)", 1, (1, 2)));
+        _halo.StatsGetMatchStats(id).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(stats, null!));
+
+        await _service.GetAndSaveMatch(id);
+
+        var flag = await Context.Set<StatFlag>().AsNoTracking().SingleAsync(f => f.MatchID == id);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.Rule, Is.EqualTo(StatFlagRule.ImpossibleAccuracy));
+            Assert.That(flag.Reason, Does.Contain("150"));
+            Assert.That(flag.IsOpen, Is.True);
         }
     }
 

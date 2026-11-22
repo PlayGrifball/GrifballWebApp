@@ -19,3 +19,6 @@ public sealed record HistoricalSourceChanged(HistoricalSource Source) : IDomainE
 
 /// <summary>A recorded game was imported or entered by hand, or its facts, sides or players changed.</summary>
 public sealed record RecordedGameChanged(RecordedGame Game) : IDomainEvent;
+
+/// <summary>A stat flag was found against a game (#548).</summary>
+public sealed record StatFlagFound(StatFlag Flag) : IDomainEvent;

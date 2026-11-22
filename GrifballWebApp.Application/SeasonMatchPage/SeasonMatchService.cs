@@ -13,6 +13,7 @@ using GrifballWebApp.Application.Championships;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Application.StatFlags;
 
 namespace GrifballWebApp.Application.SeasonMatchPage;
 
@@ -22,12 +23,15 @@ public partial class SeasonMatchService
     private readonly IDataPullService _dataPullService;
     private readonly IBracketService _bracketService;
     private readonly ChampionshipService _championshipService;
-    public SeasonMatchService(IApplicationDbContext context, IDataPullService dataPullService, IBracketService bracketService, ChampionshipService championshipService)
+    private readonly StatFlagService _statFlags;
+    public SeasonMatchService(IApplicationDbContext context, IDataPullService dataPullService, IBracketService bracketService, ChampionshipService championshipService,
+        StatFlagService? statFlags = null)
     {
         _context = context;
         _dataPullService = dataPullService;
         _bracketService = bracketService;
         _championshipService = championshipService;
+        _statFlags = statFlags ?? new StatFlagService(context);
     }
 
     /// <summary>A bracket match's result can decide (or, undone, undecide) the season's champion: its title follows,
@@ -340,6 +344,8 @@ public partial class SeasonMatchService
             await _context.SaveChangesAsync(ct);
         });
         await AwardChampionship(seasonMatch, ct);
+        // #548: whether the series' games add up to its result; never fires for a Waypoint-only series (CheckSeriesGamesAsync skips it)
+        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
         await transaction.CommitAsync(ct);
 
         // A league game now: its players nobody signed up as (subs) get a placeholder, so their stats in it count. After the

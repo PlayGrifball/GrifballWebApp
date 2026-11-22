@@ -236,6 +236,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isEventOrganizerGuard]
   },
   {
+    path: 'stat-flags',
+    loadComponent: () => import('./features/league/statFlags/statFlags.component').then(m => m.StatFlagsComponent),
+    title: 'Stat Flags',
+    canActivate: [isEventOrganizerGuard]
+  },
+  {
     path: 'reschedule-request/:seasonMatchID',
     loadComponent: () => import('./features/league/rescheduleRequest/rescheduleRequest.component').then(m => m.RescheduleRequestComponent),
     title: 'Request Reschedule'

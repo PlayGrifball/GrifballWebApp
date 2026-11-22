@@ -23,6 +23,7 @@ using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Application.StatFlags;
 using GrifballWebApp.Application.TeamPage;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.TeamStandings;
@@ -106,6 +107,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<MatchPlannerService>();
         services.AddTransient<ChampionshipService>();
         services.AddTransient<SeasonMatchService>();
+        services.AddTransient<StatFlagService>();
+        services.AddTransient<StaffStatFlagService>();
         services.AddTransient<MatchDetailsService>();
         services.AddTransient<XboxAccounts.XboxAccountService>();
         // The saved games, as /matches shows them and the agents' get_recent_games gives them
