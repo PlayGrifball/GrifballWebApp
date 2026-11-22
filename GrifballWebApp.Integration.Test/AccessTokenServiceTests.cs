@@ -158,6 +158,18 @@ public class AccessTokenServiceTests
     }
 
     [Test]
+    public async Task ATokenWhoseUserIsGone_SignsNobodyIn()
+    {
+        // SQLite doesn't enforce the UserTokens -> Users foreign key (SqliteConnectionSetup turns it off), so a
+        // token can outlive its user there; SQL Server and Postgres cascade-delete the row with the user instead.
+        // Either way Authenticate must answer null, never throw.
+        var created = await Create(_user);
+        await _context.Users.Where(u => u.Id == _user.Id).ExecuteDeleteAsync();
+
+        Assert.That(await _tokens.Authenticate(created.Token), Is.Null);
+    }
+
+    [Test]
     public async Task List_ShowsTheUsersTokensNewestFirst_WithoutTheirSecrets()
     {
         var older = await Create(_user, "older");

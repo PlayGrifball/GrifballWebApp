@@ -72,12 +72,13 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
     /// </summary>
     protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
     {
+        // HandleAuthenticateOnceSafeAsync never returns null, so only Failure's own absence (NoResult, no token at all) needs the fallback.
         var authenticated = await HandleAuthenticateOnceSafeAsync();
         Response.StatusCode = StatusCodes.Status401Unauthorized;
         await Response.WriteAsJsonAsync(new ProblemDetails
         {
             Status = StatusCodes.Status401Unauthorized,
-            Title = authenticated?.Failure?.Message ?? "Not signed in.",
+            Title = authenticated.Failure?.Message ?? "Not signed in.",
         }, options: null, contentType: "application/problem+json", cancellationToken: Context.RequestAborted);
     }
 
