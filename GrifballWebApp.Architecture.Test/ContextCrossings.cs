@@ -24,7 +24,7 @@ internal static class ContextCrossings
     {
         ["Archive"] = new()
         {
-            ["Halo"] = ["Outcomes"],
+            ["Halo"] = ["Match", "Outcomes"],
             ["LateLeague"] = ["MatchedMatch"],
             ["League"] = ["Season", "SeriesGame", "Team"],
             ["Players"] = ["User", "XboxUser"],

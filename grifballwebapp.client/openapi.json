@@ -1280,160 +1280,6 @@
         }
       }
     },
-    "/stat-flags": {
-      "get": {
-        "tags": [
-          "StaffStatFlags"
-        ],
-        "summary": "Every open flag, newest first. Commissioners and sysadmins only.",
-        "operationId": "GetOpenStatFlags",
-        "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StatFlagDto"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/season-matches/{seasonMatchID}/stat-flags": {
-      "get": {
-        "tags": [
-          "StaffStatFlags"
-        ],
-        "summary": "The open flags of every game of a season match's series, for its marker on the match page. Commissioners\nand sysadmins only.",
-        "operationId": "GetSeasonMatchStatFlags",
-        "parameters": [
-          {
-            "name": "seasonMatchID",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StatFlagDto"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/stat-flags/{statFlagID}/dismiss": {
-      "post": {
-        "tags": [
-          "StaffStatFlags"
-        ],
-        "summary": "Staff looked at it: not wrong, or not worth fixing. 404 when it doesn't exist. Commissioners and\nsysadmins only.",
-        "operationId": "DismissStatFlag",
-        "parameters": [
-          {
-            "name": "statFlagID",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content"
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/users/{userID}/deployment-history": {
       "get": {
         "tags": [
@@ -7276,6 +7122,160 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stat-flags": {
+      "get": {
+        "tags": [
+          "StaffStatFlags"
+        ],
+        "summary": "Every open flag, newest first. Commissioners and sysadmins only.",
+        "operationId": "GetOpenStatFlags",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatFlagDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/season-matches/{seasonMatchID}/stat-flags": {
+      "get": {
+        "tags": [
+          "StaffStatFlags"
+        ],
+        "summary": "The open flags of every game of a season match's series, for its marker on the match page. Commissioners\n            and sysadmins only.",
+        "operationId": "GetSeasonMatchStatFlags",
+        "parameters": [
+          {
+            "name": "seasonMatchID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatFlagDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stat-flags/{statFlagID}/dismiss": {
+      "post": {
+        "tags": [
+          "StaffStatFlags"
+        ],
+        "summary": "Staff looked at it: not wrong, or not worth fixing. 404 when it doesn't exist. Commissioners and\n            sysadmins only.",
+        "operationId": "DismissStatFlag",
+        "parameters": [
+          {
+            "name": "statFlagID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -17849,7 +17849,8 @@
               {
                 "$ref": "#/components/schemas/StatFlagRule"
               }
-            ]
+            ],
+            "description": "A plain rule a GrifballWebApp.Domain.Archive.StatFlag is found by: fixed, conservative thresholds, each one in one place\n(StatFlagThresholds, in the Application's StatFlagService), not spread through the checks. Left for later: how\na game compares to a player's own history, duplicate-game detection, and roster-membership checks (the issue's other\ncandidate rules)."
           },
           "matchID": {
             "type": "string",
@@ -17863,13 +17864,13 @@
           },
           "seasonMatchID": {
             "type": "integer",
-            "description": "The season match the flagged game belongs to, when it belongs to one (a Halo pull not yet reported to\na match has none): to link the staff list to the match page.",
+            "description": "The season match the flagged game belongs to, when it belongs to one (a Halo pull not yet reported to\n            a match has none): to link the staff list to the match page.",
             "format": "int32",
             "nullable": true
           },
           "gameNumber": {
             "type": "integer",
-            "description": "The flagged game's number in its series, when it's in one (same condition as SeasonMatchID).",
+            "description": "The flagged game's number in its series, when it's in one (same condition as GrifballWebApp.Application.StatFlags.StatFlagDto.SeasonMatchID).",
             "format": "int32",
             "nullable": true
           },
@@ -17880,7 +17881,7 @@
           },
           "playerName": {
             "type": "string",
-            "description": "The name shown for PlayerUserID (UserNames.Pick); null when the rule is about the whole\ngame, or the player has since been merged away.",
+            "description": "The name shown for GrifballWebApp.Application.StatFlags.StatFlagDto.PlayerUserID (UserNames.Pick); null when the rule is about the whole\n            game, or the player has since been merged away.",
             "nullable": true
           },
           "reason": {
@@ -17891,7 +17892,8 @@
             "format": "date-time"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "An open flag, for the staff list and the match page's marker."
       },
       "StatFlagRule": {
         "enum": [
@@ -17905,7 +17907,8 @@
           "UndecodedCustomScore",
           "SeriesDoesNotMatchGames"
         ],
-        "type": "string"
+        "type": "string",
+        "description": "A plain rule a GrifballWebApp.Domain.Archive.StatFlag is found by: fixed, conservative thresholds, each one in one place\n(StatFlagThresholds, in the Application's StatFlagService), not spread through the checks. Left for later: how\na game compares to a player's own history, duplicate-game detection, and roster-membership checks (the issue's other\ncandidate rules)."
       },
       "Status": {
         "enum": [

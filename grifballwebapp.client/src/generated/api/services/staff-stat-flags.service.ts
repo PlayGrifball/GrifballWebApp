@@ -64,7 +64,7 @@ export class StaffStatFlagsService extends BaseService {
 
   /**
    * The open flags of every game of a season match's series, for its marker on the match page. Commissioners
-   * and sysadmins only.
+   *             and sysadmins only.
    *
    *
    *
@@ -80,7 +80,7 @@ export class StaffStatFlagsService extends BaseService {
 
   /**
    * The open flags of every game of a season match's series, for its marker on the match page. Commissioners
-   * and sysadmins only.
+   *             and sysadmins only.
    *
    *
    *
@@ -101,7 +101,7 @@ export class StaffStatFlagsService extends BaseService {
 
   /**
    * Staff looked at it: not wrong, or not worth fixing. 404 when it doesn't exist. Commissioners and
-   * sysadmins only.
+   *             sysadmins only.
    *
    *
    *
@@ -117,7 +117,7 @@ export class StaffStatFlagsService extends BaseService {
 
   /**
    * Staff looked at it: not wrong, or not worth fixing. 404 when it doesn't exist. Commissioners and
-   * sysadmins only.
+   *             sysadmins only.
    *
    *
    *

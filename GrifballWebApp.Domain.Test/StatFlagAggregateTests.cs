@@ -44,7 +44,7 @@ public class StatFlagAggregateTests
     [TestCase("   ")]
     [TestCase(null)]
     public void Found_WithNoReason_Refuses(string? reason)
-        => Assert.That(() => StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, reason!, FoundAt), Throws.ArgumentException);
+        => Assert.That(() => StatFlag.Found(StatFlagRule.NegativeStat, MatchID, null, null, reason!, FoundAt), Throws.InstanceOf<ArgumentException>());
 
     [Test]
     public void Found_WithATooLongReason_Refuses()
