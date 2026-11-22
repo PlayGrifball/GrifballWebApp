@@ -82,6 +82,8 @@ function loadPage(httpMock: HttpTestingController, fixture: ComponentFixture<Sea
   httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
   httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
   fixture.detectChanges();
+  // Staff only (#548): not asked for at all when the signed-in account isn't a commissioner or sysadmin
+  httpMock.match('/api/season-matches/7/stat-flags').forEach(r => r.flush([]));
 }
 
 // The page loaded again (as after a report or an action) and answered with `dto`
@@ -335,6 +337,8 @@ describe('SeasonMatchComponent reporting', () => {
     fixture.detectChanges();
     // The rosters are not under test here.
     httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
+    // Staff only (#548): this organizer is asked for the match's stat flags
+    httpMock.match('/api/season-matches/7/stat-flags').forEach(r => r.flush([]));
     fixture.detectChanges();
   }
 
@@ -1435,6 +1439,8 @@ describe('SeasonMatchComponent on the server', () => {
     httpMock.expectNone('/api/season-matches/7/possible-matches');
     // The page drawn on the server says the search is under way; the browser does it
     expect(fixture.componentInstance.store.possibleMatchesState()).toBe('loading');
+    // Staff only (#548): this organizer is asked for the match's stat flags, on the server too
+    httpMock.match('/api/season-matches/7/stat-flags').forEach(r => r.flush([]));
     httpMock.verify();
   });
 });
