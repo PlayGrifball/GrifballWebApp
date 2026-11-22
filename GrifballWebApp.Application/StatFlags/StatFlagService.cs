@@ -42,21 +42,21 @@ public class StatFlagService
     private sealed record Finding(StatFlagRule Rule, int? PlayerUserID, string Reason, long? Discriminator = null);
 
     /// <summary>Every "any game" rule run on a recorded game.</summary>
-    private static readonly IReadOnlySet<StatFlagRule> RecordedGameRules = new HashSet<StatFlagRule> { StatFlagRule.NegativeStat };
+    private static readonly HashSet<StatFlagRule> RecordedGameRules = new() { StatFlagRule.NegativeStat };
 
     /// <summary>Every hand-entered rule, run only for <see cref="RecordedGame.IsManual"/>.</summary>
-    private static readonly IReadOnlySet<StatFlagRule> HandEnteredRules = new HashSet<StatFlagRule>
+    private static readonly HashSet<StatFlagRule> HandEnteredRules = new()
     {
         StatFlagRule.ScoreDoesNotMatchGoals, StatFlagRule.WinnerDoesNotMatchScores,
         StatFlagRule.TeamSmallerThanFormat, StatFlagRule.DateOutsideSeason,
     };
 
     /// <summary>Every rule run on a Halo Infinite match.</summary>
-    private static readonly IReadOnlySet<StatFlagRule> MatchRules = new HashSet<StatFlagRule>
+    private static readonly HashSet<StatFlagRule> MatchRules = new()
         { StatFlagRule.NegativeStat, StatFlagRule.ImpossibleAccuracy, StatFlagRule.UndecodedCustomScore };
 
     /// <summary>The one rule a season's series is checked by.</summary>
-    private static readonly IReadOnlySet<StatFlagRule> SeriesRules = new HashSet<StatFlagRule> { StatFlagRule.SeriesDoesNotMatchGames };
+    private static readonly HashSet<StatFlagRule> SeriesRules = new() { StatFlagRule.SeriesDoesNotMatchGames };
 
     /// <summary>
     /// Runs every rule that applies to <paramref name="game"/> (the "any game" rules always; the hand-entered ones only

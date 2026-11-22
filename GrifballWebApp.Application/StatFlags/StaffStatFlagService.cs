@@ -79,35 +79,48 @@ public class StaffStatFlagService
         var outsideASeries = recordedGameIDs.Except(seriesGamesByRecordedGame.Keys).ToList();
         var gameInfoByRecordedGame = outsideASeries.Count == 0 ? [] : await _context.RecordedGames
             .Where(g => outsideASeries.Contains(g.RecordedGameID))
-            .Select(g => new
+            .Select(g => new GameInfo
             {
-                g.RecordedGameID,
-                g.PlayedAt,
+                RecordedGameID = g.RecordedGameID,
+                PlayedAt = g.PlayedAt,
                 Teams = g.Teams.OrderBy(t => t.Side).Select(t => t.Name).ToList(),
             })
             .ToDictionaryAsync(g => g.RecordedGameID, ct);
 
-        return flags.Select(f =>
+        return flags.Select(f => ToDto(f, nameByID, seriesGamesByMatch, seriesGamesByRecordedGame, gameInfoByRecordedGame)).ToList();
+    }
+
+    private static StatFlagDto ToDto(StatFlag f, Dictionary<int, string> nameByID,
+        Dictionary<Guid, (int? SeasonMatchID, int? GameNumber)> seriesGamesByMatch,
+        Dictionary<int, (int? SeasonMatchID, int? GameNumber)> seriesGamesByRecordedGame,
+        Dictionary<int, GameInfo> gameInfoByRecordedGame)
+    {
+        var (seasonMatchID, gameNumber) = f.MatchID is Guid matchID ? seriesGamesByMatch.GetValueOrDefault(matchID)
+            : f.RecordedGameID is int recordedGameID ? seriesGamesByRecordedGame.GetValueOrDefault(recordedGameID)
+            : (null, null);
+        var outside = seasonMatchID is null && f.RecordedGameID is int gameID ? gameInfoByRecordedGame.GetValueOrDefault(gameID) : null;
+        return new StatFlagDto
         {
-            var (seasonMatchID, gameNumber) = f.MatchID is Guid matchID ? seriesGamesByMatch.GetValueOrDefault(matchID)
-                : f.RecordedGameID is int recordedGameID ? seriesGamesByRecordedGame.GetValueOrDefault(recordedGameID)
-                : (null, null);
-            var outside = seasonMatchID is null && f.RecordedGameID is int gameID ? gameInfoByRecordedGame.GetValueOrDefault(gameID) : null;
-            return new StatFlagDto
-            {
-                StatFlagID = f.StatFlagID,
-                Rule = f.Rule,
-                MatchID = f.MatchID,
-                RecordedGameID = f.RecordedGameID,
-                SeasonMatchID = seasonMatchID,
-                GameNumber = gameNumber,
-                PlayerUserID = f.PlayerUserID,
-                PlayerName = f.PlayerUserID is int playerID ? nameByID.GetValueOrDefault(playerID) : null,
-                Reason = f.Reason,
-                FoundAt = f.FoundAt,
-                GamePlayedAt = outside?.PlayedAt,
-                GameTeams = outside is null ? null : string.Join(" vs ", outside.Teams.Select(n => n ?? "?")),
-            };
-        }).ToList();
+            StatFlagID = f.StatFlagID,
+            Rule = f.Rule,
+            MatchID = f.MatchID,
+            RecordedGameID = f.RecordedGameID,
+            SeasonMatchID = seasonMatchID,
+            GameNumber = gameNumber,
+            PlayerUserID = f.PlayerUserID,
+            PlayerName = f.PlayerUserID is int playerID ? nameByID.GetValueOrDefault(playerID) : null,
+            Reason = f.Reason,
+            FoundAt = f.FoundAt,
+            GamePlayedAt = outside?.PlayedAt,
+            GameTeams = outside is null ? null : string.Join(" vs ", outside.Teams.Select(n => n ?? "?")),
+        };
+    }
+
+    /// <summary>A recorded game outside any series, for <see cref="ToDto"/>'s fallback (GamePlayedAt, GameTeams).</summary>
+    private sealed class GameInfo
+    {
+        public int RecordedGameID { get; set; }
+        public DateTime? PlayedAt { get; set; }
+        public List<string?> Teams { get; set; } = [];
     }
 }
