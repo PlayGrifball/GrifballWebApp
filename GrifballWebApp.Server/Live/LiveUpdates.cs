@@ -332,7 +332,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
     private async Task<string?> Build(string topic, SeasonViewer viewer, Guid? changeID, CancellationToken ct)
     {
         if (redis is null || changeID is null)
-            return (await BuildNow(topic, viewer, ct)).Json;
+            return (await BuildNow(topic, viewer, ct)).Data;
         var key = CacheKey(topic, viewer, changeID.Value);
         IDatabase db;
         try
@@ -347,7 +347,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
         catch (Exception ex) when (ex is RedisException or TimeoutException)
         {
             logger.LogWarning(ex, "Could not build {Topic}'s data once across the pods: building it here", topic);
-            return (await BuildNow(topic, viewer, ct)).Json;
+            return (await BuildNow(topic, viewer, ct)).Data;
         }
 
         // Won the lock: build regardless of what Redis does from here. A failed build is never cached as "nothing to
@@ -359,13 +359,13 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
             if (built.Failed)
                 await db.KeyDeleteAsync($"{key}:lock");
             else
-                await db.StringSetAsync(key, Encode(built.Json), DataTtl);
+                await db.StringSetAsync(key, Encode(built.Data), DataTtl);
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException)
         {
             logger.LogWarning(ex, "Built {Topic}'s data but could not cache it for the other pods", topic);
         }
-        return built.Json;
+        return built.Data;
     }
 
     /// <summary>
@@ -389,7 +389,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return (await BuildNow(topic, viewer, ct)).Json;
+            return (await BuildNow(topic, viewer, ct)).Data;
         }
     }
 
@@ -408,7 +408,7 @@ public sealed class LiveDelivery(LiveWatchers watchers, IHubContext<LiveHub, ILi
     /// A build's own result: its data (null for a topic with nothing to show), and whether it failed outright (an
     /// exception, logged already here, never cached as "nothing to show" - see the class remarks).
     /// </summary>
-    private readonly record struct BuildResult(string? Json, bool Failed);
+    private readonly record struct BuildResult(string? Data, bool Failed);
 
     private async Task<BuildResult> BuildNow(string topic, SeasonViewer viewer, CancellationToken ct)
     {
