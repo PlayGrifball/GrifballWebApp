@@ -135,8 +135,10 @@ public sealed class LiveUpdates(ILogger<LiveUpdates> logger, AppRedis? redis = n
         {
             try
             {
-                // No change ID in this shape: it always builds its own, never shares another pod's cached build
-                return new RelayedMessage(JsonSerializer.Deserialize<List<LiveChange>>(message) ?? [], null);
+                // No change ID in this shape: it always builds its own, never shares another pod's cached build. Never
+                // actually null: the only JSON that deserializes to null without throwing, for any type, is the literal
+                // "null" token - and that already returns above, deserializing successfully as the other shape first.
+                return new RelayedMessage(JsonSerializer.Deserialize<List<LiveChange>>(message)!, null);
             }
             catch (JsonException)
             {

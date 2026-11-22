@@ -212,6 +212,19 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         return new AppRedis(_ => Task.FromResult(connection));
     }
 
+    /// <summary>A Redis with no data ever showing up, whose lock is taken the first time (as if another pod just won
+    /// the race) but free the moment a waiter's own poll retries it.</summary>
+    private static AppRedis LockFreedOnRetryRedis()
+    {
+        var db = Substitute.For<IDatabase>();
+        db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(false, true);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(true);
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        return new AppRedis(_ => Task.FromResult(connection));
+    }
+
     /// <summary>A Redis whose first read is a cache miss, whose lock is already taken (by "someone else"), and whose
     /// second read (WaitForBuild's) finds the data: no real Redis latency, so a real <c>Task.Delay</c> before the first
     /// check (the bug) is the only thing that could make this slow.</summary>
@@ -328,6 +341,24 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         await Delivery(Scopes(snapshots), FlakyReleaseRedis(releaseFailure)).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
 
         await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":9}");
+    }
+
+    [Test]
+    public async Task WaitForBuild_AFailedWinnersFreedLock_IsRetriedAndWonAtOnce_NotAfterBuildWait()
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(4));
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var sw = Stopwatch.StartNew();
+
+        await Delivery(Scopes(snapshots), LockFreedOnRetryRedis()).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+
+        sw.Stop();
+        using (Assert.EnterMultipleScope())
+        {
+            await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":4}");
+            Assert.That(sw.Elapsed, Is.LessThan(LiveDelivery.BuildWait), "won the freed lock on retry at once, rather than waiting out BuildWait for nothing");
+        }
     }
 
     [Test]
