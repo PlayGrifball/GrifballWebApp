@@ -219,12 +219,13 @@ public class LiveRedisTests
     {
         // Message 1 touches a slow-building topic; message 2, moments later, touches an unrelated one
         var told = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
-        snapshots.For(LiveTopics.Draft(1), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        async Task<object?> SlowDraftBuild(NSubstitute.Core.CallInfo _)
         {
             await Task.Delay(TimeSpan.FromSeconds(3));
             return new DraftLiveDto(1, [], [], false);
-        });
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Draft(1), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(SlowDraftBuild);
         snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(1));
         var client = Substitute.For<ILiveHubClient>();
         client.Snapshot(LiveTopics.Queue, Arg.Any<string>()).Returns(_ =>
@@ -248,6 +249,7 @@ public class LiveRedisTests
         // Z must be told well before message 1's 3s build finishes: the subscriber loop isn't blocked on it
         await told.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await listener.StopAsync(CancellationToken.None);
+        Assert.That(told.Task.IsCompletedSuccessfully, "the fast topic's watcher was told without waiting on the slow one");
     }
 
     [Test]
@@ -258,14 +260,15 @@ public class LiveRedisTests
         var counts = new Queue<int>([1, 2]);
         var seen = new List<string>();
         var bothSeen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
-        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        async Task<object?> Build(NSubstitute.Core.CallInfo _)
         {
             var n = counts.Dequeue();
             if (n == 1)
                 await Task.Delay(TimeSpan.FromMilliseconds(300));
             return new QueueLiveDto(n);
-        });
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(Build);
         var client = Substitute.For<ILiveHubClient>();
         client.Snapshot(LiveTopics.Queue, Arg.Any<string>()).Returns(call =>
         {
@@ -312,6 +315,7 @@ public class LiveRedisTests
         while (logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ILogger.Log)) == 0)
             await Task.Delay(TimeSpan.FromMilliseconds(20), giveUp.Token);
         await listener.StopAsync(CancellationToken.None);
+        Assert.That(logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ILogger.Log)), Is.GreaterThan(0), "the garbled message was logged");
     }
 
     /// <summary>A pod's LiveDelivery, its own LiveWatchers and Redis connection, with one connection watching <paramref name="topic"/>
@@ -488,14 +492,15 @@ public class LiveRedisTests
     {
         var changeID = Guid.NewGuid();
         string? lockKey = null;
-        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
-        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        async Task<object?> BuildWhileSomeoneElseTakesTheLock(NSubstitute.Core.CallInfo _)
         {
             // Simulate a different pod taking over this key's lock while the original build is still in flight
             var raw = (await Process().ConnectAsync()).GetDatabase();
             await raw.StringSetAsync(lockKey!, "someone-elses-token", LiveDelivery.LockTtl);
             return new QueueLiveDto(1);
-        });
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(BuildWhileSomeoneElseTakesTheLock);
         var client = Substitute.For<ILiveHubClient>();
         var pod = Pod(client, snapshots);
         lockKey = $"{pod.CacheKey(LiveTopics.Queue, SeasonViewer.Public, changeID)}:lock";
