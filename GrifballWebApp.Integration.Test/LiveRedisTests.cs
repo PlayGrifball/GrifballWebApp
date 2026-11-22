@@ -262,8 +262,8 @@ public class LiveRedisTests
         using (Assert.EnterMultipleScope())
         {
             // The lock's winner builds the slow data; the other gives up waiting for it and builds its own
-            await clientA.Received(1).Snapshot(LiveTopics.Queue, Arg.Is<string>(json => json is "{\"count\":1}" or "{\"count\":2}"));
-            await clientB.Received(1).Snapshot(LiveTopics.Queue, Arg.Is<string>(json => json is "{\"count\":1}" or "{\"count\":2}"));
+            await clientA.Received(1).Snapshot(LiveTopics.Queue, Arg.Is<string>(json => json == "{\"count\":1}" || json == "{\"count\":2}"));
+            await clientB.Received(1).Snapshot(LiveTopics.Queue, Arg.Is<string>(json => json == "{\"count\":1}" || json == "{\"count\":2}"));
             Assert.That(calls, Is.EqualTo(2), "the slow winner's build, and the one the pod that gave up on it built for itself");
         }
     }
