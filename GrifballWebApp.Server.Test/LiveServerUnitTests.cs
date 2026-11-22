@@ -174,19 +174,18 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         => new(_watchers, _hubContext, scopes ?? new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             NullLogger<LiveDelivery>.Instance, configuration ?? new ConfigurationBuilder().Build(), redis);
 
-    /// <summary>A Redis whose reads succeed (nothing cached yet) and whose lock is taken, but storing a build fails
-    /// with <paramref name="storeFailure"/> (a <see cref="RedisException"/> or a <see cref="TimeoutException"/>).
-    /// One callback decides by the actual key, rather than two Arg.Is specifications on the same member (which a
-    /// prior version of this double got wrong: both calls landed on whichever specification NSubstitute matched
-    /// first, so the lock was never actually "won" here, and the test passed for the wrong reason).</summary>
+    /// <summary>A Redis whose reads succeed (nothing cached yet); its first write (the lock) succeeds, its second (the
+    /// data, once a build is done) fails with <paramref name="storeFailure"/> (a <see cref="RedisException"/> or a
+    /// <see cref="TimeoutException"/>). Sequential by call order, not by inspecting which key each call is for: two
+    /// Arg.Is&lt;RedisKey&gt; specifications on the same member, keyed on the ":lock" suffix, didn't route per-call the
+    /// way intended (every call landed on the same outcome), and neither did one callback that inspected the key - both
+    /// silently left the "lock" never actually won, so the two calls this double exists for were never reached.</summary>
     private static AppRedis FlakyStoreRedis(Exception storeFailure)
     {
         var db = Substitute.For<IDatabase>();
         db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
         db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
-            .Returns(call => ((RedisKey)call[0]).ToString().EndsWith(":lock", StringComparison.Ordinal)
-                ? Task.FromResult(true)
-                : Task.FromException<bool>(storeFailure));
+            .Returns(Task.FromResult(true), Task.FromException<bool>(storeFailure));
         var connection = Substitute.For<IConnectionMultiplexer>();
         connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
         return new AppRedis(_ => Task.FromResult(connection));
