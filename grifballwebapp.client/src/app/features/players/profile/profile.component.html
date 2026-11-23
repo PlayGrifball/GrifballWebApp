@@ -28,6 +28,9 @@
         </div>
       }
     </dl>
+    @if (accountService.isSysAdmin()) {
+      <a mat-stroked-button class="profile-edit" [routerLink]="['/usermanagement/edituser', userID()]">Edit user</a>
+    }
     <app-calendar-subscribe [path]="calendarPath()" description="The matches of this player's teams" />
   </aside>
 

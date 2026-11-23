@@ -388,7 +388,10 @@ describe('UserManagementComponent user table', () => {
     expect(cells).not.toContain('null');
     expect(cells).not.toContain('true');
     const headers = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('th')).map(th => th.textContent!.trim());
-    expect(headers).toEqual(['User ID', 'Username', 'Lockout ends', 'Lockout enabled', 'Failed sign-ins', 'Region', 'Display name', 'Gamertag', 'Discord', 'Linked logins', 'Actions']);
+    // Actions first: last, they sat past the table's right edge and EDIT was out of sight
+    expect(headers).toEqual(['Actions', 'User ID', 'Username', 'Lockout ends', 'Lockout enabled', 'Failed sign-ins', 'Region', 'Display name', 'Gamertag', 'Discord', 'Linked logins']);
+    const firstCell = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row td')!;
+    expect(firstCell.querySelector('a')!.getAttribute('href')).toBe('/edituser/1');
   });
 
   it('links to creating a user, merging users, the merges, the gamertag claims, past gamertags, the historical import, the jobs and the telemetry', () => {

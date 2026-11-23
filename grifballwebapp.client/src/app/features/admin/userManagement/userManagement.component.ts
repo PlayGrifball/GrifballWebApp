@@ -33,7 +33,7 @@ export class UserManagementComponent {
   private readonly store = inject(UserManagementStore);
   private snackBar = inject(MatSnackBar);
 
-  public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
+  public displayedColumns: string[] = ['actions', 'userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount'];
   readonly request = this.store.request;
   /** A live change to the users: the table loads its page again. */
   readonly changes = this.store.changes;

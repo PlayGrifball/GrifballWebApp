@@ -42,9 +42,11 @@ describe('ProfileComponent', () => {
   let http: HttpTestingController;
   let snackBar: jasmine.SpyObj<MatSnackBar>;
   let personID: WritableSignal<number | null>;
+  let isSysAdmin: WritableSignal<boolean>;
 
   beforeEach(async () => {
     personID = signal<number | null>(null);
+    isSysAdmin = signal(false);
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     await TestBed.configureTestingModule({
       imports: [ProfileComponent],
@@ -52,7 +54,7 @@ describe('ProfileComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AccountService, useValue: { personID } },
+        { provide: AccountService, useValue: { personID, isSysAdmin } },
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
@@ -500,16 +502,18 @@ describe('ProfileComponent linked accounts', () => {
   let fixture: ComponentFixture<ProfileComponent>;
   let http: HttpTestingController;
   let personID: WritableSignal<number | null>;
+  let isSysAdmin: WritableSignal<boolean>;
 
   beforeEach(async () => {
     personID = signal<number | null>(null);
+    isSysAdmin = signal(false);
     await TestBed.configureTestingModule({
       imports: [ProfileComponent],
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AccountService, useValue: { personID } },
+        { provide: AccountService, useValue: { personID, isSysAdmin } },
       ]
     })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
@@ -635,16 +639,18 @@ describe('ProfileComponent: region and identity', () => {
   let fixture: ComponentFixture<ProfileComponent>;
   let http: HttpTestingController;
   let personID: WritableSignal<number | null>;
+  let isSysAdmin: WritableSignal<boolean>;
 
   beforeEach(async () => {
     personID = signal<number | null>(null);
+    isSysAdmin = signal(false);
     await TestBed.configureTestingModule({
       imports: [ProfileComponent],
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AccountService, useValue: { personID } },
+        { provide: AccountService, useValue: { personID, isSysAdmin } },
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
@@ -693,6 +699,19 @@ describe('ProfileComponent: region and identity', () => {
   it("hides them on someone else's profile", () => {
     personID.set(4);
     expect(render(null).querySelector('app-profile-identity')).toBeNull();
+  });
+
+  it('links a sysadmin to editing the user', () => {
+    isSysAdmin.set(true);
+    personID.set(4);
+    const link = render(null).querySelector<HTMLAnchorElement>('a.profile-edit')!;
+    expect(link.textContent!.trim()).toBe('Edit user');
+    expect(link.getAttribute('href')).toBe('/usermanagement/edituser/21');
+  });
+
+  it('shows no edit link to anyone else, on their own profile or not', () => {
+    personID.set(21);
+    expect(render(null).querySelector('a.profile-edit')).toBeNull();
   });
 });
 
