@@ -10,7 +10,7 @@
   // Page & viewport sizing (fluid on 1440p+ monitors while keeping gutters comfortable)
   --hud-bg: #0C0F14;
   --hud-bg-glow: radial-gradient(ellipse at 50% 0%, rgba(232, 146, 45, 0.13) 0%, #10141C 45%, #0C0F14 100%);
-  --hud-header-bg: rgba(12, 15, 20, 0.84);
+  --hud-header-bg: color-mix(in srgb, var(--hud-bg) 84%, transparent);
   --hud-scrim: rgba(4, 6, 10, 0.74);
 
   // Panels, surfaces and lines
@@ -112,7 +112,6 @@ html[data-theme-era='2008'] {
   --hud-muted: #C29EA2;
   --hud-accent-hover: #F26B6F;
   --hud-accent-rgb: 229, 72, 77;
-  --hud-header-bg: rgba(18, 11, 12, 0.84);
   --hud-on-accent: #FFFFFF;
 }
 
@@ -132,7 +131,6 @@ html[data-theme-era='2011'] {
   --hud-muted: #98A89A;
   --hud-accent-hover: #FACC15;
   --hud-accent-rgb: 234, 179, 8;
-  --hud-header-bg: rgba(11, 16, 13, 0.84);
 }
 
 html[data-theme-era='2014'] {
@@ -151,7 +149,6 @@ html[data-theme-era='2014'] {
   --hud-muted: #97A3B8;
   --hud-accent-hover: #FB923C;
   --hud-accent-rgb: 249, 115, 22;
-  --hud-header-bg: rgba(13, 16, 23, 0.84);
 }
 
 @media (max-width: 600px) {
