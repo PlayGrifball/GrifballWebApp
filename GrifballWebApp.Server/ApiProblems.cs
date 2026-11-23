@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.Extensions.Logging;
 
 namespace GrifballWebApp.Server;
 
@@ -36,6 +37,11 @@ public static class ApiProblems
     public static ObjectResult Refusal(this ControllerBase controller, int status, string detail)
     {
         var title = Title(status);
+        // A returned refusal is not an exception, so GlobalExceptionHandler never sees it: log it the same way
+        (controller.HttpContext?.RequestServices?.GetService(typeof(ILoggerFactory)) as ILoggerFactory)
+            ?.CreateLogger(typeof(ApiProblems).FullName!)
+            .LogInformation("Request refused ({Status}) on {Method} {Path}: {Message}",
+                status, controller.HttpContext!.Request.Method, controller.HttpContext.Request.Path, detail);
         // The app's factory adds the trace id; a controller made by hand (a unit test) has none, and gets the same shape
         var factory = controller.HttpContext?.RequestServices?.GetService(typeof(ProblemDetailsFactory)) as ProblemDetailsFactory;
         var problem = factory?.CreateProblemDetails(controller.HttpContext!, status, title, detail: detail)

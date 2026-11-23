@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -228,6 +230,40 @@ public class ApiConventionsTests
             controller.ForbiddenProblem("c").AssertProblem(StatusCodes.Status403Forbidden, "c");
             controller.NotFoundProblem("d").AssertProblem(StatusCodes.Status404NotFound, "d");
             controller.ConflictProblem("e").AssertProblem(StatusCodes.Status409Conflict, "e");
+        }
+    }
+
+    [Test]
+    public void Refusal_LogsItsStatusRequestAndReason()
+    {
+        var lines = new List<string>();
+        var services = new ServiceCollection()
+            .AddLogging(b => b.AddProvider(new CapturingLoggerProvider(lines)))
+            .BuildServiceProvider();
+        var controller = new ProbeController().WithAnonymousUser();
+        controller.HttpContext.RequestServices = services;
+        controller.HttpContext.Request.Method = "POST";
+        controller.HttpContext.Request.Path = "/identity/external-login/callback";
+
+        controller.BadRequestProblem("Already a user");
+
+        Assert.That(lines, Is.EqualTo(new[]
+        {
+            "Information: Request refused (400) on POST /identity/external-login/callback: Already a user",
+        }));
+    }
+
+    private sealed class CapturingLoggerProvider(List<string> lines) : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) => new Capture(lines);
+        public void Dispose() { }
+
+        private sealed class Capture(List<string> lines) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+            public bool IsEnabled(LogLevel logLevel) => true;
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+                => lines.Add($"{logLevel}: {formatter(state, exception)}");
         }
     }
 
