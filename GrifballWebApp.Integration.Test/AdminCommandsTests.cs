@@ -51,7 +51,8 @@ public class AdminCommandsTests
         var brackets = new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context));
         var teams = new TeamService(_context, new ContextDatabaseLocks(_context));
         _handler = new AdminCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new RescheduleService(_context, new ContextOutbox(_context)),
-            new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(new RescheduleService(_context, new ContextOutbox(_context)), new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context)),
+            new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(new RescheduleService(_context, new ContextOutbox(_context)), new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context),
+                new GrifballWebApp.Application.StatFlags.StaffStatFlagService(_context)),
             new SeasonMatchService(_context, _dataPull, brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), brackets, teams,
             new ScheduleRecommendations(_context, TimeProvider.System), runs: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())),
             _dataPull, urls);

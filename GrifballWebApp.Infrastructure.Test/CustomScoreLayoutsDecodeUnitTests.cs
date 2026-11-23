@@ -1,3 +1,5 @@
+using GrifballWebApp.Application.StatFlags;
+using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
@@ -66,6 +68,86 @@ public class CustomScoreLayoutsDecodeUnitTests : SqliteContextFixture
         {
             Assert.That(saved.ScoreLayout, Is.EqualTo(CustomScoreLayout.Plain));
             Assert.That(saved.MatchTeams.SelectMany(t => t.MatchParticipants).Select(p => p.Goals), Is.EquivalentTo(new int?[] { 5, 3 }));
+        }
+    }
+
+    [Test]
+    public async Task DecodeAsync_ConstructedWithAnExplicitStatFlagService_UsesItRatherThanMakingItsOwn()
+    {
+        // #548: MatchVariantBackfillJob passes its own StatFlagService through rather than let one be made per decode
+        var layouts = new CustomScoreLayouts(Context, new StatFlagService(Context));
+
+        var changed = await layouts.DecodeAsync([]);
+
+        Assert.That(changed, Is.Zero);
+    }
+
+    [Test]
+    public async Task DecodeAsync_AMatchThatStaysUndecoded_FlagsTheUndecodedCustomScore()
+    {
+        // #548: re-decoding must re-run the stat flag check, the same as the first save does
+        // SL26-era numbers whose goals add up under no layout (CustomScoreDecoderTests.NoLayoutFits_ItsUndecoded_NoGoalsCounted)
+        var matchId = Guid.NewGuid();
+        var match = Match.Seed(matchId);
+        match.AddTeam(0, 5, Outcomes.Won);
+        match.AddTeam(1, 2, Outcomes.Lost);
+        var x1 = ++_nextXuid;
+        var x2 = ++_nextXuid;
+        var x3 = ++_nextXuid;
+        var x4 = ++_nextXuid;
+        match.AddParticipant(0, x1, new MatchParticipantStats { Score = 3000000, PersonalScore = 15010100 }, [], XboxUser.FromXbox(x1, "A"));
+        match.AddParticipant(0, x2, new MatchParticipantStats { Score = 3000000, PersonalScore = 19030200 }, [], XboxUser.FromXbox(x2, "B"));
+        match.AddParticipant(1, x3, new MatchParticipantStats { Score = 2000000, PersonalScore = 18020000 }, [], XboxUser.FromXbox(x3, "C"));
+        match.AddParticipant(1, x4, new MatchParticipantStats { Score = 5000000, PersonalScore = 53110300 }, [], XboxUser.FromXbox(x4, "D"));
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var changed = await _layouts.DecodeAsync([]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(changed, Is.EqualTo(1));
+            var flag = await Context.Set<StatFlag>().AsNoTracking().SingleAsync(f => f.MatchID == matchId);
+            Assert.That(flag.Rule, Is.EqualTo(StatFlagRule.UndecodedCustomScore));
+        }
+    }
+
+    [Test]
+    public async Task DecodeAsync_TwoMatchesThatStayUndecoded_FlagsBothInOneChunk()
+    {
+        // #548, third review: the chunk's checks are batched (one lookup, one flags query, one save) rather than one
+        // CheckMatchAsync a match - both of a chunk's undecoded matches must still each get their own flag
+        async Task<Guid> Undecoded(string suffix)
+        {
+            var matchId = Guid.NewGuid();
+            var match = Match.Seed(matchId);
+            match.AddTeam(0, 5, Outcomes.Won);
+            match.AddTeam(1, 2, Outcomes.Lost);
+            var x1 = ++_nextXuid;
+            var x2 = ++_nextXuid;
+            var x3 = ++_nextXuid;
+            var x4 = ++_nextXuid;
+            match.AddParticipant(0, x1, new MatchParticipantStats { Score = 3000000, PersonalScore = 15010100 }, [], XboxUser.FromXbox(x1, $"A{suffix}"));
+            match.AddParticipant(0, x2, new MatchParticipantStats { Score = 3000000, PersonalScore = 19030200 }, [], XboxUser.FromXbox(x2, $"B{suffix}"));
+            match.AddParticipant(1, x3, new MatchParticipantStats { Score = 2000000, PersonalScore = 18020000 }, [], XboxUser.FromXbox(x3, $"C{suffix}"));
+            match.AddParticipant(1, x4, new MatchParticipantStats { Score = 5000000, PersonalScore = 53110300 }, [], XboxUser.FromXbox(x4, $"D{suffix}"));
+            Context.Matches.Add(match);
+            return matchId;
+        }
+        var first = await Undecoded("1");
+        var second = await Undecoded("2");
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var changed = await _layouts.DecodeAsync([]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(changed, Is.EqualTo(2));
+            Assert.That(await Context.Set<StatFlag>().CountAsync(f => f.Rule == StatFlagRule.UndecodedCustomScore), Is.EqualTo(2));
+            Assert.That(await Context.Set<StatFlag>().AnyAsync(f => f.MatchID == first), Is.True);
+            Assert.That(await Context.Set<StatFlag>().AnyAsync(f => f.MatchID == second), Is.True);
         }
     }
 

@@ -69,6 +69,7 @@ public class GrifballContext :
     public virtual DbSet<ScheduleRecommendation> ScheduleRecommendations { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
     public virtual DbSet<OutboxMessage> Outbox { get; set; }
+    public virtual DbSet<StatFlag> StatFlags { get; set; }
 
     public const string CaseInsensitiveCollation = "case_insensitive";
 
@@ -163,6 +164,7 @@ public class GrifballContext :
         builder.ApplyConfiguration(new HistoricalSeasonReviewConfiguration());
         builder.ApplyConfiguration(new UserMergeConfiguration());
         builder.ApplyConfiguration(new DuplicateDismissalConfiguration());
+        builder.ApplyConfiguration(new StatFlagConfiguration());
         builder.ApplyConfiguration(new ChatMonthConfiguration());
         builder.ApplyConfiguration(new ChatChoiceConfiguration());
         builder.ApplyConfiguration(new SeasonSchedulingRulesConfiguration());

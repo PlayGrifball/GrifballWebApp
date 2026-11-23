@@ -244,7 +244,7 @@ test('processing a reschedule in the dialog refreshes the commissioner dashboard
     '/api/commissioner-dashboard': route => json(route, typed('getDashboardData', {
           pendingReschedules: processed ? [] : [reschedule],
           overdueMatches: [], seasonsNotPublicBySignups: [],
-          summary: { pendingRescheduleCount: processed ? 0 : 1, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 },
+          summary: { pendingRescheduleCount: processed ? 0 : 1, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0, openStatFlagCount: 0 },
         })),
     '/api/reschedules/8/decision': route => {
       processed = true;
@@ -508,6 +508,7 @@ test('a commissioner enters a game by hand, and reports a Waypoint game in place
     '/api/game-versions': route => json(route, typed('getGameVersions', [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }])),
     [`/api/season-matches/${SEASON_MATCH_ID}/possible-matches`]: route => json(route, typed('getPossibleMatches', [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }])),
     [`/api/season-matches/${SEASON_MATCH_ID}/match-pull`]: route => json(route, typed('getMatchPullStatus', { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null })),
+    [`/api/season-matches/${SEASON_MATCH_ID}/stat-flags`]: route => json(route, typed('getSeasonMatchStatFlags', [])),
     [`/api/season-matches/${SEASON_MATCH_ID}/manual-games`]: route => {
       posted.push(route.request().postDataJSON());
       return route.fulfill({ status: 200, body: '' });
@@ -563,6 +564,7 @@ test('the match page does one thing at a time: an action drops a game waiting to
     '/api/game-versions': route => json(route, typed('getGameVersions', [{ gameVersionID: 6, name: 'Halo Infinite' }])),
     [`/api/season-matches/${SEASON_MATCH_ID}/possible-matches`]: route => json(route, typed('getPossibleMatches', [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }])),
     [`/api/season-matches/${SEASON_MATCH_ID}/match-pull`]: route => json(route, typed('getMatchPullStatus', { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null })),
+    [`/api/season-matches/${SEASON_MATCH_ID}/stat-flags`]: route => json(route, typed('getSeasonMatchStatFlags', [])),
     [`/api/season-matches/${SEASON_MATCH_ID}/forfeit/home`]: async route => {
       await answered;
       current = forfeited;

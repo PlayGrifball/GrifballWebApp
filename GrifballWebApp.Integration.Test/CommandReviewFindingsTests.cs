@@ -79,7 +79,8 @@ public class CommandReviewFindingsTests
     private static CommandContextRecorder As(User user) => new((ulong)user.DiscordUserID!.Value);
 
     private AdminCommandsHandler Admin() => new(new DiscordCaller(_context), _lookups, new RescheduleService(_context, new ContextOutbox(_context)),
-        new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(new RescheduleService(_context, new ContextOutbox(_context)), new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context)),
+        new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(new RescheduleService(_context, new ContextOutbox(_context)), new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context),
+            new GrifballWebApp.Application.StatFlags.StaffStatFlagService(_context)),
         new SeasonMatchService(_context, Substitute.For<IDataPullService>(), _brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), _brackets,
         new TeamService(_context, new ContextDatabaseLocks(_context)),
         new ScheduleRecommendations(_context, TimeProvider.System), runs: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())),

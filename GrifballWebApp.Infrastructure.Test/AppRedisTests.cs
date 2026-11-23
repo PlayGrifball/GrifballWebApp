@@ -174,6 +174,21 @@ public class AppRedisTests
     }
 
     [Test]
+    public void Key_is_namespaced_under_the_app_prefix_by_feature()
+    {
+        var configured = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { [AppRedisExtensions.ChannelPrefixKey] = "grif-test" }).Build();
+        var defaulted = new ConfigurationBuilder().Build();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(AppRedisExtensions.Key(configured, "livebuild", "abc"), Is.EqualTo("grif-test:livebuild:abc"));
+            Assert.That(AppRedisExtensions.Key(defaulted, "livebuild", "abc"),
+                Is.EqualTo($"{AppRedisExtensions.DefaultChannelPrefix}:livebuild:abc"));
+        }
+    }
+
+    [Test]
     public void It_is_registered_once_and_only_with_a_connection_string()
     {
         static IConfiguration Configuration(string? redis) => new ConfigurationBuilder()

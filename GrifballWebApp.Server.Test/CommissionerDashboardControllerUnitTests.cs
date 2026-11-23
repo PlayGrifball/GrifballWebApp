@@ -32,7 +32,8 @@ public class CommissionerDashboardControllerDatabaseUnitTests : SqliteGrifballCo
     private CommissionerDashboardController Controller()
     {
         var reschedules = new RescheduleService(Db, Substitute.For<IOutbox>());
-        return new(new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(reschedules, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(Db)), reschedules);
+        return new(new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(reschedules, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(Db),
+            new GrifballWebApp.Application.StatFlags.StaffStatFlagService(Db)), reschedules);
     }
 
     [Test]
@@ -47,6 +48,7 @@ public class CommissionerDashboardControllerDatabaseUnitTests : SqliteGrifballCo
             Assert.That(data.Summary.PendingRescheduleCount, Is.Zero);
             Assert.That(data.Summary.OverdueMatchCount, Is.Zero);
             Assert.That(data.Summary.CriticalOverdueCount, Is.Zero);
+            Assert.That(data.Summary.OpenStatFlagCount, Is.Zero);
         }
     }
 

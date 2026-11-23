@@ -17,6 +17,8 @@ public class DashboardSummaryDto
     public int OverdueMatchCount { get; set; }
     public int CriticalOverdueCount { get; set; }
     public int SeasonsNotPublicBySignupsCount { get; set; }
+    /// <summary>Open stat flags (#548): anomalies found in game stats, not yet looked at.</summary>
+    public int OpenStatFlagCount { get; set; }
 }
 /// <summary>
 /// A season still to start that won't be public by the time its signups open (Season.NotPublicBySignups): players can't sign up

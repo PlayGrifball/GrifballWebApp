@@ -7,6 +7,7 @@ using Surprenant.Grunt.Models.HaloInfinite;
 using System.Collections.Concurrent;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.StatFlags;
 using Microsoft.Extensions.Logging;
 
 namespace GrifballWebApp.Infrastructure.HaloInfinite;
@@ -20,14 +21,18 @@ public partial class DataPullService : IDataPullService
 
     // Decodes each match saved; reads a game variant's layout once for every match of it the pull saves
     private readonly CustomScoreLayouts _scoreLayouts;
+    // #548: checked once a match is saved, whether or not it's ever reported to a season match
+    private readonly StatFlagService _statFlags;
 
-    public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClient haloInfiniteClient, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService)
+    public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClient haloInfiniteClient, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService,
+        StatFlagService? statFlags = null)
     {
         _logger = logger;
         _haloInfiniteClient = haloInfiniteClient;
         _grifballContext = grifballContext;
         _getsertXboxUserService = getsertXboxUserService;
         _scoreLayouts = new CustomScoreLayouts(grifballContext);
+        _statFlags = statFlags ?? new StatFlagService(grifballContext);
     }
 
     /// <summary>
@@ -117,12 +122,19 @@ public partial class DataPullService : IDataPullService
 
         // Read once for every match, rather than once a player a match in SaveMatchStats. A query, not the players
         // themselves: one the lookups above couldn't save is looked up (and saved) on its own as before.
-        var knownXboxUserIDs = (await _grifballContext.XboxUsers
+        var knownXboxUsers = await _grifballContext.XboxUsers
             .Where(x => xboxUserIds.Contains(x.XboxUserID))
-            .Select(x => x.XboxUserID)
-            .ToListAsync(ct)).ToHashSet();
+            .Select(x => new { x.XboxUserID, x.Gamertag })
+            .ToListAsync(ct);
+        var knownXboxUserIDs = knownXboxUsers.Select(x => x.XboxUserID).ToHashSet();
+        // #548: the stat flag checks' own lookups, once for the whole pull rather than once a match
+        // (StatFlagService.CheckMatchAsync)
+        var gamertagByXuid = knownXboxUsers.ToDictionary(x => x.XboxUserID, x => x.Gamertag);
+        var userIDByXuid = await _grifballContext.Users.Where(u => u.XboxUserID != null && xboxUserIds.Contains(u.XboxUserID!.Value))
+            .Select(u => new { XboxUserID = u.XboxUserID!.Value, u.Id })
+            .ToDictionaryAsync(u => u.XboxUserID, u => u.Id, ct);
 
-        var saved = await SaveMatchesAsync(matchStatsBag, knownXboxUserIDs);
+        var saved = await SaveMatchesAsync(matchStatsBag, knownXboxUserIDs, userIDByXuid, gamertagByXuid, ct);
 
         return new MatchPullResult(stringXboxIDs.Count, [.. histories.Failed.Distinct()], found, matchesAlreadyDownloaded.Length, saved,
             [.. failedMatches], matchStatsBag.Count - saved, [.. histories.Capped.Distinct()]);
@@ -234,8 +246,16 @@ public partial class DataPullService : IDataPullService
         return (matchStatsBag, failedMatches);
     }
 
-    /// <summary>Saves the games one at a time (the context isn't shared between threads). Returns how many were saved.</summary>
-    private async Task<int> SaveMatchesAsync(IEnumerable<MatchStats> matchStatsBag, IReadOnlySet<long> knownXboxUserIDs)
+    /// <summary>Saves the games one at a time (the context isn't shared between threads). Returns how many were saved.
+    /// <paramref name="userIDByXuid"/> and <paramref name="gamertagByXuid"/> are the stat flag checks' own lookups,
+    /// made once for the whole bag rather than once a match (StatFlagService.CheckMatchAsync) - already resolved for
+    /// every player of the bag, including one new to the whole pull, before any of its matches are saved
+    /// (GetAndSaveMatches's batched GetsertXboxUsersByXuid runs first): a later match of the bag always sees a new
+    /// player's real gamertag, never their bare XUID (fourth review: confirmed by a test, GetsertXboxUsersByXuid
+    /// already resolves everyone before SaveMatchesAsync starts - nothing here needs to catch up a lookup built
+    /// before any match was saved).</summary>
+    private async Task<int> SaveMatchesAsync(IEnumerable<MatchStats> matchStatsBag, IReadOnlySet<long> knownXboxUserIDs,
+        IReadOnlyDictionary<long, int> userIDByXuid, IReadOnlyDictionary<long, string> gamertagByXuid, CancellationToken ct)
     {
         // Could also do this in parallel foreach but would need a seperate context for each.
         // Each save looked through every entity the context tracks for changes, the games saved before it too, so each was
@@ -247,7 +267,7 @@ public partial class DataPullService : IDataPullService
         {
             foreach (var matchStats in matchStatsBag)
             {
-                if (await SaveMatch(matchStats, knownXboxUserIDs))
+                if (await SaveMatch(matchStats, knownXboxUserIDs, userIDByXuid, gamertagByXuid, ct))
                     saved++;
             }
         }
@@ -434,7 +454,8 @@ public partial class DataPullService : IDataPullService
     }
 
     /// <param name="knownXboxUserIDs">Players whose Xbox user is saved already: tied by ID, not looked up one by one.</param>
-    public Task SaveMatchStats(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs = null) => SaveMatch(matchStats, knownXboxUserIDs);
+    public Task SaveMatchStats(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs = null, CancellationToken ct = default) =>
+        SaveMatch(matchStats, knownXboxUserIDs, null, null, ct);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Match {MatchID} already exists")]
     private partial void LogMatchExists(Guid matchID);
@@ -442,8 +463,11 @@ public partial class DataPullService : IDataPullService
     [LoggerMessage(Level = LogLevel.Debug, Message = "Ignoring non team match {MatchID}")]
     private partial void LogNotATeamMatch(Guid matchID);
 
-    /// <summary>Saves the game; false when it isn't saved (not a team game).</summary>
-    private async Task<bool> SaveMatch(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs)
+    /// <summary>Saves the game; false when it isn't saved (not a team game). <paramref name="userIDByXuid"/> and
+    /// <paramref name="gamertagByXuid"/> are the stat flag checks' lookups, given when the caller already has them for
+    /// the whole pull; null for a match saved on its own, where CheckMatchAsync looks them up itself.</summary>
+    private async Task<bool> SaveMatch(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs,
+        IReadOnlyDictionary<long, int>? userIDByXuid, IReadOnlyDictionary<long, string>? gamertagByXuid, CancellationToken ct)
     {
         var matchID = matchStats.MatchId;
 
@@ -479,7 +503,7 @@ public partial class DataPullService : IDataPullService
                 _logger.LogError("Could not parse {XUID}, not long", xuid);
                 throw new Exception("XUID not long");
             }
-            var xboxUser = knownXboxUserIDs?.Contains(xuidLong) is true ? null : await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong);
+            var xboxUser = knownXboxUserIDs?.Contains(xuidLong) is true ? null : await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong, ct);
 
             var stats = x.PlayerTeamStats.Where(pts => pts.TeamId == x.LastTeamId).FirstOrDefault()?.Stats.CoreStats
                 ?? throw new Exception("Failed to find last team stats");
@@ -529,14 +553,14 @@ public partial class DataPullService : IDataPullService
         }
         // Its goals and the mode's other stats, from Score and PersonalScore (#217), set while the game is built and before
         // any of it is tracked. Decoding only reads saved matches, so it adds nothing a failed save would have to let go.
-        await _scoreLayouts.ApplyAsync(match);
+        await _scoreLayouts.ApplyAsync(match, ct);
         // Nothing of the game is added until every player is resolved: a lookup that fails (the gateway down) then leaves
         // nothing tracked for a retry to trip over, and a lookup's own save can't store the game without its players.
         // The match brings its teams, their players and their medals.
         _grifballContext.Matches.Add(match);
         try
         {
-            await _grifballContext.SaveChangesAsync();
+            await _grifballContext.SaveChangesAsync(ct);
         }
         catch
         {
@@ -545,6 +569,10 @@ public partial class DataPullService : IDataPullService
             ForgetAdded(match);
             throw;
         }
+        // #548: plain anomaly checks (impossible numbers, an undecoded custom score), never anything that changes the
+        // match - it's saved either way. A failed check is StatFlagService's own to log and let go, never failing the
+        // rest of the pull. isNewMatch: true - it was just added above, so it can't have an existing flag yet.
+        await _statFlags.CheckMatchAsync(match, userIDByXuid, gamertagByXuid, isNewMatch: true, ct);
         return true;
     }
 

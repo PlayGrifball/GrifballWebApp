@@ -188,9 +188,11 @@ public partial class HistoricalImportService : IHistoricalImportService
     private readonly TimeProvider _timeProvider;
     private readonly GamertagMatching _matching;
     private readonly GrifballWebApp.Application.Profile.IUserMergeService _merges;
+    // #548: every game the import brings in or updates is checked the same way a manual game or a Halo pull is
+    private readonly GrifballWebApp.Application.StatFlags.StatFlagService _statFlags;
 
     public HistoricalImportService(IApplicationDbContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger, GamertagMatching matching, TimeProvider timeProvider,
-        GrifballWebApp.Application.Profile.IUserMergeService merges)
+        GrifballWebApp.Application.Profile.IUserMergeService merges, GrifballWebApp.Application.StatFlags.StatFlagService? statFlags = null)
     {
         _context = context;
         _dataPullService = dataPullService;
@@ -199,6 +201,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         _matching = matching;
         _timeProvider = timeProvider;
         _merges = merges;
+        _statFlags = statFlags ?? new GrifballWebApp.Application.StatFlags.StatFlagService(context, timeProvider);
     }
 
     /// <summary>A season to import: its archive entries (regular season and playoffs), titles and Waypoint matches.</summary>
@@ -771,6 +774,12 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         var counts = new HistoricalImportReport();
         var removal = await SeasonBefore(group, ct);
+        // #548, third review: every stat-flag check this run needs, gathered as the season is built but never run
+        // until after the commit below - run inside the transaction, a failing check (a Postgres 25P02, a SQL Server
+        // deadlock victim) aborts the whole transaction outright, not only itself, taking the season down with it.
+        var recordedGamesToCheck = new List<RecordedGame>();
+        var seasonMatchIDsToCheck = new HashSet<int>();
+        var committed = false;
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         try
         {
@@ -803,8 +812,8 @@ public partial class HistoricalImportService : IHistoricalImportService
                 games.AddRange(await WaypointGames(group, teams, waypoint, counts, ct));
             }
             if (group.RecordedGames is not null)
-                games.AddRange(await ImportRecordedGames(group, season, gameVersions, resolver, teams, games, counts, ct));
-            await LinkSeries(group, season, games, bracket, counts, ct);
+                games.AddRange(await ImportRecordedGames(group, season, gameVersions, resolver, teams, games, counts, recordedGamesToCheck, seasonMatchIDsToCheck, ct));
+            await LinkSeries(group, season, games, bracket, counts, seasonMatchIDsToCheck, ct);
             if (group.Forfeits is not null)
                 await ImportForfeits(group, season, teams, counts, ct);
             var tiers = await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
@@ -834,6 +843,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 return;
             }
             await transaction.CommitAsync(ct);
+            committed = true;
             // The season is saved: nothing of it is needed again, so nothing of it stays tracked. Otherwise every season's rows
             // pile up for the rest of the run: an import of every archive season grew past 512Mi (OOM-killed), and each
             // SaveChanges scanned all of them, slower season after season
@@ -848,6 +858,23 @@ public partial class HistoricalImportService : IHistoricalImportService
             _context.ChangeTracker.Clear();
             _logger.LogError(ex, "Historical import of {Season} failed and was rolled back", group.SourceId);
             report.Errors.Add($"{group.SourceId}: {ex.GetBaseException().Message}");
+        }
+
+        if (!committed)
+            return; // nothing saved: nothing to check
+
+        // #548, third review: every stat-flag check for this season, only now - the season already committed, so a
+        // failure here (caught the same way StatFlagService's own SafelyAsync would, belt and suspenders: this call
+        // is also made by the matchmaking import, HistoricalImportService.Matchmaking.cs, of its own StatFlagService
+        // calls) never costs it.
+        try
+        {
+            await _statFlags.CheckRecordedGamesAsync(recordedGamesToCheck, ct);
+            await _statFlags.CheckSeriesGamesAsync(seasonMatchIDsToCheck, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Historical import of {Season}'s stat flag checks failed; its data is already committed", group.SourceId);
         }
     }
 
@@ -1469,9 +1496,13 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// are in the app: the games of the same two teams within <see cref="SeriesGap"/> of each other are one series, its
     /// score their wins. A playoff series of a season with a bracket sheet goes in the sheet's slot of its teams
     /// (<see cref="InSheetSlots"/>), whose result is the sheet's; otherwise (no bracket sheet, or none of its slots is
-    /// theirs) playoff series are bracket matches in rounds by the order the teams played them.
+    /// theirs) playoff series are bracket matches in rounds by the order the teams played them. Every series newly
+    /// linked here is added to <paramref name="seasonMatchIDsToCheck"/>, for the stat-flag check
+    /// <see cref="ImportSeason"/> runs once for the whole season, after its transaction commits (third review: this
+    /// used to run the check itself, mid-transaction).
     /// </summary>
-    private async Task LinkSeries(SeasonGroup group, Season season, List<ImportedGame> games, List<SeasonMatch>? sheetBracket, HistoricalImportReport counts, CancellationToken ct)
+    private async Task LinkSeries(SeasonGroup group, Season season, List<ImportedGame> games, List<SeasonMatch>? sheetBracket, HistoricalImportReport counts,
+        HashSet<int> seasonMatchIDsToCheck, CancellationToken ct)
     {
         if (games.Count == 0)
             return;
@@ -1479,6 +1510,7 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         // Each slot is the team's previous series, or a seed for its first (the bracket's rule: one or the other)
         var bracket = new PlayoffBracket(await _context.SeasonMatches.CountAsync(m => m.SeasonID == season.SeasonID && m.BracketMatch != null, ct));
+        var linked = new List<SeasonMatch>();
         // In the order they were played; a series its source gives no date (a result list's, a forfeit) after the dated ones,
         // in its list's order
         foreach (var played in series.OrderBy(s => s[0].Start is null).ThenBy(s => s[0].Start))
@@ -1502,10 +1534,15 @@ public partial class HistoricalImportService : IHistoricalImportService
             foreach (var (game, index) in played.Select((g, i) => (g, i)))
                 match.AddImportedGame(game.MatchID, game.Recorded, index + 1);
             _context.SeasonMatches.Add(match);
+            linked.Add(match);
             counts.SeasonMatchesCreated++;
             counts.GamesLinked += played.Count;
         }
         await _context.SaveChangesAsync(ct);
+        // #548: whether each new series' games add up to its result (its SeasonMatchID is real now) - checked once
+        // for the whole season, after the commit
+        foreach (var match in linked)
+            seasonMatchIDsToCheck.Add(match.SeasonMatchID);
     }
 
     /// <summary>Series: the games its source puts in one (<see cref="ImportedGame.Series"/>), and the same two teams' other games,
@@ -1586,7 +1623,8 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// no longer lists go. Returns the games for <see cref="LinkSeries"/>: those not in a series yet, scrims aside (a scrim
     /// is in none, and leaves one an earlier import put it in; it counts for the season through its SeasonID).
     /// </summary>
-    private async Task<List<ImportedGame>> ImportRecordedGames(SeasonGroup group, Season season, List<GameVersion> gameVersions, PlayerResolver resolver, SeasonTeams teams, List<ImportedGame> waypointGames, HistoricalImportReport counts, CancellationToken ct)
+    private async Task<List<ImportedGame>> ImportRecordedGames(SeasonGroup group, Season season, List<GameVersion> gameVersions, PlayerResolver resolver, SeasonTeams teams, List<ImportedGame> waypointGames, HistoricalImportReport counts,
+        List<RecordedGame> recordedGamesToCheck, HashSet<int> seasonMatchIDsToCheck, CancellationToken ct)
     {
         var inputs = group.RecordedGames!;
         var keys = inputs.Select(i => i.SourceKey.Trim()).ToList();
@@ -1624,7 +1662,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (stale.MatchedMatch is { } matched)
                 _context.RemoveArchivedMatch(matched);
             if (stale.SeriesGame is not null)
-                await Unlink(stale, ct);
+                await UnlinkTracking(stale, run, ct);
             _context.RemoveRecordedGame(stale);
             counts.RecordedGamesRemoved++;
         }
@@ -1632,6 +1670,14 @@ public partial class HistoricalImportService : IHistoricalImportService
         // Once for the season, not once a game
         if (run.WithoutTeam.Count > 0 && teams.ByName.Count > 0)
             Warn(counts, $"{group.SourceId}: {run.WithoutTeam.Count} recorded game(s) with a side that is none of the season's teams (by its players' teams or its name): {string.Join(", ", run.WithoutTeam)}");
+        // #548, third review: gathered for ImportSeason to check once for the whole season, after its transaction
+        // commits - never here, mid-transaction. Every game kept this run (new or re-imported) has its RecordedGameID
+        // now; never one entered by hand, so only the "any game" rules apply. A series still standing after one of
+        // its games was unlinked (a stale or scrim game, Unlink) - whose own series flag is the series' now,
+        // StatFlag.SeasonMatchID, so nothing of the game itself needs clearing any more - or whose games changed
+        // sides or outcome on a re-import, is re-checked too (not only one newly linked, LinkSeries).
+        recordedGamesToCheck.AddRange(run.Kept);
+        seasonMatchIDsToCheck.UnionWith(run.SeasonMatchIDsToRecheck);
         return run.ToLink;
     }
 
@@ -1651,6 +1697,12 @@ public partial class HistoricalImportService : IHistoricalImportService
         public HashSet<string> Seen { get; } = new(StringComparer.OrdinalIgnoreCase);
         public List<ImportedGame> ToLink { get; } = [];
         public List<string> WithoutTeam { get; } = [];
+        /// <summary>#548: every season match whose series this run may have changed - a game unlinked from it, or
+        /// re-imported still in it (its sides or outcome may have changed) - for ImportSeason's
+        /// StatFlagService.CheckSeriesGamesAsync call once the whole season is saved. Never a bracket-sheet slot
+        /// (_sheetSlots): LinkSeries never checks one in the first place (the sheet's result is authoritative, not
+        /// its games'), so a re-import mustn't start checking it either (third review).</summary>
+        public HashSet<int> SeasonMatchIDsToRecheck { get; } = [];
     }
 
     /// <summary>One recorded game of <see cref="ImportRecordedGames"/>.</summary>
@@ -1750,17 +1802,34 @@ public partial class HistoricalImportService : IHistoricalImportService
             _context.RemoveArchivedMatch(matched);
         // A scrim is in no series: out of one an earlier import put it in (by the sides that series counted)
         if (input.IsScrim && game.SeriesGame is not null)
-            await Unlink(game, ct);
+            await UnlinkTracking(game, run, ct);
+        // #548: still in a series (the common case, re-imported): its sides or outcome may have changed, so the
+        // series is re-checked once the whole season is saved (ImportSeason's StatFlagService.CheckSeriesGamesAsync
+        // call) - not only a series newly linked this run (LinkSeries). Never a bracket-sheet slot (see
+        // RecordedGamesRun.SeasonMatchIDsToRecheck).
+        if (game.SeriesGame is { } linked && !_sheetSlots.Contains(linked.SeasonMatchID))
+            run.SeasonMatchIDsToRecheck.Add(linked.SeasonMatchID);
         game.Reimport(facts, run.Season.SeasonID);
         return game;
+    }
+
+    /// <summary>Unlink (below), tracked onto <paramref name="run"/> for ImportSeason's stat-flag check once the whole
+    /// season is saved.</summary>
+    private async Task UnlinkTracking(RecordedGame game, RecordedGamesRun run, CancellationToken ct)
+    {
+        if (await Unlink(game, ct) is int seasonMatchID && !_sheetSlots.Contains(seasonMatchID))
+            run.SeasonMatchIDsToRecheck.Add(seasonMatchID);
     }
 
     /// <summary>
     /// Takes a recorded game out of its series, through the series (<see cref="SeasonMatch.RemoveImportedGame"/>): its win
     /// comes off the score and the series is worked out again from the games left, as the import first worked it out. A
-    /// series left with no games goes. Called before the game's sides are updated: they are the sides its win was counted by.
+    /// series left with no games goes. Called before the game's sides are updated: they are the sides its win was counted
+    /// by. The game's own series flag, if it kept one, is of the series itself (StatFlag.SeasonMatchID, third review),
+    /// not this particular game, so nothing further is needed to reach it once it's out - only the series itself
+    /// (when it survives, with games left) needs a re-check, returned here to re-check once the whole season is saved.
     /// </summary>
-    private async Task Unlink(RecordedGame game, CancellationToken ct)
+    private async Task<int?> Unlink(RecordedGame game, CancellationToken ct)
     {
         var seriesGame = game.SeriesGame!;
         var match = await _context.SeasonMatches.Include(m => m.SeriesGames).Include(m => m.BracketMatch)
@@ -1769,12 +1838,14 @@ public partial class HistoricalImportService : IHistoricalImportService
         {
             DetachSheetGame(match, seriesGame);
             await _context.SaveChangesAsync(ct);
-            return;
+            return match.SeasonMatchID;
         }
         var (homeWon, awayWon) = WinsIn(game, match);
-        if (!_context.RemoveImportedSeriesGame(match, seriesGame, homeWon, awayWon))
+        var stillHasGames = _context.RemoveImportedSeriesGame(match, seriesGame, homeWon, awayWon);
+        if (!stillHasGames)
             _context.SeasonMatches.Remove(match);
         await _context.SaveChangesAsync(ct);
+        return stillHasGames ? match.SeasonMatchID : null;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Seasons;
@@ -11,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using StackExchange.Redis;
 
@@ -35,13 +37,16 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
     [SetUp]
     public void SetUp() => _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(_everyone);
 
-    /// <summary>Scopes whose IApplicationDbContext is a context of their own on the test's database, as a request's is.</summary>
-    private IServiceScopeFactory Scopes()
+    /// <summary>Scopes whose IApplicationDbContext is a context of their own on the test's database, as a request's is;
+    /// <paramref name="snapshots"/>'s too, when a test builds a topic's data.</summary>
+    private IServiceScopeFactory Scopes(LiveSnapshots? snapshots = null)
     {
         var connectionString = Db.Database.GetConnectionString()!;
         var services = new ServiceCollection();
         services.AddScoped<IApplicationDbContext>(_ => new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString).Options));
+        if (snapshots is not null)
+            services.AddScoped(_ => snapshots);
         return services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
     }
 
@@ -166,9 +171,75 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         }
     }
 
-    private LiveDelivery Delivery()
-        => new(_watchers, _hubContext, new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
-            NullLogger<LiveDelivery>.Instance);
+    private LiveDelivery Delivery(IServiceScopeFactory? scopes = null, AppRedis? redis = null, IConfiguration? configuration = null, TimeProvider? time = null,
+        LiveOptions? liveOptions = null)
+        => new(_watchers, _hubContext, scopes ?? new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<LiveDelivery>.Instance, configuration ?? new ConfigurationBuilder().Build(), redis, time,
+            liveOptions is null ? null : Options.Create(liveOptions));
+
+    /// <summary>
+    /// A Redis whose reads succeed (nothing cached yet); its first write (the lock, always called with exactly 4 args -
+    /// key, value, expiry, when - binding to <c>IDatabaseAsync</c>'s older, hidden 4-parameter overload with neither
+    /// <c>keepTtl</c> nor <see cref="CommandFlags"/>) succeeds; its second (the data, always called with exactly 3 args
+    /// once a build is done, binding to the newer, visible overload with a defaulted <c>keepTtl</c> bool before
+    /// <c>when</c>) fails with <paramref name="storeFailure"/> (a <see cref="RedisException"/> or a
+    /// <see cref="TimeoutException"/>). The two calls really are two different overloads (confirmed from
+    /// IDatabaseAsync's own source for the version here): earlier versions of this double configured a single
+    /// 5-parameter (..., When, CommandFlags) shape that matches neither, so neither call was ever actually
+    /// intercepted and the lock was never won.
+    /// </summary>
+    private static AppRedis FlakyStoreRedis(Exception storeFailure)
+    {
+        var db = Substitute.For<IDatabase>();
+        db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(true);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
+            .Returns<bool>(_ => throw storeFailure);
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        return new AppRedis(_ => Task.FromResult(connection));
+    }
+
+    /// <summary>A Redis whose build succeeds and whose data stores fine, but whose lock release (the compare-and-delete
+    /// Lua script) throws: the one real call site always passes exactly a script, a one-element key array and a
+    /// one-element value array, so the mock mirrors that shape rather than risk matching a different overload.</summary>
+    private static AppRedis FlakyReleaseRedis(Exception releaseFailure)
+    {
+        var db = Substitute.For<IDatabase>();
+        db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(true);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(true);
+        db.ScriptEvaluateAsync(Arg.Any<string>(), Arg.Any<RedisKey[]>(), Arg.Any<RedisValue[]>()).Returns<RedisResult>(_ => throw releaseFailure);
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        return new AppRedis(_ => Task.FromResult(connection));
+    }
+
+    /// <summary>A Redis with no data ever showing up, whose lock is taken the first time (as if another pod just won
+    /// the race) but free the moment a waiter's own poll retries it.</summary>
+    private static AppRedis LockFreedOnRetryRedis()
+    {
+        var db = Substitute.For<IDatabase>();
+        db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(false, true);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(true);
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        return new AppRedis(_ => Task.FromResult(connection));
+    }
+
+    /// <summary>A Redis whose first read is a cache miss, whose lock is already taken (by "someone else"), and whose
+    /// second read (WaitForBuild's) finds the data: no real Redis latency, so a real <c>Task.Delay</c> before the first
+    /// check (the bug) is the only thing that could make this slow.</summary>
+    private static AppRedis LockLostRedis(RedisValue data)
+    {
+        var db = Substitute.For<IDatabase>();
+        db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null, data);
+        db.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>()).Returns(false);
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        return new AppRedis(_ => Task.FromResult(connection));
+    }
 
     /// <summary>The pages watching player:5 here, told through <paramref name="told"/> once they are.</summary>
     private ILiveHubClient WatchingPlayerFive(TaskCompletionSource told)
@@ -220,7 +291,195 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watching);
         _watchers.Watch(LiveTopics.Player(5), "conn", SeasonViewer.Public);
 
-        Assert.That(async () => await Delivery().Deliver([new LiveChange(LiveTopics.Player(5))], CancellationToken.None), Throws.Nothing);
+        Assert.That(async () => await Delivery().Deliver([new LiveChange(LiveTopics.Player(5))], ct: CancellationToken.None), Throws.Nothing);
         await watching.Received(1).Changed(LiveTopics.Player(5));
+    }
+
+    [Test]
+    public async Task Delivery_RedisUnreachable_StillBuildsItsOwnData()
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(3));
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+
+        // A change ID, as it would come scaled out through the relay: with Redis unreachable, caching across pods is
+        // skipped and this pod builds it anyway, rather than leave its own watchers with nothing
+        await Delivery(Scopes(snapshots), DownRedis()).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+
+        await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
+    }
+
+    [Test]
+    public async Task Deliver_SharedBuildsOff_NeverTouchesTheLockOrDataKeys_AndStillDelivers()
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(6));
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var db = Substitute.For<IDatabase>();
+        var connection = Substitute.For<IConnectionMultiplexer>();
+        connection.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
+        var redis = new AppRedis(_ => Task.FromResult(connection));
+
+        // A change ID and a reachable Redis - with SharedBuilds on, this would take the lock and cache the data;
+        // off, it must build its own without ever touching Redis at all
+        await Delivery(Scopes(snapshots), redis, liveOptions: new LiveOptions { SharedBuilds = false })
+            .Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+
+        using (Assert.EnterMultipleScope())
+        {
+            await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":6}");
+            await db.DidNotReceive().StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>());
+            await db.DidNotReceive().StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>());
+            await db.DidNotReceive().StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>());
+            await db.DidNotReceive().ScriptEvaluateAsync(Arg.Any<string>(), Arg.Any<RedisKey[]>(), Arg.Any<RedisValue[]>());
+        }
+    }
+
+    [TestCase(typeof(RedisException))]
+    [TestCase(typeof(TimeoutException))]
+    public async Task AStoreFailureAfterABuild_ReturnsTheDataAlreadyBuilt_RatherThanBuildingAgain(Type exceptionType)
+    {
+        var built = 0;
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            Interlocked.Increment(ref built);
+            return Task.FromResult<object?>(new QueueLiveDto(5));
+        });
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var storeFailure = (Exception)Activator.CreateInstance(exceptionType, "could not store")!;
+
+        await Delivery(Scopes(snapshots), FlakyStoreRedis(storeFailure)).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+
+        using (Assert.EnterMultipleScope())
+        {
+            await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":5}");
+            Assert.That(built, Is.EqualTo(1), "a store failure after a successful build must not cost a second one");
+        }
+    }
+
+    [TestCase(typeof(RedisException))]
+    [TestCase(typeof(TimeoutException))]
+    public async Task AReleaseFailure_StillReturnsTheBuiltData_TheLockExpiresOnItsOwnInstead(Type exceptionType)
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(9));
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var releaseFailure = (Exception)Activator.CreateInstance(exceptionType, "could not release")!;
+
+        await Delivery(Scopes(snapshots), FlakyReleaseRedis(releaseFailure)).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+
+        await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":9}");
+    }
+
+    [Test]
+    public async Task WaitForBuild_AFailedWinnersFreedLock_IsRetriedAndWonAtOnce_NotAfterBuildWait()
+    {
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(LiveTopics.Queue, Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(new QueueLiveDto(4));
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var sw = Stopwatch.StartNew();
+
+        await Delivery(Scopes(snapshots), LockFreedOnRetryRedis()).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid());
+
+        sw.Stop();
+        using (Assert.EnterMultipleScope())
+        {
+            await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":4}");
+            Assert.That(sw.Elapsed, Is.LessThan(LiveOptions.Default.BuildWait), "won the freed lock on retry at once, rather than waiting out BuildWait for nothing");
+        }
+    }
+
+    [Test]
+    public async Task EnqueueForTopic_AFailedWorkItem_NeverStopsTheNextOneQueuedForTheSameTopic()
+    {
+        var delivery = Delivery();
+        var failed = delivery.EnqueueForTopic(LiveTopics.Queue, SeasonViewer.Public, () => Task.FromException(new InvalidOperationException("down")));
+        var succeeded = false;
+        var next = delivery.EnqueueForTopic(LiveTopics.Queue, SeasonViewer.Public, () =>
+        {
+            succeeded = true;
+            return Task.CompletedTask;
+        });
+
+        await next;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(succeeded, "the second item for the same topic ran despite the first one's failure");
+            Assert.That(async () => await failed, Throws.InstanceOf<InvalidOperationException>(), "the first item's own failure is still observable to whoever queued it");
+        }
+    }
+
+    [Test]
+    public async Task WaitForBuild_ChecksTheCacheBeforeSleeping_SoAnAlreadyFinishedBuildIsNotDelayed()
+    {
+        _watchers.Watch(LiveTopics.Queue, "conn", SeasonViewer.Public);
+        var redis = LockLostRedis("{\"count\":3}");
+        // Never advanced: a real wait on it (Task.Delay(PollInterval, fakeTime, ...)) would hang forever without
+        // Advance(), so completing at all - within the short real-time guard below - proves it checked before
+        // ever sleeping, with no reliance on wall-clock timing to tell a fix from the bug.
+        var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
+
+        await Delivery(redis: redis, time: fakeTime).Deliver([new LiveChange(LiveTopics.Queue)], Guid.NewGuid()).WaitAsync(TimeSpan.FromSeconds(2));
+
+        await _everyone.Received(1).Snapshot(LiveTopics.Queue, "{\"count\":3}");
+    }
+
+    [Test]
+    public async Task Deliver_CapsHowManyTopicsBuildAtOnce()
+    {
+        var gate = new Lock();
+        var concurrent = 0;
+        var peak = 0;
+        async Task<object?> Build(NSubstitute.Core.CallInfo _)
+        {
+            lock (gate)
+                peak = Math.Max(peak, ++concurrent);
+            await Task.Delay(TimeSpan.FromMilliseconds(100));
+            lock (gate)
+                concurrent--;
+            return new QueueLiveDto(1);
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(Arg.Any<string>(), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(Build);
+        var topics = Enumerable.Range(1, 10).Select(LiveTopics.Draft).ToList();
+        foreach (var topic in topics)
+            _watchers.Watch(topic, $"conn-{topic}", SeasonViewer.Public);
+
+        await Delivery(Scopes(snapshots)).Deliver([.. topics.Select(t => new LiveChange(t))]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(peak, Is.LessThanOrEqualTo(LiveOptions.Default.MaxConcurrentBuilds), "no more topics than the cap building at once");
+            Assert.That(peak, Is.GreaterThan(1), "real concurrency happened (not accidentally serial)");
+        }
+    }
+
+    [Test]
+    public async Task Deliver_AConfiguredMaxConcurrentBuilds_IsUsedInsteadOfTheDefault()
+    {
+        var gate = new Lock();
+        var concurrent = 0;
+        var peak = 0;
+        async Task<object?> Build(NSubstitute.Core.CallInfo _)
+        {
+            lock (gate)
+                peak = Math.Max(peak, ++concurrent);
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
+            lock (gate)
+                concurrent--;
+            return new QueueLiveDto(1);
+        }
+        var snapshots = Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
+        snapshots.For(Arg.Any<string>(), Arg.Any<SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(Build);
+        var topics = Enumerable.Range(1, 5).Select(LiveTopics.Draft).ToList();
+        foreach (var topic in topics)
+            _watchers.Watch(topic, $"conn-{topic}", SeasonViewer.Public);
+
+        // Well below the default (4): if this were still hard-coded, more than one of these five would build at once
+        await Delivery(Scopes(snapshots), liveOptions: new LiveOptions { MaxConcurrentBuilds = 1 }).Deliver([.. topics.Select(t => new LiveChange(t))]);
+
+        Assert.That(peak, Is.EqualTo(1), "the configured limit (1), not the default (4), governed how many built at once");
     }
 }

@@ -216,6 +216,8 @@ export type { Stage } from './models/stage';
 export type { StageSettings } from './models/stage-settings';
 export type { StageType } from './models/stage-type';
 export type { StartLinkResponseDto } from './models/start-link-response-dto';
+export type { StatFlagDto } from './models/stat-flag-dto';
+export type { StatFlagRule } from './models/stat-flag-rule';
 export type { Status } from './models/status';
 export type { SubmitGamertagClaimRequest } from './models/submit-gamertag-claim-request';
 export type { TeamAvailabilityDto } from './models/team-availability-dto';

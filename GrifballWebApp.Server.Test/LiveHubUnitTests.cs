@@ -9,6 +9,7 @@ using GrifballWebApp.Server.Live;
 using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -32,6 +33,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     private static readonly string[] BothTabs = ["a", "b"];
     private static readonly string[] OnlyB = ["b"];
     private static readonly string[] Reds = ["Reds"];
+    private static readonly string[] OldShapeTopics = ["season:1", "queue:me"];
 
     private readonly IHubContext<LiveHub, ILiveHubClient> _hubContext = Substitute.For<IHubContext<LiveHub, ILiveHubClient>>();
 
@@ -167,8 +169,47 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     [TestCase(null, ExpectedResult = 0)]
     [TestCase("not json", ExpectedResult = 0)]
     [TestCase("null", ExpectedResult = 0)]
-    [TestCase("[{\"Topic\":\"season:1\",\"UserID\":null},{\"Topic\":\"queue:me\",\"UserID\":7}]", ExpectedResult = 2)]
+    [TestCase("{\"ChangeID\":\"5b3b2b1a-0000-0000-0000-000000000001\",\"Changes\":[{\"Topic\":\"season:1\",\"UserID\":null},{\"Topic\":\"queue:me\",\"UserID\":7}]}", ExpectedResult = 2)]
     public int TheRelaysMessage_IsTheChanges(string? message) => LiveUpdates.Parse(message).Count;
+
+    [Test]
+    public void ChangeIDOf_IsThisPublishsOwnID_TheSameOnEveryPod_AndDifferentFromAnotherPublishs()
+    {
+        var id = Guid.NewGuid();
+        var message = LiveUpdates.Serialize(id, [new LiveChange(LiveTopics.Queue)]);
+        var otherMessage = LiveUpdates.Serialize(Guid.NewGuid(), [new LiveChange(LiveTopics.Queue)]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(LiveUpdates.ChangeIDOf(message), Is.EqualTo(id));
+            Assert.That(LiveUpdates.ChangeIDOf(otherMessage), Is.Not.EqualTo(id));
+            Assert.That(LiveUpdates.ChangeIDOf("not json"), Is.Null);
+            Assert.That(LiveUpdates.Parse(message).Select(c => c.Topic), Is.EqualTo(new[] { LiveTopics.Queue }));
+        }
+    }
+
+    [Test]
+    public void ParseRelayed_AlsoAcceptsTheOlderPlainArrayShape_WithNoChangeIDToShareABuildBy()
+    {
+        // The shape before #540 (and what a worker still on an older image would publish mid-rollout): just the
+        // changes, no envelope around them
+        const string oldShapeMessage = "[{\"Topic\":\"season:1\",\"UserID\":null},{\"Topic\":\"queue:me\",\"UserID\":7}]";
+
+        var relayed = LiveUpdates.ParseRelayed(oldShapeMessage);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(relayed, Is.Not.Null);
+            Assert.That(relayed!.ChangeID, Is.Null, "no change ID: it always builds its own, never shares a cached build");
+            Assert.That(relayed.Changes.Select(c => c.Topic), Is.EqualTo(OldShapeTopics));
+        }
+    }
+
+    [TestCase("not json")]
+    [TestCase("42")]
+    [TestCase("true")]
+    public void ParseRelayed_IsNull_ForAMessageThatIsNeitherShape(string garbled)
+        => Assert.That(LiveUpdates.ParseRelayed(garbled), Is.Null);
 
     private LiveDelivery Delivery(LiveSnapshots snapshots)
     {
@@ -177,7 +218,8 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         services.AddScoped(_ => snapshots);
         services.AddScoped<IApplicationDbContext>(_ => new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString).Options));
-        return new LiveDelivery(_watchers, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance);
+        return new LiveDelivery(_watchers, _hubContext, services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<LiveDelivery>.Instance,
+            new ConfigurationBuilder().Build());
     }
 
     private static LiveSnapshots NoSnapshots() => Substitute.For<LiveSnapshots>(null!, null!, null!, null!, null!, null!, null!, null!);
@@ -266,7 +308,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
         _watchers.Watch(LiveTopics.Xbox(100), "a", SeasonViewer.Public);
 
-        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
+        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance, new ConfigurationBuilder().Build()).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
 
         using (Assert.EnterMultipleScope())
         {
@@ -285,7 +327,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _watchers.Watch(LiveTopics.Xbox(100), "a", SeasonViewer.Public);
         _watchers.Watch(LiveTopics.Player(5), "b", SeasonViewer.Public);
 
-        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
+        await new LiveDelivery(_watchers, _hubContext, scopes, NullLogger<LiveDelivery>.Instance, new ConfigurationBuilder().Build()).Deliver([new LiveChange(LiveTopics.Xbox(100))]);
 
         using (Assert.EnterMultipleScope())
         {
@@ -379,7 +421,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         _hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(watchers);
         _watchers.Watch(LiveTopics.Draft(4), "a", SeasonViewer.Public);
 
-        Assert.That(async () => await Delivery(snapshots).Deliver([new LiveChange(LiveTopics.Draft(4))], canceled.Token), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await Delivery(snapshots).Deliver([new LiveChange(LiveTopics.Draft(4))], ct: canceled.Token), Throws.InstanceOf<OperationCanceledException>());
         await watchers.DidNotReceive().Changed(Arg.Any<string>());
     }
 

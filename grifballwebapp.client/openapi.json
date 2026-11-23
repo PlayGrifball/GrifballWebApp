@@ -7143,6 +7143,160 @@
         }
       }
     },
+    "/stat-flags": {
+      "get": {
+        "tags": [
+          "StaffStatFlags"
+        ],
+        "summary": "Every open flag, newest first. Commissioners and sysadmins only.",
+        "operationId": "GetOpenStatFlags",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatFlagDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/season-matches/{seasonMatchID}/stat-flags": {
+      "get": {
+        "tags": [
+          "StaffStatFlags"
+        ],
+        "summary": "The open flags of every game of a season match's series, for its marker on the match page. Commissioners\n            and sysadmins only.",
+        "operationId": "GetSeasonMatchStatFlags",
+        "parameters": [
+          {
+            "name": "seasonMatchID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatFlagDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stat-flags/{statFlagID}/dismiss": {
+      "post": {
+        "tags": [
+          "StaffStatFlags"
+        ],
+        "summary": "Staff looked at it: not wrong, or not worth fixing. 404 when it doesn't exist. Commissioners and\n            sysadmins only.",
+        "operationId": "DismissStatFlag",
+        "parameters": [
+          {
+            "name": "statFlagID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/teams/{teamID}": {
       "get": {
         "tags": [
@@ -10528,6 +10682,7 @@
       "DashboardSummaryDto": {
         "required": [
           "criticalOverdueCount",
+          "openStatFlagCount",
           "overdueMatchCount",
           "pendingRescheduleCount",
           "seasonsNotPublicBySignupsCount"
@@ -10548,6 +10703,11 @@
           },
           "seasonsNotPublicBySignupsCount": {
             "type": "integer",
+            "format": "int32"
+          },
+          "openStatFlagCount": {
+            "type": "integer",
+            "description": "Open stat flags (#548): anomalies found in game stats, not yet looked at.",
             "format": "int32"
           }
         },
@@ -17710,6 +17870,103 @@
         },
         "additionalProperties": false
       },
+      "StatFlagDto": {
+        "required": [
+          "foundAt",
+          "gameNumber",
+          "gamePlayedAt",
+          "gameTeams",
+          "matchID",
+          "playerName",
+          "playerUserID",
+          "reason",
+          "recordedGameID",
+          "rule",
+          "seasonMatchID",
+          "statFlagID"
+        ],
+        "type": "object",
+        "properties": {
+          "statFlagID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rule": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StatFlagRule"
+              }
+            ],
+            "description": "A plain rule a GrifballWebApp.Domain.Archive.StatFlag is found by: conservative thresholds, each one in one place - fixed ones in\nStatFlagThresholds, the team size and accuracy ones configurable (StatFlagOptions, fourth review), both in the\nApplication's StatFlagService - not spread through the checks. Left for later: how a game compares to a player's\nown history, duplicate-game detection, and roster-membership checks (the issue's other candidate rules)."
+          },
+          "matchID": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "recordedGameID": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "seasonMatchID": {
+            "type": "integer",
+            "description": "The season match the flagged game belongs to, when it belongs to one (a Halo pull not yet reported to\n            a match has none): to link the staff list to the match page.",
+            "format": "int32",
+            "nullable": true
+          },
+          "gameNumber": {
+            "type": "integer",
+            "description": "The flagged game's number in its series, when the flag is about one particular game of it; null for a\n            flag about the series as a whole (StatFlagRule.SeriesDoesNotMatchGames).",
+            "format": "int32",
+            "nullable": true
+          },
+          "playerUserID": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "playerName": {
+            "type": "string",
+            "description": "The name shown for GrifballWebApp.Application.StatFlags.StatFlagDto.PlayerUserID (UserNames.Pick); null when the rule is about the whole\n            game, or the player has since been merged away.",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string"
+          },
+          "foundAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gamePlayedAt": {
+            "type": "string",
+            "description": "When the flagged game is a recorded game outside any series (an imported scrim, a Late League\n            matchmaking game): there's no page to link it to, so staff are shown what it was instead - when it was played\n            and its sides. Null otherwise (there's a page to link to: GrifballWebApp.Application.StatFlags.StatFlagDto.SeasonMatchID, or the Halo match's own\n            page).",
+            "format": "date-time",
+            "nullable": true
+          },
+          "gameTeams": {
+            "type": "string",
+            "description": "The flagged game's sides, \"Team A vs Team B\", alongside GrifballWebApp.Application.StatFlags.StatFlagDto.GamePlayedAt.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "An open flag, for the staff list and the match page's marker."
+      },
+      "StatFlagRule": {
+        "enum": [
+          "ScoreDoesNotMatchGoals",
+          "WinnerDoesNotMatchScores",
+          "TeamSmallerThanFormat",
+          "DateOutsideSeason",
+          "NegativeStat",
+          "ImpossibleAccuracy",
+          "UndecodedCustomScore",
+          "SeriesDoesNotMatchGames"
+        ],
+        "type": "string",
+        "description": "A plain rule a GrifballWebApp.Domain.Archive.StatFlag is found by: conservative thresholds, each one in one place - fixed ones in\nStatFlagThresholds, the team size and accuracy ones configurable (StatFlagOptions, fourth review), both in the\nApplication's StatFlagService - not spread through the checks. Left for later: how a game compares to a player's\nown history, duplicate-game detection, and roster-membership checks (the issue's other candidate rules)."
+      },
       "Status": {
         "enum": [
           0,
@@ -19374,6 +19631,9 @@
     },
     {
       "name": "Signups"
+    },
+    {
+      "name": "StaffStatFlags"
     },
     {
       "name": "Team"

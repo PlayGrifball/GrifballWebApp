@@ -58,6 +58,56 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     private static readonly string[] WinterLeague2019Only = ["Winter League 2019"];
 
     [Test]
+    public async Task Constructed_WithAnExplicitStatFlagService_UsesItRatherThanMakingItsOwn()
+    {
+        // #548: CustomScoreLayouts/MatchVariantBackfillJob pass their own StatFlagService through; the default here
+        // is only production's convenience (InfrastructureServiceCollectionExtensions)
+        var statFlags = new GrifballWebApp.Application.StatFlags.StatFlagService(Context);
+        var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, statFlags: statFlags);
+
+        var report = await service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10))));
+
+        Assert.That(report.Errors, Is.Empty);
+    }
+
+    /// <summary>A stat-flag check that always throws, bypassing StatFlagService's own SafelyAsync entirely - for
+    /// proving a check's failure can never cost the import its data (#548, third review).</summary>
+    private sealed class ThrowingStatFlagService(GrifballWebApp.Application.Database.IApplicationDbContext context) : GrifballWebApp.Application.StatFlags.StatFlagService(context)
+    {
+        public override Task CheckRecordedGamesAsync(IReadOnlyCollection<RecordedGame> games, CancellationToken ct = default) =>
+            throw new InvalidOperationException("Stat flag check boom");
+
+        public override Task CheckSeriesGamesAsync(IReadOnlyCollection<int> seasonMatchIDs, CancellationToken ct = default) =>
+            throw new InvalidOperationException("Stat flag check boom");
+    }
+
+    [Test]
+    public async Task Import_WhenItsStatFlagChecksThrowAfterwards_StillCommitsTheSeason()
+    {
+        // #548, third review: on Postgres, a check running INSIDE the season's transaction would abort it outright
+        // (25P02) on any failure - not only the statement that failed - taking the whole season down with it. Proven
+        // here without a real Postgres failure: the checks run after the commit, so even a check that throws
+        // (bypassing StatFlagService's own catch-and-log entirely) never touches the season's already-committed data,
+        // nor fails the import call itself (caught and logged, the same way StatFlagService's own checks would be).
+        var logger = new FakeLogger<HistoricalImportService>();
+        var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
+            logger, new GamertagMatching(Context), TimeProvider.System, statFlags: new ThrowingStatFlagService(Context));
+
+        var report = await service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10))));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty, "The check's failure never surfaces as an import error");
+            Assert.That(await Context.Seasons.AnyAsync(s => s.HistoricalSourceID == "winter-league-2019/Stats"), Is.True,
+                "The season committed regardless of the check's failure");
+            Assert.That(logger.Collector.GetSnapshot().Select(r => r.Level), Has.Member(LogLevel.Error));
+        }
+    }
+
+    [Test]
     public async Task Import_MakesOneSeasonPerLeagueAndName_AndOnePlaceholderPerPlayer()
     {
         var report = await _service.Import(Input(

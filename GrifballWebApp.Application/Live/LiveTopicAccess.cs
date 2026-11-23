@@ -17,7 +17,7 @@ public class LiveTopicAccess(SeasonVisibility visibility, IApplicationDbContext 
     private static readonly HashSet<string> Public = [LiveTopics.Seasons, LiveTopics.LateLeague, LiveTopics.Queue];
 
     private static readonly HashSet<string> Staff = [LiveTopics.StaffUsers, LiveTopics.StaffClaims, LiveTopics.StaffMerges,
-        LiveTopics.StaffImports, LiveTopics.StaffVods, LiveTopics.StaffReschedules];
+        LiveTopics.StaffImports, LiveTopics.StaffVods, LiveTopics.StaffReschedules, LiveTopics.StaffStatFlags];
 
     /// <summary>Whether a user with <paramref name="roles"/> (none: signed out) may watch <paramref name="topic"/>.</summary>
     public virtual async Task<bool> MayWatch(string topic, IReadOnlyCollection<string> roles, CancellationToken ct = default)

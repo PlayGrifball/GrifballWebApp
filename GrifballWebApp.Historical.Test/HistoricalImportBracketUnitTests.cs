@@ -294,6 +294,21 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     }
 
     [Test]
+    public async Task ReImporting_ABracketSheetSlotsGame_NeverFlagsTheSlot_EvenWhenItsScoreDoesNotAddUp()
+    {
+        // #548, third review: LinkSeries never checks a bracket-sheet slot's games against its result (the sheet's
+        // result is authoritative, not its games' tally) - a re-import mustn't start checking it either, just because
+        // the game is now already linked to the slot. The sheet says Alpha won 2-0; only one game is ever recorded.
+        var oneSeries = new List<ArchiveBracketSeries> { Series(Bracket.Winner, 1, 1, "Alpha", "Delta", SeasonMatchSide.Home, 1, 4, homeWins: 2, awayWins: 0) };
+
+        await _service.Import(Input(Cup(oneSeries), [Game("cup#1", "Alpha", "Delta")]));
+        Context.ChangeTracker.Clear();
+        await _service.Import(Input(Cup(oneSeries), [Game("cup#1", "Alpha", "Delta")]));
+
+        Assert.That(await Context.StatFlags.AnyAsync(), Is.False);
+    }
+
+    [Test]
     public async Task Import_AStandingsRankTheSheetGaveAnother_IsNotASecondSeed()
     {
         var season = Cup([Series(Bracket.Winner, 1, 1, "Alpha", "Beta", homeSeed: 3), Series(Bracket.Winner, 1, 2, "Gamma", "Delta", homeSeed: 1, awaySeed: 2)]);

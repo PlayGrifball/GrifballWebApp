@@ -53,7 +53,10 @@ public partial class SeasonMatchService
 
     /// <summary>
     /// Takes a game out of the series: a Waypoint game goes back to the possible matches, to be reported again; a game
-    /// entered by hand has nothing to go back to, so it is deleted.
+    /// entered by hand has nothing to go back to, so it is deleted (its flags cascade with it). A kept (non-manual,
+    /// imported) game's own series flag, if any, is StatFlagService.CheckSeriesGamesAsync's to clear once the caller
+    /// commits (third review: used to need its RecordedGameID captured here, for a separate ClearSeriesFlagAsync call -
+    /// the flag is of the series itself now, StatFlag.SeasonMatchID, not this game).
     /// </summary>
     private void Unreport(SeasonMatch seasonMatch, SeriesGame game)
     {
@@ -81,7 +84,9 @@ public partial class SeasonMatchService
             RefuseNewGame(seasonMatch);
 
         var users = await ValidateManualGame(dto, seasonMatch, null, ct);
-        var number = dto.ReplacesSeriesGameID is int replaces ? await ReplaceAsync(seasonMatch, replaces, ct) : 0;
+        var number = 0;
+        if (dto.ReplacesSeriesGameID is int replaces)
+            number = await ReplaceAsync(seasonMatch, replaces, ct);
 
         // No season of its own: the game counts for its season through its series game only (RecordedGame.EnterByHand)
         var game = RecordedGame.EnterByHand(ManualFacts(seasonMatch, dto));
@@ -96,6 +101,12 @@ public partial class SeasonMatchService
         });
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
+        // #548: anomaly checks on the game just entered and the series it's now part of (the latter also clears a
+        // flag replacing a kept, imported game left: it's of the series itself, StatFlag.SeasonMatchID, so this alone
+        // reaches it whatever game it was on). After the commit: a failing check must never roll back the game this
+        // saved.
+        await _statFlags.CheckRecordedGameAsync(game, seasonMatch, ct);
+        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
         return game.RecordedGameID;
     }
 
@@ -136,6 +147,10 @@ public partial class SeasonMatchService
         });
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
+        // #548: the edit may have changed what the hand-entered rules and the series-sum rule find. After the commit:
+        // a failing check must never roll back the edit.
+        await _statFlags.CheckRecordedGameAsync(game, seasonMatch, ct);
+        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
     }
 
     /// <summary>
@@ -162,6 +177,11 @@ public partial class SeasonMatchService
         });
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
+        // #548: the series' remaining games may no longer (or may now) add up to its result - clearing a flag a kept,
+        // imported game just removed from the series kept, too: it's of the series itself (StatFlag.SeasonMatchID),
+        // so this alone reaches it whichever game it was on (third review: a separate ClearSeriesFlagAsync call used
+        // to be needed too). After the commit: a failing check must never roll back the removal.
+        await _statFlags.CheckSeriesGamesAsync(seasonMatch.SeasonMatchID, ct);
     }
 
     /// <summary>

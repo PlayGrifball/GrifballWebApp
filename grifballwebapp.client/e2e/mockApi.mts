@@ -186,7 +186,7 @@ const commissionerDashboard: CommissionerDashboardDto = {
     canApprove: false, whyNotApprovable: 'This match already has a result.' }],
   overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'Gravity Wells', awayCaptain: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 65 }],
   seasonsNotPublicBySignups: [],
-  summary: { pendingRescheduleCount: 2, overdueMatchCount: 1, criticalOverdueCount: 1, seasonsNotPublicBySignupsCount: 0 },
+  summary: { pendingRescheduleCount: 2, overdueMatchCount: 1, criticalOverdueCount: 1, seasonsNotPublicBySignupsCount: 0, openStatFlagCount: 0 },
 };
 
 // The Winter Campaign's signups close on 10 November, or (the server that renders the pages goes by
@@ -748,9 +748,11 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/bracket/viewer-data`, answer('getViewerData', bracket)])),
     // A best of 3 at 1-1 (matchPage31); match 35, the same series once its games decided it, for its Match report and Undo
     '/api/season-matches/31': answer('getSeasonMatchPage', matchPage31(role)),
+    '/api/season-matches/31/stat-flags': answer('getSeasonMatchStatFlags', []),
     '/api/season-matches/35': answer('getSeasonMatchPage', { ...matchPage31(role), homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canRequestReschedule: false }),
     '/api/season-matches/35/possible-matches': answer('getPossibleMatches', []),
     '/api/season-matches/35/match-pull': answer('getMatchPullStatus', { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
+    '/api/season-matches/35/stat-flags': answer('getSeasonMatchStatFlags', []),
     '/api/season-matches/35/vods': answer('getSeasonMatchVods', []),
     '/api/season-matches/31/possible-matches': answer('getPossibleMatches', [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }]),
     '/api/season-matches/31/match-pull': answer('getMatchPullStatus', { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } }),
