@@ -16404,8 +16404,8 @@
             "items": {
               "$ref": "#/components/schemas/SeasonSourceLink"
             },
-            "nullable": true,
-            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it)."
+            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).",
+            "nullable": true
           },
           "isPublic": {
             "type": "boolean",
@@ -16514,8 +16514,8 @@
             "items": {
               "$ref": "#/components/schemas/SeasonSourceLink"
             },
-            "nullable": true,
-            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it)."
+            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).",
+            "nullable": true
           },
           "isPublic": {
             "type": "boolean",
@@ -17216,8 +17216,8 @@
             "items": {
               "$ref": "#/components/schemas/SeasonSourceLink"
             },
-            "nullable": true,
-            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it)."
+            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).",
+            "nullable": true
           },
           "isPublic": {
             "type": "boolean",
