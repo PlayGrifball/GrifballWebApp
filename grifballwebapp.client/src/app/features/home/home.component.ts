@@ -6,8 +6,9 @@ import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
 import { MatHeaderRow, MatRow, MatTable, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
 import { combineLatest, of, switchMap, tap } from 'rxjs';
-import { eventTitles, isUnderWay, SeasonEvent } from '@shared/seasonEvents';
+import { eventTitles, isUnderWay, SeasonEvent, seasonPhaseSteps } from '@shared/seasonEvents';
 import { pageNow } from '@shared/pageNow';
+import { SeasonPhaseBarComponent } from '@shared/seasonPhaseBar/seasonPhaseBar.component';
 import { LateLeagueQueueComponent } from '../lateLeague';
 import { rowEnterAnimation } from '@shared/rowEnterAnimation';
 import { HomeStore } from './home.store';
@@ -18,6 +19,7 @@ import { HomeStore } from './home.store';
     styleUrl: 'home.component.scss',
     imports: [
         DatePipe,
+        SeasonPhaseBarComponent,
         RouterModule,
         MatPaginator,
         MatSortModule,
@@ -53,6 +55,7 @@ export class HomeComponent implements OnInit {
       event,
       kicker: heroKicker(event, this.now()),
       lede: heroLede(event, this.currentAndFutureEvents(), iso => this.datePipe.transform(iso, 'MMM d, h:mm a') ?? ''),
+      phases: seasonPhaseSteps(this.currentAndFutureEvents(), event.seasonID, this.now()),
     };
   });
   readonly total = this.store.total;

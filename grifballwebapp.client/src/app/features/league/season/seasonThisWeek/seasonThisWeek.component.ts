@@ -62,12 +62,13 @@ function weekStatus(match: ScheduledMatchDto, now: DateTime): WeekMatchStatus {
       padding: 16px 18px;
       background: var(--hud-panel-soft);
       border: 1px solid var(--hud-border);
+      border-left: 3px solid var(--hud-accent);
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
-    .week-card:hover { border-color: var(--hud-accent); }
-    .week-card--final { background: var(--hud-well); border-color: var(--hud-hairline); }
+    .week-card:hover { border-color: var(--hud-accent); background: var(--hud-panel); }
+    .week-card--final { background: var(--hud-well); border-color: var(--hud-hairline); border-left-color: var(--hud-border); }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [SeasonThisWeekStore],

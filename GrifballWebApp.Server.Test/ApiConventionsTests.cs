@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -228,6 +230,65 @@ public class ApiConventionsTests
             controller.ForbiddenProblem("c").AssertProblem(StatusCodes.Status403Forbidden, "c");
             controller.NotFoundProblem("d").AssertProblem(StatusCodes.Status404NotFound, "d");
             controller.ConflictProblem("e").AssertProblem(StatusCodes.Status409Conflict, "e");
+        }
+    }
+
+    [Test]
+    public void Refusal_LogsItsStatusAndReason()
+    {
+        var lines = LogRefusal(LogLevel.Information, StatusCodes.Status400BadRequest);
+
+        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400) by Probe.Action: Already a user"));
+    }
+
+    [Test]
+    public void Refusal_LogsAServerErrorAsAWarning()
+    {
+        var lines = LogRefusal(LogLevel.Information, StatusCodes.Status502BadGateway);
+
+        Assert.That(lines.Single(), Is.EqualTo("Warning: Request refused (502) by Probe.Action: Already a user"));
+    }
+
+    [Test]
+    public void Refusal_StillLogs_ForAControllerWithoutAnAction()
+    {
+        var lines = LogRefusal(LogLevel.Information, StatusCodes.Status400BadRequest, action: null);
+
+        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400) by (null): Already a user"));
+    }
+
+    [Test]
+    public void Refusal_LogsNothing_WhenItsLevelIsOff()
+    {
+        Assert.That(LogRefusal(LogLevel.Warning, StatusCodes.Status400BadRequest), Is.Empty);
+    }
+
+    private static List<string> LogRefusal(LogLevel minimum, int status, string? action = "Probe.Action")
+    {
+        var lines = new List<string>();
+        using var services = new ServiceCollection()
+            .AddLogging(b => b.SetMinimumLevel(minimum).AddProvider(new CapturingLoggerProvider(lines)))
+            .BuildServiceProvider();
+        var controller = new ProbeController().WithAnonymousUser();
+        controller.HttpContext.RequestServices = services;
+        if (action is not null)
+            controller.ControllerContext.ActionDescriptor = new Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor { DisplayName = action };
+
+        controller.Refusal(status, "Already a user");
+        return lines;
+    }
+
+    private sealed class CapturingLoggerProvider(List<string> lines) : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) => new Capture(lines);
+        public void Dispose() { }
+
+        private sealed class Capture(List<string> lines) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+            public bool IsEnabled(LogLevel logLevel) => true;
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+                => lines.Add($"{logLevel}: {formatter(state, exception)}");
         }
     }
 

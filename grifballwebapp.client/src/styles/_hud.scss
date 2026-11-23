@@ -29,7 +29,7 @@ h1, h2, h3, h4 {
 }
 
 ::selection {
-  background: rgba(124, 203, 255, 0.35);
+  background: var(--hud-selection);
   color: var(--hud-heading);
 }
 
@@ -64,7 +64,7 @@ h1, h2, h3, h4 {
 }
 
 .hud-page--narrow {
-  max-width: 1040px;
+  max-width: 1120px;
 }
 
 .hud-page-head {
@@ -130,7 +130,7 @@ a.hud-kicker {
   margin: 0;
   font-size: 19px;
   color: var(--hud-muted-2);
-  max-width: 540px;
+  max-width: 68ch;
 }
 
 .hud-muted { color: var(--hud-muted); }
@@ -343,7 +343,7 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
   letter-spacing: 0.18em;
   clip-path: var(--hud-slant);
 
-  &:hover { background: #A6DCFF; color: var(--hud-on-accent); }
+  &:hover { background: var(--hud-accent-hover); color: var(--hud-on-accent); }
   &:focus-visible { outline: 2px solid var(--hud-on-accent); outline-offset: -6px; }
 }
 
@@ -506,7 +506,7 @@ body {
     container-text-font: var(--hud-font-mono),
     container-text-size: 13px,
     enabled-icon-color: var(--hud-text),
-    disabled-icon-color: #4F7391,
+    disabled-icon-color: var(--hud-disabled-icon),
   ));
 
   @include mat.form-field-overrides((
@@ -525,7 +525,7 @@ body {
   ));
 
   @include mat.select-overrides((
-    panel-background-color: #0E2438,
+    panel-background-color: var(--hud-surface-container),
     enabled-trigger-text-color: var(--hud-heading),
   ));
 
@@ -542,13 +542,13 @@ body {
   ));
 
   @include mat.sidenav-overrides((
-    container-background-color: #08131F,
+    container-background-color: var(--hud-surface),
     container-text-color: var(--hud-text),
     container-shape: 0,
     container-divider-color: var(--hud-border),
     content-background-color: transparent,
     content-text-color: var(--hud-text),
-    scrim-color: rgba(2, 6, 11, 0.7),
+    scrim-color: var(--hud-scrim),
   ));
 
   @include mat.list-overrides((
@@ -565,7 +565,7 @@ body {
   ));
 
   @include mat.menu-overrides((
-    container-color: #0E2438,
+    container-color: var(--hud-surface-container),
     container-shape: 0,
     item-label-text-color: var(--hud-text),
     item-label-text-font: var(--hud-font),
@@ -591,7 +591,7 @@ body {
   ));
 
   @include mat.dialog-overrides((
-    container-color: #0B1B2A,
+    container-color: var(--hud-input),
     container-shape: 0,
     subhead-color: var(--hud-heading),
     subhead-font: var(--hud-font),
@@ -601,7 +601,7 @@ body {
   ));
 
   @include mat.snack-bar-overrides((
-    container-color: #12304A,
+    container-color: var(--hud-surface-high),
     supporting-text-color: var(--hud-text),
     supporting-text-font: var(--hud-font),
     button-color: var(--hud-accent),
@@ -626,7 +626,7 @@ body {
 .mat-mdc-header-row,
 .mat-mdc-row { background: transparent; }
 
-.mat-mdc-row:hover { background: rgba(124, 203, 255, 0.04); }
+.mat-mdc-row:hover { background: var(--hud-row-hover); }
 
 .mdc-text-field--outlined:not(.mdc-text-field--disabled) { background: var(--hud-input); }
 
@@ -786,4 +786,80 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
   .row-enter {
     animation: none;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Archive Vault: editorial callouts, pills and current-season phase stepper
+// ---------------------------------------------------------------------------
+
+.hud-callout {
+  border-left: 3px solid var(--hud-gold);
+}
+
+.hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-well);
+  font: 400 12px var(--hud-font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--hud-muted-2);
+}
+
+.hud-pill--live {
+  border-color: var(--hud-accent);
+  background: var(--hud-accent-tint);
+  color: var(--hud-accent);
+}
+
+.hud-pill--gold {
+  border-color: var(--hud-gold);
+  background: var(--hud-gold-tint);
+  color: var(--hud-gold);
+}
+
+.hud-phase-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud-phase-step {
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--hud-hairline);
+  border-top: 2px solid var(--hud-border);
+  background: var(--hud-well);
+}
+
+.hud-phase-step--active {
+  border-color: var(--hud-accent);
+  border-top-color: var(--hud-accent);
+  background: var(--hud-accent-tint);
+}
+
+.hud-phase-step--done {
+  border-top-color: var(--hud-gold);
+}
+
+.hud-phase-step__name {
+  font-family: var(--hud-font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hud-heading);
+}
+
+.hud-phase-step__meta {
+  font-size: 13px;
+  color: var(--hud-muted);
 }

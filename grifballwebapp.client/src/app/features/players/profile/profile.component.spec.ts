@@ -52,7 +52,7 @@ describe('ProfileComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AccountService, useValue: { personID } },
+        { provide: AccountService, useValue: { personID, isSysAdmin: signal(false) } },
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
@@ -509,7 +509,7 @@ describe('ProfileComponent linked accounts', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AccountService, useValue: { personID } },
+        { provide: AccountService, useValue: { personID, isSysAdmin: signal(false) } },
       ]
     })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
@@ -635,16 +635,18 @@ describe('ProfileComponent: region and identity', () => {
   let fixture: ComponentFixture<ProfileComponent>;
   let http: HttpTestingController;
   let personID: WritableSignal<number | null>;
+  let isSysAdmin: WritableSignal<boolean>;
 
   beforeEach(async () => {
     personID = signal<number | null>(null);
+    isSysAdmin = signal(false);
     await TestBed.configureTestingModule({
       imports: [ProfileComponent],
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AccountService, useValue: { personID } },
+        { provide: AccountService, useValue: { personID, isSysAdmin } },
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
@@ -661,13 +663,17 @@ describe('ProfileComponent: region and identity', () => {
 
   afterEach(() => http.verify());
 
-  function render(regionName: string | null): HTMLElement {
+  function render(regionName: string | null, found = true): HTMLElement {
     fixture.detectChanges();
     http.expectOne('/api/users/21/gamertag').flush({ gamertag: 'Sgt Grif' });
-    http.expectOne('/api/users/21/stats').flush({
-      userID: 21, gamertag: 'Sgt Grif', displayName: null, isDummyUser: false, regionID: regionName ? 2 : null, regionName,
-      pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
-    });
+    const stats = http.expectOne('/api/users/21/stats');
+    if (found)
+      stats.flush({
+        userID: 21, gamertag: 'Sgt Grif', displayName: null, isDummyUser: false, regionID: regionName ? 2 : null, regionName,
+        pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
+      });
+    else
+      stats.flush('Not found', { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
@@ -693,6 +699,29 @@ describe('ProfileComponent: region and identity', () => {
   it("hides them on someone else's profile", () => {
     personID.set(4);
     expect(render(null).querySelector('app-profile-identity')).toBeNull();
+  });
+
+  it('links a sysadmin to editing the user', () => {
+    isSysAdmin.set(true);
+    personID.set(4);
+    const link = render(null).querySelector<HTMLAnchorElement>('a.profile-edit')!;
+    expect(link.textContent!.trim()).toBe('Edit user');
+    expect(link.getAttribute('href')).toBe('/usermanagement/edituser/21');
+  });
+
+  it('shows no edit link to anyone else, on their own profile', () => {
+    personID.set(21);
+    expect(render(null).querySelector('a.profile-edit')).toBeNull();
+  });
+
+  it("or on someone else's", () => {
+    personID.set(4);
+    expect(render(null).querySelector('a.profile-edit')).toBeNull();
+  });
+
+  it('shows a sysadmin no edit link for a user that does not exist', () => {
+    isSysAdmin.set(true);
+    expect(render(null, false).querySelector('a.profile-edit')).toBeNull();
   });
 });
 

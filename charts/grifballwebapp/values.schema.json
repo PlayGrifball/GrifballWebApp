@@ -789,7 +789,8 @@
                 "schedule": { "type": "string", "minLength": 9 },
                 "suspend": { "type": "boolean" },
                 "keepLast": { "type": "integer", "minimum": 1 },
-                "keepDays": { "type": "integer", "minimum": 0 }
+                "keepDays": { "type": "integer", "minimum": 0 },
+                "onePerDay": { "type": "boolean" }
               }
             },
             "scheduled": {

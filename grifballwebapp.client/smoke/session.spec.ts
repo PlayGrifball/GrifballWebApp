@@ -158,7 +158,7 @@ test.describe('session', () => {
     expect(after.displayName).toBe(displayName);
   });
 
-  test('the theme dialog applies a colour, "Reset to Spartan HUD" puts the default back, and Close closes it', async ({ page, consoleErrors: _watching }) => {
+  test('the theme dialog applies a colour, "Reset to Archive Vault" puts the default back, and Close closes it', async ({ page, consoleErrors: _watching }) => {
     const variable = (name: string) => page.evaluate(n => getComputedStyle(document.documentElement).getPropertyValue(n).trim().toLowerCase(), name);
     // On a phone, where the dialog takes the whole screen
     await page.setViewportSize({ width: 360, height: 640 });
@@ -176,7 +176,7 @@ test.describe('session', () => {
     await expect.poll(() => variable('--primary')).toBe('#ff3366');
     await expect.poll(() => variable('--primary-40')).not.toBe(defaults.shade);
 
-    await page.getByRole('button', { name: 'Reset to Spartan HUD' }).click();
+    await page.getByRole('button', { name: 'Reset to Archive Vault' }).click();
     await expect.poll(() => variable('--primary')).toBe(defaults.seed);
     await expect.poll(() => variable('--primary-40')).toBe(defaults.shade);
 

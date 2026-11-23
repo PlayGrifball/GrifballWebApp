@@ -248,12 +248,20 @@ describe('Home page events', () => {
       fixture.detectChanges();
     };
 
+    it('has no hero panel without events', () => {
+      load([]);
+      expect(fixture.componentInstance.hero()).toBeNull();
+      expect(el().querySelector('app-season-phase-bar')).toBeNull();
+    });
+
     it('puts the featured season in the hero with its calls to action, and every event in a card', () => {
       load([season, signup, draft]);
       expect(el().querySelector('h1')!.textContent).toBe('Spring');
       expect(el().querySelector('.hud-kicker')!.textContent).toContain('Signups online');
       const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => [a.textContent!.trim(), a.getAttribute('href')]);
       expect(actions).toEqual([['Sign up', '/season/4/signupForm'], ['View roster', '/season/4/signups']]);
+      const phases = Array.from(el().querySelectorAll('.home-hero__phases .hud-phase-step'));
+      expect(phases.map(p => p.classList.contains('hud-phase-step--active'))).toEqual([true, false]);
       const cards = Array.from(el().querySelectorAll('a.hud-card'));
       expect(cards.map(c => c.getAttribute('href'))).toEqual(['/season/3', '/season/4/signups', '/season/4/draft']);
       expect(cards.map(c => c.classList.contains('hud-card--active'))).toEqual([true, true, false]);

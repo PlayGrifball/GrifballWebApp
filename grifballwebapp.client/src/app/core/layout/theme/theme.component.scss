@@ -1,6 +1,6 @@
 :host {
   display: block;
-  background: #0B1B2A;
+  background: var(--hud-input);
   border: 1px solid var(--hud-border);
 }
 
@@ -15,7 +15,7 @@
   justify-content: space-between;
   gap: 8px 12px;
   padding: 12px 12px 12px 20px;
-  background: #0B1B2A;
+  background: var(--hud-input);
   border-bottom: 1px solid var(--hud-hairline);
 }
 
@@ -36,6 +36,13 @@
   padding: 16px 20px;
 }
 
+.theme-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 .theme-font { width: 100%; max-width: 320px; }
 
 .theme-foot {
@@ -44,7 +51,7 @@
   display: flex;
   justify-content: flex-end;
   padding: 12px 20px;
-  background: #0B1B2A;
+  background: var(--hud-input);
   border-top: 1px solid var(--hud-hairline);
 }
 

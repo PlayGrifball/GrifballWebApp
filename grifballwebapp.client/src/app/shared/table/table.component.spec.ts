@@ -262,6 +262,24 @@ describe('TableComponent API responses', () => {
     expect(component.current().results.map(r => r.name)).toEqual(['ALPHA', 'BETA']);
   });
 
+  it('pins a stickyEnd column to the right edge, while the others scroll', async () => {
+    fixture.componentRef.setInput('columns', [columns[0], { ...columns[1], stickyEnd: true }]);
+    pending().flush({ totalCount: 1, results: [{ id: 1, name: 'alpha' }] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const [idHeader, nameHeader] = Array.from(el.querySelectorAll('th'));
+    const [idCell, nameCell] = Array.from(el.querySelectorAll('tr[mat-row] td'));
+    expect(nameHeader.classList).toContain('mat-mdc-table-sticky');
+    expect(nameCell.classList).toContain('mat-mdc-table-sticky');
+    expect(idHeader.classList).not.toContain('mat-mdc-table-sticky');
+    expect(idCell.classList).not.toContain('mat-mdc-table-sticky');
+    // Solid, so the columns scrolling under it do not show through
+    expect(getComputedStyle(nameCell).backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(getComputedStyle(nameHeader).backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+  });
+
   it('loads the page shown again, in place, each time the page bumps reloads', async () => {
     pending().flush({ totalCount: 1, results: [{ id: 1, name: 'alpha' }] });
     await fixture.whenStable();

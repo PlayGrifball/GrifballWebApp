@@ -19,6 +19,7 @@ import { ProfileCommendationsComponent } from './profileCommendations/profileCom
 import type { GameCareerSummaryDto, MatchmakingPlayerStatDto, PlayerSeasonStatDetailDto, ProfileStatsDto } from '@api/models';
 import { ProfileStore } from './profile.store';
 import { describePage, PageDescription, plural } from '@shared/pageMeta';
+import { activeYearSpan } from '@shared/eras';
 
 /** The player as search results and link previews show them: their gamertag, seasons and championships. */
 export function describeProfile(profile: ProfileStatsDto): PageDescription | null {
@@ -118,6 +119,8 @@ export class ProfileComponent {
 
   /** Some of the Late League lines shown have games decided by vote: the table says what those count for. */
   readonly lateLeagueByVote = computed(() => this.filteredLateLeague().some(l => l.gamesDecidedByVote > 0));
+  /** Year span across all recorded seasons on this profile. */
+  readonly activeSpan = computed(() => activeYearSpan(this.profileStats()?.seasons.map(s => s.season.year) ?? []));
 
   constructor() {
     describePage(() => {

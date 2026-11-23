@@ -231,7 +231,7 @@ function layoutProblems(page: Page, parts: string[], phone: boolean, touchTarget
 
     // The navigation: links that do not fit in the bar are behind a menu button that can be pressed
     const inBar = [...document.querySelectorAll('.toolbar-links a.nav-link:not(#hidden)')].filter(visible).length;
-    const all = document.querySelectorAll('mat-sidenav a').length;
+    const all = document.querySelectorAll('mat-sidenav a:not([href="/chat"])').length;
     const menu = document.querySelector('.hud-header__menu');
     if (inBar < all) {
       if (!menu || !visible(menu)) {
