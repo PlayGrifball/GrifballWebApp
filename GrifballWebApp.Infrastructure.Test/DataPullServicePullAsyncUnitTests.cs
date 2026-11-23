@@ -185,7 +185,7 @@ public class DataPullServicePullAsyncUnitTests : SqliteContextFixture
         {
             Assert.That(reasons, Has.Count.EqualTo(2), "One flag per match");
             Assert.That(reasons, Has.All.Contain("RealGamertag9:"));
-            Assert.That(reasons, Has.None.Contain("9:"), "Never shown by its bare XUID");
+            Assert.That(reasons, Has.None.StartWith("9:"), "Never shown by its bare XUID");
         }
     }
 
