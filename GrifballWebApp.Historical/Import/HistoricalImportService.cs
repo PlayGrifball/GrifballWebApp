@@ -997,6 +997,26 @@ public partial class HistoricalImportService : IHistoricalImportService
         var matchesGone = await _context.SeasonMatches
             .Where(m => (m.HomeTeamID != null && ids.Contains(m.HomeTeamID.Value)) || (m.AwayTeamID != null && ids.Contains(m.AwayTeamID.Value)))
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct);
+        // A bracket slot fed by a removed one (its side is that slot's winner) goes too, and the slots it feeds: they
+        // point at each other, and the bracket is drawn again right after
+        var bracketSlots = await _context.SeasonMatches.Where(m => m.SeasonID == season.SeasonID && m.BracketMatch != null)
+            .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct);
+        var gone = matchesGone.Where(m => m.BracketMatch != null).Select(m => m.BracketMatch!.MatchBracketInfoID).ToHashSet();
+        bool grew;
+        do
+        {
+            grew = false;
+            foreach (var slot in bracketSlots.Where(s => !gone.Contains(s.BracketMatch!.MatchBracketInfoID)))
+            {
+                var info = slot.BracketMatch!;
+                if ((info.HomeTeamPreviousMatchBracketInfoID is { } h && gone.Contains(h)) || (info.AwayTeamPreviousMatchBracketInfoID is { } a && gone.Contains(a)))
+                {
+                    gone.Add(info.MatchBracketInfoID);
+                    matchesGone.Add(slot);
+                    grew = true;
+                }
+            }
+        } while (grew);
         // Each match and team gone says so: its page, and its players' profiles, hear of it
         foreach (var match in matchesGone)
             match.Cancel();

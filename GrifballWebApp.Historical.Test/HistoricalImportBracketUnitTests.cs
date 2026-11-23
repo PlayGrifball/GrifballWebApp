@@ -119,6 +119,34 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     }
 
     [Test]
+    public async Task Import_ATeamLeavesTheBracket_RemovesTheLaterSlotsFedByItsMatches_AndDrawsTheBracketAgain()
+    {
+        await _service.Import(Input(Cup(FourTeams())));
+        Context.ChangeTracker.Clear();
+        var season = Entry("MCC Cup 2016", "halo3", "AGLA", false,
+            Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta"), Player("Gamma One", team: "Gamma"), Player("Echo One", team: "Echo"));
+        season.Bracket = new ArchiveBracket
+        {
+            Series =
+            [
+                Series(Bracket.Winner, 1, 1, "Alpha", "Echo", SeasonMatchSide.Home, 1, 4, 2, 0),
+                Series(Bracket.Winner, 1, 2, "Beta", "Gamma", SeasonMatchSide.Away, 2, 3, 1, 2),
+                Series(Bracket.Winner, 2, 3, "Alpha", "Gamma", SeasonMatchSide.Home),
+            ],
+        };
+
+        var report = await _service.Import(Input(season));
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.TeamsRemoved, Is.EqualTo(1));
+            Assert.That(bracket.Select(m => (m.HomeTeam!.TeamName, m.AwayTeam!.TeamName)), Is.EqualTo(new[] { ("Alpha", "Echo"), ("Beta", "Gamma"), ("Alpha", "Gamma") }));
+        }
+    }
+
+    [Test]
     public async Task Import_AChangedSheet_DrawsTheBracketAgain()
     {
         await _service.Import(Input(Cup(FourTeams())));
