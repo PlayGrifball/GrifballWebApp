@@ -254,7 +254,7 @@ public class ApiConventionsTests
     {
         var lines = LogRefusal(LogLevel.Information, StatusCodes.Status400BadRequest, action: null);
 
-        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400) by : Already a user"));
+        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400) by (null): Already a user"));
     }
 
     [Test]
