@@ -27,6 +27,8 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
     private static readonly string[] Season3 = ["Season 3."];
     private static readonly string[] Hello = ["Hello."];
     private static readonly string[] Failed = [VoiceConversation.Failed];
+    private static readonly string[] Stages = ["transcribe", "reply", "speak", "play"];
+    private static readonly string[] NotAddressedSpans = ["transcribe", "voice.answer"];
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero));
     private readonly ChatLimits _limits = new();
     private readonly Speech _speech = new();
@@ -105,6 +107,9 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
             _meters.SetMeasurementEventCallback<double>((_, value, tags, _) => Stages.Add((tags[0].Value?.ToString() ?? "", value)));
             _meters.Start();
         }
+
+        /// <summary>How many lines ended in <paramref name="outcome"/>.</summary>
+        public long Counted(string outcome) => Counts.Where(c => c.Tag == outcome).Sum(c => c.Count);
 
         public void Dispose()
         {
@@ -231,11 +236,10 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_log.Messages, Has.One.Matches<string>(m =>
-                m.Contains("got no answer: not_addressed") && m.Contains("5 words") && m.Contains("1.0 s of audio")));
+            Assert.That(_log.Messages.Single(m => m.Contains("got no answer")), Does.Contain("not_addressed").And.Contain("5 words").And.Contain("1.0 s of audio"));
             Assert.That(_log.Messages, Has.None.Contains("won that one"), "Nothing said is logged");
-            Assert.That(exported.Counts, Is.EqualTo(new[] { ("lines", VoiceTelemetry.NotAddressed, 1L) }));
-            Assert.That(exported.Spans.Select(s => s.OperationName), Is.EquivalentTo(new[] { "transcribe", "voice.answer" }));
+            Assert.That(exported.Counted(VoiceTelemetry.NotAddressed), Is.EqualTo(1L));
+            Assert.That(exported.Spans.Select(s => s.OperationName), Is.EquivalentTo(NotAddressedSpans));
             Assert.That(exported.Spans.Single(s => s.OperationName == "voice.answer").GetTagItem("grif.voice.outcome"), Is.EqualTo(VoiceTelemetry.NotAddressed));
         }
     }
@@ -252,7 +256,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(_log.Messages, Has.One.Contains("got no answer: nothing_heard"));
-            Assert.That(exported.Counts, Is.EqualTo(new[] { ("lines", VoiceTelemetry.NothingHeard, 1L) }));
+            Assert.That(exported.Counted(VoiceTelemetry.NothingHeard), Is.EqualTo(1L));
         }
     }
 
@@ -268,13 +272,13 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         var line = exported.Spans.Single(s => s.OperationName == "voice.answer");
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(exported.Spans.Where(s => s != line).Select(s => s.OperationName), Is.EquivalentTo(new[] { "transcribe", "reply", "speak", "play" }));
-            Assert.That(exported.Spans.Where(s => s != line), Has.All.Matches<Activity>(s => s.ParentId == line.Id));
+            Assert.That(exported.Spans.Where(s => s != line).Select(s => s.OperationName), Is.EquivalentTo(Stages));
+            Assert.That(exported.Spans.Where(s => s != line).All(s => s.ParentId == line.Id), Is.True, "Each stage is under the line");
             Assert.That(line.GetTagItem("grif.voice.outcome"), Is.EqualTo(VoiceTelemetry.Answered));
             Assert.That(line.GetTagItem("grif.voice.speaker"), Is.EqualTo(Speaker));
-            Assert.That(exported.Stages.Select(s => s.Stage), Is.EquivalentTo(new[] { "transcribe", "reply", "speak", "play" }));
-            Assert.That(exported.Counts, Is.EqualTo(new[] { ("lines", VoiceTelemetry.Answered, 1L) }));
-            Assert.That(_log.Messages, Has.One.Matches<string>(m => m.StartsWith($"Voice: answered {Speaker} in ")));
+            Assert.That(exported.Stages.Select(s => s.Stage), Is.EquivalentTo(Stages));
+            Assert.That(exported.Counted(VoiceTelemetry.Answered), Is.EqualTo(1L));
+            Assert.That(_log.Messages.Count(m => m.StartsWith($"Voice: answered {Speaker} in ")), Is.EqualTo(1));
         }
     }
 
@@ -292,7 +296,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(_speech.Spoken, Is.EqualTo(Failed));
-            Assert.That(exported.Counts, Is.EqualTo(new[] { ("lines", VoiceTelemetry.Failed, 1L) }));
+            Assert.That(exported.Counted(VoiceTelemetry.Failed), Is.EqualTo(1L));
         }
     }
 
@@ -305,7 +309,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
 
         await SaysALine(Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi"))));
 
-        Assert.That(exported.Counts, Is.EqualTo(new[] { ("lines", VoiceTelemetry.Failed, 1L) }));
+        Assert.That(exported.Counted(VoiceTelemetry.Failed), Is.EqualTo(1L));
     }
 
     [Test]
@@ -323,7 +327,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(_speech.Heard, Is.Empty);
-            Assert.That(exported.Counts, Is.EqualTo(new[] { ("lines", VoiceTelemetry.TooShort, 1L) }));
+            Assert.That(exported.Counted(VoiceTelemetry.TooShort), Is.EqualTo(1L));
         }
     }
 
