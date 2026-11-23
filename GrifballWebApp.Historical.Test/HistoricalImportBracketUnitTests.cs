@@ -1,11 +1,15 @@
+using GrifballWebApp.Application.DomainEvents;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Infrastructure.Services;
 using GrifballWebApp.Historical.Import;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -31,6 +35,22 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     private static readonly int[] GamesInTheFirstSlot = [1, 0, 0];
 
     private HistoricalImportService _service = null!;
+
+    /// <summary>What the context's commits sent, as its handlers would get them.</summary>
+    private sealed class Sent : IDomainEventDispatcher
+    {
+        public List<IDomainEvent> Events { get; } = [];
+
+        public Task Dispatch(IReadOnlyList<IDomainEvent> domainEvents, CancellationToken cancellationToken = default)
+        {
+            Events.AddRange(domainEvents);
+            return Task.CompletedTask;
+        }
+    }
+
+    private readonly Sent _sent = new();
+
+    protected override IReadOnlyList<IInterceptor> Interceptors => [new DomainEventsInterceptor(_sent)];
 
     [SetUp]
     public void SetUp()
@@ -115,6 +135,70 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
         {
             Assert.That((report.SeasonMatchesCreated, report.SeasonMatchesRemoved), Is.EqualTo((0, 0)));
             Assert.That((await Slots()).Select(m => m.SeasonMatchID), Is.EqualTo(before));
+        }
+    }
+
+    [Test]
+    public async Task Import_ATeamLeavesTheBracket_RemovesTheLaterSlotsFedByItsMatches_AndDrawsTheBracketAgain()
+    {
+        await _service.Import(Input(Cup(FourTeams())));
+        var before = (await Slots()).Select(m => m.SeasonMatchID).ToList();
+        _sent.Events.Clear();
+        Context.ChangeTracker.Clear();
+        var season = Entry("MCC Cup 2016", "halo3", "AGLA", false,
+            Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta"), Player("Gamma One", team: "Gamma"), Player("Echo One", team: "Echo"));
+        season.Bracket = new ArchiveBracket
+        {
+            Series =
+            [
+                Series(Bracket.Winner, 1, 1, "Alpha", "Echo", SeasonMatchSide.Home, 1, 4, 2, 0),
+                Series(Bracket.Winner, 1, 2, "Beta", "Gamma", SeasonMatchSide.Away, 2, 3, 1, 2),
+                Series(Bracket.Winner, 2, 3, "Alpha", "Gamma", SeasonMatchSide.Home),
+            ],
+        };
+
+        var report = await _service.Import(Input(season));
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.TeamsRemoved, Is.EqualTo(1));
+            Assert.That(bracket.Select(m => (m.HomeTeam!.TeamName, m.AwayTeam!.TeamName)), Is.EqualTo(new[] { ("Alpha", "Echo"), ("Beta", "Gamma"), ("Alpha", "Gamma") }));
+            Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(3), "The semifinal of the team gone and the final it fed, then the slot left, drawn again: all three");
+            Assert.That(_sent.Events.OfType<SeasonMatchCanceled>().Select(e => e.Match.SeasonMatchID), Is.EqualTo(new[] { before[0] }), "Only the team's own match is canceled; the final is drawn again, not canceled");
+        }
+    }
+
+    [Test]
+    public async Task Import_ATeamOfTheSecondSemifinalLeaves_RemovesTheFinalItFeedsAsItsAwaySide()
+    {
+        await _service.Import(Input(Cup(FourTeams())));
+        var before = (await Slots()).Select(m => m.SeasonMatchID).ToList();
+        _sent.Events.Clear();
+        Context.ChangeTracker.Clear();
+        var season = Entry("MCC Cup 2016", "halo3", "AGLA", false,
+            Player("Alpha One", team: "Alpha"), Player("Gamma One", team: "Gamma"), Player("Delta One", team: "Delta"), Player("Echo One", team: "Echo"));
+        season.Bracket = new ArchiveBracket
+        {
+            Series =
+            [
+                Series(Bracket.Winner, 1, 1, "Alpha", "Delta", SeasonMatchSide.Home, 1, 4, 2, 0),
+                Series(Bracket.Winner, 1, 2, "Echo", "Gamma", SeasonMatchSide.Away, 2, 3, 1, 2),
+                Series(Bracket.Winner, 2, 3, "Alpha", "Gamma", SeasonMatchSide.Home),
+            ],
+        };
+
+        var report = await _service.Import(Input(season));
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.TeamsRemoved, Is.EqualTo(1));
+            Assert.That(bracket.Select(m => (m.HomeTeam!.TeamName, m.AwayTeam!.TeamName)), Is.EqualTo(new[] { ("Alpha", "Delta"), ("Echo", "Gamma"), ("Alpha", "Gamma") }));
+            Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(3));
+            Assert.That(_sent.Events.OfType<SeasonMatchCanceled>().Select(e => e.Match.SeasonMatchID), Is.EqualTo(new[] { before[1] }));
         }
     }
 
