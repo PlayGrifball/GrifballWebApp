@@ -277,6 +277,7 @@ describe('TableComponent API responses', () => {
     expect(idCell.classList).not.toContain('mat-mdc-table-sticky');
     // Solid, so the columns scrolling under it do not show through
     expect(getComputedStyle(nameCell).backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(getComputedStyle(nameHeader).backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
   });
 
   it('loads the page shown again, in place, each time the page bumps reloads', async () => {
