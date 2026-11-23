@@ -178,14 +178,14 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
         _sent.Events.Clear();
         Context.ChangeTracker.Clear();
         var season = Entry("MCC Cup 2016", "halo3", "AGLA", false,
-            Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta"), Player("Delta One", team: "Delta"), Player("Echo One", team: "Echo"));
+            Player("Alpha One", team: "Alpha"), Player("Gamma One", team: "Gamma"), Player("Delta One", team: "Delta"), Player("Echo One", team: "Echo"));
         season.Bracket = new ArchiveBracket
         {
             Series =
             [
                 Series(Bracket.Winner, 1, 1, "Alpha", "Delta", SeasonMatchSide.Home, 1, 4, 2, 0),
-                Series(Bracket.Winner, 1, 2, "Beta", "Echo", SeasonMatchSide.Away, 2, 3, 1, 2),
-                Series(Bracket.Winner, 2, 3, "Alpha", "Echo", SeasonMatchSide.Home),
+                Series(Bracket.Winner, 1, 2, "Echo", "Gamma", SeasonMatchSide.Away, 2, 3, 1, 2),
+                Series(Bracket.Winner, 2, 3, "Alpha", "Gamma", SeasonMatchSide.Home),
             ],
         };
 
@@ -196,7 +196,7 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.TeamsRemoved, Is.EqualTo(1));
-            Assert.That(bracket.Select(m => (m.HomeTeam!.TeamName, m.AwayTeam!.TeamName)), Is.EqualTo(new[] { ("Alpha", "Delta"), ("Beta", "Echo"), ("Alpha", "Echo") }));
+            Assert.That(bracket.Select(m => (m.HomeTeam!.TeamName, m.AwayTeam!.TeamName)), Is.EqualTo(new[] { ("Alpha", "Delta"), ("Echo", "Gamma"), ("Alpha", "Gamma") }));
             Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(3));
             Assert.That(_sent.Events.OfType<SeasonMatchCanceled>().Select(e => e.Match.SeasonMatchID), Is.EqualTo(new[] { before[1] }));
         }
