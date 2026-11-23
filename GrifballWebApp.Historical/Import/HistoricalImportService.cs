@@ -209,6 +209,8 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         public string SourceId { get; set; } = "";
         public string? SourceUrl { get; set; }
+        /// <summary>Every spreadsheet that fed the season (its entries, recorded games, titles), the primary first.</summary>
+        public List<SeasonSourceLink> Sources { get; } = [];
         public required string SeasonName { get; init; }
         /// <summary>The season's league; null for Late League, which is matchmaking, not a season (<see cref="IsMatchmaking"/>).</summary>
         public required League? League { get; init; }
@@ -316,6 +318,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var archiveSeasons = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         AssignGames(input, groups, report);
+        GatherSources(groups, input.Catalog);
         // Only the seasons asked for (the ones whose sources changed), with all of their parts
         NarrowTo(options, groups);
 
@@ -397,6 +400,25 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Warn(report, $"Season {group.SeasonName}: its entries are of more than one game ({string.Join(", ", group.EntryGames.Values.Select(g => g.Slug).Distinct())}); the season is {group.GameVersion.Slug}, each stat row its entry's");
             if (group.Entries.Select(e => e.Division?.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
                 Warn(report, $"Season {group.SeasonName}: its entries are of more than one division; the season is {group.Division ?? "undivided"}");
+        }
+    }
+
+    /// <summary>Each season's source spreadsheets: its primary workbook, then the other workbooks its entries, recorded games
+    /// and titles came from, each with the catalog's title.</summary>
+    private static void GatherSources(Dictionary<string, SeasonGroup> groups, ArchiveCatalog? catalog)
+    {
+        var byId = (catalog?.Sources ?? []).Where(s => !string.IsNullOrWhiteSpace(s.Url))
+            .GroupBy(s => s.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        foreach (var group in groups.Values)
+        {
+            var workbooks = new[] { group.SourceId[..Math.Max(group.SourceId.IndexOf('/'), 0)] }
+                .Concat(group.Entries.Select(e => e.SourceWorkbook))
+                .Concat((group.RecordedGames ?? []).Select(g => g.SourceKey.IndexOf('/') is var i and > 0 ? g.SourceKey[..i] : null))
+                .Concat(group.Championships.Select(c => c.SourceId));
+            foreach (var id in workbooks.Where(w => !string.IsNullOrWhiteSpace(w)).Select(w => w!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
+                if (byId.TryGetValue(id, out var source))
+                    group.Sources.Add(new SeasonSourceLink(source.Url!, string.IsNullOrWhiteSpace(source.Title) ? id : source.Title.Trim()));
         }
     }
 
@@ -971,6 +993,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var (start, end, dated) = await SeasonDates(group, ct);
         season.ScheduleArchived(start, end, dated, _timeProvider.GetUtcNow().UtcDateTime);
         season.UpdateArchived(group.SeasonName, league.LeagueID, group.GameVersion?.GameVesionID, group.Division, group.SourceUrl, group.Format);
+        season.SetArchiveSources(group.Sources);
         await _context.SaveChangesAsync(ct);
         return season;
     }

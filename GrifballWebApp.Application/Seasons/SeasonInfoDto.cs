@@ -35,6 +35,8 @@ public class SeasonInfoDto
     /// <summary>Imported from the historical archive: <see cref="HistoricalSourceUrl"/> is its source spreadsheet.</summary>
     public bool IsHistorical { get; set; }
     public string? HistoricalSourceUrl { get; set; }
+    /// <summary>Every spreadsheet that feeds the imported season, the primary first (empty for the app's own seasons).</summary>
+    public IReadOnlyList<SeasonSourceLink> HistoricalSourceLinks { get; set; } = [];
     /// <summary>Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't.</summary>
     public bool IsPublic { get; set; }
 
@@ -56,6 +58,7 @@ public class SeasonInfoDto
         Division = s.Division,
         Format = s.Format,
         HistoricalSourceUrl = s.HistoricalSourceUrl,
+        HistoricalSourceLinks = s.HistoricalSourceLinks,
     };
 
     /// <summary>The season as a <see cref="SeasonInfoDto"/> as of <paramref name="now"/>.</summary>

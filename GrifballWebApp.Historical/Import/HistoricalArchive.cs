@@ -227,6 +227,8 @@ public class CatalogSource
 {
     public required string Id { get; init; }
     public string? Url { get; init; }
+    /// <summary>The source's name in the catalog, what a season's link to it is labelled.</summary>
+    public string? Title { get; init; }
 }
 
 /// <summary>A Halo Infinite season's Waypoint matches: match IDs or Waypoint match URLs (the ID is the URL's last segment).</summary>

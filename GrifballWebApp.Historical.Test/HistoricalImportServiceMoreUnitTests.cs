@@ -355,6 +355,36 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     private static readonly string[] ChickensOnly = ["Chickens"];
 
     [Test]
+    public async Task Import_ASeasonFromTwoWorkbooks_KeepsALinkToEachWithItsCatalogTitle()
+    {
+        var stats = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"));
+        var playoffs = new ArchiveSeason { SeasonName = "Winter League 2019", GameVersion = "halo3", League = "AGLA", Division = "Open", IsPlayoffs = true, SourceWorkbook = "winter-league-2019-playoffs", SourceSheet = "Playoff Stats", Players = [Player("Silva", team: "Rooster")] };
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [stats, playoffs] },
+            Catalog = new ArchiveCatalog
+            {
+                Sources =
+                [
+                    new CatalogSource { Id = "winter-league-2019", Url = "https://sheets/stats", Title = "Winter League stats" },
+                    new CatalogSource { Id = "winter-league-2019-playoffs", Url = "https://sheets/playoffs", Title = "Winter League playoffs" },
+                    new CatalogSource { Id = "other", Url = "https://sheets/other", Title = "Other" },
+                ],
+            },
+        };
+
+        var report = await _service.Import(input);
+
+        Context.ChangeTracker.Clear();
+        var season = await Context.Seasons.AsNoTracking().SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(season.HistoricalSourceLinks, Is.EqualTo(new SeasonSourceLink[] { new("https://sheets/stats", "Winter League stats"), new("https://sheets/playoffs", "Winter League playoffs") }));
+        }
+    }
+
+    [Test]
     public async Task Import_ATeamNoLongerInTheArchive_LeavesAClaimOfItWithoutATeam()
     {
         await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"))));

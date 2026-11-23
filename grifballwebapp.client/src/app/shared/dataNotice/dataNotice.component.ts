@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 /**
  * Says why a section has nothing to show (signups, a schedule, matches or match stats a season does not have), in its
@@ -37,15 +37,24 @@ export class DataNoticeComponent {
   readonly sourceUrl = input<string | null | undefined>();
 }
 
-/** The page-level banner of a season backfilled from the historical archive, with its source spreadsheet. */
+/** A spreadsheet that feeds a season: its link and a name for it. */
+export interface SourceLink {
+  url: string;
+  label: string;
+}
+
+/**
+ * The page-level banner of a season backfilled from the historical archive, with its source spreadsheets: each one labelled
+ * when the season has several (stats, schedule, champions), else the one "Source spreadsheet".
+ */
 @Component({
   selector: 'app-backfilled-banner',
   template: `
     <p class="backfilled" role="note">
       <span class="backfilled__label">Backfilled from historical data</span>
-      @if (sourceUrl(); as url) {
+      @for (link of links(); track link.url) {
         <span aria-hidden="true">·</span>
-        <a class="backfilled__link" [href]="url" target="_blank" rel="noopener noreferrer">Source spreadsheet</a>
+        <a class="backfilled__link" [href]="link.url" target="_blank" rel="noopener noreferrer">{{link.label}}</a>
       }
     </p>
   `,
@@ -69,5 +78,17 @@ export class DataNoticeComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BackfilledBannerComponent {
+  /** The season's spreadsheets, the primary first. */
+  readonly sources = input<readonly SourceLink[] | null | undefined>();
+  /** The season's one source link, when its spreadsheets are not listed. */
   readonly sourceUrl = input<string | null | undefined>();
+
+  protected readonly links = computed<SourceLink[]>(() => {
+    const sources = this.sources() ?? [];
+    if (sources.length > 1) {
+      return [...sources];
+    }
+    const url = sources[0]?.url ?? this.sourceUrl();
+    return url ? [{ url, label: 'Source spreadsheet' }] : [];
+  });
 }

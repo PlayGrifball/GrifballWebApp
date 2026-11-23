@@ -67,6 +67,19 @@ public class SeasonAggregateTests
     }
 
     [Test]
+    public void SetArchiveSources_KeepsEachSheetOnce_AndRefusesAnAppSeason()
+    {
+        var imported = Imported();
+        imported.SetArchiveSources([new("https://sheets/a ", " Stats"), new("https://SHEETS/A", "again"), new(" ", "blank"), new("https://sheets/b", "Schedule")]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(imported.HistoricalSourceLinks, Is.EqualTo(new SeasonSourceLink[] { new("https://sheets/a", "Stats"), new("https://sheets/b", "Schedule") }));
+            Assert.That(() => Organized().SetArchiveSources([]), Throws.InvalidOperationException);
+        }
+    }
+
+    [Test]
     public void TheImportsUpdates_OnlyAnImportedSeason()
     {
         var season = Organized();

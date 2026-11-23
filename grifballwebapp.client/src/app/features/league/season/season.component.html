@@ -28,7 +28,7 @@
   </div>
 
   @if (summary()?.isHistorical) {
-    <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" />
+    <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" [sources]="summary()?.historicalSourceLinks" />
   }
 
   <app-season-tabs [seasonID]="shownSeasonID()" [active]="view()" />

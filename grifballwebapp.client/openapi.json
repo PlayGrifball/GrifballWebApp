@@ -16318,6 +16318,7 @@
           "gameVersionName",
           "gameVersionSlug",
           "hasEnded",
+          "historicalSourceLinks",
           "historicalSourceUrl",
           "isHistorical",
           "isPublic",
@@ -16393,6 +16394,13 @@
           "isHistorical": {
             "type": "boolean",
             "description": "Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet."
+          },
+          "historicalSourceLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonSourceLink"
+            },
+            "description": "The source spreadsheets of an imported season, each with its label."
           },
           "historicalSourceUrl": {
             "type": "string",
@@ -17078,6 +17086,23 @@
         },
         "additionalProperties": false,
         "description": "A season's scheduling rules (GrifballWebApp.Domain.League.SeasonSchedulingRules), as staff see and change them."
+      },
+      "SeasonSourceLink": {
+        "required": [
+          "label",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A source spreadsheet of an imported season."
       },
       "SeasonSummaryDto": {
         "required": [
