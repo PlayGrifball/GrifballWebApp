@@ -225,8 +225,8 @@ public class Season : AuditableEntity
 
     private static string Label(SeasonSourceLink link)
     {
-        var label = string.IsNullOrWhiteSpace(link.Label) ? link.Url : link.Label;
-        return label.Trim() is { Length: > MaxSourceLabel } cut ? cut[..MaxSourceLabel] : label.Trim();
+        var label = (string.IsNullOrWhiteSpace(link.Label) ? link.Url : link.Label).Trim();
+        return label[..Math.Min(label.Length, MaxSourceLabel)];
     }
 
     public void SetArchiveSources(IEnumerable<SeasonSourceLink> links)
