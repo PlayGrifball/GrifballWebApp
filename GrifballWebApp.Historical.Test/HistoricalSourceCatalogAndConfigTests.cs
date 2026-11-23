@@ -183,4 +183,13 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
     {
         Assert.That(Config("2022-h3-action-stats").Season!.Titles, Is.EqualTo("Summer League 2022"));
     }
+
+    /// <summary>The champions record names the 2026 seasons "Q1 Minor Season 2026" and "Q2 Major Season 2026"; without these
+    /// names each was a titles-only season beside the stats season.</summary>
+    [TestCase("2026-sl26-minor-stats-schedule", "Q1 Minor Season 2026")]
+    [TestCase("2026-sl26-major-stats", "Q2 Major Season 2026")]
+    public void SpringLeague2026_TakesTheRecordsQuarterSeasonTitle(string sourceId, string titles)
+    {
+        Assert.That(Config(sourceId).Season!.Titles, Is.EqualTo(titles));
+    }
 }
