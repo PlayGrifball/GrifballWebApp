@@ -1,10 +1,10 @@
 namespace GrifballWebApp.Domain.Archive;
 
 /// <summary>
-/// A plain rule a <see cref="StatFlag"/> is found by: fixed, conservative thresholds, each one in one place
-/// (StatFlagThresholds, in the Application's StatFlagService), not spread through the checks. Left for later: how
-/// a game compares to a player's own history, duplicate-game detection, and roster-membership checks (the issue's other
-/// candidate rules).
+/// A plain rule a <see cref="StatFlag"/> is found by: conservative thresholds, each one in one place - fixed ones in
+/// StatFlagThresholds, the team size and accuracy ones configurable (StatFlagOptions, fourth review), both in the
+/// Application's StatFlagService - not spread through the checks. Left for later: how a game compares to a player's
+/// own history, duplicate-game detection, and roster-membership checks (the issue's other candidate rules).
 /// </summary>
 public enum StatFlagRule
 {
@@ -14,7 +14,7 @@ public enum StatFlagRule
     WinnerDoesNotMatchScores = 2,
     // 3 was PlayerOnBothTeamsOrTwice: removed (#562 review) - RecordedGameParticipant's unique index on
     // (RecordedGameID, UserID) already makes it impossible, so the rule could never fire. Not reused.
-    /// <summary>Hand-entered: a team fielded fewer players than the season's format calls for.</summary>
+    /// <summary>Hand-entered: a team's size is outside the season's expected range (fewer or - fourth review - more).</summary>
     TeamSmallerThanFormat = 4,
     /// <summary>Hand-entered: the game's date is before the season started, or in the future.</summary>
     DateOutsideSeason = 5,

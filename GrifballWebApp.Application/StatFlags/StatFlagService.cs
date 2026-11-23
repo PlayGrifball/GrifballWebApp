@@ -1,10 +1,12 @@
 using GrifballWebApp.Application.Database;
+using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Application.StatFlags;
@@ -30,12 +32,14 @@ public class StatFlagService
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
     private readonly ILogger<StatFlagService> _logger;
+    private readonly StatFlagOptions _options;
 
-    public StatFlagService(IApplicationDbContext context, TimeProvider? time = null, ILogger<StatFlagService>? logger = null)
+    public StatFlagService(IApplicationDbContext context, TimeProvider? time = null, ILogger<StatFlagService>? logger = null, IOptions<StatFlagOptions>? options = null)
     {
         _context = context;
         _time = time ?? TimeProvider.System;
         _logger = logger ?? NullLogger<StatFlagService>.Instance;
+        _options = options?.Value ?? new StatFlagOptions();
     }
 
     /// <summary>What one rule found: <paramref name="PlayerUserID"/> is null when the rule is about the whole game (a
@@ -141,7 +145,7 @@ public class StatFlagService
         IReadOnlyDictionary<long, string>? gamertagByXuid, bool isNewMatch, CancellationToken ct)
     {
         (userIDByXuid, gamertagByXuid) = await ResolvedAsync([match], userIDByXuid, gamertagByXuid, ct);
-        var findings = MatchFindings(match, userIDByXuid, gamertagByXuid);
+        var findings = MatchFindings(match, userIDByXuid, gamertagByXuid, _options);
         await ReconcileAsync(match.MatchID, null, null, findings, _time.GetUtcNow().UtcDateTime, MatchRules, ct, skipExistingQuery: isNewMatch);
     }
 
@@ -170,7 +174,7 @@ public class StatFlagService
         var anyChange = false;
         foreach (var match in matches)
         {
-            var findings = MatchFindings(match, userIDByXuid, gamertagByXuid);
+            var findings = MatchFindings(match, userIDByXuid, gamertagByXuid, _options);
             var existing = existingByMatch.GetValueOrDefault(match.MatchID, []);
             anyChange |= ReconcileInMemory(match.MatchID, null, null, findings, existing, now);
         }
@@ -194,11 +198,11 @@ public class StatFlagService
         return (userIDByXuid, gamertagByXuid);
     }
 
-    private static List<Finding> MatchFindings(Match match, IReadOnlyDictionary<long, int> userIDByXuid, IReadOnlyDictionary<long, string> gamertagByXuid)
+    private static List<Finding> MatchFindings(Match match, IReadOnlyDictionary<long, int> userIDByXuid, IReadOnlyDictionary<long, string> gamertagByXuid, StatFlagOptions options)
     {
         var findings = new List<Finding>();
         findings.AddRange(NegativeStatFindings(match, userIDByXuid, gamertagByXuid));
-        findings.AddRange(AccuracyFindings(match, userIDByXuid, gamertagByXuid));
+        findings.AddRange(AccuracyFindings(match, userIDByXuid, gamertagByXuid, options));
         if (match.ScoreLayout is CustomScoreLayout.Undecoded)
             findings.Add(new Finding(StatFlagRule.UndecodedCustomScore, null,
                 "The match's custom game mode couldn't be decoded (#217): its players' scores are still Halo's packed numbers, not goals"));
@@ -231,7 +235,7 @@ public class StatFlagService
         var seasonMatches = await _context.SeasonMatches
             .Where(m => seasonMatchIDs.Contains(m.SeasonMatchID))
             .Include(m => m.SeriesGames).ThenInclude(g => g.RecordedGame!.Teams)
-            .Include(m => m.SeriesGames).ThenInclude(g => g.Match)
+            .Include(m => m.SeriesGames).ThenInclude(g => g.Match!.MatchTeams).ThenInclude(t => t.MatchParticipants)
             .AsSplitQuery()
             .ToListAsync(ct);
         if (seasonMatches.Count == 0)
@@ -249,7 +253,7 @@ public class StatFlagService
         var anyChange = false;
         foreach (var seasonMatch in seasonMatches)
         {
-            var findings = SeriesFindings(seasonMatch);
+            var findings = await SeriesFindingsAsync(seasonMatch, ct);
             var existing = existingByMatch.GetValueOrDefault(seasonMatch.SeasonMatchID, []);
             anyChange |= ReconcileInMemory(null, null, seasonMatch.SeasonMatchID, findings, existing, now);
         }
@@ -257,18 +261,20 @@ public class StatFlagService
             await _context.SaveChangesAsync(ct);
     }
 
-    /// <summary>Whether <paramref name="seasonMatch"/>'s games add up to its result, when that's even decidable from its
-    /// games (every one of them a recorded game, decided by games, not a Waypoint match - SeasonMatchService.WaypointWinners
-    /// is already run, and relied on, every time such a game is reported, so skipping it here misses nothing a live
-    /// report wouldn't already have caught). Empty otherwise - including a series with no games left (an earlier
-    /// finding, if any, no longer applies, and must still be cleared).</summary>
-    private static List<Finding> SeriesFindings(SeasonMatch seasonMatch)
+    /// <summary>Whether <paramref name="seasonMatch"/>'s games add up to its result, decided by games at all. A
+    /// Waypoint game's side is worked out the same way reporting one does (SeasonMatchService.WaypointWinners,
+    /// SeriesRosters/SeriesSides - fourth review: a series with one used to be skipped entirely). A game whose
+    /// players match neither roster any more (a trade or a merge since) can't be decided; flagged for that by name,
+    /// rather than silently skipped.</summary>
+    private async Task<List<Finding>> SeriesFindingsAsync(SeasonMatch seasonMatch, CancellationToken ct)
     {
-        var applies = seasonMatch.SeriesGames.Count > 0 && seasonMatch.DecidedBy is SeasonMatchDecision.Games
-            && seasonMatch.SeriesGames.All(g => g.Match is null);
-        if (!applies)
+        if (seasonMatch.SeriesGames.Count == 0 || seasonMatch.DecidedBy is not SeasonMatchDecision.Games)
             return [];
-        var (home, away) = SeriesWins(seasonMatch);
+        var rosters = await SeriesRosters.LoadAsync(_context, seasonMatch.HomeTeamID, seasonMatch.AwayTeamID, ct);
+        var (home, away, undecidable) = SeriesWins(seasonMatch, rosters);
+        if (undecidable.Count > 0)
+            return [new Finding(StatFlagRule.SeriesDoesNotMatchGames, null,
+                $"Game {string.Join(", ", undecidable)} (from Waypoint) no longer matches either roster (a trade or a merge since): the series can't be checked against its games")];
         if (home == (seasonMatch.HomeTeamScore ?? 0) && away == (seasonMatch.AwayTeamScore ?? 0))
             return [];
         return [new Finding(StatFlagRule.SeriesDoesNotMatchGames, null,
@@ -276,20 +282,39 @@ public class StatFlagService
     }
 
     /// <summary>
-    /// Each side's wins in the series, counted the same way the historical import counts them (HistoricalImportService.Wins,
-    /// third review): by a game's recorded side (1 or 2) against the series' home and away team, the other way round
-    /// when the teams played that particular game swapped - never by matching a side's <see cref="RecordedGameTeam.TeamID"/>
-    /// to the series' (<see cref="RecordedGame.WonBy"/>), which undercounts a side the import never resolved to a
-    /// season team (a null TeamID): such a side still won or lost by its position, not by a team ID that was never
-    /// there. Ambiguous (neither arrangement matches, a null TeamID on one or both sides) defaults to unswapped, the
-    /// same default the import falls back to.
+    /// Each side's wins in the series. A recorded game's side is counted the same way the historical import counts
+    /// them (HistoricalImportService.Wins, third review): by its recorded side (1 or 2) against the series' home and
+    /// away team, the other way round when the teams played that particular game swapped - never by matching a side's
+    /// <see cref="RecordedGameTeam.TeamID"/> to the series' (<see cref="RecordedGame.WonBy"/>), which undercounts a
+    /// side the import never resolved to a season team (a null TeamID): such a side still won or lost by its
+    /// position, not by a team ID that was never there. Ambiguous (neither arrangement matches, a null TeamID on one
+    /// or both sides) defaults to unswapped, the same default the import falls back to. A Waypoint game's side is
+    /// decided by <see cref="SeriesSides.Of{T}"/> against <paramref name="rosters"/> (fourth review), the same rule
+    /// reporting one scores it by; a game whose teams match neither roster is returned in <c>Undecidable</c> by its
+    /// number, counted toward neither side.
     /// </summary>
-    private static (int Home, int Away) SeriesWins(SeasonMatch seasonMatch)
+    private static (int Home, int Away, List<int> Undecidable) SeriesWins(SeasonMatch seasonMatch, SeriesRosters rosters)
     {
         var home = 0;
         var away = 0;
+        var undecidable = new List<int>();
         foreach (var g in seasonMatch.SeriesGames)
         {
+            if (g.Match is { } match)
+            {
+                var waypointSides = SeriesSides.Of(match.MatchTeams.ToList(), t => rosters.Lean(t.MatchParticipants.Select(p => p.XboxUserID)));
+                if (waypointSides is null)
+                {
+                    undecidable.Add(g.GameNumber);
+                    continue;
+                }
+                if (waypointSides.Value.Home.Outcome is Outcomes.Won)
+                    home++;
+                if (waypointSides.Value.Away.Outcome is Outcomes.Won)
+                    away++;
+                continue;
+            }
+
             var sides = g.RecordedGame?.Teams.OrderBy(t => t.Side).ToList();
             if (sides is not { Count: 2 })
                 continue;
@@ -302,7 +327,7 @@ public class StatFlagService
             if (awaySide.Outcome is Outcomes.Won)
                 away++;
         }
-        return (home, away);
+        return (home, away, undecidable);
     }
 
     #region Hand-entered rules (RecordedGame.IsManual only)
@@ -312,7 +337,7 @@ public class StatFlagService
         var findings = new List<Finding>();
         findings.AddRange(ScoreDoesNotMatchGoalsFindings(game));
         findings.AddRange(WinnerDoesNotMatchScoresFindings(game));
-        findings.AddRange(TeamSmallerThanFormatFindings(game));
+        findings.AddRange(TeamSizeFindings(game, _options));
         if (seasonMatch is not null)
             findings.AddRange(await DateOutsideSeasonFindingsAsync(game, seasonMatch, ct));
         return findings;
@@ -351,18 +376,19 @@ public class StatFlagService
                 $"{higher.Name ?? $"Side {higher.Side}"} has the higher score ({higher.Score}) but isn't recorded as the winner");
     }
 
-    /// <summary>A side fielded fewer players than the season's format (StatFlagThresholds.MinPlayersPerTeam): only
-    /// checked when players were entered at all (a score-only game says nothing about who played).</summary>
-    private static IEnumerable<Finding> TeamSmallerThanFormatFindings(RecordedGame game)
+    /// <summary>A side fielded fewer players than <see cref="StatFlagOptions.MinTeamSize"/>, or more than
+    /// <see cref="StatFlagOptions.MaxTeamSize"/> (fourth review: was fewer than a fixed 4 only): only checked when
+    /// players were entered at all (a score-only game says nothing about who played).</summary>
+    private static IEnumerable<Finding> TeamSizeFindings(RecordedGame game, StatFlagOptions options)
     {
         if (game.Participants.Count == 0)
             yield break;
         foreach (var team in game.Teams)
         {
             var count = game.Participants.Count(p => p.RecordedGameTeamID == team.RecordedGameTeamID);
-            if (count < StatFlagThresholds.MinPlayersPerTeam)
+            if (count < options.MinTeamSize || count > options.MaxTeamSize)
                 yield return new Finding(StatFlagRule.TeamSmallerThanFormat, null,
-                    $"{team.Name ?? $"Side {team.Side}"} fielded {count} player(s); the season's format calls for at least {StatFlagThresholds.MinPlayersPerTeam}", Discriminator: team.Side);
+                    $"{team.Name ?? $"Side {team.Side}"} fielded {count} player(s); the season's format calls for {options.MinTeamSize}-{options.MaxTeamSize}", Discriminator: team.Side);
         }
     }
 
@@ -421,10 +447,11 @@ public class StatFlagService
         return bad.Count == 0 ? null : string.Join(", ", bad) + " (can't be negative)";
     }
 
-    /// <summary>Accuracy over 100%, or shots hit above shots fired. <see cref="Finding.Discriminator"/> is always the
-    /// player's XUID (see <see cref="NegativeStatFindings(Match, IReadOnlyDictionary{long, int}, IReadOnlyDictionary{long, string})"/>).</summary>
+    /// <summary>Accuracy over <see cref="StatFlagOptions.MaxAccuracy"/>, or shots hit above shots fired.
+    /// <see cref="Finding.Discriminator"/> is always the player's XUID (see
+    /// <see cref="NegativeStatFindings(Match, IReadOnlyDictionary{long, int}, IReadOnlyDictionary{long, string})"/>).</summary>
     private static IEnumerable<Finding> AccuracyFindings(Match match, IReadOnlyDictionary<long, int> userIDByXuid,
-        IReadOnlyDictionary<long, string> gamertagByXuid)
+        IReadOnlyDictionary<long, string> gamertagByXuid, StatFlagOptions options)
     {
         foreach (var p in match.MatchTeams.SelectMany(t => t.MatchParticipants))
         {
@@ -432,7 +459,7 @@ public class StatFlagService
             if (p.ShotsHit > p.ShotsFired)
                 yield return new Finding(StatFlagRule.ImpossibleAccuracy, playerID,
                     $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {p.ShotsHit} shots hit, above {p.ShotsFired} shots fired", p.XboxUserID);
-            else if (p.Accuracy > StatFlagThresholds.MaxAccuracy)
+            else if (p.Accuracy > options.MaxAccuracy)
                 yield return new Finding(StatFlagRule.ImpossibleAccuracy, playerID,
                     $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {p.Accuracy:0.#}% accuracy", p.XboxUserID);
         }

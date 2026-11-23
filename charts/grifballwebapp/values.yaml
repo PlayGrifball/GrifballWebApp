@@ -175,6 +175,14 @@ backend:
     #       SheetName: Season Match History
     #   CopySpreadsheetID: ""
     #   CopySheetNameRange: ""
+    # The stat flag checks' tunable thresholds (#548), validated at startup (MinTeamSize and MaxAccuracy positive,
+    # MaxTeamSize at least MinTeamSize):
+    # StatFlags:
+    #   # A side fielding fewer players than this, or more, is flagged (TeamSmallerThanFormat).
+    #   MinTeamSize: 4
+    #   MaxTeamSize: 5
+    #   # Accuracy over this percentage is flagged (ImpossibleAccuracy), a little past 100% for Halo's own float rounding.
+    #   MaxAccuracy: 100.5
     HealthChecks:
       # Endpoint paths (defaults); the probes below follow them.
       # Path: /health

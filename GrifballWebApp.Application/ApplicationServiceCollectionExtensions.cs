@@ -107,6 +107,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<MatchPlannerService>();
         services.AddTransient<ChampionshipService>();
         services.AddTransient<SeasonMatchService>();
+        services.AddValidatedStatFlagOptions(configuration);
         services.AddTransient<StatFlagService>();
         services.AddTransient<StaffStatFlagService>();
         services.AddTransient<MatchDetailsService>();
@@ -130,6 +131,33 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<Live.LiveTopicAccess>();
         services.AddTransient<Live.LiveSnapshots>();
         services.AddDomainEvents(typeof(ApplicationServiceCollectionExtensions).Assembly);
+        return services;
+    }
+
+    /// <summary>
+    /// StatFlagOptions (the StatFlags section), validated at startup (fourth review): MinTeamSize and MaxAccuracy
+    /// positive, MaxTeamSize at least MinTeamSize.
+    /// </summary>
+    public static IServiceCollection AddValidatedStatFlagOptions(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<StatFlagOptions>()
+            .Bind(configuration.GetSection("StatFlags"))
+            .Validate(options =>
+            {
+                var errors = new List<string>();
+                if (options.MinTeamSize <= 0)
+                    errors.Add("MinTeamSize must be positive");
+                if (options.MaxTeamSize < options.MinTeamSize)
+                    errors.Add("MaxTeamSize must be at least MinTeamSize");
+                if (options.MaxAccuracy <= 0)
+                    errors.Add("MaxAccuracy must be positive");
+
+                if (errors.Count > 0)
+                    throw new ArgumentException(string.Join(", ", errors));
+
+                return true;
+            })
+            .ValidateOnStart();
         return services;
     }
 }

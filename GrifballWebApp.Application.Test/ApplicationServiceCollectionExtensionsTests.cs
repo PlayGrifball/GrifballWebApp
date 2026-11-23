@@ -26,6 +26,7 @@ using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Application.StatFlags;
 using GrifballWebApp.Application.TeamPage;
 using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Application.Teams;
@@ -249,4 +250,89 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
 
         Assert.That(provider.GetRequiredService<IOptions<UserClaimOptions>>().Value.SubmissionsPerDay, Is.EqualTo(9));
     }
+
+    [Test]
+    public void AddApplication_BindsTheStatFlagsSection()
+    {
+        using var provider = AddApplication(new Dictionary<string, string?>
+        {
+            ["StatFlags:MinTeamSize"] = "3",
+            ["StatFlags:MaxTeamSize"] = "6",
+            ["StatFlags:MaxAccuracy"] = "99.5",
+        }).BuildServiceProvider();
+
+        var options = provider.GetRequiredService<IOptions<StatFlagOptions>>().Value;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.MinTeamSize, Is.EqualTo(3));
+            Assert.That(options.MaxTeamSize, Is.EqualTo(6));
+            Assert.That(options.MaxAccuracy, Is.EqualTo(99.5f));
+        }
+    }
+
+    [Test]
+    public void AddApplication_NoStatFlagsSettings_KeepsTheDefaults()
+    {
+        using var provider = AddApplication().BuildServiceProvider();
+
+        var options = provider.GetRequiredService<IOptions<StatFlagOptions>>().Value;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.MinTeamSize, Is.EqualTo(4));
+            Assert.That(options.MaxTeamSize, Is.EqualTo(5));
+            Assert.That(options.MaxAccuracy, Is.EqualTo(100.5f));
+        }
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void AddValidatedStatFlagOptions_MinTeamSizeNotPositive_Throws(int minTeamSize)
+    {
+        var services = new ServiceCollection();
+        services.AddValidatedStatFlagOptions(Config(new() { ["StatFlags:MinTeamSize"] = minTeamSize.ToString() }));
+        using var provider = services.BuildServiceProvider();
+
+        var ex = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<IOptions<StatFlagOptions>>().Value);
+
+        Assert.That(ex!.Message, Does.Contain("MinTeamSize must be positive"));
+    }
+
+    [Test]
+    public void AddValidatedStatFlagOptions_MaxTeamSizeBelowMinTeamSize_Throws()
+    {
+        var services = new ServiceCollection();
+        services.AddValidatedStatFlagOptions(Config(new() { ["StatFlags:MinTeamSize"] = "4", ["StatFlags:MaxTeamSize"] = "3" }));
+        using var provider = services.BuildServiceProvider();
+
+        var ex = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<IOptions<StatFlagOptions>>().Value);
+
+        Assert.That(ex!.Message, Does.Contain("MaxTeamSize must be at least MinTeamSize"));
+    }
+
+    [TestCase(0)]
+    [TestCase(-5)]
+    public void AddValidatedStatFlagOptions_MaxAccuracyNotPositive_Throws(float maxAccuracy)
+    {
+        var services = new ServiceCollection();
+        services.AddValidatedStatFlagOptions(Config(new() { ["StatFlags:MaxAccuracy"] = maxAccuracy.ToString() }));
+        using var provider = services.BuildServiceProvider();
+
+        var ex = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<IOptions<StatFlagOptions>>().Value);
+
+        Assert.That(ex!.Message, Does.Contain("MaxAccuracy must be positive"));
+    }
+
+    [Test]
+    public void AddValidatedStatFlagOptions_TheDefaults_ResolveWithoutThrowing()
+    {
+        var services = new ServiceCollection();
+        services.AddValidatedStatFlagOptions(Config([]));
+        using var provider = services.BuildServiceProvider();
+
+        Assert.That(() => provider.GetRequiredService<IOptions<StatFlagOptions>>().Value, Throws.Nothing);
+    }
+
+    private static IConfiguration Config(Dictionary<string, string?> values) => new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 }

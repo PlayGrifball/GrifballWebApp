@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.HaloInfinite;
@@ -55,6 +56,22 @@ public class DataPullServicePullAsyncUnitTests : SqliteContextFixture
         PlayerId = playerId,
         LastTeamId = lastTeam,
         PlayerTeamStats = teamStats.Select(t => new PlayerTeamStat { TeamId = t.Team, Stats = new Stats { CoreStats = Core(t.Score) } }).ToArray(),
+        ParticipationInfo = new ParticipationInfo
+        {
+            FirstJoinedTime = new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.FromHours(-5)),
+            LastLeaveTime = new DateTimeOffset(2024, 1, 1, 10, 30, 0, TimeSpan.FromHours(-5)),
+            LeftInProgress = true,
+            TimePlayed = TimeSpan.FromMinutes(30),
+        },
+    };
+
+    /// <summary>A player whose kills are negative (StatFlagRule.NegativeStat always flags them, whatever their real
+    /// stats otherwise), for the gamertag-by-XUID test below.</summary>
+    private static Player NegativePlayerOf(string playerId, int lastTeam, int team) => new()
+    {
+        PlayerId = playerId,
+        LastTeamId = lastTeam,
+        PlayerTeamStats = [new PlayerTeamStat { TeamId = team, Stats = new Stats { CoreStats = new CoreStats { Score = 1, Kills = -1, AverageLifeDuration = TimeSpan.FromSeconds(10), Medals = [] } } }],
         ParticipationInfo = new ParticipationInfo
         {
             FirstJoinedTime = new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.FromHours(-5)),
@@ -134,6 +151,39 @@ public class DataPullServicePullAsyncUnitTests : SqliteContextFixture
         await _halo.DidNotReceive().StatsGetMatchHistory("xuid(2)", 4, 5, Arg.Any<GruntMatchType>());
         // Only users that are not in the database yet are bulk fetched
         await _getsert.Received(1).GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.SequenceEqual(new long[] { 9 })), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task DownloadRecentMatchesForPlayers_ANewPlayerInAnEarlierMatchOfTheBatch_ShowsTheirRealGamertag_InALaterMatchesFlag()
+    {
+        // #548, fourth review: a player new to the whole batch (no XboxUsers row yet) is resolved once, by the
+        // batch getsert - a later match of the same pull must see their real gamertag in its own stat flag's
+        // reason, not their bare XUID, even though that match is saved after the earlier one
+        var earlyMatch = Guid.NewGuid();
+        var laterMatch = Guid.NewGuid();
+        _halo.StatsGetMatchHistory("xuid(1)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
+            .Returns(Ok(new MatchHistoryResponse { Results = [Record(earlyMatch.ToString(), 41), Record(laterMatch.ToString(), 41)] }));
+        // Player 9 is new to the whole pull (no XboxUsers row at all); their kills are negative in both matches
+        _halo.StatsGetMatchStats(earlyMatch).Returns(Ok(StatsOf(earlyMatch, [(0, 2), (1, 3)], PlayerOf("xuid(1)", 0, (0, 5)), NegativePlayerOf("xuid(9)", 1, 1))));
+        _halo.StatsGetMatchStats(laterMatch).Returns(Ok(StatsOf(laterMatch, [(0, 2), (1, 3)], PlayerOf("xuid(1)", 0, (0, 5)), NegativePlayerOf("xuid(9)", 1, 1))));
+        _getsert.GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.Contains(9)), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                var xboxUser = XboxUser.FromXbox(9, "RealGamertag9");
+                Context.XboxUsers.Add(xboxUser);
+                Context.SaveChanges();
+                return new[] { xboxUser };
+            });
+
+        await _service.DownloadRecentMatchesForPlayers([1], startPage: 0, endPage: 0, perPage: 5);
+
+        var reasons = await Context.Set<StatFlag>().Where(f => f.Rule == StatFlagRule.NegativeStat).Select(f => f.Reason).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reasons, Has.Count.EqualTo(2), "One flag per match");
+            Assert.That(reasons, Has.All.Contain("RealGamertag9:"));
+            Assert.That(reasons, Has.None.Contain("9:"), "Never shown by its bare XUID");
+        }
     }
 
     /// <summary>

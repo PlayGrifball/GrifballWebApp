@@ -248,11 +248,14 @@ public partial class DataPullService : IDataPullService
 
     /// <summary>Saves the games one at a time (the context isn't shared between threads). Returns how many were saved.
     /// <paramref name="userIDByXuid"/> and <paramref name="gamertagByXuid"/> are the stat flag checks' own lookups,
-    /// made once for the whole bag rather than once a match (StatFlagService.CheckMatchAsync); a player getserted
-    /// during a save (new to the whole batch) is added to <paramref name="gamertagByXuid"/> as it's resolved, so a
-    /// later match of the same bag still names them rather than their bare XUID.</summary>
+    /// made once for the whole bag rather than once a match (StatFlagService.CheckMatchAsync) - already resolved for
+    /// every player of the bag, including one new to the whole pull, before any of its matches are saved
+    /// (GetAndSaveMatches's batched GetsertXboxUsersByXuid runs first): a later match of the bag always sees a new
+    /// player's real gamertag, never their bare XUID (fourth review: confirmed by a test, GetsertXboxUsersByXuid
+    /// already resolves everyone before SaveMatchesAsync starts - nothing here needs to catch up a lookup built
+    /// before any match was saved).</summary>
     private async Task<int> SaveMatchesAsync(IEnumerable<MatchStats> matchStatsBag, IReadOnlySet<long> knownXboxUserIDs,
-        IReadOnlyDictionary<long, int> userIDByXuid, Dictionary<long, string> gamertagByXuid, CancellationToken ct)
+        IReadOnlyDictionary<long, int> userIDByXuid, IReadOnlyDictionary<long, string> gamertagByXuid, CancellationToken ct)
     {
         // Could also do this in parallel foreach but would need a seperate context for each.
         // Each save looked through every entity the context tracks for changes, the games saved before it too, so each was
@@ -462,10 +465,9 @@ public partial class DataPullService : IDataPullService
 
     /// <summary>Saves the game; false when it isn't saved (not a team game). <paramref name="userIDByXuid"/> and
     /// <paramref name="gamertagByXuid"/> are the stat flag checks' lookups, given when the caller already has them for
-    /// the whole pull; null for a match saved on its own, where CheckMatchAsync looks them up itself. A player
-    /// getserted here (new to the whole batch, not only this match) updates <paramref name="gamertagByXuid"/> in place.</summary>
+    /// the whole pull; null for a match saved on its own, where CheckMatchAsync looks them up itself.</summary>
     private async Task<bool> SaveMatch(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs,
-        IReadOnlyDictionary<long, int>? userIDByXuid, Dictionary<long, string>? gamertagByXuid, CancellationToken ct)
+        IReadOnlyDictionary<long, int>? userIDByXuid, IReadOnlyDictionary<long, string>? gamertagByXuid, CancellationToken ct)
     {
         var matchID = matchStats.MatchId;
 
@@ -502,7 +504,6 @@ public partial class DataPullService : IDataPullService
                 throw new Exception("XUID not long");
             }
             var xboxUser = knownXboxUserIDs?.Contains(xuidLong) is true ? null : await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong, ct);
-            RememberGamertag(gamertagByXuid, xuidLong, xboxUser);
 
             var stats = x.PlayerTeamStats.Where(pts => pts.TeamId == x.LastTeamId).FirstOrDefault()?.Stats.CoreStats
                 ?? throw new Exception("Failed to find last team stats");
@@ -573,15 +574,6 @@ public partial class DataPullService : IDataPullService
         // rest of the pull. isNewMatch: true - it was just added above, so it can't have an existing flag yet.
         await _statFlags.CheckMatchAsync(match, userIDByXuid, gamertagByXuid, isNewMatch: true, ct);
         return true;
-    }
-
-    /// <summary>A player getserted just now (new to the whole batch, not only this match) updates the shared
-    /// gamertagByXuid lookup in place: built before any match was saved, it would otherwise still show them by their
-    /// bare XUID when the stat flag check runs.</summary>
-    private static void RememberGamertag(Dictionary<long, string>? gamertagByXuid, long xuid, XboxUser? xboxUser)
-    {
-        if (xboxUser is not null && gamertagByXuid is not null)
-            gamertagByXuid[xuid] = xboxUser.Gamertag;
     }
 
     private void ForgetAdded(Match match)

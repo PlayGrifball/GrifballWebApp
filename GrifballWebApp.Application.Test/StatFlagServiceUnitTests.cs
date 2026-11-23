@@ -10,6 +10,7 @@ using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using static GrifballWebApp.Application.Test.SeasonMatchUnitTestData;
@@ -361,6 +362,65 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task CheckRecordedGameAsync_ATeamLargerThanTheFormat_IsFlagged()
+    {
+        // #548, fourth review: the format is now a range (default 4-5), not just a floor - a side that's grown well
+        // past it is worth a look too
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.Seed("team-size-large", gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
+        var home = game.SeedSide(1);
+        game.SeedSide(2);
+        var sixPlayers = seeded.HomeUsers.Concat(seeded.AwayUsers.Take(2)).ToArray();
+        for (var i = 0; i < sixPlayers.Length; i++)
+            game.SeedPlayer(new RecordedPlayerLine(sixPlayers[i].Id, 1, $"GT{i}", Kills: 0, Deaths: 0, Assists: 0), home);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.TeamSmallerThanFormat && f.Discriminator == 1);
+        Assert.That(flag.Reason, Does.Contain("Side 1 fielded 6 player"));
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_WithACustomMaxTeamSize_OnlyFlagsPastIt()
+    {
+        // #548, fourth review: StatFlagOptions.MaxTeamSize is configurable - a non-default value must actually
+        // change what gets flagged, not just read differently
+        var seeded = await SeedAsync(Context);
+        var statFlags = new StatFlagService(Context, _time, options: Options.Create(new StatFlagOptions { MaxTeamSize = 6 }));
+        var game = RecordedGame.Seed("team-size-custom-max", gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
+        var home = game.SeedSide(1);
+        var sixPlayers = seeded.HomeUsers.Concat(seeded.AwayUsers.Take(2)).ToArray();
+        for (var i = 0; i < sixPlayers.Length; i++)
+            game.SeedPlayer(new RecordedPlayerLine(sixPlayers[i].Id, 1, $"GT{i}", Kills: 0, Deaths: 0, Assists: 0), home);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await statFlags.CheckRecordedGameAsync(game, null);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.TeamSmallerThanFormat && f.Discriminator == 1), Is.False);
+    }
+
+    [Test]
+    public async Task CheckMatchAsync_WithACustomMaxAccuracy_OnlyFlagsPastIt()
+    {
+        // #548, fourth review: StatFlagOptions.MaxAccuracy is configurable - a non-default value must actually
+        // change what gets flagged
+        Context.XboxUsers.Add(XboxUser.FromXbox(101, "GT101"));
+        var statFlags = new StatFlagService(Context, _time, options: Options.Create(new StatFlagOptions { MaxAccuracy = 200f }));
+        var match = Domain.Halo.Match.Seed(Guid.NewGuid());
+        match.AddTeam(0, 1, Outcomes.Won);
+        match.AddParticipant(0, 101, new MatchParticipantStats { Accuracy = 150f, ShotsFired = 10, ShotsHit = 10 });
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+
+        await statFlags.CheckMatchAsync(match);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.ImpossibleAccuracy), Is.False);
+    }
+
+    [Test]
     public async Task CheckRecordedGameAsync_ANegativeStat_IsFlagged()
     {
         var seeded = await SeedAsync(Context);
@@ -614,8 +674,10 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public async Task CheckSeriesGamesAsync_WhenAGameOfTheSeriesIsAHaloPull_IsSkipped()
+    public async Task CheckSeriesGamesAsync_AllWaypoint_ThatAddsUp_IsNotFlagged()
     {
+        // #548, fourth review: a series with a Waypoint game is actually checked now (by its rosters, SeriesSides),
+        // not skipped outright - this one adds up
         var seeded = await SeedAsync(Context, bestOf: 1);
         var waypoint = await AddMatchAsync(Context, 1, InSeason, HomeXbox, Outcomes.Won, AwayXbox, Outcomes.Lost);
         seeded.SeasonMatch.AddGame(waypoint, 1);
@@ -625,6 +687,73 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         await _statFlags.CheckSeriesGamesAsync(seeded.SeasonMatch.SeasonMatchID);
 
         Assert.That(await Context.StatFlags.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task CheckSeriesGamesAsync_AMixedSeriesThatAddsUp_IsNotFlagged()
+    {
+        // #548, fourth review: a series mixing a Waypoint game and a recorded one - the Waypoint game's side is
+        // decided by its rosters, the recorded game's by its sides, and the series adds up
+        var seeded = await SeedAsync(Context, bestOf: 3);
+        var waypoint = await AddMatchAsync(Context, 1, InSeason, HomeXbox, Outcomes.Won, AwayXbox, Outcomes.Lost);
+        seeded.SeasonMatch.AddGame(waypoint, 1);
+        var recorded = RecordedGame.Seed("mixed-adds-up", gameVersionID: Halo3);
+        recorded.SeedSide(1, seeded.Home.TeamID, Outcomes.Won, 1);
+        recorded.SeedSide(2, seeded.Away.TeamID, Outcomes.Lost, 0);
+        Context.RecordedGames.Add(recorded);
+        seeded.SeasonMatch.Game(2, recorded: recorded);
+        seeded.SeasonMatch.DecideByGames(2, 0);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckSeriesGamesAsync(seeded.SeasonMatch.SeasonMatchID);
+
+        Assert.That(await Context.StatFlags.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task CheckSeriesGamesAsync_AMixedSeriesThatDoesNotAddUp_IsFlagged()
+    {
+        var seeded = await SeedAsync(Context, bestOf: 3);
+        var waypoint = await AddMatchAsync(Context, 1, InSeason, HomeXbox, Outcomes.Won, AwayXbox, Outcomes.Lost);
+        seeded.SeasonMatch.AddGame(waypoint, 1);
+        // Away actually won this one, but the series is recorded as a 2-0 sweep
+        var recorded = RecordedGame.Seed("mixed-mismatch", gameVersionID: Halo3);
+        recorded.SeedSide(1, seeded.Home.TeamID, Outcomes.Lost, 0);
+        recorded.SeedSide(2, seeded.Away.TeamID, Outcomes.Won, 1);
+        Context.RecordedGames.Add(recorded);
+        seeded.SeasonMatch.Game(2, recorded: recorded);
+        seeded.SeasonMatch.DecideByGames(2, 0);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckSeriesGamesAsync(seeded.SeasonMatch.SeasonMatchID);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.Reason, Does.Contain("2-0"));
+            Assert.That(flag.Reason, Does.Contain("1-1"));
+        }
+    }
+
+    [Test]
+    public async Task CheckSeriesGamesAsync_AWaypointGamesRosterNoLongerMatchesEitherTeam_IsFlaggedAsUndecidable()
+    {
+        // #548, fourth review: a trade or a merge since means the game's players are on neither roster any more -
+        // the series can't be checked, and that's flagged by name rather than silently skipped
+        var seeded = await SeedAsync(Context, bestOf: 1);
+        var waypoint = await AddMatchAsync(Context, 1, InSeason, OtherXbox[..4], Outcomes.Won, OtherXbox[4..8], Outcomes.Lost);
+        seeded.SeasonMatch.AddGame(waypoint, 1);
+        seeded.SeasonMatch.DecideByGames(1, 0);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckSeriesGamesAsync(seeded.SeasonMatch.SeasonMatchID);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.Reason, Does.Contain("Game 1"));
+            Assert.That(flag.Reason, Does.Contain("can't be checked"));
+        }
     }
 
     [Test]
