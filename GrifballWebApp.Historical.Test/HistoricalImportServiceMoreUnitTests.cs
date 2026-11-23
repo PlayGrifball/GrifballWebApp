@@ -514,6 +514,43 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     // ---------- A titles-only season: adopted by its season, or retired ----------
 
     [Test]
+    public async Task Import_TitlesOfASeasonPlayedInTwoGames_GoToTheSeasonOfTheirGame_AndTheTitlesOnlySeasonIsRetired()
+    {
+        var champions = new ChampionsArchive
+        {
+            Champions =
+            [
+                new ArchiveChampionship { Season = "Fall League 2015", Game = "Halo 3", Tier = "Open", Team = "Cabs", Roster = ["Silva"] },
+                new ArchiveChampionship { Season = "Fall League 2015", Game = "Halo 4", Tier = "Open", Team = "Hens", Roster = ["Hen"] },
+            ],
+        };
+        await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive(), Championships = champions });
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive
+            {
+                Seasons =
+                [
+                    Entry("Fall League 2015 Halo 3", "halo3", "AGLA", false, Player("Silva", team: "Cabs")),
+                    Entry("Fall League 2015 Halo 4", "halo4", "AGLA", false, Player("Hen", team: "Hens")),
+                ],
+            },
+            Championships = champions,
+        });
+
+        var titles = await Context.Set<PlayerChampionship>().AsNoTracking().Include(c => c.Season).Select(c => new { c.GamertagUsed, c.Season.SeasonName }).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1), "The titles-only 'Fall League 2015'");
+            Assert.That(await Context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EquivalentTo(new[] { "Fall League 2015 Halo 3", "Fall League 2015 Halo 4" }));
+            Assert.That(titles.Select(t => (t.GamertagUsed, t.SeasonName)), Is.EquivalentTo(new[] { ("Silva", "Fall League 2015 Halo 3"), ("Hen", "Fall League 2015 Halo 4") }));
+        }
+    }
+
+    [Test]
     public async Task Import_ASeasonOfATitlesOnlySeasonsName_AdoptsIt()
     {
         var champions = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Winter League 2011", Game = "Halo Reach", Tier = "Pro", Team = "Cabs", Roster = ["halfbreed105"] }] };

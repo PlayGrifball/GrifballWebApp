@@ -536,7 +536,11 @@ public partial class HistoricalImportService : IHistoricalImportService
             var workbook = ChampionshipWorkbook(championship, defaultWorkbook);
             var names = new[] { $"{championship.Season} ({championship.Tier})", championship.Season };
             var nameKeys = names.Select(n => HistoricalKeys.FallbackSeasonSourceId(league.Slug, n)).ToArray();
-            var group = nameKeys.Select(k => groups.GetValueOrDefault(k) ?? titlesAs.GetValueOrDefault(k)).FirstOrDefault(g => g is not null);
+            // A season played in two games ("Fall League 2015" in Halo 3 and Halo 4) is two seasons named with their game
+            var gameKeys = string.IsNullOrWhiteSpace(championship.Game) ? []
+                : new[] { $"{championship.Season} {championship.Game.Trim()} ({championship.Tier})", $"{championship.Season} {championship.Game.Trim()}" }
+                    .Select(n => HistoricalKeys.FallbackSeasonSourceId(league.Slug, n));
+            var group = gameKeys.Concat(nameKeys).Select(k => groups.GetValueOrDefault(k) ?? titlesAs.GetValueOrDefault(k)).FirstOrDefault(g => g is not null);
             if (group is null)
             {
                 var sourceId = HistoricalKeys.SeasonSourceId(workbook, championship.Season);
