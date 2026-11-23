@@ -150,7 +150,7 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
             if (!_heard.TryGetValue(speaker, out var heard) || !heard)
             {
                 VoiceTelemetry.Line(VoiceTelemetry.OptedOut);
-                log.LogInformation("Voice: a line from {Speaker} was dropped: they opted out before its turn", speaker);
+                DroppedOptedOut(log, speaker);
                 continue;
             }
             try
@@ -191,10 +191,12 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
             transcript = await speech.TranscribeAsync(VoicePcm.Wav16kMono(pcm), cancellationToken);
             heardFor = stage.Elapsed;
         }
+        var words = transcript.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        var transcribed = (int)heardFor.TotalMilliseconds;
         if (VoiceWake.Question(transcript) is not { } question)
         {
-            var ignored = string.IsNullOrWhiteSpace(transcript) ? VoiceTelemetry.NothingHeard : VoiceTelemetry.NotAddressed;
-            Ignored(log, speaker, seconds, transcript.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length, (int)heardFor.TotalMilliseconds, ignored);
+            var ignored = words == 0 ? VoiceTelemetry.NothingHeard : VoiceTelemetry.NotAddressed;
+            Ignored(log, speaker, seconds, words, transcribed, ignored);
             return ignored;
         }
         var outcome = VoiceTelemetry.Answered;
@@ -220,7 +222,7 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
         }
         if (string.IsNullOrWhiteSpace(answer))
         {
-            Ignored(log, speaker, seconds, transcript.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length, (int)heardFor.TotalMilliseconds, VoiceTelemetry.EmptyAnswer);
+            Ignored(log, speaker, seconds, words, transcribed, VoiceTelemetry.EmptyAnswer);
             return VoiceTelemetry.EmptyAnswer;
         }
         byte[] spoken;
@@ -259,6 +261,9 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Voice: answered {Speaker} in {Transcribe} ms transcribing, {Reply} ms replying, {Speak} ms speaking, {Play} ms playing")]
     private static partial void Timings(ILogger log, ulong speaker, int transcribe, int reply, int speak, int play);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Voice: a line from {Speaker} was dropped: they opted out before its turn")]
+    private static partial void DroppedOptedOut(ILogger log, ulong speaker);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Voice: {Speaker}'s line ({Seconds:F1} s of audio, {Words} words, transcribed in {Transcribe} ms) got no answer: {Outcome}")]
     private static partial void Ignored(ILogger log, ulong speaker, double seconds, int words, int transcribe, string outcome);
