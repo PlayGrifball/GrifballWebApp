@@ -8,17 +8,17 @@ export interface GrifballEra {
 }
 
 export function grifballEra(year: number | null | undefined, gameSlug?: string | null): GrifballEra {
-  const known = year != null && year > 0;
-  if (known && year <= 2010) {
+  const y = year && year > 0 ? year : 2019; // no year: the revival era, unless the game says otherwise
+  if (y <= 2010) {
     return { id: 'founding', label: 'Founding Era (grifball.com)' };
   }
-  if (known && year <= 2013) {
+  if (y <= 2013) {
     return { id: 'expansion', label: 'Expansion & GGL (grifball.info)' };
   }
-  if (known && year <= 2018) {
+  if (y <= 2018) {
     return { id: 'hub', label: 'GrifballHub & EUGBL Era' };
   }
-  if (gameSlug === 'infinite' || (known && year >= 2023)) {
+  if (gameSlug === 'infinite' || y >= 2023) {
     return { id: 'infinite', label: 'Halo Infinite & PlayGrifball' };
   }
   return { id: 'revival', label: 'Revival, GWL & Late League' };
