@@ -302,32 +302,45 @@ public class StatFlagService
         {
             if (g.Match is { } match)
             {
-                var waypointSides = SeriesSides.Of(match.MatchTeams.ToList(), t => rosters.Lean(t.MatchParticipants.Select(p => p.XboxUserID)));
-                if (waypointSides is null)
+                var wins = WaypointGameWins(match, rosters);
+                if (wins is null)
                 {
                     undecidable.Add(g.GameNumber);
                     continue;
                 }
-                if (waypointSides.Value.Home.Outcome is Outcomes.Won)
-                    home++;
-                if (waypointSides.Value.Away.Outcome is Outcomes.Won)
-                    away++;
+                (home, away) = (home + wins.Value.Home, away + wins.Value.Away);
                 continue;
             }
-
-            var sides = g.RecordedGame?.Teams.OrderBy(t => t.Side).ToList();
-            if (sides is not { Count: 2 })
-                continue;
-            var (a, b) = (sides[0], sides[1]);
-            var swapped = (a.TeamID, b.TeamID) != (seasonMatch.HomeTeamID, seasonMatch.AwayTeamID)
-                && (b.TeamID, a.TeamID) == (seasonMatch.HomeTeamID, seasonMatch.AwayTeamID);
-            var (homeSide, awaySide) = swapped ? (b, a) : (a, b);
-            if (homeSide.Outcome is Outcomes.Won)
-                home++;
-            if (awaySide.Outcome is Outcomes.Won)
-                away++;
+            var recordedWins = RecordedGameWins(g.RecordedGame, seasonMatch);
+            (home, away) = (home + recordedWins.Home, away + recordedWins.Away);
         }
         return (home, away, undecidable);
+    }
+
+    /// <summary>A Waypoint game's side, decided by <see cref="SeriesSides.Of{T}"/> against <paramref name="rosters"/> -
+    /// null when that can't decide (not two teams, or both lean alike), the whole game then uncounted toward either
+    /// side (fourth review).</summary>
+    private static (int Home, int Away)? WaypointGameWins(Match match, SeriesRosters rosters)
+    {
+        var sides = SeriesSides.Of(match.MatchTeams.ToList(), t => rosters.Lean(t.MatchParticipants.Select(p => p.XboxUserID)));
+        if (sides is null)
+            return null;
+        return (sides.Value.Home.Outcome is Outcomes.Won ? 1 : 0, sides.Value.Away.Outcome is Outcomes.Won ? 1 : 0);
+    }
+
+    /// <summary>A recorded game's side, by its recorded side (1 or 2) against the series' home and away team, the
+    /// other way round when the teams played that particular game swapped (see <see cref="SeriesWins"/>'s own doc for
+    /// why). A game with no two sides to read (a score-only game never built that far) counts toward neither.</summary>
+    private static (int Home, int Away) RecordedGameWins(RecordedGame? recordedGame, SeasonMatch seasonMatch)
+    {
+        var sides = recordedGame?.Teams.OrderBy(t => t.Side).ToList();
+        if (sides is not { Count: 2 })
+            return (0, 0);
+        var (a, b) = (sides[0], sides[1]);
+        var swapped = (a.TeamID, b.TeamID) != (seasonMatch.HomeTeamID, seasonMatch.AwayTeamID)
+            && (b.TeamID, a.TeamID) == (seasonMatch.HomeTeamID, seasonMatch.AwayTeamID);
+        var (homeSide, awaySide) = swapped ? (b, a) : (a, b);
+        return (homeSide.Outcome is Outcomes.Won ? 1 : 0, awaySide.Outcome is Outcomes.Won ? 1 : 0);
     }
 
     #region Hand-entered rules (RecordedGame.IsManual only)
