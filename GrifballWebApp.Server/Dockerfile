@@ -62,10 +62,14 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:486297ae006e95ee2ee3112a
 # server's the chart supports: pg_dump can't dump a newer server. tzdata: the time zone database, which Alpine leaves
 # out and TimeZoneInfo needs (the scheduler works in US Eastern time).
 # From the archive above (apk.lock, which also lists every dependency they pull in), offline:
-# apk still checks each package's Alpine signature. Its log (the time of each install) is dropped.
+# apk still checks each package's Alpine signature. What else varies with the day it runs is dropped: its log (the
+# time of each install), the repository indexes it leaves in its cache (Alpine's current ones, not the lock's), and
+# the day an account it adds (postgres) had its password changed, in /etc/shadow.
 RUN --mount=type=bind,from=apk,source=/pkgs,target=/pkgs \
     apk add --no-network --no-cache /pkgs/*.apk \
- && rm -f /var/log/apk.log
+ && rm -f /var/log/apk.log \
+ && rm -rf /var/cache/apk/* \
+ && sed -i -E 's/^([^:]*:[^:]*):[0-9]+:/\1:0:/' /etc/shadow
 # Discord voice: libdave (above), where NetCord's voice client finds it; its Opus (decoding what people say, encoding
 # the bot's replies) and libsodium (an encryption mode Discord may pick) are among the Alpine packages.
 COPY --from=libdave --chmod=0755 /out/libdave.so /usr/lib/libdave.so
