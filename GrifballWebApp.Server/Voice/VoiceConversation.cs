@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Collections.Concurrent;
 using System.Text;
 using GrifballWebApp.Application.Chat;
@@ -149,7 +148,11 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
         {
             // Opted out since the line ended (while another was answered): dropped, as they were told
             if (!_heard.TryGetValue(speaker, out var heard) || !heard)
+            {
+                VoiceTelemetry.Line(VoiceTelemetry.OptedOut);
+                DroppedOptedOut(log, speaker);
                 continue;
+            }
             try
             {
                 await AnswerAsync(speaker, pcm, cancellationToken);
@@ -163,36 +166,80 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
 
     private async Task AnswerAsync(ulong speaker, short[] pcm, CancellationToken cancellationToken)
     {
-        var started = Stopwatch.GetTimestamp();
-        var transcript = await speech.TranscribeAsync(VoicePcm.Wav16kMono(pcm), cancellationToken);
-        var heardFor = Stopwatch.GetElapsedTime(started);
-        if (VoiceWake.Question(transcript) is not { } question)
-            return;
-        started = Stopwatch.GetTimestamp();
-        string answer;
+        using var line = VoiceTelemetry.Source.StartActivity("voice.answer");
+        line?.SetTag("grif.voice.speaker", speaker);
+        var outcome = VoiceTelemetry.Failed;
         try
         {
-            answer = await AskAsync(speaker, question, cancellationToken);
+            outcome = await AnswerLineAsync(speaker, pcm, cancellationToken);
         }
-        catch (ChatRefusedException refused)
+        finally
         {
-            answer = refused.Message;
+            VoiceTelemetry.Line(outcome);
+            line?.SetTag("grif.voice.outcome", outcome);
         }
-        catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+    }
+
+    /// <summary>What became of the line: one of <see cref="VoiceTelemetry"/>'s outcomes.</summary>
+    private async Task<string> AnswerLineAsync(ulong speaker, short[] pcm, CancellationToken cancellationToken)
+    {
+        var seconds = (double)pcm.Length / VoicePcm.DiscordRate;
+        string transcript;
+        TimeSpan heardFor;
+        using (var stage = VoiceTelemetry.StartStage("transcribe"))
         {
-            log.LogError(e, "Voice: the chat couldn't answer {Speaker}", speaker);
-            answer = Failed;
+            transcript = await speech.TranscribeAsync(VoicePcm.Wav16kMono(pcm), cancellationToken);
+            heardFor = stage.Elapsed;
         }
-        var answeredFor = Stopwatch.GetElapsedTime(started);
+        var words = transcript.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        var transcribed = (int)heardFor.TotalMilliseconds;
+        if (VoiceWake.Question(transcript) is not { } question)
+        {
+            var ignored = words == 0 ? VoiceTelemetry.NothingHeard : VoiceTelemetry.NotAddressed;
+            Ignored(log, speaker, seconds, words, transcribed, ignored);
+            return ignored;
+        }
+        var outcome = VoiceTelemetry.Answered;
+        TimeSpan answeredFor;
+        string answer;
+        using (var stage = VoiceTelemetry.StartStage("reply"))
+        {
+            try
+            {
+                answer = await AskAsync(speaker, question, cancellationToken);
+            }
+            catch (ChatRefusedException refused)
+            {
+                answer = refused.Message;
+            }
+            catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                log.LogError(e, "Voice: the chat couldn't answer {Speaker}", speaker);
+                answer = Failed;
+                outcome = VoiceTelemetry.Failed;
+            }
+            answeredFor = stage.Elapsed;
+        }
         if (string.IsNullOrWhiteSpace(answer))
-            return;
-        started = Stopwatch.GetTimestamp();
-        var spoken = await speech.SpeakAsync(answer, cancellationToken);
-        var spokenFor = Stopwatch.GetElapsedTime(started);
-        started = Stopwatch.GetTimestamp();
-        await play(VoicePcm.Stereo48kFrom24kMono(spoken), cancellationToken);
-        var playedFor = Stopwatch.GetElapsedTime(started);
+        {
+            Ignored(log, speaker, seconds, words, transcribed, VoiceTelemetry.EmptyAnswer);
+            return VoiceTelemetry.EmptyAnswer;
+        }
+        byte[] spoken;
+        TimeSpan spokenFor;
+        using (var stage = VoiceTelemetry.StartStage("speak"))
+        {
+            spoken = await speech.SpeakAsync(answer, cancellationToken);
+            spokenFor = stage.Elapsed;
+        }
+        TimeSpan playedFor;
+        using (var stage = VoiceTelemetry.StartStage("play"))
+        {
+            await play(VoicePcm.Stereo48kFrom24kMono(spoken), cancellationToken);
+            playedFor = stage.Elapsed;
+        }
         Timings(log, speaker, (int)heardFor.TotalMilliseconds, (int)answeredFor.TotalMilliseconds, (int)spokenFor.TotalMilliseconds, (int)playedFor.TotalMilliseconds);
+        return outcome;
     }
 
     /// <summary><paramref name="question"/> asked as <paramref name="speaker"/> (their linked account's roles, else none) on the voice host; the whole answer.</summary>
@@ -214,6 +261,12 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Voice: answered {Speaker} in {Transcribe} ms transcribing, {Reply} ms replying, {Speak} ms speaking, {Play} ms playing")]
     private static partial void Timings(ILogger log, ulong speaker, int transcribe, int reply, int speak, int play);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Voice: a line from {Speaker} was dropped: they opted out before its turn")]
+    private static partial void DroppedOptedOut(ILogger log, ulong speaker);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Voice: {Speaker}'s line ({Seconds:F1} s of audio, {Words} words, transcribed in {Transcribe} ms) got no answer: {Outcome}")]
+    private static partial void Ignored(ILogger log, ulong speaker, double seconds, int words, int transcribe, string outcome);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Voice: {Speaker} (signed in: {SignedIn}) is answered by {Model}")]
     private static partial void Answerer(ILogger log, ulong speaker, bool signedIn, string model);

@@ -1,6 +1,7 @@
 using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Infrastructure.Redis;
 using GrifballWebApp.Server.Telemetry;
+using GrifballWebApp.Server.Voice;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -92,6 +93,19 @@ public class MetricsAndTracingExtensionsTests
         {
             Assert.That(chat.HasListeners(), Is.True);
             Assert.That(discord.HasListeners(), Is.True);
+        }
+    }
+
+    [Test]
+    public void TheVoiceBotsSpans_AreTraced_AndItsMetersExported()
+    {
+        using var provider = Build(new() { ["OTEL_EXPORTER_OTLP_ENDPOINT"] = null });
+        Assert.That(provider.GetService<TracerProvider>(), Is.Not.Null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(VoiceTelemetry.Source.HasListeners(), Is.True);
+            Assert.That(MetricsAndTracingExtensions.AdditionalMeters, Does.Contain(VoiceTelemetry.SourceName));
         }
     }
 

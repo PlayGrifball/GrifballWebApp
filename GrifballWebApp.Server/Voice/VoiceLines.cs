@@ -62,6 +62,8 @@ public sealed class VoiceLines(TimeProvider time, TimeSpan? silence = null)
                 _ended.Add((speaker, pcm));
             }
             ended.AddRange(_ended.Where(l => l.Pcm.Count >= ShortestSamples).Select(l => (l.Speaker, l.Pcm.ToArray())));
+            if (_ended.Count > ended.Count)
+                VoiceTelemetry.Line(VoiceTelemetry.TooShort, _ended.Count - ended.Count);
             _ended.Clear();
         }
         return ended;

@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Voice;
@@ -5,6 +7,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Voice;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -24,10 +27,13 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
     private static readonly string[] Season3 = ["Season 3."];
     private static readonly string[] Hello = ["Hello."];
     private static readonly string[] Failed = [VoiceConversation.Failed];
+    private static readonly string[] Stages = ["transcribe", "reply", "speak", "play"];
+    private static readonly string[] NotAddressedSpans = ["transcribe", "voice.answer"];
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero));
     private readonly ChatLimits _limits = new();
     private readonly Speech _speech = new();
     private readonly List<short[]> _played = [];
+    private readonly ConversationLog _log = new();
     private ServiceProvider _services = null!;
 
     /// <summary>The speech server: each WAV it is sent answered with the next transcript; each text it speaks recorded.</summary>
@@ -61,6 +67,57 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         }
     }
 
+    /// <summary>The conversation's log: each message as written.</summary>
+    private sealed class ConversationLog : ILogger<VoiceConversation>
+    {
+        public readonly List<string> Messages = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            => Messages.Add(formatter(state, exception));
+    }
+
+    /// <summary>What the voice bot's telemetry (<see cref="VoiceTelemetry"/>) exports while it lives.</summary>
+    private sealed class Exported : IDisposable
+    {
+        public readonly List<Activity> Spans = [];
+        public readonly List<(string Instrument, string Tag, long Count)> Counts = [];
+        public readonly List<(string Stage, double Seconds)> Stages = [];
+        private readonly ActivityListener _spans;
+        private readonly MeterListener _meters = new();
+
+        public Exported()
+        {
+            _spans = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == VoiceTelemetry.SourceName,
+                Sample = (ref _) => ActivitySamplingResult.AllData,
+                ActivityStopped = Spans.Add,
+            };
+            ActivitySource.AddActivityListener(_spans);
+            _meters.InstrumentPublished = (instrument, listener) =>
+            {
+                if (instrument.Meter.Name == VoiceTelemetry.SourceName)
+                    listener.EnableMeasurementEvents(instrument);
+            };
+            _meters.SetMeasurementEventCallback<long>((_, value, tags, _) => Counts.Add(("lines", tags[0].Value?.ToString() ?? "", value)));
+            _meters.SetMeasurementEventCallback<double>((_, value, tags, _) => Stages.Add((tags[0].Value?.ToString() ?? "", value)));
+            _meters.Start();
+        }
+
+        /// <summary>How many lines ended in <paramref name="outcome"/>.</summary>
+        public long Counted(string outcome) => Counts.Where(c => c.Tag == outcome).Sum(c => c.Count);
+
+        public void Dispose()
+        {
+            _spans.Dispose();
+            _meters.Dispose();
+        }
+    }
+
     [TearDown]
     public async Task TearDownServices()
     {
@@ -85,7 +142,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
         var chat = new GrifChat(new ChatModel(clients, NullLoggerFactory.Instance), scopes, _limits,
             new ChatAccounts(scopes, _time, NullLogger<ChatAccounts>.Instance));
-        return new VoiceConversation(scopes, chat, _speech, _time, NullLogger<VoiceConversation>.Instance, (pcm, _) =>
+        return new VoiceConversation(scopes, chat, _speech, _time, _log, (pcm, _) =>
         {
             _played.Add(pcm);
             return Task.CompletedTask;
@@ -165,6 +222,112 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         {
             Assert.That(model.Messages, Is.Empty);
             Assert.That(_played, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task ALineNotAddressedToTheBot_IsLogged_WithWhyItGotNoAnswer_AndCounted()
+    {
+        using var exported = new Exported();
+        await OptedIn(Speaker);
+        _speech.Transcripts.Enqueue("I think we won that one");
+
+        await SaysALine(Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi"))));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_log.Messages.Single(m => m.Contains("got no answer")), Does.Contain("not_addressed").And.Contain("6 words").And.Contain("1.0 s of audio"));
+            Assert.That(_log.Messages, Has.None.Contains("won that one"), "Nothing said is logged");
+            Assert.That(exported.Counted(VoiceTelemetry.NotAddressed), Is.EqualTo(1L));
+            Assert.That(exported.Spans.Select(s => s.OperationName), Is.EquivalentTo(NotAddressedSpans));
+            Assert.That(exported.Spans.Single(s => s.OperationName == "voice.answer").GetTagItem("grif.voice.outcome"), Is.EqualTo(VoiceTelemetry.NotAddressed));
+        }
+    }
+
+    [Test]
+    public async Task ALineWithNothingHeardInIt_IsLoggedAsSilent()
+    {
+        using var exported = new Exported();
+        await OptedIn(Speaker);
+        _speech.Transcripts.Enqueue("  ");
+
+        await SaysALine(Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi"))));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_log.Messages, Has.One.Contains("got no answer: nothing_heard"));
+            Assert.That(exported.Counted(VoiceTelemetry.NothingHeard), Is.EqualTo(1L));
+        }
+    }
+
+    [Test]
+    public async Task AnAnsweredLine_HasASpanPerStage_UnderOne_AndTheirDurationsRecorded()
+    {
+        using var exported = new Exported();
+        await OptedIn(Speaker);
+        _speech.Transcripts.Enqueue("Grif, who won last season?");
+
+        await SaysALine(Conversation(new ScriptedChatClient((TimeSpan.Zero, "The Grifs did."))));
+
+        var line = exported.Spans.Single(s => s.OperationName == "voice.answer");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(exported.Spans.Where(s => s != line).Select(s => s.OperationName), Is.EquivalentTo(Stages));
+            Assert.That(exported.Spans.Where(s => s != line).All(s => s.ParentId == line.Id), Is.True, "Each stage is under the line");
+            Assert.That(line.GetTagItem("grif.voice.outcome"), Is.EqualTo(VoiceTelemetry.Answered));
+            Assert.That(line.GetTagItem("grif.voice.speaker"), Is.EqualTo(Speaker));
+            Assert.That(exported.Stages.Select(s => s.Stage), Is.EquivalentTo(Stages));
+            Assert.That(exported.Counted(VoiceTelemetry.Answered), Is.EqualTo(1L));
+            Assert.That(_log.Messages.Count(m => m.StartsWith($"Voice: answered {Speaker} in ")), Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task AChatThatFails_IsCountedAsFailed_ThoughTheFailureIsSpoken()
+    {
+        using var exported = new Exported();
+        await OptedIn(Speaker);
+        _speech.Transcripts.Enqueue("Grif, who won?");
+
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi")) { BeforeReply = _ => throw new HttpRequestException("model down") };
+
+        await SaysALine(Conversation(model));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_speech.Spoken, Is.EqualTo(Failed));
+            Assert.That(exported.Counted(VoiceTelemetry.Failed), Is.EqualTo(1L));
+        }
+    }
+
+    [Test]
+    public async Task ALineTheSpeechServerFails_IsCountedAsFailed()
+    {
+        using var exported = new Exported();
+        await OptedIn(Speaker);
+        _speech.Fails = new HttpRequestException("speech is down");
+
+        await SaysALine(Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi"))));
+
+        Assert.That(exported.Counted(VoiceTelemetry.Failed), Is.EqualTo(1L));
+    }
+
+    [Test]
+    public async Task ALineShorterThanSpeech_IsCountedAsTooShort()
+    {
+        using var exported = new Exported();
+        await OptedIn(Speaker);
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi")));
+        await conversation.RefreshAsync(Speaker);
+
+        conversation.Hear(Speaker, new short[VoicePcm.DiscordRate / 10]);
+        _time.Advance(VoiceLines.Silence);
+        await conversation.ProcessEndedAsync(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_speech.Heard, Is.Empty);
+            Assert.That(exported.Counted(VoiceTelemetry.TooShort), Is.EqualTo(1L));
         }
     }
 
