@@ -598,7 +598,7 @@ describe('AppComponent rendered on the server', () => {
     const theming = {
       era: signal(''),
       neutral: signal('#000000'), neutralVariant: signal('#000000'), error: signal('#ff0000'), font: signal('Arial'),
-      primary: signal('#0000ff'), secondary: signal('#00ff00'), tertiary: signal('#00ff00'),
+      primary: signal('#0000ff'), secondary: signal('#00ff00'), tertiary: signal('#ff00ff'),
       setEra: jasmine.createSpy('setEra'),
       setNeutralShade: jasmine.createSpy(), setNeutralVariantShade: jasmine.createSpy(), setErrorShade: jasmine.createSpy(),
       setFont: jasmine.createSpy('setFont'), setPrimaryShade: jasmine.createSpy(), setSecondaryShade: jasmine.createSpy(), setTertiaryShade: jasmine.createSpy(),

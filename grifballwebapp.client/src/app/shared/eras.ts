@@ -9,19 +9,20 @@ export interface GrifballEra {
 }
 
 export function grifballEra(year: number | null | undefined, gameSlug?: string | null): GrifballEra {
-  if (year != null && year <= 2010) {
+  const known = year != null && year > 0;
+  if (known && year <= 2010) {
     return { id: 'founding', label: 'Founding Era (grifball.com)', span: '2008–2010' };
   }
-  if (year != null && year <= 2013) {
-    return { id: 'expansion', label: 'Expansion & GGL (grifball.info)', span: '2010–2013' };
+  if (known && year <= 2013) {
+    return { id: 'expansion', label: 'Expansion & GGL (grifball.info)', span: '2011–2013' };
   }
-  if (year != null && year <= 2018) {
-    return { id: 'hub', label: 'GrifballHub & EUGBL Era', span: '2013–2018' };
+  if (known && year <= 2018) {
+    return { id: 'hub', label: 'GrifballHub & EUGBL Era', span: '2014–2018' };
   }
-  if (gameSlug === 'infinite' || (year != null && year >= 2023)) {
+  if (gameSlug === 'infinite' || (known && year >= 2023)) {
     return { id: 'infinite', label: 'Halo Infinite & PlayGrifball', span: '2023–present' };
   }
-  return { id: 'revival', label: 'Revival, GWL & Late League', span: '2018–2022' };
+  return { id: 'revival', label: 'Revival, GWL & Late League', span: '2019–2022' };
 }
 
 /** Formats an active year span (e.g. "2013 – 2026" or "2024") from a list of season years. */

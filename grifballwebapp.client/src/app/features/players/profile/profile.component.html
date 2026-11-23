@@ -12,7 +12,7 @@
         <div><dt class="hud-label">Region</dt><dd class="profile-region">{{profileStats()!.regionName}}</dd></div>
       }
       @if (activeSpan(); as span) {
-        <div><dt class="hud-label">Era span</dt><dd>{{span}}</dd></div>
+        <div><dt class="hud-label">Active seasons</dt><dd>{{span}}</dd></div>
       }
       @if (profileStats()?.isDummyUser) {
         <div><dt class="hud-label">Status</dt><dd><span class="archival-pill">Historical Archive</span></dd></div>

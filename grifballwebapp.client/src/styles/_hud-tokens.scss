@@ -112,6 +112,13 @@ html[data-theme-era='2008'] {
   --hud-hairline: #2F1A1D;
   --hud-text: #F5EAEA;
   --hud-muted: #C29EA2;
+  --hud-accent-hover: #F26B6F;
+  --hud-accent-tint: rgba(229, 72, 77, 0.10);
+  --hud-accent-tint-strong: rgba(229, 72, 77, 0.20);
+  --hud-row-hover: rgba(229, 72, 77, 0.06);
+  --hud-selection: rgba(229, 72, 77, 0.34);
+  --hud-glow: 0 0 24px rgba(229, 72, 77, 0.30);
+  --hud-header-bg: rgba(18, 11, 12, 0.84);
   --hud-on-accent: #FFFFFF;
 }
 
@@ -129,6 +136,13 @@ html[data-theme-era='2011'] {
   --hud-hairline: #1D2820;
   --hud-text: #E6ECE6;
   --hud-muted: #98A89A;
+  --hud-accent-hover: #FACC15;
+  --hud-accent-tint: rgba(234, 179, 8, 0.10);
+  --hud-accent-tint-strong: rgba(234, 179, 8, 0.20);
+  --hud-row-hover: rgba(234, 179, 8, 0.06);
+  --hud-selection: rgba(234, 179, 8, 0.34);
+  --hud-glow: 0 0 24px rgba(234, 179, 8, 0.30);
+  --hud-header-bg: rgba(11, 16, 13, 0.84);
 }
 
 html[data-theme-era='2014'] {
@@ -145,6 +159,13 @@ html[data-theme-era='2014'] {
   --hud-hairline: #1E2635;
   --hud-text: #E8EDF5;
   --hud-muted: #97A3B8;
+  --hud-accent-hover: #FB923C;
+  --hud-accent-tint: rgba(249, 115, 22, 0.10);
+  --hud-accent-tint-strong: rgba(249, 115, 22, 0.20);
+  --hud-row-hover: rgba(249, 115, 22, 0.06);
+  --hud-selection: rgba(249, 115, 22, 0.34);
+  --hud-glow: 0 0 24px rgba(249, 115, 22, 0.30);
+  --hud-header-bg: rgba(13, 16, 23, 0.84);
 }
 
 @media (max-width: 600px) {
