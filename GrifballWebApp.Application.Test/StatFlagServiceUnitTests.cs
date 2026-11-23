@@ -900,12 +900,12 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.DateOutsideSeason), Is.False);
     }
 
-    private async Task<RecordedGame> SeedKillsAndDeathsGameAsync(string key, (int Kills, int Deaths) home, (int Kills, int Deaths) away)
+    private async Task<RecordedGame> SeedKillsAndDeathsGameAsync(string key, (int Kills, int Deaths) home, (int Kills, int Deaths) away, bool named = false)
     {
         var seeded = await SeedAsync(Context);
         var game = RecordedGame.Seed(key, gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
-        var homeSide = game.SeedSide(1);
-        var awaySide = game.SeedSide(2);
+        var homeSide = game.SeedSide(1, name: named ? "Hammers" : null);
+        var awaySide = game.SeedSide(2, name: named ? "Spartans" : null);
         game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[0].Id, 1, "H", home.Kills, home.Deaths, 0), homeSide);
         game.SeedPlayer(new RecordedPlayerLine(seeded.AwayUsers[0].Id, 2, "A", away.Kills, away.Deaths, 0), awaySide);
         Context.RecordedGames.Add(game);
@@ -927,6 +927,17 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
             Assert.That(flag.Discriminator, Is.EqualTo(1));
             Assert.That(flag.Reason, Does.Contain("40 kills").And.Contain("only 10 deaths"));
         }
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_KillsOverDeaths_NamesTheSidesWhenTheyHaveNames()
+    {
+        var game = await SeedKillsAndDeathsGameAsync("kills-named", home: (40, 30), away: (20, 10), named: true);
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.KillsDoNotMatchDeaths);
+        Assert.That(flag.Reason, Does.Contain("Hammers has 40 kills").And.Contain("Spartans only 10 deaths"));
     }
 
     [Test]
@@ -1109,6 +1120,21 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
 
         var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.StatsExceedGameLength);
         Assert.That(flag.Reason, Does.Contain("15 goals"));
+    }
+
+    [Test]
+    public async Task CheckMatchAsync_ADecodedMatchWithNoGoals_IsNotFlaggedForGoals()
+    {
+        Context.XboxUsers.Add(XboxUser.FromXbox(101, "GT101"));
+        var match = Domain.Halo.Match.Seed(Guid.NewGuid(), duration: TimeSpan.FromMinutes(3), scoreLayout: CustomScoreLayout.Plain);
+        match.AddTeam(0, 1, Outcomes.Won);
+        match.AddParticipant(0, 101, new MatchParticipantStats { Kills = 5, Deaths = 5, Score = 500 });
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckMatchAsync(match);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.StatsExceedGameLength), Is.False);
     }
 
     [Test]
