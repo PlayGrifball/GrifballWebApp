@@ -355,7 +355,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     private static readonly string[] ChickensOnly = ["Chickens"];
 
     [Test]
-    public async Task Import_ASeasonFromTwoWorkbooks_KeepsALinkToEachWithItsCatalogTitle()
+    public async Task Import_ASeasonFromTwoWorkbooks_KeepsALinkToEachWithItsCatalogTitle_OrItsId()
     {
         var stats = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"));
         var playoffs = new ArchiveSeason { SeasonName = "Winter League 2019", GameVersion = "halo3", League = "AGLA", Division = "Open", IsPlayoffs = true, SourceWorkbook = "winter-league-2019-playoffs", SourceSheet = "Playoff Stats", Players = [Player("Silva", team: "Rooster")] };
@@ -367,7 +367,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
                 Sources =
                 [
                     new CatalogSource { Id = "winter-league-2019", Url = "https://sheets/stats", Title = "Winter League stats" },
-                    new CatalogSource { Id = "winter-league-2019-playoffs", Url = "https://sheets/playoffs", Title = "Winter League playoffs" },
+                    new CatalogSource { Id = "winter-league-2019-playoffs", Url = "https://sheets/playoffs" },
                     new CatalogSource { Id = "other", Url = "https://sheets/other", Title = "Other" },
                 ],
             },
@@ -380,7 +380,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
-            Assert.That(season.HistoricalSourceLinks, Is.EqualTo(new SeasonSourceLink[] { new("https://sheets/stats", "Winter League stats"), new("https://sheets/playoffs", "Winter League playoffs") }));
+            Assert.That(season.HistoricalSourceLinks, Is.EqualTo(new SeasonSourceLink[] { new("https://sheets/stats", "Winter League stats"), new("https://sheets/playoffs", "winter-league-2019-playoffs") }));
         }
     }
 
