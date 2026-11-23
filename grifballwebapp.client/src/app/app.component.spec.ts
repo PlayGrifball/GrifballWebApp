@@ -28,6 +28,7 @@ const fakeAccount = () => ({
 
 /** The theme the app applies on start. */
 const fakeTheming = () => ({
+  era: signal(''),
   neutral: signal('#111111'),
   neutralVariant: signal('#222222'),
   error: signal('#ff0000'),
@@ -35,6 +36,7 @@ const fakeTheming = () => ({
   primary: signal('#0000ff'),
   secondary: signal('#00ff00'),
   tertiary: signal('#ff00ff'),
+  setEra: jasmine.createSpy('setEra'),
   setNeutralShade: jasmine.createSpy('setNeutralShade'),
   setNeutralVariantShade: jasmine.createSpy('setNeutralVariantShade'),
   setErrorShade: jasmine.createSpy('setErrorShade'),
@@ -67,6 +69,7 @@ describe('AppComponent', () => {
     mockBuildService.getCommitDate.and.returnValue(of(''));
 
     const mockThemingService = {
+      era: signal(''),
       neutral: signal('#000000'),
       neutralVariant: signal('#000000'),
       error: signal('#ff0000'),
@@ -74,6 +77,7 @@ describe('AppComponent', () => {
       primary: signal('#0000ff'),
       secondary: signal('#00ff00'),
       tertiary: signal('#ff00ff'),
+      setEra: jasmine.createSpy('setEra'),
       setNeutralShade: jasmine.createSpy('setNeutralShade'),
       setNeutralVariantShade: jasmine.createSpy('setNeutralVariantShade'),
       setErrorShade: jasmine.createSpy('setErrorShade'),
@@ -592,8 +596,10 @@ describe('AppComponent behaviour', () => {
 describe('AppComponent rendered on the server', () => {
   it('leaves the window, its size and the theme alone', () => {
     const theming = {
+      era: signal(''),
       neutral: signal('#000000'), neutralVariant: signal('#000000'), error: signal('#ff0000'), font: signal('Arial'),
       primary: signal('#0000ff'), secondary: signal('#00ff00'), tertiary: signal('#ff00ff'),
+      setEra: jasmine.createSpy('setEra'),
       setNeutralShade: jasmine.createSpy(), setNeutralVariantShade: jasmine.createSpy(), setErrorShade: jasmine.createSpy(),
       setFont: jasmine.createSpy('setFont'), setPrimaryShade: jasmine.createSpy(), setSecondaryShade: jasmine.createSpy(), setTertiaryShade: jasmine.createSpy(),
     };

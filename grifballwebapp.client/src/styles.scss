@@ -25,11 +25,11 @@ html, body { height: 100%; }
 body { margin: 0; font-family: var(--hud-font); }
 
 html {
-  // Material 3 system colours, mapped onto the Spartan HUD tokens (styles/_hud-tokens.scss).
+  // Material 3 system colours, mapped onto the Archive Vault tokens (styles/_hud-tokens.scss).
   --mat-sys-primary: var(--hud-accent);
   --mat-sys-surface-tint: transparent;
   --mat-sys-on-primary: var(--hud-on-accent);
-  --mat-sys-primary-container: #12304A;
+  --mat-sys-primary-container: var(--hud-surface-high);
   --mat-sys-on-primary-container: var(--hud-text);
   --mat-sys-secondary: var(--hud-muted-2);
   --mat-sys-on-secondary: var(--hud-on-accent);
@@ -45,7 +45,7 @@ html {
   --mat-sys-on-error-container: #FFD9DA;
   --mat-sys-background: var(--hud-bg);
   --mat-sys-on-background: var(--hud-text);
-  --mat-sys-surface: #08131F;
+  --mat-sys-surface: var(--hud-surface);
   --mat-sys-on-surface: var(--hud-text);
   --mat-sys-surface-variant: var(--hud-avatar);
   --mat-sys-on-surface-variant: var(--hud-muted-2);
@@ -54,13 +54,13 @@ html {
   --mat-sys-shadow: #000000;
   --mat-sys-scrim: #000000;
   --mat-sys-inverse-surface: var(--hud-text);
-  --mat-sys-inverse-on-surface: #08131F;
-  --mat-sys-inverse-primary: #1F6EA8;
-  --mat-sys-primary-fixed: #C9E8FF;
+  --mat-sys-inverse-on-surface: var(--hud-surface);
+  --mat-sys-inverse-primary: #8C510B;
+  --mat-sys-primary-fixed: #FFE2BD;
   --mat-sys-on-primary-fixed: var(--hud-on-accent);
   --mat-sys-primary-fixed-dim: var(--hud-accent);
-  --mat-sys-on-primary-fixed-variant: #12304A;
-  --mat-sys-secondary-fixed: #D9F1FF;
+  --mat-sys-on-primary-fixed-variant: var(--hud-surface-high);
+  --mat-sys-secondary-fixed: var(--hud-text);
   --mat-sys-on-secondary-fixed: var(--hud-on-accent);
   --mat-sys-secondary-fixed-dim: var(--hud-muted-2);
   --mat-sys-on-secondary-fixed-variant: var(--hud-avatar);
@@ -69,12 +69,12 @@ html {
   --mat-sys-tertiary-fixed-dim: var(--hud-gold);
   --mat-sys-on-tertiary-fixed-variant: #4A3A0E;
   --mat-sys-surface-dim: var(--hud-bg);
-  --mat-sys-surface-bright: #1B3A55;
+  --mat-sys-surface-bright: var(--hud-surface-highest);
   --mat-sys-surface-container-lowest: var(--hud-bg);
   --mat-sys-surface-container-low: var(--hud-input);
-  --mat-sys-surface-container: #0E2438;
-  --mat-sys-surface-container-high: #12304A;
-  --mat-sys-surface-container-highest: #1B3A55;
+  --mat-sys-surface-container: var(--hud-surface-container);
+  --mat-sys-surface-container-high: var(--hud-surface-high);
+  --mat-sys-surface-container-highest: var(--hud-surface-highest);
 
   // Typography: Rajdhani everywhere (the theme picker can still swap the font).
   --mat-sys-body-large-font: var(--hud-font);

@@ -11,11 +11,14 @@
       @if (profileStats()?.regionName) {
         <div><dt class="hud-label">Region</dt><dd class="profile-region">{{profileStats()!.regionName}}</dd></div>
       }
+      @if (activeSpan(); as span) {
+        <div><dt class="hud-label">Active seasons</dt><dd>{{span}}</dd></div>
+      }
       @if (profileStats()?.isDummyUser) {
         <div><dt class="hud-label">Status</dt><dd><span class="archival-pill">Historical Archive</span></dd></div>
       }
       @if (profileStats()?.championships?.length) {
-        <div><dt class="hud-label">Championships</dt><dd class="hud-gold font-bold">🏆 {{profileStats()!.championships.length}} Rings</dd></div>
+        <div><dt class="hud-label">Championships</dt><dd class="hud-gold font-bold">{{profileStats()!.championships.length}} Rings</dd></div>
       }
       @if (profileStats()?.pastGamertags?.length) {
         <div>
@@ -83,7 +86,12 @@
         <div class="trophy-grid">
           @for (title of profileStats()!.championships; track title.playerChampionshipID) {
             <div class="trophy-card hud-panel hud-panel--chamfer">
-              <div class="trophy-ring-icon" aria-hidden="true">🏆</div>
+              <div class="trophy-ring-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <circle cx="12" cy="14" r="6"/>
+                  <path d="M9 8l3-4 3 4"/>
+                </svg>
+              </div>
               <div class="trophy-info">
                 <div class="trophy-title">
                   <span class="trophy-tier">{{title.tier}} Tier</span>

@@ -27,7 +27,7 @@
 
 .seasons-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   margin: 0;
   padding: 0;
@@ -38,7 +38,20 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  border-left: 3px solid var(--era-color, var(--hud-border));
 }
+
+.season-card--current {
+  --era-color: var(--hud-accent);
+  border-color: var(--hud-accent);
+}
+
+.season-card[data-game='halo3'] { --era-color: var(--era-halo3); }
+.season-card[data-game='reach'],
+.season-card[data-game='reach-dash'] { --era-color: var(--era-reach); }
+.season-card[data-game='halo4'] { --era-color: var(--era-halo4); }
+.season-card[data-game='halo5'] { --era-color: var(--era-halo5); }
+.season-card[data-game='infinite'] { --era-color: var(--era-infinite); }
 
 .season-card__head {
   display: flex;

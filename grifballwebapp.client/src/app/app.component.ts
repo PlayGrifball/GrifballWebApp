@@ -90,6 +90,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
 
   // The theme is set on the document in the browser; the server renders the stylesheet's colours.
   setTheme = this.isBrowser && effect(() => {
+    this.themingService.setEra(this.themingService.era());
     this.themingService.setFont(this.themingService.font());
     this.themingService.setPrimaryShade(this.themingService.primary());
     this.themingService.setSecondaryShade(this.themingService.secondary());

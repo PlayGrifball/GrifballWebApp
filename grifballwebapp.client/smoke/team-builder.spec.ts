@@ -95,13 +95,18 @@ test.describe('team builder', () => {
   });
   test.afterAll(async () => league?.close());
 
-  test('drafts, makes a captain, reorders, moves a pick, refuses a stale pick, and both browsers agree', async ({ adminPage: a, browser, smoke, admin }) => {
+  test('drafts, makes a captain, reorders, moves a pick, refuses a stale pick, and both browsers agree', async ({ adminPage: a, consoleErrors, browser, smoke, admin }) => {
     const [, , p3, p4, p5] = league.players;
     const team1 = teamName(league, 0);
     const team2 = teamName(league, 1);
     const p4Team = `${p4.name}'s Team`; // p4 signed up without a team name.
 
+    // The draft helper asks for suggestions each time the draft changes; the server answers 404 when no team is on deck
+    // (TeamsController.NoTeamOnDeck), and the browser logs that request.
+    const noTeamOnDeck = /status of 404.*\/draft\/suggestions/i;
+    consoleErrors.allow(noTeamOnDeck);
     const other = await secondBrowser(browser, smoke[1]);
+    other.consoleErrors.allow(noTeamOnDeck);
     const b = other.page;
     try {
       await openTeamBuilder(a, league);
@@ -148,6 +153,7 @@ test.describe('team builder', () => {
       staleErrors.allow(/hub\/(LiveHub|ChatHub)|WebSocket|negotiat|Failed to complete negotiation|Error: Failed to start/i);
       // The refused save: the browser logs the failed request.
       staleErrors.allow(/status of (400|409|500).*\/draft\/picks/i);
+      staleErrors.allow(noTeamOnDeck);
       await stale.route('**/hub/**', route => route.abort());
       await stale.routeWebSocket(/\/hub\//, ws => ws.close());
       await openTeamBuilder(stale, league, { hub: false });

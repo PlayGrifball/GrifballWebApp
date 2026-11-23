@@ -5,9 +5,11 @@ import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.compone
 import { TeamStandingsComponent } from './teamStandings/teamStandings.component';
 import { SeasonTabsComponent } from './seasonTabs/seasonTabs.component';
 import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.component';
-import { signupsOpen } from '@shared/seasonEvents';
+import { seasonPhaseSteps, signupsOpen } from '@shared/seasonEvents';
+import { grifballEra } from '@shared/eras';
 import { pageNow } from '@shared/pageNow';
 import { BackfilledBannerComponent, DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
+import { SeasonPhaseBarComponent } from '@shared/seasonPhaseBar/seasonPhaseBar.component';
 import { missing } from './seasonSummary';
 import type { SeasonSummaryDto } from '@api/models';
 import { seasonFormatLabel } from '@shared/seasonFormats';
@@ -67,6 +69,7 @@ function describeChampions(champions: SeasonSummaryDto['champions']): string | n
         SeasonThisWeekComponent,
         BackfilledBannerComponent,
         DataNoticeComponent,
+        SeasonPhaseBarComponent,
         SeasonChampionsComponent,
         SeasonAwardsComponent,
         SeasonPlayerStatsComponent,
@@ -116,6 +119,18 @@ export class SeasonComponent implements OnInit {
   readonly now = pageNow();
   /** Sign up is offered only while this season's signups are open. */
   readonly canSignUp = computed(() => signupsOpen(this.events(), this.shownSeasonID(), this.now()));
+  /** Ordered Signup / Draft / Regular season lifecycle steps when `/api/events` includes this season. */
+  readonly phases = computed(() => seasonPhaseSteps(this.events(), this.shownSeasonID(), this.now()));
+  /** Active season indicator for live seasons not imported from the archive. */
+  readonly isCurrentSeason = computed(() => {
+    const s = this.summary();
+    return s != null && !s.hasEnded && !s.isHistorical;
+  });
+  /** Historical era description for archived seasons. */
+  readonly eraLabel = computed(() => {
+    const s = this.summary();
+    return s?.isHistorical ? grifballEra(s.year, s.gameVersionSlug).label : null;
+  });
 
   constructor() {
     this.store.seasonID.use(this.seasonID);

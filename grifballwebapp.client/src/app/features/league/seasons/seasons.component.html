@@ -49,11 +49,11 @@
 
   <ul class="seasons-list">
     @for (s of shown(); track s.seasonID) {
-      <li class="season-card hud-panel">
+      <li class="season-card hud-panel" [class.season-card--current]="!s.hasEnded" [attr.data-game]="s.gameVersionSlug">
         <div class="season-card__head">
           <a class="season-card__name" [routerLink]="['/season', s.seasonID]">{{s.seasonName}}</a>
           @if (!s.hasEnded) {
-            <span class="hud-label hud-label--accent">Current</span>
+            <span class="hud-pill hud-pill--live">Current</span>
           }
         </div>
         <p class="season-card__meta">

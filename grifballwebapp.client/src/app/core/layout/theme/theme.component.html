@@ -1,7 +1,7 @@
 <div class="theme-head">
   <h2 class="hud-h2" id="theme-title">Theme</h2>
   <div class="theme-head__actions">
-    <button class="hud-btn" type="button" (click)="reset()">Reset to Spartan HUD</button>
+    <button class="hud-btn" type="button" (click)="reset()">Reset to Archive Vault</button>
     @if (dialogRef) {
       <button mat-icon-button type="button" class="theme-close" aria-label="Close" (click)="close()">
         <mat-icon>close</mat-icon>
@@ -11,6 +11,18 @@
 </div>
 
 <div class="theme-body">
+  <div class="theme-presets" role="group" aria-label="Theme presets">
+    @for (theme of themes; track theme.name; let i = $index) {
+      <button
+        type="button"
+        class="hud-tab"
+        [class.hud-tab--active]="activePrimary() === theme.primary && activeEra() === (theme.era ?? '')"
+        (click)="selectTheme(i)">
+        {{theme.name}}
+      </button>
+    }
+  </div>
+
   <mat-form-field appearance="outline" class="theme-font">
       <mat-label>Font</mat-label>
       <mat-select [formControl]="font" name="font">

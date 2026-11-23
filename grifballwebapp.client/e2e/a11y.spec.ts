@@ -47,6 +47,10 @@ async function scan(page: Page, where: string): Promise<string[]> {
   let axe = new AxeBuilder({ page }).withTags(TAGS);
   for (const { within } of THIRD_PARTY)
     axe = axe.exclude(within);
+  // An open select list covers the theme tabs behind it on a phone, leaving a sliver that axe's
+  // target-size rule reads as an undersized target; the tabs are checked with the list closed.
+  if (await page.locator('.mat-mdc-select-panel').count())
+    axe = axe.exclude('.theme-presets');
   const { violations } = await axe.analyze();
   for (const { within, rules } of THIRD_PARTY) {
     if (await page.locator(within).count())
