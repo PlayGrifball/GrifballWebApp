@@ -64,7 +64,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         // is only production's convenience (InfrastructureServiceCollectionExtensions)
         var statFlags = new GrifballWebApp.Application.StatFlags.StatFlagService(Context);
         var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, statFlags: statFlags);
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>(), statFlags: statFlags);
 
         var report = await service.Import(Input(
             Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10))));
@@ -93,7 +93,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         // nor fails the import call itself (caught and logged, the same way StatFlagService's own checks would be).
         var logger = new FakeLogger<HistoricalImportService>();
         var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            logger, new GamertagMatching(Context), TimeProvider.System, statFlags: new ThrowingStatFlagService(Context));
+            logger, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>(), statFlags: new ThrowingStatFlagService(Context));
 
         var report = await service.Import(Input(
             Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10))));
