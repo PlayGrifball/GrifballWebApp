@@ -7,6 +7,7 @@ using GrifballWebApp.Server.Telemetry.Browser;
 using Quartz.Diagnostics;
 using GrifballWebApp.Infrastructure.Redis;
 using GrifballWebApp.Application.Chat;
+using GrifballWebApp.Server.Voice;
 
 namespace GrifballWebApp.Server.Telemetry;
 
@@ -32,6 +33,8 @@ public static class MetricsAndTracingExtensions
         BrowserMetrics.MeterName,
         // The chats' model calls (ChatModel): gen_ai.client.token.usage, gen_ai.client.operation.duration and the stream's chunk times
         ChatModel.SourceName,
+        // grif.voice.*: the voice bot's stage times and what became of each line
+        VoiceTelemetry.SourceName,
     ];
 
     /// <summary>
@@ -93,6 +96,8 @@ public static class MetricsAndTracingExtensions
                     // orchestrate_tools; with the hub call's span, or the Discord message's (MessageCreateHandler), as their parent
                     .AddSource(ChatModel.SourceName)
                     .AddSource(MessageCreateHandler.ActivitySourceName)
+                    // A trace per voice line (VoiceTelemetry): transcribe, reply (the chat's spans under it), speak, play
+                    .AddSource(VoiceTelemetry.SourceName)
                     // The chats' calls to Claude, under the reply's trace
                     .AddSource(AnthropicSource)
                     // Drops the scheduler loop's own spans and rootless Redis spans (SchedulerLoopSampler)
