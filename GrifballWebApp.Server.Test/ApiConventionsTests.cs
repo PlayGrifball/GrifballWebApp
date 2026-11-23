@@ -247,10 +247,7 @@ public class ApiConventionsTests
 
         controller.BadRequestProblem("Already a user");
 
-        Assert.That(lines, Is.EqualTo(new[]
-        {
-            "Information: Request refused (400) on POST /identity/external-login/callback: Already a user",
-        }));
+        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400) on POST /identity/external-login/callback: Already a user"));
     }
 
     private sealed class CapturingLoggerProvider(List<string> lines) : ILoggerProvider
