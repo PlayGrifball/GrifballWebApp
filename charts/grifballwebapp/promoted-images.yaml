@@ -1,0 +1,9 @@
+# The images deployed to staging with this chart (env-deploy.sh), by digest.
+backend:
+  image:
+    repository: ghcr.io/playgrifball/grifballwebappserver
+    tag: staging@sha256:f455aa04a7e69ddce5970954c3c1db1fb5695a0b25919df1561e707c6a6905f8
+frontend:
+  image:
+    repository: ghcr.io/playgrifball/grifballwebappclient
+    tag: staging@sha256:8f5b56072e29f01b8d262be51a2e7ffbd37035972ee9f171921c352218e2ff17
