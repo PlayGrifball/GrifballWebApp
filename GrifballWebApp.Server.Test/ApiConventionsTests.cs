@@ -250,12 +250,20 @@ public class ApiConventionsTests
     }
 
     [Test]
+    public void Refusal_StillLogs_ForAControllerWithoutAnAction()
+    {
+        var lines = LogRefusal(LogLevel.Information, StatusCodes.Status400BadRequest, action: null);
+
+        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400) by : Already a user"));
+    }
+
+    [Test]
     public void Refusal_LogsNothing_WhenItsLevelIsOff()
     {
         Assert.That(LogRefusal(LogLevel.Warning, StatusCodes.Status400BadRequest), Is.Empty);
     }
 
-    private static List<string> LogRefusal(LogLevel minimum, int status)
+    private static List<string> LogRefusal(LogLevel minimum, int status, string? action = "Probe.Action")
     {
         var lines = new List<string>();
         using var services = new ServiceCollection()
@@ -263,7 +271,8 @@ public class ApiConventionsTests
             .BuildServiceProvider();
         var controller = new ProbeController().WithAnonymousUser();
         controller.HttpContext.RequestServices = services;
-        controller.ControllerContext.ActionDescriptor = new Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor { DisplayName = "Probe.Action" };
+        if (action is not null)
+            controller.ControllerContext.ActionDescriptor = new Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor { DisplayName = action };
 
         controller.Refusal(status, "Already a user");
         return lines;
