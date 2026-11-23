@@ -27,6 +27,12 @@ internal sealed class BeforeHistoryForRemainingTablesContext(DbContextOptions<Gr
     public static BeforeHistoryForRemainingTablesContext On(GrifballContext context)
         => new(TestDatabase.Options(context.Database.GetConnectionString()!).Options);
 
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        BeforeSeasonSourceLinksContext.IgnoreSourceLinks(modelBuilder);
+    }
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         base.ConfigureConventions(configurationBuilder);

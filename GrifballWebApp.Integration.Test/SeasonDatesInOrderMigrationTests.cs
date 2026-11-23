@@ -36,11 +36,12 @@ public class SeasonDatesInOrderMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_SeasonDatesInOrder"))) - 1]);
 
+        await using var old = BeforeSeasonSourceLinksContext.On(_context);
         // Dates as the editor could save them before: past the private setters, as the old model's public ones were
         Season Old(string name, DateTime close, DateTime draft, DateTime start, DateTime end)
         {
             var season = Season.Seed(seasonName: name);
-            var entry = _context.Seasons.Add(season);
+            var entry = old.Seasons.Add(season);
             entry.Property(s => s.SignupsOpen).CurrentValue = Open;
             entry.Property(s => s.SignupsClose).CurrentValue = close;
             entry.Property(s => s.DraftStart).CurrentValue = draft;
@@ -56,11 +57,11 @@ public class SeasonDatesInOrderMigrationTests
         var importedAt = Open.AddDays(100);
         var laterStart = Open.AddDays(200);
         var imported = Old("Imported after its import", laterStart, laterStart, laterStart, importedAt);
-        _context.MarkImported(imported, "2018-test/Total Stats");
-        var importedEntry = _context.Entry(imported);
+        old.MarkImported(imported, "2018-test/Total Stats");
+        var importedEntry = old.Entry(imported);
         importedEntry.Property(s => s.SignupsOpen).CurrentValue = laterStart;
         importedEntry.Property(s => s.PublicAt).CurrentValue = laterStart;
-        await _context.SaveChangesAsync();
+        await old.SaveChangesAsync();
         var ids = (inOrder.SeasonID, signups.SeasonID, draft.SeasonID, ends.SeasonID);
 
         await migrator.MigrateAsync();

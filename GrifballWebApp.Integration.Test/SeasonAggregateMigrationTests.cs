@@ -34,8 +34,11 @@ public class SeasonAggregateMigrationTests
         // As the old model's public setters could leave it
         var app = Season.Seed(seasonName: "App season", historicalSourceUrl: "https://sheets/stray");
         var imported = Season.Seed(seasonName: "Imported season", historicalSourceID: "wb/Stats", historicalSourceUrl: "https://sheets/wb");
-        _context.Seasons.AddRange(app, imported);
-        await _context.SaveChangesAsync();
+        await using (var old = BeforeSeasonSourceLinksContext.On(_context))
+        {
+            old.Seasons.AddRange(app, imported);
+            await old.SaveChangesAsync();
+        }
 
         await migrator.MigrateAsync();
 

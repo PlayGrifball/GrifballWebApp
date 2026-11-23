@@ -33,7 +33,7 @@ export interface SeasonListItemDto {
   /**
    * Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).
    */
-  historicalSourceLinks?: Array<SeasonSourceLink> | null;
+  historicalSourceLinks: Array<SeasonSourceLink> | null;
   historicalSourceUrl: string | null;
 
   /**

@@ -31,5 +31,6 @@ internal sealed class BeforeRecordedGameResultDetailsContext(DbContextOptions<Gr
         base.OnModelCreating(modelBuilder);
         IgnoreResultDetails(modelBuilder);
         modelBuilder.Entity<RecordedGameParticipant>().Ignore(p => p.Grabs);
+        BeforeSeasonSourceLinksContext.IgnoreSourceLinks(modelBuilder);
     }
 }
