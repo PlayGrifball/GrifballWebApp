@@ -209,6 +209,10 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         public string SourceId { get; set; } = "";
         public string? SourceUrl { get; set; }
+        /// <summary>The workbook of the entry that keys the season.</summary>
+        public string? PrimaryWorkbook { get; set; }
+        /// <summary>Every spreadsheet that fed the season (its entries, recorded games, titles), the primary first.</summary>
+        public List<SeasonSourceLink> Sources { get; } = [];
         public required string SeasonName { get; init; }
         /// <summary>The season's league; null for Late League, which is matchmaking, not a season (<see cref="IsMatchmaking"/>).</summary>
         public required League? League { get; init; }
@@ -316,6 +320,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var archiveSeasons = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         AssignGames(input, groups, report);
+        GatherSources(groups, input.Catalog, ChampionsWorkbook(input.Championships));
         // Only the seasons asked for (the ones whose sources changed), with all of their parts
         NarrowTo(options, groups);
 
@@ -387,6 +392,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             group.SourceId = EntrySourceId(primary) ?? nameKey;
             if (EntrySourceId(primary) is null)
                 Warn(report, $"Season {group.SeasonName}: no source workbook and sheet, keyed {nameKey}");
+            group.PrimaryWorkbook = primary.SourceWorkbook;
             if (primary.SourceWorkbook is not null)
                 group.SourceUrl = urls.GetValueOrDefault(primary.SourceWorkbook.Trim());
             // The season's game and division are its regular season's; entries that say otherwise are reported
@@ -397,6 +403,25 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Warn(report, $"Season {group.SeasonName}: its entries are of more than one game ({string.Join(", ", group.EntryGames.Values.Select(g => g.Slug).Distinct())}); the season is {group.GameVersion.Slug}, each stat row its entry's");
             if (group.Entries.Select(e => e.Division?.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
                 Warn(report, $"Season {group.SeasonName}: its entries are of more than one division; the season is {group.Division ?? "undivided"}");
+        }
+    }
+
+    /// <summary>Each season's source spreadsheets: its primary workbook, then the other workbooks its entries, recorded games
+    /// and titles came from, each with the catalog's title.</summary>
+    private static void GatherSources(Dictionary<string, SeasonGroup> groups, ArchiveCatalog? catalog, string defaultChampionsWorkbook)
+    {
+        var byId = (catalog?.Sources ?? []).Where(s => !string.IsNullOrWhiteSpace(s.Url))
+            .GroupBy(s => s.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        foreach (var group in groups.Values)
+        {
+            var workbooks = new[] { group.PrimaryWorkbook }
+                .Concat(group.Entries.Select(e => e.SourceWorkbook))
+                .Concat((group.RecordedGames ?? []).Select(g => g.SourceKey.IndexOf('/') is var i and > 0 ? g.SourceKey[..i] : null))
+                .Concat(group.Championships.Select(c => ChampionshipWorkbook(c, defaultChampionsWorkbook)));
+            foreach (var id in workbooks.Where(w => !string.IsNullOrWhiteSpace(w)).Select(w => w!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
+                if (byId.TryGetValue(id, out var source))
+                    group.Sources.Add(new SeasonSourceLink(source.Url!, string.IsNullOrWhiteSpace(source.Title) ? id : source.Title.Trim()));
         }
     }
 
@@ -971,6 +996,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var (start, end, dated) = await SeasonDates(group, ct);
         season.ScheduleArchived(start, end, dated, _timeProvider.GetUtcNow().UtcDateTime);
         season.UpdateArchived(group.SeasonName, league.LeagueID, group.GameVersion?.GameVesionID, group.Division, group.SourceUrl, group.Format);
+        season.SetArchiveSources(group.Sources);
         await _context.SaveChangesAsync(ct);
         return season;
     }

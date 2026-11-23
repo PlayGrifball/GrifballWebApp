@@ -195,6 +195,7 @@ export type { SeasonPlayerStatDto } from './models/season-player-stat-dto';
 export type { SeasonRefDto } from './models/season-ref-dto';
 export type { SeasonSchedulingRulesDto } from './models/season-scheduling-rules-dto';
 export type { SeasonsLiveDto } from './models/seasons-live-dto';
+export type { SeasonSourceLink } from './models/season-source-link';
 export type { SeasonSummaryDto } from './models/season-summary-dto';
 export type { SeasonTeamDto } from './models/season-team-dto';
 export type { SeasonTeamMemberDto } from './models/season-team-member-dto';

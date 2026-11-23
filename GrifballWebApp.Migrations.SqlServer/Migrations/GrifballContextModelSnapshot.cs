@@ -2653,6 +2653,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("HistoricalSourceLinks")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)")
+                        .HasDefaultValueSql("NULL");
+
                     b.Property<string>("HistoricalSourceUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");

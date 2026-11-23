@@ -67,6 +67,45 @@ public class SeasonAggregateTests
     }
 
     [Test]
+    public void SetArchiveSources_KeepsEachSheetOnce_AndRefusesAnAppSeason()
+    {
+        var imported = Imported();
+        imported.SetArchiveSources([new("https://sheets/a ", " Stats"), new("https://sheets/a", "again"), new(" ", "blank"), new("https://sheets/b", "Schedule")]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(imported.HistoricalSourceLinks, Is.EqualTo(new SeasonSourceLink[] { new("https://sheets/a", "Stats"), new("https://sheets/b", "Schedule") }));
+            Assert.That(() => Organized().SetArchiveSources([]), Throws.InvalidOperationException);
+        }
+    }
+
+    private static readonly string[] ExpectedLabels = ["One", "Two"];
+
+    [Test]
+    public void SetArchiveSources_KeepsTwoUrlsThatDifferOnlyInCase_AsGoogleSheetIdsAreCaseSensitive()
+    {
+        var imported = Imported();
+        imported.SetArchiveSources([new("https://sheets/AbC", "One"), new("https://sheets/aBC", "Two")]);
+
+        Assert.That(imported.HistoricalSourceLinks!.Select(l => l.Label), Is.EqualTo(ExpectedLabels));
+    }
+
+    [Test]
+    public void SetArchiveSources_UsesTheUrlForAMissingLabel_AndCapsWhatTheColumnHolds()
+    {
+        var imported = Imported();
+        imported.SetArchiveSources([new("https://sheets/a", null!), new("https://sheets/b", new string('x', 500)), .. Enumerable.Range(0, 30).Select(i => new SeasonSourceLink($"https://sheets/{i}", "More"))]);
+
+        var links = imported.HistoricalSourceLinks!;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(links[0].Label, Is.EqualTo("https://sheets/a"));
+            Assert.That(links[1].Label, Has.Length.LessThanOrEqualTo(150));
+            Assert.That(System.Text.Json.JsonSerializer.Serialize(links), Has.Length.LessThan(4000));
+        }
+    }
+
+    [Test]
     public void TheImportsUpdates_OnlyAnImportedSeason()
     {
         var season = Organized();

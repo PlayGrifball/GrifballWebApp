@@ -4,6 +4,7 @@
 import { SeasonAwardDto } from '../models/season-award-dto';
 import { SeasonChampionDto } from '../models/season-champion-dto';
 import { SeasonFormat } from '../models/season-format';
+import { SeasonSourceLink } from '../models/season-source-link';
 
 /**
  * A season's page header: what it is, its champions, and how much of each kind of data it has, so the page can say
@@ -37,6 +38,11 @@ export interface SeasonSummaryDto {
    * The season is over: a section with nothing to show says it wasn't recorded.
    */
   hasEnded: boolean;
+
+  /**
+   * Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).
+   */
+  historicalSourceLinks: Array<SeasonSourceLink> | null;
   historicalSourceUrl: string | null;
 
   /**

@@ -116,6 +116,9 @@ public class Season : AuditableEntity
     /// <summary>The source workbook's link (Google Sheets) from the archive catalog, kept for provenance even when the
     /// sheet is gone. Null for the app's own seasons (CK_Event_Seasons_SourceUrlOnlyImported).</summary>
     public string HistoricalSourceUrl { get; private set; }
+    /// <summary>Every spreadsheet that feeds an imported season (its stats, schedule, bracket, champions), the primary one
+    /// first: what the season's page links to. Null until an import sets it, and for the app's own seasons; <see cref="HistoricalSourceUrl"/> stays the primary.</summary>
+    public IReadOnlyList<SeasonSourceLink> HistoricalSourceLinks { get; private set; }
     /// <summary>What kind of competition the season is (<see cref="SeasonFormat"/>): which sections its page has, and whether it
     /// crowns a champion. Seasons from before formats existed are league seasons (the column's default).</summary>
     public SeasonFormat Format { get; private set; } = SeasonFormat.LeagueSeason;
@@ -213,6 +216,28 @@ public class Season : AuditableEntity
         if (removed > 0)
             Raise(new SeasonChampionsChanged(this));
         return removed;
+    }
+
+    /// <summary>The import's record of every spreadsheet that feeds the season, the primary first; a link twice (by exact URL) is
+    /// kept once. Only an imported season (throws otherwise).</summary>
+    private const int MaxSourceLinks = 10;
+    private const int MaxSourceLabel = 150;
+
+    private static string Label(SeasonSourceLink link)
+    {
+        var label = (string.IsNullOrWhiteSpace(link.Label) ? link.Url : link.Label).Trim();
+        return label[..Math.Min(label.Length, MaxSourceLabel)];
+    }
+
+    public void SetArchiveSources(IEnumerable<SeasonSourceLink> links)
+    {
+        RequireImported();
+        var kept = links.Where(l => !string.IsNullOrWhiteSpace(l.Url))
+            .DistinctBy(l => l.Url.Trim(), StringComparer.Ordinal)
+            .Take(MaxSourceLinks)
+            .Select(l => new SeasonSourceLink(l.Url.Trim(), Label(l)))
+            .ToList();
+        HistoricalSourceLinks = kept.Count == 0 ? null : kept;
     }
 
     private void RequireImported()

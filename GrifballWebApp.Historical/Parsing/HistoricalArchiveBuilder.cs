@@ -85,7 +85,7 @@ public sealed partial class HistoricalArchiveBuilder
     public void Add(HistoricalSourceContent content)
     {
         var source = content.Source;
-        _catalog.Add(new CatalogSource { Id = source.HistoricalSourceID, Url = source.Url });
+        _catalog.Add(new CatalogSource { Id = source.HistoricalSourceID, Url = source.Url, Title = source.Title });
         var config = HistoricalSourceConfig.FromJson(source.Config);
         if (config is null)
             return;

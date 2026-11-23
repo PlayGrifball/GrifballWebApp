@@ -40,7 +40,7 @@
   }
 
   @if (summary()?.isHistorical) {
-    <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" [eraLabel]="eraLabel()" />
+    <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" [sources]="summary()?.historicalSourceLinks" [eraLabel]="eraLabel()" />
   }
 
   <app-season-tabs [seasonID]="shownSeasonID()" [active]="view()" />

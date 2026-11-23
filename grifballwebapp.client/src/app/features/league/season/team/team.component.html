@@ -12,7 +12,7 @@
     </div>
 
     @if (team()?.season?.isHistorical) {
-        <app-backfilled-banner [sourceUrl]="team()?.season?.historicalSourceUrl" />
+        <app-backfilled-banner [sourceUrl]="team()?.season?.historicalSourceUrl" [sources]="team()?.season?.historicalSourceLinks" />
     }
 
     <app-season-tabs [seasonID]="seasonID()" active="teams" />

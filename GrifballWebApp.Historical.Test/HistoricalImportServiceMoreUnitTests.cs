@@ -355,6 +355,77 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     private static readonly string[] ChickensOnly = ["Chickens"];
 
     [Test]
+    public async Task Import_ASeasonFromTwoWorkbooks_KeepsALinkToEachWithItsCatalogTitle_OrItsId()
+    {
+        var stats = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"));
+        var playoffs = new ArchiveSeason { SeasonName = "Winter League 2019", GameVersion = "halo3", League = "AGLA", Division = "Open", IsPlayoffs = true, SourceWorkbook = "winter-league-2019-playoffs", SourceSheet = "Playoff Stats", Players = [Player("Silva", team: "Rooster")] };
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [stats, playoffs] },
+            Catalog = new ArchiveCatalog
+            {
+                Sources =
+                [
+                    new CatalogSource { Id = "winter-league-2019", Url = "https://sheets/stats", Title = "Winter League stats" },
+                    new CatalogSource { Id = "winter-league-2019-playoffs", Url = "https://sheets/playoffs" },
+                    new CatalogSource { Id = "other", Url = "https://sheets/other", Title = "Other" },
+                ],
+            },
+        };
+
+        var report = await _service.Import(input);
+
+        Context.ChangeTracker.Clear();
+        var season = await Context.Seasons.AsNoTracking().SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(season.HistoricalSourceLinks, Is.EqualTo(new SeasonSourceLink[] { new("https://sheets/stats", "Winter League stats"), new("https://sheets/playoffs", "winter-league-2019-playoffs") }));
+        }
+    }
+
+    [Test]
+    public async Task Import_ASeasonWhoseTitleIsInTheChampionsWorkbook_LinksThatWorkbookToo()
+    {
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"))] },
+            Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Open", Team = "Rooster", Captain = "Silva", Roster = ["Silva"] }] },
+            Catalog = new ArchiveCatalog
+            {
+                Sources =
+                [
+                    new CatalogSource { Id = "winter-league-2019", Url = "https://sheets/stats", Title = "Stats" },
+                    new CatalogSource { Id = "history-agla-champions", Url = "https://sheets/champs", Title = "Champions" },
+                ],
+            },
+        };
+
+        await _service.Import(input);
+
+        Context.ChangeTracker.Clear();
+        var season = await Context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That(season.HistoricalSourceLinks, Is.EqualTo(new SeasonSourceLink[] { new("https://sheets/stats", "Stats"), new("https://sheets/champs", "Champions") }));
+    }
+
+    [Test]
+    public async Task Import_ASeasonKeyedByAnOverride_StillLinksItsPrimaryWorkbookFirst()
+    {
+        var stats = new ArchiveSeason { SeasonName = "Winter League 2019", GameVersion = "halo3", League = "AGLA", Division = "Open", SourceWorkbook = "winter-league-2019", SourceSheet = "Stats", HistoricalSourceId = "custom-key", Players = [Player("Silva", team: "Rooster")] };
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [stats] },
+            Catalog = new ArchiveCatalog { Sources = [new CatalogSource { Id = "winter-league-2019", Url = "https://sheets/stats", Title = "Stats" }] },
+        };
+
+        await _service.Import(input);
+
+        Context.ChangeTracker.Clear();
+        var season = await Context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That(season.HistoricalSourceLinks, Is.EqualTo(new SeasonSourceLink[] { new("https://sheets/stats", "Stats") }));
+    }
+
+    [Test]
     public async Task Import_ATeamNoLongerInTheArchive_LeavesAClaimOfItWithoutATeam()
     {
         await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"))));

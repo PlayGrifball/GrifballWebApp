@@ -16318,6 +16318,7 @@
           "gameVersionName",
           "gameVersionSlug",
           "hasEnded",
+          "historicalSourceLinks",
           "historicalSourceUrl",
           "isHistorical",
           "isPublic",
@@ -16398,6 +16399,14 @@
             "type": "string",
             "nullable": true
           },
+          "historicalSourceLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonSourceLink"
+            },
+            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).",
+            "nullable": true
+          },
           "isPublic": {
             "type": "boolean",
             "description": "Anyone may see it (announced, or begun): its public things, a calendar feed among them, exist. Staff see seasons that aren't."
@@ -16416,6 +16425,7 @@
           "gameVersionName",
           "gameVersionSlug",
           "hasEnded",
+          "historicalSourceLinks",
           "historicalSourceUrl",
           "isHistorical",
           "isPublic",
@@ -16497,6 +16507,14 @@
           },
           "historicalSourceUrl": {
             "type": "string",
+            "nullable": true
+          },
+          "historicalSourceLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonSourceLink"
+            },
+            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).",
             "nullable": true
           },
           "isPublic": {
@@ -17079,6 +17097,23 @@
         "additionalProperties": false,
         "description": "A season's scheduling rules (GrifballWebApp.Domain.League.SeasonSchedulingRules), as staff see and change them."
       },
+      "SeasonSourceLink": {
+        "required": [
+          "label",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "One spreadsheet of the historical archive that feeds a season: its link and a name for it."
+      },
       "SeasonSummaryDto": {
         "required": [
           "awards",
@@ -17091,6 +17126,7 @@
           "gameVersionName",
           "gameVersionSlug",
           "hasEnded",
+          "historicalSourceLinks",
           "historicalSourceUrl",
           "isHistorical",
           "isPublic",
@@ -17173,6 +17209,14 @@
           },
           "historicalSourceUrl": {
             "type": "string",
+            "nullable": true
+          },
+          "historicalSourceLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonSourceLink"
+            },
+            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).",
             "nullable": true
           },
           "isPublic": {

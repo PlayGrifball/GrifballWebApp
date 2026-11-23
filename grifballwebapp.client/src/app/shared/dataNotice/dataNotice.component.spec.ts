@@ -52,4 +52,31 @@ describe('BackfilledBannerComponent', () => {
     expect(el().textContent).toContain('Archived from historical records');
     expect(el().querySelector('a')).toBeNull();
   });
+
+  it('links every source spreadsheet by its label when a season has several', () => {
+    fixture.componentRef.setInput('sourceUrl', 'https://docs.google.com/spreadsheets/d/a');
+    fixture.componentRef.setInput('sources', [
+      { url: 'https://docs.google.com/spreadsheets/d/a', label: 'Stats' },
+      { url: 'https://docs.google.com/spreadsheets/d/b', label: 'Schedule' },
+    ]);
+    fixture.detectChanges();
+    const links = Array.from(el().querySelectorAll('a'));
+    expect(links.map(l => l.getAttribute('href'))).toEqual(['https://docs.google.com/spreadsheets/d/a', 'https://docs.google.com/spreadsheets/d/b']);
+    expect(links.map(l => l.textContent!.trim())).toEqual(['Stats', 'Schedule']);
+  });
+
+  it('names a lone source by its own label when it is not the season\'s primary workbook', () => {
+    fixture.componentRef.setInput('sourceUrl', 'https://docs.google.com/spreadsheets/d/a');
+    fixture.componentRef.setInput('sources', [{ url: 'https://docs.google.com/spreadsheets/d/b', label: 'Schedule' }]);
+    fixture.detectChanges();
+    expect(el().querySelector('a')!.textContent).toContain('Schedule');
+  });
+
+  it('calls a lone source the source spreadsheet', () => {
+    fixture.componentRef.setInput('sources', [{ url: 'https://docs.google.com/spreadsheets/d/a', label: 'Stats' }]);
+    fixture.detectChanges();
+    const links = el().querySelectorAll('a');
+    expect(links).toHaveSize(1);
+    expect(links[0].textContent).toContain('Source spreadsheet');
+  });
 });

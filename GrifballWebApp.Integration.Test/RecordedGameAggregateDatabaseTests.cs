@@ -130,9 +130,9 @@ public class RecordedGameAggregateMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_RecordedGameAggregate"))) - 1]);
 
-        var season = await _context.AddSeason();
         // Rows as the old model's public setters could leave them (the columns are as they were)
         await using var old = BeforeRecordedGameResultDetailsContext.On(_context);
+        var season = await old.AddSeason();
         var games = new Dictionary<string, RecordedGame>();
         void Row(string key, RecordedGameOrigin origin, int? seasonID, Outcomes outcome)
         {

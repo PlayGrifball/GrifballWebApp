@@ -199,7 +199,7 @@ const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Br
 const seasonInfo = (seasonID: number, changes: Partial<SeasonInfoDto> = {}): SeasonInfoDto => ({
   seasonID, seasonName: seasonNames[seasonID] ?? `Season ${seasonID}`, start: '2026-01-01T00:00:00Z', end: '2026-03-01T00:00:00Z', year: 2026,
   hasEnded: true, leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
-  division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null, isPublic: true, ...changes,
+  division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null, historicalSourceLinks: null, isPublic: true, ...changes,
 });
 
 // The season editor's form (/seasonEdit/12), in the shape GetSeasons lists them
