@@ -451,7 +451,7 @@ public sealed partial class HistoricalArchiveBuilder
             name = aliases?.GetValueOrDefault(name) ?? name;
             return Closest(name, known) ?? Closest(StandingsParser.WithoutNote(name), known) ?? name;
         }
-        regular.Bracket = new ArchiveBracket { Series = [.. bracket.Series.Select(s => s with { Home = Named(s.Home), Away = Named(s.Away) })] };
+        regular.Bracket = new ArchiveBracket { SourceId = sourceId, Series = [.. bracket.Series.Select(s => s with { Home = Named(s.Home), Away = Named(s.Away) })] };
         if (_changedSourceIds?.Contains(sourceId) != false)
             _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
     }

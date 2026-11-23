@@ -417,6 +417,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         {
             var workbooks = new[] { group.PrimaryWorkbook }
                 .Concat(group.Entries.Select(e => e.SourceWorkbook))
+                .Concat(group.Entries.Select(e => e.Bracket?.SourceId))
                 .Concat((group.RecordedGames ?? []).Select(g => g.SourceKey.IndexOf('/') is var i and > 0 ? g.SourceKey[..i] : null))
                 .Concat(group.Championships.Select(c => ChampionshipWorkbook(c, defaultChampionsWorkbook)));
             foreach (var id in workbooks.Where(w => !string.IsNullOrWhiteSpace(w)).Select(w => w!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))

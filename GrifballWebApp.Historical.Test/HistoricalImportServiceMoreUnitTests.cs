@@ -409,6 +409,35 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     }
 
     [Test]
+    public async Task Import_ASeasonWhoseBracketIsInAnotherWorkbook_LinksThatWorkbookToo()
+    {
+        var stats = new ArchiveSeason
+        {
+            SeasonName = "Winter League 2019", GameVersion = "halo3", League = "AGLA", Division = "Open", SourceWorkbook = "winter-league-2019", SourceSheet = "Stats",
+            Players = [Player("Silva", team: "Rooster")],
+            Bracket = new ArchiveBracket { SourceId = "winter-league-2019-schedule" },
+        };
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [stats] },
+            Catalog = new ArchiveCatalog
+            {
+                Sources =
+                [
+                    new CatalogSource { Id = "winter-league-2019", Url = "https://sheets/stats", Title = "Stats" },
+                    new CatalogSource { Id = "winter-league-2019-schedule", Url = "https://sheets/schedule", Title = "Schedule" },
+                ],
+            },
+        };
+
+        await _service.Import(input);
+
+        Context.ChangeTracker.Clear();
+        var season = await Context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That(season.HistoricalSourceLinks, Is.EqualTo(new SeasonSourceLink[] { new("https://sheets/stats", "Stats"), new("https://sheets/schedule", "Schedule") }));
+    }
+
+    [Test]
     public async Task Import_ASeasonKeyedByAnOverride_StillLinksItsPrimaryWorkbookFirst()
     {
         var stats = new ArchiveSeason { SeasonName = "Winter League 2019", GameVersion = "halo3", League = "AGLA", Division = "Open", SourceWorkbook = "winter-league-2019", SourceSheet = "Stats", HistoricalSourceId = "custom-key", Players = [Player("Silva", team: "Rooster")] };
