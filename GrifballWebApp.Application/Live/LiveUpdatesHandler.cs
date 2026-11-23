@@ -106,6 +106,9 @@ public static class LiveChanges
         RecordedGameChanged e => e.Game.SeasonID is int seasonID
             ? All(T.Season(seasonID)).Concat(e.Game.Teams.Where(t => t.TeamID != null).Select(t => new LiveChange(T.Team(t.TeamID!.Value))))
             : All(T.LateLeague),
+        // #548: the staff list and the dashboard's count; which game it's about isn't loaded here, so its own page
+        // (a match-pull's page, the season match page) isn't told to reload - left for later
+        StatFlagFound or StatFlagDismissed or StatFlagReopened or StatFlagCleared => All(T.StaffStatFlags),
 
         _ => [],
     };

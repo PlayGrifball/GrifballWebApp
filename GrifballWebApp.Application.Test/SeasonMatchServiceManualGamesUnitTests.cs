@@ -32,9 +32,11 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
     private BracketService _bracketService = null!;
     private SeasonMatchService _service = null!;
     private readonly FailingSaves _saves = new();
+    private readonly FailingStatFlagSaves _statFlagFailure = new();
 
-    /// <summary>Every test's context runs <see cref="_saves"/>: a no-op until a test sets its Failure.</summary>
-    protected override IReadOnlyList<IInterceptor> Interceptors => [_saves];
+    /// <summary>Every test's context runs <see cref="_saves"/> and <see cref="_statFlagFailure"/>: a no-op until a test
+    /// arms one.</summary>
+    protected override IReadOnlyList<IInterceptor> Interceptors => [_saves, _statFlagFailure];
 
     [SetUp]
     public void SetUp()
@@ -332,6 +334,33 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
     }
 
     [Test]
+    public async Task AddManualGame_ReplacingAKeptImportedGame_ClearsTheStaleSeriesFlag()
+    {
+        // #548, third review: unlike a game entered by hand (deleted outright), an imported game survives being
+        // replaced - but the series flag is of the series itself (StatFlag.SeasonMatchID), never one particular game,
+        // so AddManualGame's own CheckSeriesGamesAsync call reaches it regardless of which game it was ever attached to
+        var seeded = await SeedAsync(Context, bestOf: 3);
+        var imported = RecordedGame.Seed("unit/add-replaces-imported", gameVersionID: Halo3);
+        imported.SeedSide(1, seeded.SeasonMatch.HomeTeamID, Outcomes.Won, 1);
+        imported.SeedSide(2, seeded.SeasonMatch.AwayTeamID, Outcomes.Lost, 0);
+        Context.RecordedGames.Add(imported);
+        var replaced = seeded.SeasonMatch.Game(1, recorded: imported);
+        await Context.SaveChangesAsync();
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seeded.SeasonMatch.SeasonMatchID, null, "stale", DateTime.UtcNow));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        await Add(seeded.SeasonMatch.SeasonMatchID, Entry(2, 5) with { ReplacesSeriesGameID = replaced.SeriesGameID });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.RecordedGames.AnyAsync(g => g.RecordedGameID == imported.RecordedGameID), Is.True);
+            Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames
+                && f.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID && f.DismissedAt == null), Is.False);
+        }
+    }
+
+    [Test]
     public async Task AddManualGame_ReplacingTheGameThatDecidedTheSeries_CanChangeItsWinner_AndDeletesTheGameReplaced()
     {
         var seeded = await SeedAsync(Context, bestOf: 1);
@@ -419,6 +448,25 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
         var ex = await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Entry(5, 3)));
 
         Assert.That(ex!.Message, Is.EqualTo("The row changed"));
+    }
+
+    [Test]
+    public async Task AddManualGame_WhenTheStatFlagCheckFails_StillSavesTheGame_WithNothingOfItsOwnLeftTracked()
+    {
+        // #548: a failing stat check must never roll back the action it follows
+        var seeded = await SeedAsync(Context);
+        // 1 player, short of the format's minimum: a TeamSmallerThanFormat finding, so the check adds a StatFlag
+        var dto = Entry(1, 0, players: [Line(seeded.HomeUsers[0].Id, true)]);
+        _statFlagFailure.Armed = true;
+
+        var gameID = await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, dto);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.RecordedGames.AnyAsync(g => g.RecordedGameID == gameID), Is.True);
+            Assert.That(await Context.StatFlags.AnyAsync(), Is.False, "The check's own save failed: nothing of its was actually saved");
+            Assert.That(Context.ChangeTracker.Entries<StatFlag>().Where(e => e.State != EntityState.Unchanged), Is.Empty, "Nothing left tracked for a later save to trip over");
+        }
     }
 
     #endregion
@@ -619,6 +667,32 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
     }
 
     [Test]
+    public async Task RemoveGame_AKeptImportedGame_ClearsTheStaleSeriesFlag()
+    {
+        // #548, third review: an imported (non-manual) game survives being removed from the series - only a game
+        // entered by hand is deleted - but the series flag is of the series itself (StatFlag.SeasonMatchID), never
+        // one particular game, so RemoveGame's own CheckSeriesGamesAsync call reaches it regardless
+        var seeded = await SeedAsync(Context, bestOf: 3);
+        var imported = RecordedGame.Seed("unit/removed-stale-series", gameVersionID: Halo3);
+        imported.SeedSide(1, seeded.SeasonMatch.HomeTeamID, Outcomes.Won, 1);
+        imported.SeedSide(2, seeded.SeasonMatch.AwayTeamID, Outcomes.Lost, 0);
+        Context.RecordedGames.Add(imported);
+        var seriesGame = seeded.SeasonMatch.Game(1, recorded: imported);
+        await Context.SaveChangesAsync();
+        Context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seeded.SeasonMatch.SeasonMatchID, null, "stale", DateTime.UtcNow));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        await _service.RemoveGame(seeded.SeasonMatch.SeasonMatchID, seriesGame.SeriesGameID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.RecordedGames.AnyAsync(g => g.RecordedGameID == imported.RecordedGameID), Is.True);
+            Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames && f.DismissedAt == null), Is.False);
+        }
+    }
+
+    [Test]
     public async Task RemoveGame_OfAForfeitedMatch_IsRefused()
     {
         var seeded = await SeedAsync(Context, bestOf: 3);
@@ -740,5 +814,17 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
 
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
             => Failure is { } failure ? throw failure : base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
+    /// <summary>Fails only the save a stat flag check makes (adding a StatFlag) while <see cref="Armed"/>: the game or
+    /// series save itself, earlier in the same method, goes through untouched.</summary>
+    private sealed class FailingStatFlagSaves : SaveChangesInterceptor
+    {
+        public bool Armed { get; set; }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+            => Armed && eventData.Context!.ChangeTracker.Entries<StatFlag>().Any(e => e.State == EntityState.Added)
+                ? throw new InvalidOperationException("Simulated stat flag check failure")
+                : base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 }

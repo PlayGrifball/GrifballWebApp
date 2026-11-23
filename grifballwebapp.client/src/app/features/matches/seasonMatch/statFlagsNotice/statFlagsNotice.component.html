@@ -1,0 +1,13 @@
+@if (flags().length > 0) {
+<div class="lobby-notice lobby-notice--flag" role="status">
+  <span class="hud-label hud-label--gold"><mat-icon aria-hidden="true">flag</mat-icon> Stat flags</span>
+  <ul class="stat-flags-notice__list">
+    @for (flag of flags(); track flag.statFlagID) {
+    <li>
+      <span>{{ flag.gameNumber ? 'Game ' + flag.gameNumber + ': ' : '' }}{{ flag.reason }}</span>
+      <button mat-stroked-button type="button" (click)="dismiss(flag)">Dismiss</button>
+    </li>
+    }
+  </ul>
+</div>
+}

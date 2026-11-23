@@ -3,6 +3,11 @@
 
 export interface DashboardSummaryDto {
   criticalOverdueCount: number;
+
+  /**
+   * Open stat flags (#548): anomalies found in game stats, not yet looked at.
+   */
+  openStatFlagCount: number;
   overdueMatchCount: number;
   pendingRescheduleCount: number;
   seasonsNotPublicBySignupsCount: number;

@@ -19,3 +19,15 @@ public sealed record HistoricalSourceChanged(HistoricalSource Source) : IDomainE
 
 /// <summary>A recorded game was imported or entered by hand, or its facts, sides or players changed.</summary>
 public sealed record RecordedGameChanged(RecordedGame Game) : IDomainEvent;
+
+/// <summary>A stat flag was found against a game (#548).</summary>
+public sealed record StatFlagFound(StatFlag Flag) : IDomainEvent;
+
+/// <summary>Staff dismissed a stat flag (#548).</summary>
+public sealed record StatFlagDismissed(StatFlag Flag) : IDomainEvent;
+
+/// <summary>A re-run reopened a stat flag staff had dismissed: what they dismissed isn't what's being found now (#548).</summary>
+public sealed record StatFlagReopened(StatFlag Flag) : IDomainEvent;
+
+/// <summary>A re-run no longer finds what an open stat flag found, so it's removed (#548).</summary>
+public sealed record StatFlagCleared(StatFlag Flag) : IDomainEvent;

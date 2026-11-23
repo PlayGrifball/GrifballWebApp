@@ -110,6 +110,27 @@ public class HistoricalImportRecordedGamesTests
     }
 
     [Test]
+    public async Task RecordedGames_AGamesOutcomeChangedOnAReimport_ReChecksItsAlreadyLinkedSeries()
+    {
+        // #548: a 2-0 series; the archive later corrects game 2's outcome (now 1-1), which only LinkSeries recomputes
+        // for a newly-linked series - a re-import must still re-check this already-linked one
+        await _service.Import(Summer2015(
+            Game(Summer, "s/1", T, [.. Alpha, .. Bravo]),
+            Game(Summer, "s/2", T.AddMinutes(30), [.. Alpha, .. Bravo])));
+
+        await _service.Import(Summer2015(
+            Game(Summer, "s/1", T, [.. Alpha, .. Bravo]),
+            Game(Summer, "s/2", T.AddMinutes(30), [.. Alpha, .. Bravo], side1Won: false)));
+
+        var flag = await _context.StatFlags.AsNoTracking().SingleAsync(f => f.Rule == StatFlagRule.SeriesDoesNotMatchGames);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.IsOpen, Is.True);
+            Assert.That(flag.Reason, Does.Contain("2-0"));
+        }
+    }
+
+    [Test]
     public async Task ATeamGoneFromTheArchive_LeavesItsRecordedSides_ForTheTeamTheyAreNow()
     {
         await _service.Import(Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo])));
@@ -199,7 +220,14 @@ public class HistoricalImportRecordedGamesTests
     [Test]
     public async Task RecordedGames_NoLongerInTheArchive_Go_AndAScrimNowLeavesItsSeries()
     {
+        // s/1 and s/2 are 2 days apart, past SeriesGap (3 hours): each is its own one-game series
         await _service.Import(Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo]), Game(Summer, "s/2", T.AddDays(2), [.. Alpha, .. Bravo])));
+        // #548, third review: a stale flag from an earlier run, on the series itself (StatFlag.SeasonMatchID, not the
+        // game that survives - a series flag is never of one particular game any more)
+        var seasonMatchID = await _context.Set<SeriesGame>().AsNoTracking()
+            .Where(g => g.RecordedGame!.SourceKey == "s/2").Select(g => g.SeasonMatchID).SingleAsync();
+        _context.StatFlags.Add(StatFlag.Found(StatFlagRule.SeriesDoesNotMatchGames, null, null, seasonMatchID, null, "stale", T));
+        await _context.SaveChangesAsync();
 
         var report = await _service.Import(Summer2015(Game(Summer, "s/2", T.AddDays(2), [.. Alpha, .. Bravo], scrim: true)));
 
@@ -209,6 +237,7 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(expectedArray1));
             Assert.That(await _context.Set<SeriesGame>().AnyAsync(), Is.False);
             Assert.That(await _context.SeasonMatches.AnyAsync(), Is.False, "Series left with no games go");
+            Assert.That(await _context.StatFlags.AnyAsync(f => f.DismissedAt == null), Is.False, "The series itself goes with no games left: its flag cascades with it (StatFlag.SeasonMatchID)");
         }
     }
 

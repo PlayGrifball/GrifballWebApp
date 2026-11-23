@@ -27,6 +27,11 @@ public partial class HistoricalImportService
         removal.StatsBefore = await _context.MatchmakingPlayerStats.CountAsync(s => s.MatchmakingSeason.HistoricalSourceID == group.SourceId, ct);
         // Its ladder is measured on its own: a ladder the sheet lost is stopped for review however many stat rows there are
         removal.LadderBefore = await _context.MatchmakingLadderRanks.CountAsync(r => r.MatchmakingSeason.HistoricalSourceID == group.SourceId, ct);
+        // #548, third review: gathered as the season is built, checked only after the transaction below commits -
+        // never inside it, where a failing check (a Postgres 25P02, a SQL Server deadlock victim) would abort the
+        // whole transaction outright, taking the season down with it.
+        var recordedGamesToCheck = new List<RecordedGame>();
+        var committed = false;
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         try
         {
@@ -35,7 +40,7 @@ public partial class HistoricalImportService
             await ImportMatchmakingStats(group, season, resolver, counts, ct);
             await ImportMatchmakingLadder(group, season, resolver, counts, ct);
             if (group.RecordedGames is not null)
-                await ImportMatchmakingGames(group, season, gameVersions, resolver, counts, ct);
+                await ImportMatchmakingGames(group, season, gameVersions, resolver, counts, recordedGamesToCheck, ct);
             foreach (var gamertag in resolver.Ambiguous.Distinct(StringComparer.OrdinalIgnoreCase))
                 Warn(counts, $"{group.SourceId}: {gamertag} is in more than one Xbox account's gamertag history for the season; left to its placeholder");
 
@@ -58,6 +63,7 @@ public partial class HistoricalImportService
                 return;
             }
             await transaction.CommitAsync(ct);
+            committed = true;
             _context.ChangeTracker.Clear();
             if (removal.RemovesAnything)
                 report.SeasonRemovals.Add(removal);
@@ -69,6 +75,17 @@ public partial class HistoricalImportService
             _context.ChangeTracker.Clear();
             _logger.LogError(ex, "Historical import of the matchmaking season {Season} failed and was rolled back", group.SourceId);
             report.Errors.Add($"{group.SourceId}: {ex.GetBaseException().Message}");
+        }
+
+        if (!committed)
+            return; // nothing saved: nothing to check
+        try
+        {
+            await _statFlags.CheckRecordedGamesAsync(recordedGamesToCheck, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Historical import of the matchmaking season {Season}'s stat flag checks failed; its data is already committed", group.SourceId);
         }
     }
 
@@ -173,7 +190,8 @@ public partial class HistoricalImportService
     /// each a finished matched match of the season: home its side 1, away its side 2, each side's players its matched
     /// players. The season's games the archive no longer lists go, with their matches.
     /// </summary>
-    private async Task ImportMatchmakingGames(SeasonGroup group, MatchmakingSeason season, List<GameVersion> gameVersions, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
+    private async Task ImportMatchmakingGames(SeasonGroup group, MatchmakingSeason season, List<GameVersion> gameVersions, PlayerResolver resolver, HistoricalImportReport counts,
+        List<RecordedGame> recordedGamesToCheck, CancellationToken ct)
     {
         var inputs = group.RecordedGames!;
         var keys = inputs.Select(i => i.SourceKey.Trim()).ToList();
@@ -204,6 +222,10 @@ public partial class HistoricalImportService
             counts.RecordedGamesRemoved++;
         }
         await _context.SaveChangesAsync(ct);
+        // #548, third review: never entered by hand, so only the "any game" rules run; no series to check (matchmaking
+        // has none). Gathered for ImportMatchmakingSeason to check once for the whole season, after its transaction
+        // commits - never here, mid-transaction.
+        recordedGamesToCheck.AddRange(kept);
     }
 
     /// <summary>One of the season's recorded games, upserted by its SourceKey with its matched match; null when it's skipped.</summary>

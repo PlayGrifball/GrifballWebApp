@@ -37,6 +37,7 @@ export const LiveTopics = {
   staffImports: 'staff:imports',
   staffVods: 'staff:vods',
   staffReschedules: 'staff:reschedules',
+  staffStatFlags: 'staff:statflags',
 } as const;
 
 /** A season's page's topic: none for no season (0, or not known yet). */

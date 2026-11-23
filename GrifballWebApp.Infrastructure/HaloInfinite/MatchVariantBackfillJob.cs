@@ -1,5 +1,6 @@
 using Quartz;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.StatFlags;
 using GrifballWebApp.Infrastructure.Jobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -34,14 +35,17 @@ public sealed partial class MatchVariantBackfillJob : IJob
 
     private readonly IDataPullService _dataPull;
     private readonly GrifballContext _context;
+    private readonly StatFlagService? _statFlags;
     private readonly ILogger<MatchVariantBackfillJob> _logger;
     private readonly int _batchSize;
 
-    public MatchVariantBackfillJob(IDataPullService dataPull, GrifballContext context, IConfiguration configuration, ILogger<MatchVariantBackfillJob> logger)
+    public MatchVariantBackfillJob(IDataPullService dataPull, GrifballContext context, IConfiguration configuration, ILogger<MatchVariantBackfillJob> logger,
+        StatFlagService? statFlags = null)
     {
         _dataPull = dataPull;
         _context = context;
         _logger = logger;
+        _statFlags = statFlags;
         _batchSize = configuration.GetValue("MatchVariantBackfill:BatchSize", DefaultBatchSize);
     }
 
@@ -61,7 +65,7 @@ public sealed partial class MatchVariantBackfillJob : IJob
         var result = await _dataPull.BackfillGameVariants(_batchSize,
             (done, of) => context.ReportProgress(of == 0 ? 100 : done * 100 / of, $"{done} of {of} matches looked up"), cancellationToken);
 
-        var decoded = await new CustomScoreLayouts(_context).DecodeAsync(result.Versions ?? [],
+        var decoded = await new CustomScoreLayouts(_context, _statFlags).DecodeAsync(result.Versions ?? [],
             (done, of) => context.ReportProgress(of == 0 ? 100 : done * 100 / of, $"{done} of {of} matches decoded"), cancellationToken);
         if (decoded > 0)
             LogDecoded(_logger, decoded);

@@ -11,6 +11,7 @@ using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.StatFlags;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure.Jobs;
@@ -68,7 +69,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         return new AdminCommandsHandler(
             new DiscordCaller(Db), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)),
             new RescheduleService(Db, Substitute.For<IOutbox>()),
-            new CommissionerDashboardService(new RescheduleService(Db, Substitute.For<IOutbox>()), new EventOrganizerService(Db)),
+            new CommissionerDashboardService(new RescheduleService(Db, Substitute.For<IOutbox>()), new EventOrganizerService(Db), new StaffStatFlagService(Db)),
             new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)),
             new MatchPlannerService(Db),
             Substitute.For<IBracketService>(),

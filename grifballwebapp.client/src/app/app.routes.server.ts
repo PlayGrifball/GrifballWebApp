@@ -42,6 +42,7 @@ export const serverRoutes: ServerRoute[] = [
     'excel',
     'excel/**',
     'commissioner-dashboard',
+    'stat-flags',
     'reschedule-request/:seasonMatchID',
   ].map((path): ServerRoute => ({ path, renderMode: RenderMode.Server })),
   // Anything else is the not-found page

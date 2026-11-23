@@ -22,6 +22,10 @@
     </div>
   }
 
+  @if (isStaff()) {
+    <app-stat-flags-notice [seasonMatchID]="seasonMatchID()" />
+  }
+
   <section class="lobby" aria-label="Teams and score">
     <div class="lobby-team lobby-team--home">
       @if (match?.homeTeamResult === 'Bye') {

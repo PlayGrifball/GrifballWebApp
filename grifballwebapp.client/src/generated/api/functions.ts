@@ -305,6 +305,12 @@ export type { GetSignup$Params as GetSignup$Params } from './fn/signups/get-sign
 export { getSignup as getSignup } from './fn/signups/get-signup';
 export type { UpsertSignup$Params as UpsertSignup$Params } from './fn/signups/upsert-signup';
 export { upsertSignup as upsertSignup } from './fn/signups/upsert-signup';
+export type { GetOpenStatFlags$Params as GetOpenStatFlags$Params } from './fn/staff-stat-flags/get-open-stat-flags';
+export { getOpenStatFlags as getOpenStatFlags } from './fn/staff-stat-flags/get-open-stat-flags';
+export type { GetSeasonMatchStatFlags$Params as GetSeasonMatchStatFlags$Params } from './fn/staff-stat-flags/get-season-match-stat-flags';
+export { getSeasonMatchStatFlags as getSeasonMatchStatFlags } from './fn/staff-stat-flags/get-season-match-stat-flags';
+export type { DismissStatFlag$Params as DismissStatFlag$Params } from './fn/staff-stat-flags/dismiss-stat-flag';
+export { dismissStatFlag as dismissStatFlag } from './fn/staff-stat-flags/dismiss-stat-flag';
 export type { Team$Params as Team$Params } from './fn/team/team';
 export { team as team } from './fn/team/team';
 export type { History$Params as History$Params } from './fn/team/history';

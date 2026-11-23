@@ -1,0 +1,85 @@
+<div class="hud-page">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; Commissioner tools</span>
+    <h1 class="hud-title hud-title--md">Stat Flags</h1>
+  </div>
+
+  <p class="hud-muted">
+    Plain-rule findings about game stats (#548): a question for staff, never a change. Dismissing one says it was looked
+    at - not wrong, or not worth fixing - and leaves the game as it is.
+  </p>
+
+  @if (loading()) {
+  <p class="hud-empty" role="status">Loading stat flags...</p>
+  }
+
+  @if (error()) {
+  <div class="hud-empty hud-empty--error" role="alert">
+    <span>{{ error() }}</span>
+  </div>
+  }
+
+  @if (flags(); as list) {
+  @if (!loading()) {
+    @if (list.length === 0) {
+    <p class="hud-empty">No open flags.</p>
+    } @else {
+    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Open stat flags"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+      <mat-table [dataSource]="list" class="hud-table">
+
+        <ng-container matColumnDef="rule">
+          <mat-header-cell *matHeaderCellDef>Rule</mat-header-cell>
+          <mat-cell *matCellDef="let flag">{{ ruleLabel(flag.rule) }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="reason">
+          <mat-header-cell *matHeaderCellDef>Reason</mat-header-cell>
+          <mat-cell *matCellDef="let flag">{{ flag.reason }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="player">
+          <mat-header-cell *matHeaderCellDef>Player</mat-header-cell>
+          <mat-cell *matCellDef="let flag">
+            @if (flag.playerUserID) {
+            <a class="hud-text-link" [routerLink]="['/profile', flag.playerUserID]">{{ flag.playerName }}</a>
+            }
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="game">
+          <mat-header-cell *matHeaderCellDef>Game</mat-header-cell>
+          <mat-cell *matCellDef="let flag">
+            @if (flag.seasonMatchID) {
+            <a class="hud-text-link" [routerLink]="['/seasonmatch', flag.seasonMatchID]">Match {{ flag.seasonMatchID }}</a>
+            } @else if (flag.matchID) {
+            <a class="hud-text-link" [routerLink]="['/match', flag.matchID]">Halo match</a>
+            } @else if (flag.gameTeams) {
+            <!-- A recorded game outside any series (a scrim, a Late League matchmaking game): no page to link to -->
+            <span>{{ flag.gameTeams }}@if (flag.gamePlayedAt) { , {{ formatDateTime(flag.gamePlayedAt) }} }</span>
+            }
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="foundAt">
+          <mat-header-cell *matHeaderCellDef>Found</mat-header-cell>
+          <mat-cell *matCellDef="let flag">{{ formatDateTime(flag.foundAt) }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="dismiss">
+          <mat-header-cell *matHeaderCellDef>Dismiss</mat-header-cell>
+          <mat-cell *matCellDef="let flag">
+            <button mat-stroked-button type="button" (click)="dismiss(flag)">
+              <mat-icon aria-hidden="true">check</mat-icon>
+              Dismiss
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <mat-header-row *matHeaderRowDef="displayedColumns" />
+        <mat-row *matRowDef="let row; columns: displayedColumns;" />
+      </mat-table>
+    </div>
+    }
+  }
+  }
+</div>

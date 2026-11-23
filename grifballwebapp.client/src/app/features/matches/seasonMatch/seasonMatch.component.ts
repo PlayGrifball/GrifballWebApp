@@ -24,6 +24,7 @@ import { VodListComponent } from '@shared/vodList/vodList.component';
 import { ManualGamesComponent } from './manualGames/manualGames.component';
 import { GameSlot, slotChoices } from './manualGames/manualGameForm';
 import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
+import { StatFlagsNoticeComponent } from './statFlagsNotice/statFlagsNotice.component';
 
 export const actionPrompts: Record<MatchAction, string> = {
   HomeForfeit: 'The home team forfeits and the away team wins.',
@@ -123,6 +124,7 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
         ManualGamesComponent,
         DatePipe,
         NgTemplateOutlet,
+        StatFlagsNoticeComponent,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
@@ -164,6 +166,9 @@ export class SeasonMatchComponent {
 
   /** Whether the user may pull the players' games from Halo: any player, as staff may (the server allows the same). */
   readonly canPull = computed(() => this.accountService.isPlayer() || this.accountService.isEventOrganizer() || this.accountService.isSysAdmin());
+
+  /** Commissioners and sysadmins: who sees this match's stat flags (#548), the server's own role check. */
+  readonly isStaff = computed(() => this.accountService.isEventOrganizer() || this.accountService.isSysAdmin());
 
   /** A result or reported games to clear, as the server says (a match with a BYE is decided by the bracket). */
   readonly canUndo = computed(() => this.seasonMatch()?.canUndo ?? false);

@@ -1,9 +1,12 @@
 using Microsoft.Extensions.Logging.Testing;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.StatFlags;
+using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Surprenant.Grunt.Core;
@@ -158,6 +161,74 @@ public class DataPullServiceSaveTests : SqliteContextFixture
             Assert.That(saved.MatchID, Is.EqualTo(id));
             Assert.That(saved.MatchTeams.OrderBy(t => t.TeamID).Select(t => t.Outcome), Is.EqualTo(WonThenLost));
             Assert.That(await Context.Set<MatchParticipant>().CountAsync(), Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public async Task GetAndSave_APlayerOverTheMaxAccuracy_IsFlagged()
+    {
+        // #548: every Halo pull is checked for plain anomalies once it's saved, whether or not it's ever reported
+        var id = Guid.NewGuid();
+        var player = PlayerOf("xuid(5)", 0, (0, 4));
+        player.PlayerTeamStats.Single().Stats.CoreStats.Accuracy = 150f;
+        var stats = StatsOf(id, [(0, 2), (1, 3)], player, PlayerOf("xuid(6)", 1, (1, 2)));
+        _halo.StatsGetMatchStats(id).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(stats, null!));
+
+        await _service.GetAndSaveMatch(id);
+
+        var flag = await Context.Set<StatFlag>().AsNoTracking().SingleAsync(f => f.MatchID == id);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.Rule, Is.EqualTo(StatFlagRule.ImpossibleAccuracy));
+            Assert.That(flag.Reason, Does.Contain("150"));
+            Assert.That(flag.IsOpen, Is.True);
+        }
+    }
+
+    /// <summary>Fails the next SaveChangesAsync that would add a StatFlag: simulates a transient DB error in the stat
+    /// flag check specifically, without touching the match's own save just before it.</summary>
+    private sealed class ThrowOnStatFlagSaveInterceptor : SaveChangesInterceptor
+    {
+        public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result) =>
+            eventData.Context!.ChangeTracker.Entries<StatFlag>().Any(e => e.State == EntityState.Added)
+                ? throw new InvalidOperationException("Simulated transient failure saving a stat flag")
+                : result;
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken ct = default) =>
+            ValueTask.FromResult(SavingChanges(eventData, result));
+    }
+
+    [Test]
+    public async Task GetAndSave_WhenTheStatFlagCheckFails_StillSavesTheMatch_AndLeavesNothingTracked()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"grif-statflag-fail-{Guid.NewGuid():N}.db");
+        try
+        {
+            await using var throwingContext = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
+                .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={path};Pooling=False")
+                .AddInterceptors(new ThrowOnStatFlagSaveInterceptor())
+                .Options);
+            await throwingContext.Database.EnsureCreatedAsync();
+            var service = new DataPullService(_log, _halo, throwingContext, _getsert, new StatFlagService(throwingContext));
+
+            var id = Guid.NewGuid();
+            var player = PlayerOf("xuid(5)", 0, (0, 4));
+            player.PlayerTeamStats.Single().Stats.CoreStats.Accuracy = 150f; // a finding, so ReconcileAsync adds a StatFlag
+            var stats = StatsOf(id, [(0, 2), (1, 3)], player, PlayerOf("xuid(6)", 1, (1, 2)));
+            _halo.StatsGetMatchStats(id).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(stats, null!));
+
+            // Must not throw: a failed stat flag check never fails the pull
+            await service.GetAndSaveMatch(id);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(await throwingContext.Matches.AnyAsync(m => m.MatchID == id), Is.True);
+                Assert.That(throwingContext.ChangeTracker.Entries<StatFlag>().Where(e => e.State != EntityState.Unchanged), Is.Empty);
+            }
+        }
+        finally
+        {
+            SqliteFiles.Delete(path);
         }
     }
 

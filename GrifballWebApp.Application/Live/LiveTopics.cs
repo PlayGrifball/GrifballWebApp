@@ -69,6 +69,9 @@ public static class LiveTopics
     /// <summary>Staff: the reschedule requests (the commissioner dashboard).</summary>
     public const string StaffReschedules = "staff:reschedules";
 
+    /// <summary>Staff: the open stat flags (#548).</summary>
+    public const string StaffStatFlags = "staff:statflags";
+
     public const string SeasonKind = "season", BracketKind = "bracket", TeamsKind = "teams", TeamKind = "team", DraftKind = "draft",
         SignupsKind = "signups", SeasonMatchKind = "seasonmatch",
         HaloMatchKind = "match", PlayerKind = "player", XboxKind = "xbox", StaffKind = "staff";

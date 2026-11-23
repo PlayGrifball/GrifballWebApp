@@ -38,6 +38,7 @@ import { ChatComponent } from './features/chat/chat.component';
 import { LateLeagueComponent } from './features/lateLeague/lateLeague.component';
 import { ExcelComponent } from './features/admin/excel/excel.component';
 import { CommissionerDashboardComponent } from './features/league/commissionerDashboard/commissionerDashboard.component';
+import { StatFlagsComponent } from './features/league/statFlags/statFlags.component';
 import { RescheduleRequestComponent } from './features/league/rescheduleRequest/rescheduleRequest.component';
 import { NotFoundComponent } from './core/layout/notFound/notFound.component';
 
@@ -263,6 +264,7 @@ describe('APP_ROUTES lazy loading', () => {
     'excel': ExcelComponent,
     'excel/:inputSpreadsheetId/:inputSheetName': ExcelComponent,
     'commissioner-dashboard': CommissionerDashboardComponent,
+    'stat-flags': StatFlagsComponent,
     'reschedule-request/:seasonMatchID': RescheduleRequestComponent,
     '**': NotFoundComponent,
   };
@@ -288,6 +290,7 @@ describe('APP_ROUTES lazy loading', () => {
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
       'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',
       'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'usermanagement/jobs', 'usermanagement/telemetry', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
+      'stat-flags',
     ]));
   });
 });

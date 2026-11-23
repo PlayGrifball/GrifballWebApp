@@ -82,6 +82,8 @@ function loadPage(httpMock: HttpTestingController, fixture: ComponentFixture<Sea
   httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
   httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
   fixture.detectChanges();
+  // Staff only (#548): not asked for at all when the signed-in account isn't a commissioner or sysadmin
+  httpMock.match('/api/season-matches/7/stat-flags').filter(r => !r.cancelled).forEach(r => r.flush([]));
 }
 
 // The page loaded again (as after a report or an action) and answered with `dto`
@@ -326,7 +328,11 @@ describe('SeasonMatchComponent reporting', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => httpMock.verify());
+  afterEach(() => {
+    // Staff only (#548), not every test's scenario goes through loadPage/load(): drained here so a stray one never fails verify()
+    httpMock.match('/api/season-matches/7/stat-flags').filter(r => !r.cancelled).forEach(r => r.flush([]));
+    httpMock.verify();
+  });
 
   function load(dto: SeasonMatchPageDto, matches: PossibleMatchDto[] = []): void {
     httpMock.expectOne('/api/season-matches/7').flush(dto);
@@ -335,6 +341,8 @@ describe('SeasonMatchComponent reporting', () => {
     fixture.detectChanges();
     // The rosters are not under test here.
     httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
+    // Staff only (#548): this organizer is asked for the match's stat flags
+    httpMock.match('/api/season-matches/7/stat-flags').filter(r => !r.cancelled).forEach(r => r.flush([]));
     fixture.detectChanges();
   }
 
@@ -1206,7 +1214,11 @@ describe('SeasonMatchComponent with manual entry', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => httpMock.verify());
+  afterEach(() => {
+    // Staff only (#548), not every test's scenario goes through loadPage/load(): drained here so a stray one never fails verify()
+    httpMock.match('/api/season-matches/7/stat-flags').filter(r => !r.cancelled).forEach(r => r.flush([]));
+    httpMock.verify();
+  });
 
   function load(dto: SeasonMatchPageDto): void {
     loadPage(httpMock, fixture, dto);
@@ -1305,7 +1317,11 @@ describe('SeasonMatchComponent lobby', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => httpMock.verify());
+  afterEach(() => {
+    // Staff only (#548), not every test's scenario goes through loadPage/load(): drained here so a stray one never fails verify()
+    httpMock.match('/api/season-matches/7/stat-flags').filter(r => !r.cancelled).forEach(r => r.flush([]));
+    httpMock.verify();
+  });
 
   const load = (dto: SeasonMatchPageDto): void => loadPage(httpMock, fixture, dto);
   const el = () => fixture.nativeElement as HTMLElement;
@@ -1379,7 +1395,7 @@ describe('SeasonMatchComponent lobby', () => {
 
   it('is a lobby until a result is in, then a match report with the score', () => {
     load(page());
-    httpMock.match(() => true).forEach(r => r.flush(null));
+    httpMock.match(() => true).filter(r => !r.cancelled).forEach(r => r.flush(null));
     expect(el().querySelector('h1')!.textContent).toBe('Pre-game lobby');
     expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('-:-');
 
@@ -1393,7 +1409,7 @@ describe('SeasonMatchComponent lobby', () => {
 
   it('has no series totals tab for a single game', () => {
     load(page());
-    httpMock.match(() => true).forEach(r => r.flush(null));
+    httpMock.match(() => true).filter(r => !r.cancelled).forEach(r => r.flush(null));
     const comp = fixture.componentInstance;
 
     reloadPage(httpMock, fixture, page({
@@ -1435,6 +1451,8 @@ describe('SeasonMatchComponent on the server', () => {
     httpMock.expectNone('/api/season-matches/7/possible-matches');
     // The page drawn on the server says the search is under way; the browser does it
     expect(fixture.componentInstance.store.possibleMatchesState()).toBe('loading');
+    // Staff only (#548): this organizer is asked for the match's stat flags, on the server too
+    httpMock.match('/api/season-matches/7/stat-flags').filter(r => !r.cancelled).forEach(r => r.flush([]));
     httpMock.verify();
   });
 });

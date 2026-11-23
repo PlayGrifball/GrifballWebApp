@@ -7,6 +7,7 @@ using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Reschedule;
+using GrifballWebApp.Application.StatFlags;
 
 namespace GrifballWebApp.Server;
 
@@ -76,6 +77,7 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         RescheduleAlreadyProcessedException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         GrifballWebApp.Application.SeasonMatchPage.SeasonMatchActionNotAllowedException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
         GrifballWebApp.Application.HaloInfinite.HaloPullRefusedException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
+        StatFlagNotFoundException => Refusal(StatusCodes.Status404NotFound, "Not found", exception.Message),
         _ => null,
     };
 

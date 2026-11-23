@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.StatFlags;
 using GrifballWebApp.Domain.Halo;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,11 +15,13 @@ public sealed class CustomScoreLayouts
     internal const int Chunk = 200;
 
     private readonly GrifballContext _context;
+    private readonly StatFlagService _statFlags;
     private readonly Dictionary<Guid, CustomScoreLayout?> _variantLayouts = [];
 
-    public CustomScoreLayouts(GrifballContext context)
+    public CustomScoreLayouts(GrifballContext context, StatFlagService? statFlags = null)
     {
         _context = context;
+        _statFlags = statFlags ?? new StatFlagService(context);
     }
 
     /// <summary>The layouts of these game variant versions (<see cref="CustomScoreDecoder.VariantLayout"/>), from their saved matches.</summary>
@@ -111,13 +114,21 @@ public sealed class CustomScoreLayouts
                 .Where(m => chunk.Contains(m.MatchID))
                 .AsSplitQuery()
                 .ToListAsync(ct);
+            var changedMatches = new List<Match>();
             foreach (var match in matches)
             {
                 var variantLayout = match.UgcGameVariantVersionID is { } v ? layouts.GetValueOrDefault(v) : null;
                 if (Apply(match, variantLayout))
+                {
                     changed++;
+                    changedMatches.Add(match);
+                }
             }
             await _context.SaveChangesAsync(ct);
+            // #548: a changed decode can clear or raise UndecodedCustomScore, and the goal-dependent rules
+            // (NegativeStat, over the max accuracy) read what it just decoded too - batched for the whole chunk
+            // (third review: was one CheckMatchAsync a match)
+            await _statFlags.CheckMatchesAsync(changedMatches, ct);
             _context.ChangeTracker.Clear();
             done += chunk.Length;
             progress?.Invoke(done, ids.Count);

@@ -122,6 +122,7 @@ internal sealed class FakeApplicationDbContext :
     public DbSet<PasswordResetLink> PasswordResetLinks { get; set; } = null!;
     public DbSet<ScheduleRecommendation> ScheduleRecommendations { get; set; } = null!;
     public DbSet<OutboxMessage> Outbox { get; set; } = null!;
+    public DbSet<StatFlag> StatFlags { get; set; } = null!;
 
     /// <summary>SQLite's built-in case-insensitive collation (GrifballContext.SqliteCaseInsensitiveCollation).</summary>
     private const string SqliteCaseInsensitiveCollation = "NOCASE";
@@ -181,6 +182,7 @@ internal sealed class FakeApplicationDbContext :
         builder.ApplyConfiguration(new HistoricalSeasonReviewConfiguration());
         builder.ApplyConfiguration(new UserMergeConfiguration());
         builder.ApplyConfiguration(new DuplicateDismissalConfiguration());
+        builder.ApplyConfiguration(new StatFlagConfiguration());
         builder.ApplyConfiguration(new ChatMonthConfiguration());
         builder.ApplyConfiguration(new ChatChoiceConfiguration());
         builder.ApplyConfiguration(new SeasonSchedulingRulesConfiguration());
