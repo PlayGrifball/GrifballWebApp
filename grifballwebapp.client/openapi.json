@@ -16401,10 +16401,10 @@
           },
           "historicalSourceLinks": {
             "type": "array",
-            "nullable": true,
             "items": {
               "$ref": "#/components/schemas/SeasonSourceLink"
             },
+            "nullable": true,
             "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it)."
           },
           "isPublic": {
@@ -16511,10 +16511,10 @@
           },
           "historicalSourceLinks": {
             "type": "array",
-            "nullable": true,
             "items": {
               "$ref": "#/components/schemas/SeasonSourceLink"
             },
+            "nullable": true,
             "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it)."
           },
           "isPublic": {
@@ -17213,10 +17213,10 @@
           },
           "historicalSourceLinks": {
             "type": "array",
-            "nullable": true,
             "items": {
               "$ref": "#/components/schemas/SeasonSourceLink"
             },
+            "nullable": true,
             "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it)."
           },
           "isPublic": {
