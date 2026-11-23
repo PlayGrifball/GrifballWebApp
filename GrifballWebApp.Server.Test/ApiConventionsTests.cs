@@ -263,7 +263,7 @@ public class ApiConventionsTests
             .BuildServiceProvider();
         var controller = new ProbeController().WithAnonymousUser();
         controller.HttpContext.RequestServices = services;
-        controller.ControllerContext.ActionDescriptor = new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor { DisplayName = "Probe.Action" };
+        controller.ControllerContext.ActionDescriptor = new Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor { DisplayName = "Probe.Action" };
 
         controller.Refusal(status, "Already a user");
         return lines;
