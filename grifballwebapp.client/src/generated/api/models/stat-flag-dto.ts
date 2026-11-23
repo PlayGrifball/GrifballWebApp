@@ -39,10 +39,10 @@ export interface StatFlagDto {
   recordedGameID: number | null;
 
   /**
-   * A plain rule a GrifballWebApp.Domain.Archive.StatFlag is found by: fixed, conservative thresholds, each one in one place
-   * (StatFlagThresholds, in the Application's StatFlagService), not spread through the checks. Left for later: how
-   * a game compares to a player's own history, duplicate-game detection, and roster-membership checks (the issue's other
-   * candidate rules).
+   * A plain rule a GrifballWebApp.Domain.Archive.StatFlag is found by: conservative thresholds, each one in one place - fixed ones in
+   * StatFlagThresholds, the team size and accuracy ones configurable (StatFlagOptions, fourth review), both in the
+   * Application's StatFlagService - not spread through the checks. Left for later: how a game compares to a player's
+   * own history, duplicate-game detection, and roster-membership checks (the issue's other candidate rules).
    */
   rule: StatFlagRule;
 
