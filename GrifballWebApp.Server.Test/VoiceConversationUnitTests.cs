@@ -236,7 +236,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_log.Messages.Single(m => m.Contains("got no answer")), Does.Contain("not_addressed").And.Contain("5 words").And.Contain("1.0 s of audio"));
+            Assert.That(_log.Messages.Single(m => m.Contains("got no answer")), Does.Contain("not_addressed").And.Contain("6 words").And.Contain("1.0 s of audio"));
             Assert.That(_log.Messages, Has.None.Contains("won that one"), "Nothing said is logged");
             Assert.That(exported.Counted(VoiceTelemetry.NotAddressed), Is.EqualTo(1L));
             Assert.That(exported.Spans.Select(s => s.OperationName), Is.EquivalentTo(NotAddressedSpans));
