@@ -7,18 +7,7 @@
       <h1 id="home-hero-title" class="hud-title hud-title--xl"><a class="home-hero__title-link" [routerLink]="['/season', event.seasonID]">{{event.name}}</a></h1>
       <p class="hud-lede">{{hero.lede}}</p>
       @if (hero.phases.length > 0) {
-        <ol class="hud-phase-bar home-hero__phases" aria-label="Current season timeline">
-          @for (step of hero.phases; track step.eventType) {
-            <li class="hud-phase-step" [class.hud-phase-step--active]="step.state === 'active'" [class.hud-phase-step--done]="step.state === 'done'">
-              <span class="hud-phase-step__name">{{step.title}}</span>
-              <span class="hud-phase-step__meta">
-                @if (step.state === 'active') { Active · ends {{step.end | date:'MMM d'}} }
-                @else if (step.state === 'done') { Completed · {{step.end | date:'MMM d'}} }
-                @else { Starts {{step.start | date:'MMM d'}} }
-              </span>
-            </li>
-          }
-        </ol>
+        <app-season-phase-bar class="home-hero__phases" [steps]="hero.phases" label="Current season timeline" />
       }
       <div class="hud-actions home-hero__actions">
         @switch (event.eventType) {

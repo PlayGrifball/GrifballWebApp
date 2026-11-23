@@ -36,18 +36,7 @@
   </div>
 
   @if (phases().length > 0 && !summary()?.hasEnded) {
-    <ol class="hud-phase-bar" aria-label="Season timeline">
-      @for (step of phases(); track step.eventType) {
-        <li class="hud-phase-step" [class.hud-phase-step--active]="step.state === 'active'" [class.hud-phase-step--done]="step.state === 'done'">
-          <span class="hud-phase-step__name">{{step.title}}</span>
-          <span class="hud-phase-step__meta">
-            @if (step.state === 'active') { Active · ends {{step.end | date:'MMM d'}} }
-            @else if (step.state === 'done') { Completed · {{step.end | date:'MMM d'}} }
-            @else { Starts {{step.start | date:'MMM d'}} }
-          </span>
-        </li>
-      }
-    </ol>
+    <app-season-phase-bar [steps]="phases()" />
   }
 
   @if (summary()?.isHistorical) {

@@ -133,6 +133,12 @@ describe('SeasonComponent', () => {
     expect((fixture.debugElement.query(By.directive(StubPlayoffBracket)).componentInstance as StubPlayoffBracket).seasonID()).toBe(12);
   });
 
+  it('has no era label until the season summary arrives', () => {
+    summaries.get.and.returnValue(new Subject<SeasonSummaryDto>());
+    fixture.detectChanges();
+    expect(fixture.componentInstance.eraLabel()).toBeNull();
+  });
+
   it('hides the previous season while the new one loads, and drops its late summary', () => {
     const answers = new Map<number, Subject<SeasonSummaryDto>>();
     summaries.get.and.callFake((id: number) => {

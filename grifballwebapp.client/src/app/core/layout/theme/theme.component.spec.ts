@@ -54,6 +54,12 @@ describe('ThemeComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('app-palette')).toHaveSize(6);
   });
 
+  it('ignores a preset that does not exist', () => {
+    const before = theming.primary();
+    fixture.componentInstance.selectTheme(999);
+    expect(theming.primary()).toBe(before);
+  });
+
   it('applies an era or legacy preset when clicked', () => {
     const btn = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
       .find(b => b.textContent!.trim() === SPARTAN_HUD.name)!;

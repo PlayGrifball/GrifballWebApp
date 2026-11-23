@@ -8,6 +8,7 @@ import { RouterModule } from '@angular/router';
 import { combineLatest, of, switchMap, tap } from 'rxjs';
 import { eventTitles, isUnderWay, SeasonEvent, seasonPhaseSteps } from '@shared/seasonEvents';
 import { pageNow } from '@shared/pageNow';
+import { SeasonPhaseBarComponent } from '@shared/seasonPhaseBar/seasonPhaseBar.component';
 import { LateLeagueQueueComponent } from '../lateLeague';
 import { rowEnterAnimation } from '@shared/rowEnterAnimation';
 import { HomeStore } from './home.store';
@@ -18,6 +19,7 @@ import { HomeStore } from './home.store';
     styleUrl: 'home.component.scss',
     imports: [
         DatePipe,
+        SeasonPhaseBarComponent,
         RouterModule,
         MatPaginator,
         MatSortModule,

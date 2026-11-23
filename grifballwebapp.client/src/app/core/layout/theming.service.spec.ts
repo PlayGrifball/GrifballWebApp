@@ -67,6 +67,11 @@ describe('ThemingService', () => {
     expect(mockRoot.getAttribute('data-theme-era')).toBeNull();
   });
 
+  it('leaves the era alone when the page has no <html> element', () => {
+    spyOn(document, 'querySelector').and.returnValue(null);
+    expect(() => service.setEra('2008')).not.toThrow();
+  });
+
   it('should apply theme correctly', () => {
     const testTheme = {
       name: 'Test',

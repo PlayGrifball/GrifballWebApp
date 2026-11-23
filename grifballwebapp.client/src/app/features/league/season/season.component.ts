@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, numberAttribute } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { ScheduleListComponent } from "./scheduleList/scheduleList.component";
@@ -10,6 +9,7 @@ import { seasonPhaseSteps, signupsOpen } from '@shared/seasonEvents';
 import { grifballEra } from '@shared/eras';
 import { pageNow } from '@shared/pageNow';
 import { BackfilledBannerComponent, DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
+import { SeasonPhaseBarComponent } from '@shared/seasonPhaseBar/seasonPhaseBar.component';
 import { missing } from './seasonSummary';
 import type { SeasonSummaryDto } from '@api/models';
 import { seasonFormatLabel } from '@shared/seasonFormats';
@@ -61,7 +61,6 @@ function describeChampions(champions: SeasonSummaryDto['champions']): string | n
     templateUrl: './season.component.html',
     styleUrl: './season.component.scss',
     imports: [
-        DatePipe,
         RouterModule,
         ScheduleListComponent,
         PlayoffBracketComponent,
@@ -70,6 +69,7 @@ function describeChampions(champions: SeasonSummaryDto['champions']): string | n
         SeasonThisWeekComponent,
         BackfilledBannerComponent,
         DataNoticeComponent,
+        SeasonPhaseBarComponent,
         SeasonChampionsComponent,
         SeasonAwardsComponent,
         SeasonPlayerStatsComponent,

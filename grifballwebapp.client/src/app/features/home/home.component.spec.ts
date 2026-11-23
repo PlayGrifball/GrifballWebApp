@@ -248,6 +248,12 @@ describe('Home page events', () => {
       fixture.detectChanges();
     };
 
+    it('has no hero panel without events', () => {
+      load([]);
+      expect(fixture.componentInstance.hero()).toBeNull();
+      expect(el().querySelector('app-season-phase-bar')).toBeNull();
+    });
+
     it('puts the featured season in the hero with its calls to action, and every event in a card', () => {
       load([season, signup, draft]);
       expect(el().querySelector('h1')!.textContent).toBe('Spring');
