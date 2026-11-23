@@ -38,16 +38,18 @@ describe('BackfilledBannerComponent', () => {
 
   const el = () => fixture.nativeElement as HTMLElement;
 
-  it('says the season was backfilled and links its spreadsheet', () => {
+  it('says the season was archived and links its spreadsheet', () => {
     fixture.componentRef.setInput('sourceUrl', 'https://docs.google.com/spreadsheets/d/y');
+    fixture.componentRef.setInput('eraLabel', 'Founding Era (grifball.com)');
     fixture.detectChanges();
-    expect(el().textContent).toContain('Backfilled from historical data');
+    expect(el().textContent).toContain('Archived from historical records');
+    expect(el().textContent).toContain('Founding Era (grifball.com)');
     expect(el().querySelector('a')!.getAttribute('href')).toBe('https://docs.google.com/spreadsheets/d/y');
   });
 
   it('has no link without a spreadsheet', () => {
     fixture.detectChanges();
-    expect(el().textContent).toContain('Backfilled from historical data');
+    expect(el().textContent).toContain('Archived from historical records');
     expect(el().querySelector('a')).toBeNull();
   });
 });

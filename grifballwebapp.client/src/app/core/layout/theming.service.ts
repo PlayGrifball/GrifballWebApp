@@ -3,6 +3,7 @@ import { AppLog } from '../telemetry/appLog';
 
 type Theme = {
   name: string;
+  era?: string;
   primary: string;
   secondary: string;
   tertiary: string;
@@ -12,9 +13,23 @@ type Theme = {
   font?: string;
 };
 
-/** The default theme: the seed colours of the Spartan HUD design (see styles/_hud-tokens.scss). */
+/** The default theme: the seed colours of the Archive Vault design (see styles/_hud-tokens.scss). */
+export const ARCHIVE_VAULT = {
+  name: 'Archive Vault',
+  era: '',
+  primary: '#E8922D',
+  secondary: '#2C3344',
+  tertiary: '#E6C15A',
+  neutral: '#6B768F',
+  neutralVariant: '#5C667D',
+  error: '#E5484D',
+  font: 'Rajdhani',
+} as const satisfies Theme;
+
+/** Legacy Spartan HUD preset (cyan-on-navy). */
 export const SPARTAN_HUD = {
   name: 'Spartan HUD',
+  era: 'spartan-hud',
   primary: '#7CCBFF',
   secondary: '#2A5373',
   tertiary: '#FFD25E',
@@ -34,15 +49,16 @@ export type ShadeApplied = {
 })
 export class ThemingService {
   private readonly log = inject(AppLog);
-  // Spartan HUD is the default theme. The picker edits these seed colours: the accent
-  // (primary), gold (tertiary) and team red (error) of the HUD follow them, see styles/_hud-tokens.scss.
-  font = signal<string>(SPARTAN_HUD.font);
-  primary = signal<string>(SPARTAN_HUD.primary);
-  secondary = signal<string>(SPARTAN_HUD.secondary);
-  tertiary = signal<string>(SPARTAN_HUD.tertiary);
-  neutral = signal<string>(SPARTAN_HUD.neutral);
-  neutralVariant = signal<string>(SPARTAN_HUD.neutralVariant);
-  error = signal<string>(SPARTAN_HUD.error);
+  // Archive Vault is the default theme. The picker edits these seed colours: the accent
+  // (primary), gold (tertiary) and team red (error) follow them, see styles/_hud-tokens.scss.
+  era = signal<string>(ARCHIVE_VAULT.era);
+  font = signal<string>(ARCHIVE_VAULT.font);
+  primary = signal<string>(ARCHIVE_VAULT.primary);
+  secondary = signal<string>(ARCHIVE_VAULT.secondary);
+  tertiary = signal<string>(ARCHIVE_VAULT.tertiary);
+  neutral = signal<string>(ARCHIVE_VAULT.neutral);
+  neutralVariant = signal<string>(ARCHIVE_VAULT.neutralVariant);
+  error = signal<string>(ARCHIVE_VAULT.error);
 
   shadeApplied = signal<ShadeApplied>({
     name: '',
@@ -53,9 +69,44 @@ export class ThemingService {
   }
 
   definedThemes: Theme[] = [
+    ARCHIVE_VAULT,
+    {
+      name: '2008 Halo 3',
+      era: '2008',
+      primary: '#E5484D',
+      secondary: '#4A282D',
+      tertiary: '#FFD25E',
+      neutral: '#8D5860',
+      neutralVariant: '#6E454B',
+      error: '#E5484D',
+      font: 'Rajdhani',
+    },
+    {
+      name: '2011 Reach Tactical',
+      era: '2011',
+      primary: '#EAB308',
+      secondary: '#2E3D31',
+      tertiary: '#FDE047',
+      neutral: '#64826A',
+      neutralVariant: '#4C6451',
+      error: '#E5484D',
+      font: 'Rajdhani',
+    },
+    {
+      name: '2014 GrifballHub',
+      era: '2014',
+      primary: '#F97316',
+      secondary: '#303B4F',
+      tertiary: '#FACC15',
+      neutral: '#6B7C9C',
+      neutralVariant: '#53627D',
+      error: '#E5484D',
+      font: 'Rajdhani',
+    },
     SPARTAN_HUD,
     {
       name: 'Classic',
+      era: '',
       primary: '#FFDE03',
       secondary: '#806f00',
       tertiary: '#A288A6',
@@ -65,13 +116,14 @@ export class ThemingService {
     },
   ];
 
-  /** Puts the picker back to the Spartan HUD colours and font. */
+  /** Puts the picker back to the Archive Vault colours and font. */
   reset(): void {
-    this.applyTheme(SPARTAN_HUD);
+    this.applyTheme(ARCHIVE_VAULT);
   }
 
   applyTheme(theme: Theme) {
-    const { primary, secondary, tertiary, neutral, neutralVariant, error, font } = theme;
+    const { primary, secondary, tertiary, neutral, neutralVariant, error, font, era } = theme;
+    this.era.set(era ?? '');
     if (font)
       this.font.set(font);
     this.primary.set(primary);
@@ -80,6 +132,17 @@ export class ThemingService {
     this.neutral.set(neutral);
     this.neutralVariant.set(neutralVariant);
     this.error.set(error);
+  }
+
+  setEra(era: string) {
+    const root = document.querySelector('html');
+    if (root == null) {
+      return;
+    }
+    if (era)
+      root.setAttribute('data-theme-era', era);
+    else
+      root.removeAttribute('data-theme-era');
   }
 
   setFont(font: string) {

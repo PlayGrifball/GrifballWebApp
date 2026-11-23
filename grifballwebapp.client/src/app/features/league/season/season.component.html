@@ -17,18 +17,41 @@
           @if (formatLabel(); as label) {
             <span class="season-meta__pill"><a class="season-meta__link" routerLink="/seasons" [queryParams]="{ format: s.format }">{{label}}</a></span>
           }
+          @if (isCurrentSeason()) {
+            <span class="hud-pill hud-pill--live">Current Season</span>
+          }
         </div>
+        @if (isCurrentSeason()) {
+          <p class="season-counts hud-muted">
+            {{s.signupCount}} signups · {{s.teamCount}} teams · {{s.matchCount}} matches
+          </p>
+        }
       }
     </div>
     @if (canSignUp()) {
     <div class="hud-actions">
-      <a class="hud-btn" [routerLink]="['signupForm']">Sign up</a>
+      <a class="hud-btn hud-btn--primary" [routerLink]="['signupForm']">Sign up</a>
     </div>
     }
   </div>
 
+  @if (phases().length > 0 && !summary()?.hasEnded) {
+    <ol class="hud-phase-bar" aria-label="Season timeline">
+      @for (step of phases(); track step.eventType) {
+        <li class="hud-phase-step" [class.hud-phase-step--active]="step.state === 'active'" [class.hud-phase-step--done]="step.state === 'done'">
+          <span class="hud-phase-step__name">{{step.title}}</span>
+          <span class="hud-phase-step__meta">
+            @if (step.state === 'active') { Active · ends {{step.end | date:'MMM d'}} }
+            @else if (step.state === 'done') { Completed · {{step.end | date:'MMM d'}} }
+            @else { Starts {{step.start | date:'MMM d'}} }
+          </span>
+        </li>
+      }
+    </ol>
+  }
+
   @if (summary()?.isHistorical) {
-    <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" />
+    <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" [eraLabel]="eraLabel()" />
   }
 
   <app-season-tabs [seasonID]="shownSeasonID()" [active]="view()" />

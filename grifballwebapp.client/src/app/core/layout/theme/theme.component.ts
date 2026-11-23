@@ -51,10 +51,22 @@ export class ThemeComponent implements OnInit {
   }
 
   fonts: string[] = ['Rajdhani', 'Roboto', 'sans-serif'];
+  readonly themes = this.themingService.definedThemes;
+  readonly activeEra = this.themingService.era;
+  readonly activePrimary = this.themingService.primary;
   /** Counts resets: the palette editors are rebuilt on each one. */
   readonly resets = signal(0);
 
-  /** Back to the Spartan HUD colours and font. */
+  selectTheme(index: number): void {
+    const theme = this.themes[index];
+    if (!theme)
+      return;
+    this.themingService.applyTheme(theme);
+    this.font.setValue(this.themingService.font(), { emitEvent: false });
+    this.resets.update(n => n + 1);
+  }
+
+  /** Back to the Archive Vault colours and font. */
   reset(): void {
     this.themingService.reset();
     this.font.setValue(this.themingService.font(), { emitEvent: false });

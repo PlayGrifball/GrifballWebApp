@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { SPARTAN_HUD, ThemingService } from './theming.service';
+import { ARCHIVE_VAULT, SPARTAN_HUD, ThemingService } from './theming.service';
 
 describe('ThemingService', () => {
   let service: ThemingService;
@@ -14,12 +14,13 @@ describe('ThemingService', () => {
   });
 
   it('should have default color values', () => {
-    // Spartan HUD
-    expect(service.primary()).toBe('#7CCBFF');
-    expect(service.secondary()).toBe('#2A5373');
-    expect(service.tertiary()).toBe('#FFD25E');
-    expect(service.neutral()).toBe('#5F7F96');
-    expect(service.neutralVariant()).toBe('#4F7391');
+    // Archive Vault
+    expect(service.era()).toBe('');
+    expect(service.primary()).toBe('#E8922D');
+    expect(service.secondary()).toBe('#2C3344');
+    expect(service.tertiary()).toBe('#E6C15A');
+    expect(service.neutral()).toBe('#6B768F');
+    expect(service.neutralVariant()).toBe('#5C667D');
     expect(service.error()).toBe('#E5484D');
   });
 
@@ -35,21 +36,35 @@ describe('ThemingService', () => {
 
   it('should have defined themes', () => {
     expect(service.definedThemes.length).toBeGreaterThan(0);
-    expect(service.definedThemes[0]).toBe(SPARTAN_HUD);
-    expect(service.definedThemes[0].name).toBe('Spartan HUD');
+    expect(service.definedThemes[0]).toBe(ARCHIVE_VAULT);
+    expect(service.definedThemes[0].name).toBe('Archive Vault');
+    expect(service.definedThemes).toContain(SPARTAN_HUD);
   });
 
-  it('resets the picker to the Spartan HUD colours and font', () => {
-    service.applyTheme(service.definedThemes[1]);
+  it('resets the picker to the Archive Vault colours and font', () => {
+    service.applyTheme(SPARTAN_HUD);
     service.font.set('Roboto');
-    expect(service.primary()).toBe('#FFDE03');
+    expect(service.primary()).toBe(SPARTAN_HUD.primary);
+    expect(service.era()).toBe('spartan-hud');
 
     service.reset();
 
-    expect(service.primary()).toBe(SPARTAN_HUD.primary);
-    expect(service.tertiary()).toBe(SPARTAN_HUD.tertiary);
-    expect(service.error()).toBe(SPARTAN_HUD.error);
+    expect(service.era()).toBe(ARCHIVE_VAULT.era);
+    expect(service.primary()).toBe(ARCHIVE_VAULT.primary);
+    expect(service.tertiary()).toBe(ARCHIVE_VAULT.tertiary);
+    expect(service.error()).toBe(ARCHIVE_VAULT.error);
     expect(service.font()).toBe('Rajdhani');
+  });
+
+  it('sets and clears the data-theme-era attribute on <html>', () => {
+    const mockRoot = document.createElement('html');
+    spyOn(document, 'querySelector').and.returnValue(mockRoot);
+
+    service.setEra('2008');
+    expect(mockRoot.getAttribute('data-theme-era')).toBe('2008');
+
+    service.setEra('');
+    expect(mockRoot.getAttribute('data-theme-era')).toBeNull();
   });
 
   it('should apply theme correctly', () => {

@@ -325,7 +325,7 @@ describe('SeasonComponent', () => {
     const notices = () => Array.from(el().querySelectorAll('app-data-notice')).map(n => n.textContent!.trim());
 
     beforeEach(() => summaries.get.and.callFake((id: number) => of(seasonSummary(id, {
-      seasonName: 'Summer League 2010', year: 2010, gameVersionName: 'Halo 3', division: 'Pro', isHistorical: true,
+      seasonName: 'Summer League 2010', year: 2010, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true,
       historicalSourceUrl: url, signupCount: 0, matchCount: 0, bracketMatchCount: 0, playerStatCount: 12,
       champions: [{ tier: 'Pro', teamID: 40, teamName: 'Relentless', roster: [{ userID: 7, gamertag: 'Captain R', isCaptain: true }] }],
       awards: [{ name: 'MVP', winners: [{ userID: 7, teamID: null, name: 'Captain R', teamName: null, value: null }] }],
@@ -333,7 +333,9 @@ describe('SeasonComponent', () => {
 
     it('shows the banner with its spreadsheet, its game and division, champions, awards and player stats', () => {
       fixture.detectChanges();
-      expect(el().querySelector('app-backfilled-banner a')!.getAttribute('href')).toBe(url);
+      const banner = el().querySelector('app-backfilled-banner')!;
+      expect(banner.textContent).toContain('Founding Era (grifball.com)');
+      expect(banner.querySelector('a')!.getAttribute('href')).toBe(url);
       expect(Array.from(el().querySelectorAll('.season-meta__pill')).map(p => p.textContent!.trim())).toEqual(['2010', 'AGLA', 'Halo 3', 'Pro']);
       expect(el().querySelector('app-season-champions')!.textContent).toContain('Relentless');
       expect(el().querySelector('app-season-awards')!.textContent).toContain('Captain R');
@@ -435,7 +437,10 @@ describe('SeasonComponent', () => {
 
   it('shows no banner or notices for a season played in the app', () => {
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('app-backfilled-banner, app-data-notice, app-season-champions')).toBeNull();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-backfilled-banner, app-data-notice, app-season-champions')).toBeNull();
+    expect(el.textContent).toContain('Current Season');
+    expect(el.textContent).toContain('10 signups · 4 teams · 6 matches');
   });
 
   it('falls back to the overview for an unknown tab', () => {

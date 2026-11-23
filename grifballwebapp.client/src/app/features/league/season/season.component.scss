@@ -45,3 +45,9 @@
   text-decoration: none;
   &:hover, &:focus-visible { color: var(--hud-heading); text-decoration: underline; }
 }
+
+.season-counts {
+  margin: 4px 0 0;
+  font: 400 13px var(--hud-font-mono);
+  letter-spacing: 0.04em;
+}

@@ -6,6 +6,20 @@
       <span class="hud-kicker">&gt; {{hero.kicker}}</span>
       <h1 id="home-hero-title" class="hud-title hud-title--xl"><a class="home-hero__title-link" [routerLink]="['/season', event.seasonID]">{{event.name}}</a></h1>
       <p class="hud-lede">{{hero.lede}}</p>
+      @if (hero.phases.length > 0) {
+        <ol class="hud-phase-bar home-hero__phases" aria-label="Current season timeline">
+          @for (step of hero.phases; track step.eventType) {
+            <li class="hud-phase-step" [class.hud-phase-step--active]="step.state === 'active'" [class.hud-phase-step--done]="step.state === 'done'">
+              <span class="hud-phase-step__name">{{step.title}}</span>
+              <span class="hud-phase-step__meta">
+                @if (step.state === 'active') { Active · ends {{step.end | date:'MMM d'}} }
+                @else if (step.state === 'done') { Completed · {{step.end | date:'MMM d'}} }
+                @else { Starts {{step.start | date:'MMM d'}} }
+              </span>
+            </li>
+          }
+        </ol>
+      }
       <div class="hud-actions home-hero__actions">
         @switch (event.eventType) {
           @case ('Signup') {
@@ -64,7 +78,10 @@
 
   <section class="hud-section" aria-labelledby="home-archive">
     <div class="home-archive__head">
-      <h2 id="home-archive" class="hud-h2">Past seasons</h2>
+      <div>
+        <span class="hud-kicker">&gt; Est. 2008 · AGLA &amp; Community Archive</span>
+        <h2 id="home-archive" class="hud-h2">Past seasons</h2>
+      </div>
       <a class="home-archive__all" routerLink="/seasons">All seasons</a>
     </div>
     <div class="hud-table-wrap">
@@ -72,10 +89,15 @@
         <ng-container matColumnDef="seasonName">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Season</th>
           <td mat-cell *matCellDef="let row">
-            <a class="home-archive__link" [routerLink]="['/season', row.seasonID]">{{row.seasonName}}</a>
-            @if (row.historicalSourceUrl) {
-              <a class="home-archive__source" [href]="row.historicalSourceUrl" target="_blank" rel="noopener noreferrer">Source spreadsheet</a>
-            }
+            <div class="home-archive__season">
+              <a class="home-archive__link" [routerLink]="['/season', row.seasonID]">{{row.seasonName}}</a>
+              <span class="home-archive__tags">
+                <span class="hud-pill">{{row.leagueName}}@if (row.gameVersionName) { · {{row.gameVersionName}}}</span>
+                @if (row.historicalSourceUrl) {
+                  <a class="home-archive__source" [href]="row.historicalSourceUrl" target="_blank" rel="noopener noreferrer">Source spreadsheet</a>
+                }
+              </span>
+            </div>
           </td>
         </ng-container>
         <!-- Each tier's champions (the titles the season list shows too); the tier is named when there are several -->

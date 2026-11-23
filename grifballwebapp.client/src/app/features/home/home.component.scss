@@ -2,9 +2,25 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+  border-left: 3px solid var(--hud-accent);
 }
 
+.home-hero__phases { margin-top: 2px; }
 .home-hero__actions { margin-top: 8px; }
+
+.home-archive__season {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.home-archive__tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 
 
 .home-archive__link {

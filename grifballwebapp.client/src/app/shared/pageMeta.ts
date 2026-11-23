@@ -6,7 +6,7 @@ import { DateTime } from 'luxon';
 import { LEAGUE_TIME_ZONE } from './leagueTimeZone';
 
 export const SITE_NAME = 'Play Grifball';
-export const DEFAULT_DESCRIPTION = 'Halo Infinite Grifball seasons, teams, schedules, brackets and match stats.';
+export const DEFAULT_DESCRIPTION = 'Grifball league seasons, teams, schedules, brackets, Late League and historical stats from 2008 onwards.';
 /**
  * The public site: every page's canonical address and og:url, whichever host served it (www, test, a preview), so
  * search engines list the public page and link previews point to it.

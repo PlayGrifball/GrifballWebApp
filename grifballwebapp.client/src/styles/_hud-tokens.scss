@@ -1,50 +1,150 @@
-// Spartan HUD design tokens. Every page and the Material theme read these.
+// Archive Vault design tokens. Every page and the Material theme read these.
 //
 // The theme picker (ThemingService) writes the seed colours --primary, --tertiary and --error on
-// <html>; the accent, gold and team red follow them, so the picker keeps working. Their fallbacks
-// are the Spartan HUD defaults (the same values as SPARTAN_HUD in theming.service.ts).
+// <html>, and may also set data-theme-era for full surface presets. Their fallbacks match the
+// Archive Vault defaults (ARCHIVE_VAULT in theming.service.ts).
 :root {
   --hud-font: var(--sys-body-medium-font, Rajdhani), Rajdhani, 'Rajdhani Fallback', system-ui, sans-serif;
   --hud-font-mono: 'Share Tech Mono', 'Share Tech Mono Fallback', ui-monospace, monospace;
 
-  // Page
-  --hud-bg: #060B13;
-  --hud-bg-glow: radial-gradient(ellipse at 70% 0%, #12304A 0%, #08131F 45%, #060B13 100%);
+  // Page & viewport sizing (fluid on 1440p+ monitors while keeping gutters comfortable)
+  --hud-bg: #0C0F14;
+  --hud-bg-glow: radial-gradient(ellipse at 50% 0%, rgba(232, 146, 45, 0.13) 0%, #10141C 45%, #0C0F14 100%);
+  --hud-header-bg: rgba(12, 15, 20, 0.84);
+  --hud-scrim: rgba(4, 6, 10, 0.74);
 
-  // Panels and lines
-  --hud-panel: rgba(14, 36, 56, 0.72);
-  --hud-panel-soft: rgba(14, 36, 56, 0.6);
-  --hud-panel-faint: rgba(14, 36, 56, 0.5);
-  --hud-well: rgba(8, 19, 31, 0.7);
-  --hud-input: #0B1B2A;
-  --hud-avatar: #1B3A55;
-  --hud-border: #2A5373;
-  --hud-hairline: #1E3A52;
+  // Panels, surfaces and lines
+  --hud-surface: #10141C;
+  --hud-surface-container: #141923;
+  --hud-surface-high: #1A202D;
+  --hud-surface-highest: #232B3B;
+  --hud-panel: rgba(20, 25, 35, 0.88);
+  --hud-panel-soft: rgba(17, 21, 30, 0.74);
+  --hud-panel-faint: rgba(17, 21, 30, 0.56);
+  --hud-well: rgba(10, 13, 18, 0.82);
+  --hud-input: #111620;
+  --hud-avatar: #232B3B;
+  --hud-border: #2C3344;
+  --hud-hairline: #1E2432;
   // Outlines of inputs and other controls need 3:1 against the page (WCAG 1.4.11).
-  --hud-control-outline: #5F87A6;
+  --hud-control-outline: #6B768F;
+  --hud-disabled-icon: #5C667D;
 
   // Text
-  --hud-text: #D9F1FF;
-  --hud-heading: #FFFFFF;
-  --hud-muted: #8FB4CC;
-  --hud-muted-2: #A9C8DC;
+  --hud-text: #EFECE6;
+  --hud-heading: #FFFDF8;
+  --hud-muted: #9AA2B2;
+  --hud-muted-2: #C8C3B8;
 
-  // Accents
-  --hud-accent: var(--primary, #7CCBFF);
-  --hud-on-accent: #04101C;
-  --hud-accent-tint: rgba(124, 203, 255, 0.08);
-  --hud-glow: 0 0 24px rgba(124, 203, 255, 0.35);
-  --hud-gold: var(--tertiary, #FFD25E);
+  // Accents (Bomb Amber primary + Trophy Brass gold + Red/Blue court polarity)
+  --hud-accent: var(--primary, #E8922D);
+  --hud-accent-hover: #F5A642;
+  --hud-on-accent: #1B0E00;
+  --hud-accent-tint: rgba(232, 146, 45, 0.10);
+  --hud-accent-tint-strong: rgba(232, 146, 45, 0.20);
+  --hud-row-hover: rgba(232, 146, 45, 0.06);
+  --hud-selection: rgba(232, 146, 45, 0.34);
+  --hud-glow: 0 0 24px rgba(232, 146, 45, 0.30);
+  --hud-gold: var(--tertiary, #E6C15A);
+  --hud-gold-tint: rgba(230, 193, 90, 0.14);
   --hud-red: var(--error, #E5484D);
   --hud-red-text: #FF8A8E;
   --hud-blue: #4C8DFF;
   --hud-blue-text: #8FC0FF;
+  --hud-green: #46A758;
+  --hud-green-text: #72E3AD;
+
+  // Game era rail markers (2008 Halo 3 -> 2026 Halo Infinite)
+  --era-halo3: #4ADE80;
+  --era-reach: #F59E0B;
+  --era-reach-dash: #FBBF24;
+  --era-halo4: #38BDF8;
+  --era-halo5: #A78BFA;
+  --era-infinite: #7CCBFF;
 
   // Shapes (chamfered panels: .hud-panel--chamfer in _hud.scss)
   --hud-slant: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
 
-  --hud-max-width: 1240px;
-  --hud-gutter: 24px;
+  --hud-max-width: min(1720px, 92vw);
+  --hud-gutter: clamp(16px, 2.5vw, 40px);
+}
+
+// Optional Era & Legacy Presets selected from /theme
+html[data-theme-era='spartan-hud'] {
+  --hud-bg: #060B13;
+  --hud-bg-glow: radial-gradient(ellipse at 70% 0%, #12304A 0%, #08131F 45%, #060B13 100%);
+  --hud-header-bg: rgba(6, 11, 19, 0.72);
+  --hud-surface: #08131F;
+  --hud-surface-container: #0E2438;
+  --hud-surface-high: #12304A;
+  --hud-surface-highest: #1B3A55;
+  --hud-panel: rgba(14, 36, 56, 0.72);
+  --hud-panel-soft: rgba(14, 36, 56, 0.60);
+  --hud-panel-faint: rgba(14, 36, 56, 0.50);
+  --hud-well: rgba(8, 19, 31, 0.70);
+  --hud-input: #0B1B2A;
+  --hud-avatar: #1B3A55;
+  --hud-border: #2A5373;
+  --hud-hairline: #1E3A52;
+  --hud-control-outline: #5F87A6;
+  --hud-text: #D9F1FF;
+  --hud-muted: #8FB4CC;
+  --hud-muted-2: #A9C8DC;
+  --hud-accent-hover: #A6DCFF;
+  --hud-on-accent: #04101C;
+  --hud-accent-tint: rgba(124, 203, 255, 0.08);
+  --hud-accent-tint-strong: rgba(124, 203, 255, 0.20);
+  --hud-row-hover: rgba(124, 203, 255, 0.05);
+  --hud-glow: 0 0 24px rgba(124, 203, 255, 0.35);
+}
+
+html[data-theme-era='2008'] {
+  --hud-bg: #120B0C;
+  --hud-bg-glow: radial-gradient(ellipse at 50% 0%, rgba(229, 72, 77, 0.18) 0%, #160D0F 48%, #120B0C 100%);
+  --hud-surface: #160D0F;
+  --hud-surface-container: #1B1214;
+  --hud-surface-high: #26181B;
+  --hud-panel: rgba(27, 18, 20, 0.90);
+  --hud-panel-soft: rgba(23, 15, 17, 0.76);
+  --hud-well: rgba(14, 8, 9, 0.85);
+  --hud-input: #170F11;
+  --hud-border: #4A282D;
+  --hud-hairline: #2F1A1D;
+  --hud-text: #F5EAEA;
+  --hud-muted: #C29EA2;
+  --hud-on-accent: #FFFFFF;
+}
+
+html[data-theme-era='2011'] {
+  --hud-bg: #0B100D;
+  --hud-bg-glow: radial-gradient(ellipse at 50% 0%, rgba(234, 179, 8, 0.14) 0%, #0E1510 48%, #0B100D 100%);
+  --hud-surface: #0E1510;
+  --hud-surface-container: #131A15;
+  --hud-surface-high: #1B251E;
+  --hud-panel: rgba(19, 26, 21, 0.90);
+  --hud-panel-soft: rgba(16, 22, 18, 0.76);
+  --hud-well: rgba(8, 12, 10, 0.85);
+  --hud-input: #101612;
+  --hud-border: #2E3D31;
+  --hud-hairline: #1D2820;
+  --hud-text: #E6ECE6;
+  --hud-muted: #98A89A;
+}
+
+html[data-theme-era='2014'] {
+  --hud-bg: #0D1017;
+  --hud-bg-glow: radial-gradient(ellipse at 50% 0%, rgba(249, 115, 22, 0.16) 0%, #111620 48%, #0D1017 100%);
+  --hud-surface: #111620;
+  --hud-surface-container: #151B26;
+  --hud-surface-high: #1E2636;
+  --hud-panel: rgba(21, 27, 38, 0.90);
+  --hud-panel-soft: rgba(18, 23, 32, 0.76);
+  --hud-well: rgba(10, 13, 19, 0.85);
+  --hud-input: #121720;
+  --hud-border: #303B4F;
+  --hud-hairline: #1E2635;
+  --hud-text: #E8EDF5;
+  --hud-muted: #97A3B8;
 }
 
 @media (max-width: 600px) {
