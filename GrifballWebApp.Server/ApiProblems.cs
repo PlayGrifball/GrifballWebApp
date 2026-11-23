@@ -42,8 +42,7 @@ public static class ApiProblems
             ?.CreateLogger(typeof(ApiProblems).FullName!);
         if (logger is not null && logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Request refused ({Status}) on {Method} {Path}: {Message}",
-                status, controller.HttpContext!.Request.Method, controller.HttpContext.Request.Path, detail);
+            logger.LogInformation("Request refused ({Status}): {Message}", status, detail);
         }
         // The app's factory adds the trace id; a controller made by hand (a unit test) has none, and gets the same shape
         var factory = controller.HttpContext?.RequestServices?.GetService(typeof(ProblemDetailsFactory)) as ProblemDetailsFactory;

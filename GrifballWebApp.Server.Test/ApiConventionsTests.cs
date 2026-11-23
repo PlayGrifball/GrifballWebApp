@@ -234,20 +234,30 @@ public class ApiConventionsTests
     }
 
     [Test]
-    public void Refusal_LogsItsStatusRequestAndReason()
+    public void Refusal_LogsItsStatusAndReason()
+    {
+        var lines = LogRefusal(LogLevel.Information);
+
+        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400): Already a user"));
+    }
+
+    [Test]
+    public void Refusal_LogsNothing_WhenInformationIsOff()
+    {
+        Assert.That(LogRefusal(LogLevel.Warning), Is.Empty);
+    }
+
+    private static List<string> LogRefusal(LogLevel minimum)
     {
         var lines = new List<string>();
         var services = new ServiceCollection()
-            .AddLogging(b => b.AddProvider(new CapturingLoggerProvider(lines)))
+            .AddLogging(b => b.SetMinimumLevel(minimum).AddProvider(new CapturingLoggerProvider(lines)))
             .BuildServiceProvider();
         var controller = new ProbeController().WithAnonymousUser();
         controller.HttpContext.RequestServices = services;
-        controller.HttpContext.Request.Method = "POST";
-        controller.HttpContext.Request.Path = "/identity/external-login/callback";
 
         controller.BadRequestProblem("Already a user");
-
-        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400) on POST /identity/external-login/callback: Already a user"));
+        return lines;
     }
 
     private sealed class CapturingLoggerProvider(List<string> lines) : ILoggerProvider
