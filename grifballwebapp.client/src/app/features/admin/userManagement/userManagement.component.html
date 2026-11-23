@@ -25,7 +25,7 @@
   <app-table [request]="request" [displayedColumns]="displayedColumns" [columns]="columns" [filters]="filters()" [parseRow]="parseUser" [reloads]="changes()">
     <ng-template let-row>
       <div class="action-buttons">
-        <a mat-button [routerLink]="['edituser', row.userID]" matTooltip="Edit User">
+        <a mat-button [routerLink]="['/usermanagement/edituser', row.userID]" matTooltip="Edit User">
           <mat-icon>edit</mat-icon>
           EDIT
         </a>

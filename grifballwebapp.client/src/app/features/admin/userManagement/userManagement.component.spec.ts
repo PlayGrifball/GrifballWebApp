@@ -388,10 +388,11 @@ describe('UserManagementComponent user table', () => {
     expect(cells).not.toContain('null');
     expect(cells).not.toContain('true');
     const headers = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('th')).map(th => th.textContent!.trim());
-    // Actions first: last, they sat past the table's right edge and EDIT was out of sight
-    expect(headers).toEqual(['Actions', 'User ID', 'Username', 'Lockout ends', 'Lockout enabled', 'Failed sign-ins', 'Region', 'Display name', 'Gamertag', 'Discord', 'Linked logins']);
-    const firstCell = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row td')!;
-    expect(firstCell.querySelector('a')!.getAttribute('href')).toBe('/edituser/1');
+    expect(headers).toEqual(['User ID', 'Username', 'Lockout ends', 'Lockout enabled', 'Failed sign-ins', 'Region', 'Display name', 'Gamertag', 'Discord', 'Linked logins', 'Actions']);
+    // The actions stay in sight at the right edge, however far the table scrolls: past it, EDIT looked gone
+    const actions = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row td:last-child')!;
+    expect(actions.classList).toContain('mat-mdc-table-sticky');
+    expect(actions.querySelector('a')!.getAttribute('href')).toBe('/usermanagement/edituser/1');
   });
 
   it('links to creating a user, merging users, the merges, the gamertag claims, past gamertags, the historical import, the jobs and the telemetry', () => {
