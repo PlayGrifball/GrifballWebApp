@@ -186,6 +186,23 @@ backend:
       #   Interval: "00:05:00"
       #   Timeout: "00:00:10"
       #   MatchId: 1fde4c2a-7935-4fb0-9706-e226f4d13683
+    # A changed page is told once to every API pod's watchers; when several at once watch a topic that needs
+    # building (the leaderboards, a draft board), the first API pod builds it once and the rest share it
+    # through Redis for a few seconds (DataTtl) under a short-lived lock (LockTtl). Defaults shown; every
+    # value is the app's own default, so this section is a no-op until changed.
+    Live:
+      # How many of a change's topics (and viewers) build at once, per API pod.
+      MaxConcurrentBuilds: 4
+      # How long a topic's built data is kept in Redis for the other pods to read.
+      DataTtl: "00:00:05"
+      # How long a pod that lost the race for the build lock waits for the winner's data before building its own.
+      BuildWait: "00:00:03"
+      # How long one pod holds the build lock: a dead-builder safety net, well past BuildWait so a late pod
+      # never finds it freshly expired while the real winner is simply slow. Must be greater than BuildWait.
+      LockTtl: "00:00:13"
+      # false: every API pod builds its own data instead of sharing one build through Redis (the behavior
+      # before this setting existed). Changes still reach every pod through Redis either way.
+      SharedBuilds: true
     # Who may set the client address. The backend's only peer is the frontend's server, which passes
     # on X-Real-IP; trust the pod network it runs in (Ex: 10.0.0.0/16).
     # ForwardedHeaders:

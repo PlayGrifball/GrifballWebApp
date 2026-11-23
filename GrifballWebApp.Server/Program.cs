@@ -169,7 +169,9 @@ public class Program
 
         // The pages are told what changed once it is committed (the domain events' LiveUpdatesHandler), from every role: its
         // messages reach every API pod's browsers through the backplane. Who is on the site is the API role's, where the tabs
-        // are: each pod's own, with every other's through Redis when scaled out.
+        // are: each pod's own, with every other's through Redis when scaled out. LiveOptions (LiveDelivery's tuning) is only
+        // ever read on the API role, but validated for every role, so a bad setting fails every process at startup alike.
+        builder.Services.AddValidatedLiveOptions(builder.Configuration);
         builder.Services.AddSingleton<LiveUpdates>();
         builder.Services.AddSingleton<GrifballWebApp.Application.Live.ILiveUpdates>(provider => provider.GetRequiredService<LiveUpdates>());
         builder.Services.AddHostedService(provider => provider.GetRequiredService<LiveUpdates>());

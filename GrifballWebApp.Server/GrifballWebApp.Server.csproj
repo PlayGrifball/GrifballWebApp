@@ -78,6 +78,16 @@
   </ItemGroup>
 
   <!--
+    LiveDelivery's cache key and per-topic queue are internal: LiveRedisTests builds the real cache key instead of a
+    hand-copied format, and LiveServerUnitTests exercises the queue (a failed item never stopping the next one for the
+    same topic) directly, rather than contrive that failure through the whole public Deliver.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Server.Test" />
+  </ItemGroup>
+
+  <!--
     GitInfo.CommitShortHash and GitInfo.CommitDate (the footer's BUILD, telemetry's service version), from git before
     each compile. Only the commit's own values, so the same commit compiles to the same bytes (docs/reproducible-builds.md):
     the package this replaces (Larcanum.GitInfo) wrote the time of the build into its generated file. Without git (a
