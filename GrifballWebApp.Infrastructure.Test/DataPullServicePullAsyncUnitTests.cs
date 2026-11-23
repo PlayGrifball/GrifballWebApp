@@ -159,6 +159,9 @@ public class DataPullServicePullAsyncUnitTests : SqliteContextFixture
         // #548, fourth review: a player new to the whole batch (no XboxUsers row yet) is resolved once, by the
         // batch getsert - a later match of the same pull must see their real gamertag in its own stat flag's
         // reason, not their bare XUID, even though that match is saved after the earlier one
+        // Player 1 (the puller) is already known, so only player 9's getsert is the one under test.
+        Context.XboxUsers.Add(XboxUser.FromXbox(1, "gt1"));
+        await Context.SaveChangesAsync();
         var earlyMatch = Guid.NewGuid();
         var laterMatch = Guid.NewGuid();
         _halo.StatsGetMatchHistory("xuid(1)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
