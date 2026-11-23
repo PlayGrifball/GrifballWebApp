@@ -1036,8 +1036,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     }
 
     private static bool IsFedBy(MatchBracketInfo info, HashSet<int> gone)
-        => (info.HomeTeamPreviousMatchBracketInfoID is { } home && gone.Contains(home))
-        || (info.AwayTeamPreviousMatchBracketInfoID is { } away && gone.Contains(away));
+        => new[] { info.HomeTeamPreviousMatchBracketInfoID, info.AwayTeamPreviousMatchBracketInfoID }.OfType<int>().Any(gone.Contains);
 
     /// <summary>The season's stored totals this run didn't write (a player taken off the sheet, a gamertag corrected to
     /// another player, a player whose games are the stats now) go.</summary>
