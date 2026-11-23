@@ -140,9 +140,9 @@ export class ThemingService {
       return;
     }
     if (era)
-      root.setAttribute('data-theme-era', era);
+      root.dataset['themeEra'] = era;
     else
-      root.removeAttribute('data-theme-era');
+      delete root.dataset['themeEra'];
   }
 
   setFont(font: string) {

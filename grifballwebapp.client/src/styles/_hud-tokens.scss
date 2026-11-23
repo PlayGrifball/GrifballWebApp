@@ -65,7 +65,7 @@
   // Shapes (chamfered panels: .hud-panel--chamfer in _hud.scss)
   --hud-slant: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
 
-  --hud-max-width: min(1720px, 92vw);
+  --hud-max-width: 1720px;
   --hud-gutter: clamp(16px, 2.5vw, 40px);
 }
 

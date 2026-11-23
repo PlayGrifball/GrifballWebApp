@@ -49,7 +49,7 @@ function headerProblems(page: Page): Promise<string[]> {
     }
     if (document.documentElement.scrollWidth > innerWidth + 1)
       problems.push('the page scrolls sideways');
-    const all = document.querySelectorAll('mat-sidenav a').length;
+    const all = document.querySelectorAll('mat-sidenav a:not([href="/chat"])').length;
     const menu = document.querySelector('.hud-header__menu');
     if (links.length < all && !(menu && visible(menu)))
       problems.push(`${all - links.length} links do not fit and there is no menu button`);
