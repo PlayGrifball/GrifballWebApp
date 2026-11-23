@@ -236,27 +236,36 @@ public class ApiConventionsTests
     [Test]
     public void Refusal_LogsItsStatusAndReason()
     {
-        var lines = LogRefusal(LogLevel.Information);
+        var lines = LogRefusal(LogLevel.Information, StatusCodes.Status400BadRequest);
 
-        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400): Already a user"));
+        Assert.That(lines.Single(), Is.EqualTo("Information: Request refused (400) by Probe.Action: Already a user"));
     }
 
     [Test]
-    public void Refusal_LogsNothing_WhenInformationIsOff()
+    public void Refusal_LogsAServerErrorAsAWarning()
     {
-        Assert.That(LogRefusal(LogLevel.Warning), Is.Empty);
+        var lines = LogRefusal(LogLevel.Information, StatusCodes.Status502BadGateway);
+
+        Assert.That(lines.Single(), Is.EqualTo("Warning: Request refused (502) by Probe.Action: Already a user"));
     }
 
-    private static List<string> LogRefusal(LogLevel minimum)
+    [Test]
+    public void Refusal_LogsNothing_WhenItsLevelIsOff()
+    {
+        Assert.That(LogRefusal(LogLevel.Warning, StatusCodes.Status400BadRequest), Is.Empty);
+    }
+
+    private static List<string> LogRefusal(LogLevel minimum, int status)
     {
         var lines = new List<string>();
-        var services = new ServiceCollection()
+        using var services = new ServiceCollection()
             .AddLogging(b => b.SetMinimumLevel(minimum).AddProvider(new CapturingLoggerProvider(lines)))
             .BuildServiceProvider();
         var controller = new ProbeController().WithAnonymousUser();
         controller.HttpContext.RequestServices = services;
+        controller.ControllerContext.ActionDescriptor = new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor { DisplayName = "Probe.Action" };
 
-        controller.BadRequestProblem("Already a user");
+        controller.Refusal(status, "Already a user");
         return lines;
     }
 

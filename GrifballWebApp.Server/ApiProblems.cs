@@ -40,9 +40,12 @@ public static class ApiProblems
         // A returned refusal is not an exception, so GlobalExceptionHandler never sees it: log it the same way
         var logger = (controller.HttpContext?.RequestServices?.GetService(typeof(ILoggerFactory)) as ILoggerFactory)
             ?.CreateLogger(typeof(ApiProblems).FullName!);
-        if (logger is not null && logger.IsEnabled(LogLevel.Information))
+        var level = status >= StatusCodes.Status500InternalServerError ? LogLevel.Warning : LogLevel.Information;
+        if (logger is not null && logger.IsEnabled(level))
         {
-            logger.LogInformation("Request refused ({Status}): {Message}", status, detail);
+            // The action's name, not the request path: the path is user input
+            logger.Log(level, "Request refused ({Status}) by {Action}: {Message}",
+                status, controller.ControllerContext.ActionDescriptor?.DisplayName, detail);
         }
         // The app's factory adds the trace id; a controller made by hand (a unit test) has none, and gets the same shape
         var factory = controller.HttpContext?.RequestServices?.GetService(typeof(ProblemDetailsFactory)) as ProblemDetailsFactory;
