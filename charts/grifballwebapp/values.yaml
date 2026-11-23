@@ -183,6 +183,15 @@ backend:
     #   MaxTeamSize: 5
     #   # Accuracy over this percentage is flagged (ImpossibleAccuracy), a little past 100% for Halo's own float rounding.
     #   MaxAccuracy: 100.5
+    #   # A hand-entered side's kills over the other side's deaths: allowed this percent plus this many kills
+    #   # (KillsDoNotMatchDeaths).
+    #   KillsOverDeathsPercent: 50
+    #   KillsOverDeathsSlack: 10
+    #   # A hand-entered game played more than this many days from its match's scheduled time (DateOutsideMatchWeek).
+    #   MaxDaysFromScheduled: 3
+    #   # A Halo player's kills or deaths, and goals, per minute of the match's length (StatsExceedGameLength).
+    #   MaxKillsOrDeathsPerMinute: 6
+    #   MaxGoalsPerMinute: 2
     HealthChecks:
       # Endpoint paths (defaults); the probes below follow them.
       # Path: /health

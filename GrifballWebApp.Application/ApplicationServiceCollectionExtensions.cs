@@ -151,6 +151,16 @@ public static class ApplicationServiceCollectionExtensions
                     errors.Add("MaxTeamSize must be at least MinTeamSize");
                 if (options.MaxAccuracy <= 0)
                     errors.Add("MaxAccuracy must be positive");
+                if (options.KillsOverDeathsPercent < 0)
+                    errors.Add("KillsOverDeathsPercent must not be negative");
+                if (options.KillsOverDeathsSlack < 0)
+                    errors.Add("KillsOverDeathsSlack must not be negative");
+                if (options.MaxDaysFromScheduled < 0)
+                    errors.Add("MaxDaysFromScheduled must not be negative");
+                if (options.MaxKillsOrDeathsPerMinute <= 0)
+                    errors.Add("MaxKillsOrDeathsPerMinute must be positive");
+                if (options.MaxGoalsPerMinute <= 0)
+                    errors.Add("MaxGoalsPerMinute must be positive");
 
                 if (errors.Count > 0)
                     throw new ArgumentException(string.Join(", ", errors));

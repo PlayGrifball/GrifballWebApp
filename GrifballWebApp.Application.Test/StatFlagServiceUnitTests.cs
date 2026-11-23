@@ -899,4 +899,208 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
 
         Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.DateOutsideSeason), Is.False);
     }
+
+    private async Task<RecordedGame> SeedKillsAndDeathsGameAsync(string key, (int Kills, int Deaths) home, (int Kills, int Deaths) away)
+    {
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.Seed(key, gameVersionID: Halo3, origin: RecordedGameOrigin.Manual);
+        var homeSide = game.SeedSide(1);
+        var awaySide = game.SeedSide(2);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[0].Id, 1, "H", home.Kills, home.Deaths, 0), homeSide);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.AwayUsers[0].Id, 2, "A", away.Kills, away.Deaths, 0), awaySide);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+        return game;
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_ASideWithFarMoreKillsThanTheOtherHasDeaths_IsFlagged()
+    {
+        // 40 kills against 10 deaths: past 10 * 1.5 + 10 = 25
+        var game = await SeedKillsAndDeathsGameAsync("kills-over-deaths", home: (40, 30), away: (20, 10));
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.KillsDoNotMatchDeaths);
+        Assert.That(flag.Discriminator, Is.EqualTo(1));
+        Assert.That(flag.Reason, Does.Contain("40 kills").And.Contain("only 10 deaths"));
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_KillsWithinTheAllowanceOfTheOthersDeaths_AreNotFlagged()
+    {
+        // suicides and betrayals make deaths exceed kills, never the other way: 20 kills vs 10 deaths is inside 25
+        var game = await SeedKillsAndDeathsGameAsync("kills-within-allowance", home: (20, 30), away: (30, 10));
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.KillsDoNotMatchDeaths), Is.False);
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_WithACustomKillsAllowance_OnlyFlagsPastIt()
+    {
+        var game = await SeedKillsAndDeathsGameAsync("kills-custom-allowance", home: (40, 30), away: (20, 10));
+        var statFlags = new StatFlagService(Context, _time, options: Options.Create(new StatFlagOptions { KillsOverDeathsPercent = 400f }));
+
+        await statFlags.CheckRecordedGameAsync(game, null);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.KillsDoNotMatchDeaths), Is.False);
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_KillsAndDeathsFixed_RemovesItsOpenFlag()
+    {
+        var game = await SeedKillsAndDeathsGameAsync("kills-fixed", home: (40, 30), away: (20, 10));
+        await _statFlags.CheckRecordedGameAsync(game, null);
+        Assert.That(await Context.StatFlags.CountAsync(f => f.Rule == StatFlagRule.KillsDoNotMatchDeaths), Is.EqualTo(1));
+
+        game.SetPlayers([
+            new RecordedPlayerLine(game.Participants.First(p => p.Gamertag == "H").UserID, 1, "H", 10, 30, 0),
+            new RecordedPlayerLine(game.Participants.First(p => p.Gamertag == "A").UserID, 2, "A", 20, 10, 0)]);
+        await Context.SaveChangesAsync();
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.KillsDoNotMatchDeaths), Is.False);
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_NotManual_SkipsTheKillsAndDeathsCheck()
+    {
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.Seed("kills-imported", gameVersionID: Halo3, seasonID: seeded.Season.SeasonID);
+        var homeSide = game.SeedSide(1);
+        var awaySide = game.SeedSide(2);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.HomeUsers[0].Id, 1, "H", 99, 0, 0), homeSide);
+        game.SeedPlayer(new RecordedPlayerLine(seeded.AwayUsers[0].Id, 2, "A", 0, 1, 0), awaySide);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, null);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.KillsDoNotMatchDeaths), Is.False);
+    }
+
+    private async Task<(RecordedGame Game, SeasonMatch Match)> SeedScheduledManualGameAsync(string key, DateTime scheduled, DateTime playedAt)
+    {
+        var seeded = await SeedAsync(Context);
+        seeded.SeasonMatch.ScheduleAt(scheduled);
+        var game = RecordedGame.Seed(key, gameVersionID: Halo3, origin: RecordedGameOrigin.Manual, playedAt: playedAt);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+        return (game, seeded.SeasonMatch);
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_PlayedWellAwayFromTheScheduledTime_IsFlagged()
+    {
+        var (game, match) = await SeedScheduledManualGameAsync("week-far", InSeason, InSeason.AddDays(5));
+
+        await _statFlags.CheckRecordedGameAsync(game, match);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.DateOutsideMatchWeek);
+        Assert.That(flag.Reason, Does.Contain("5 day(s)"));
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_PlayedWithinAFewDaysOfTheScheduledTime_IsNotFlagged()
+    {
+        var (game, match) = await SeedScheduledManualGameAsync("week-near", InSeason, InSeason.AddDays(-2));
+
+        await _statFlags.CheckRecordedGameAsync(game, match);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.DateOutsideMatchWeek), Is.False);
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_OfAMatchNeverScheduled_SkipsTheMatchWeekCheck()
+    {
+        var seeded = await SeedAsync(Context);
+        var game = RecordedGame.Seed("week-unscheduled", gameVersionID: Halo3, origin: RecordedGameOrigin.Manual, playedAt: InSeason);
+        Context.RecordedGames.Add(game);
+        await Context.SaveChangesAsync();
+
+        await _statFlags.CheckRecordedGameAsync(game, seeded.SeasonMatch);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.DateOutsideMatchWeek), Is.False);
+    }
+
+    [Test]
+    public async Task CheckRecordedGameAsync_WithACustomMaxDaysFromScheduled_OnlyFlagsPastIt()
+    {
+        var (game, match) = await SeedScheduledManualGameAsync("week-custom", InSeason, InSeason.AddDays(5));
+        var statFlags = new StatFlagService(Context, _time, options: Options.Create(new StatFlagOptions { MaxDaysFromScheduled = 6 }));
+
+        await statFlags.CheckRecordedGameAsync(game, match);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.DateOutsideMatchWeek), Is.False);
+    }
+
+    private async Task<Domain.Halo.Match> SeedTimedMatchAsync(TimeSpan duration, int kills, int deaths, int goals)
+    {
+        Context.XboxUsers.Add(XboxUser.FromXbox(101, "GT101"));
+        var match = Domain.Halo.Match.Seed(Guid.NewGuid(), duration: duration);
+        match.AddTeam(0, 1, Outcomes.Won);
+        // An undecoded match's goals are its Score (at most Match.PlainMaxScore)
+        match.AddParticipant(0, 101, new MatchParticipantStats { Kills = kills, Deaths = deaths, Score = goals });
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+        return match;
+    }
+
+    [Test]
+    public async Task CheckMatchAsync_KillsBeyondTheMatchLength_AreFlagged()
+    {
+        // 70 kills in 10 minutes is past 6 a minute
+        var match = await SeedTimedMatchAsync(TimeSpan.FromMinutes(10), kills: 70, deaths: 5, goals: 1);
+
+        await _statFlags.CheckMatchAsync(match);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.StatsExceedGameLength);
+        Assert.That(flag.Discriminator, Is.EqualTo(101));
+        Assert.That(flag.Reason, Does.Contain("70 kills").And.Contain("10-minute"));
+    }
+
+    [Test]
+    public async Task CheckMatchAsync_GoalsBeyondTheMatchLength_AreFlagged()
+    {
+        // 15 goals in 3 minutes is past 2 a minute
+        var match = await SeedTimedMatchAsync(TimeSpan.FromMinutes(3), kills: 5, deaths: 5, goals: 15);
+
+        await _statFlags.CheckMatchAsync(match);
+
+        var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.StatsExceedGameLength);
+        Assert.That(flag.Reason, Does.Contain("15 goals"));
+    }
+
+    [Test]
+    public async Task CheckMatchAsync_StatsWithinTheMatchLength_AreNotFlagged()
+    {
+        var match = await SeedTimedMatchAsync(TimeSpan.FromMinutes(10), kills: 40, deaths: 30, goals: 5);
+
+        await _statFlags.CheckMatchAsync(match);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.StatsExceedGameLength), Is.False);
+    }
+
+    [Test]
+    public async Task CheckMatchAsync_WithNoDuration_SkipsTheMatchLengthCheck()
+    {
+        var match = await SeedTimedMatchAsync(TimeSpan.Zero, kills: 500, deaths: 5, goals: 100);
+
+        await _statFlags.CheckMatchAsync(match);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.StatsExceedGameLength), Is.False);
+    }
+
+    [Test]
+    public async Task CheckMatchAsync_WithACustomRate_OnlyFlagsPastIt()
+    {
+        var match = await SeedTimedMatchAsync(TimeSpan.FromMinutes(10), kills: 70, deaths: 5, goals: 1);
+        var statFlags = new StatFlagService(Context, _time, options: Options.Create(new StatFlagOptions { MaxKillsOrDeathsPerMinute = 10f }));
+
+        await statFlags.CheckMatchAsync(match);
+
+        Assert.That(await Context.StatFlags.AnyAsync(f => f.Rule == StatFlagRule.StatsExceedGameLength), Is.False);
+    }
 }

@@ -14,5 +14,8 @@ export const STAT_FLAG_RULE: StatFlagRule[] = [
   'NegativeStat',
   'ImpossibleAccuracy',
   'UndecodedCustomScore',
-  'SeriesDoesNotMatchGames'
+  'SeriesDoesNotMatchGames',
+  'KillsDoNotMatchDeaths',
+  'DateOutsideMatchWeek',
+  'StatsExceedGameLength'
 ];

@@ -26,4 +26,10 @@ public enum StatFlagRule
     UndecodedCustomScore = 8,
     /// <summary>Any game: a season match's games don't add up to its series result.</summary>
     SeriesDoesNotMatchGames = 9,
+    /// <summary>Hand-entered: a side's kills are well above the other side's deaths (a kill is somebody's death).</summary>
+    KillsDoNotMatchDeaths = 10,
+    /// <summary>Hand-entered: the game's date is well away from when its season match was scheduled.</summary>
+    DateOutsideMatchWeek = 11,
+    /// <summary>Halo match: a player's kills, deaths or goals are more than the match's length allows.</summary>
+    StatsExceedGameLength = 12,
 }

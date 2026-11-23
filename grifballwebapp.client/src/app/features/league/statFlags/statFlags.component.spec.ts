@@ -72,6 +72,7 @@ describe('StatFlagsComponent', () => {
     const rules: StatFlagRule[] = [
       'ScoreDoesNotMatchGoals', 'WinnerDoesNotMatchScores', 'TeamSmallerThanFormat',
       'DateOutsideSeason', 'NegativeStat', 'ImpossibleAccuracy', 'UndecodedCustomScore', 'SeriesDoesNotMatchGames',
+      'KillsDoNotMatchDeaths', 'DateOutsideMatchWeek', 'StatsExceedGameLength',
     ];
     http.expectOne('/api/stat-flags').flush([]);
 

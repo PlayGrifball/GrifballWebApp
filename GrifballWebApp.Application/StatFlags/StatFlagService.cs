@@ -57,11 +57,12 @@ public class StatFlagService
     {
         StatFlagRule.ScoreDoesNotMatchGoals, StatFlagRule.WinnerDoesNotMatchScores,
         StatFlagRule.TeamSmallerThanFormat, StatFlagRule.DateOutsideSeason,
+        StatFlagRule.KillsDoNotMatchDeaths, StatFlagRule.DateOutsideMatchWeek,
     };
 
     /// <summary>Every rule run on a Halo Infinite match.</summary>
     private static readonly HashSet<StatFlagRule> MatchRules = new()
-        { StatFlagRule.NegativeStat, StatFlagRule.ImpossibleAccuracy, StatFlagRule.UndecodedCustomScore };
+        { StatFlagRule.NegativeStat, StatFlagRule.ImpossibleAccuracy, StatFlagRule.UndecodedCustomScore, StatFlagRule.StatsExceedGameLength };
 
     /// <summary>The one rule a season's series is checked by.</summary>
     private static readonly HashSet<StatFlagRule> SeriesRules = new() { StatFlagRule.SeriesDoesNotMatchGames };
@@ -203,6 +204,7 @@ public class StatFlagService
         var findings = new List<Finding>();
         findings.AddRange(NegativeStatFindings(match, userIDByXuid, gamertagByXuid));
         findings.AddRange(AccuracyFindings(match, userIDByXuid, gamertagByXuid, options));
+        findings.AddRange(StatsExceedGameLengthFindings(match, userIDByXuid, gamertagByXuid, options));
         if (match.ScoreLayout is CustomScoreLayout.Undecoded)
             findings.Add(new Finding(StatFlagRule.UndecodedCustomScore, null,
                 "The match's custom game mode couldn't be decoded (#217): its players' scores are still Halo's packed numbers, not goals"));
@@ -351,9 +353,47 @@ public class StatFlagService
         findings.AddRange(ScoreDoesNotMatchGoalsFindings(game));
         findings.AddRange(WinnerDoesNotMatchScoresFindings(game));
         findings.AddRange(TeamSizeFindings(game, _options));
+        findings.AddRange(KillsDoNotMatchDeathsFindings(game, _options));
         if (seasonMatch is not null)
+        {
             findings.AddRange(await DateOutsideSeasonFindingsAsync(game, seasonMatch, ct));
+            findings.AddRange(DateOutsideMatchWeekFindings(game, seasonMatch, _options));
+        }
         return findings;
+    }
+
+    /// <summary>A side's kills are more than the other side's deaths allow: every kill is someone's death, so
+    /// <c>kills &lt;= opponent deaths * (1 + KillsOverDeathsPercent/100) + KillsOverDeathsSlack</c> (suicides and
+    /// betrayals add deaths without a kill, so the other direction proves nothing). Only when both sides have players
+    /// entered (a score-only game has no numbers to compare).</summary>
+    private static IEnumerable<Finding> KillsDoNotMatchDeathsFindings(RecordedGame game, StatFlagOptions options)
+    {
+        var sides = game.Teams.ToList();
+        if (sides.Count != 2)
+            yield break;
+        var onSide = sides.Select(t => game.Participants.Where(p => p.RecordedGameTeamID == t.RecordedGameTeamID).ToList()).ToList();
+        if (onSide.Any(p => p.Count == 0))
+            yield break;
+        for (var i = 0; i < 2; i++)
+        {
+            var kills = onSide[i].Sum(p => p.Kills);
+            var opponentDeaths = onSide[1 - i].Sum(p => p.Deaths);
+            if (kills > opponentDeaths * (1 + options.KillsOverDeathsPercent / 100f) + options.KillsOverDeathsSlack)
+                yield return new Finding(StatFlagRule.KillsDoNotMatchDeaths, null,
+                    $"{sides[i].Name ?? $"Side {sides[i].Side}"} has {kills} kills, but {sides[1 - i].Name ?? $"Side {sides[1 - i].Side}"} only {opponentDeaths} deaths", Discriminator: sides[i].Side);
+        }
+    }
+
+    /// <summary>The game was played more than <see cref="StatFlagOptions.MaxDaysFromScheduled"/> days from its season
+    /// match's scheduled time; nothing to compare for an unscheduled match or an undated game.</summary>
+    private static IEnumerable<Finding> DateOutsideMatchWeekFindings(RecordedGame game, SeasonMatch seasonMatch, StatFlagOptions options)
+    {
+        if (game.PlayedAt is not DateTime playedAt || seasonMatch.ScheduledTime is not DateTime scheduled)
+            yield break;
+        var days = Math.Abs((playedAt - scheduled).TotalDays);
+        if (days > options.MaxDaysFromScheduled)
+            yield return new Finding(StatFlagRule.DateOutsideMatchWeek, null,
+                $"Played at {playedAt:yyyy-MM-dd}, {days:0} day(s) from the match's scheduled time ({scheduled:yyyy-MM-dd})");
     }
 
     /// <summary>The team scores don't match the players' goals added up: only checked for a side with at least one
@@ -475,6 +515,32 @@ public class StatFlagService
             else if (p.Accuracy > options.MaxAccuracy)
                 yield return new Finding(StatFlagRule.ImpossibleAccuracy, playerID,
                     $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {p.Accuracy:0.#}% accuracy", p.XboxUserID);
+        }
+    }
+
+    private static readonly Func<MatchParticipant, int?> CountedGoals = MatchParticipant.CountedGoals.Compile();
+
+    /// <summary>A player's kills, deaths or goals above what the match's own length allows at
+    /// <see cref="StatFlagOptions.MaxKillsOrDeathsPerMinute"/> and <see cref="StatFlagOptions.MaxGoalsPerMinute"/>
+    /// (a match shorter than a minute counts as a minute). Halo matches only: a hand-entered game has no length.
+    /// A match with no duration is skipped. <see cref="Finding.Discriminator"/> is the XUID, as the rules above.</summary>
+    private static IEnumerable<Finding> StatsExceedGameLengthFindings(Match match, IReadOnlyDictionary<long, int> userIDByXuid,
+        IReadOnlyDictionary<long, string> gamertagByXuid, StatFlagOptions options)
+    {
+        if (match.Duration <= TimeSpan.Zero)
+            yield break;
+        var minutes = Math.Max(match.Duration.TotalMinutes, 1);
+        var maxKillsOrDeaths = options.MaxKillsOrDeathsPerMinute * minutes;
+        var maxGoals = options.MaxGoalsPerMinute * minutes;
+        foreach (var p in match.MatchTeams.SelectMany(t => t.MatchParticipants))
+        {
+            var over = new List<string>();
+            if (p.Kills > maxKillsOrDeaths) over.Add($"{p.Kills} kills");
+            if (p.Deaths > maxKillsOrDeaths) over.Add($"{p.Deaths} deaths");
+            if (CountedGoals(p) is int goals && goals > maxGoals) over.Add($"{goals} goals");
+            if (over.Count > 0)
+                yield return new Finding(StatFlagRule.StatsExceedGameLength, PlayerID(p.XboxUserID, userIDByXuid),
+                    $"{Gamertag(p.XboxUserID, gamertagByXuid)}: {string.Join(", ", over)} in a {match.Duration.TotalMinutes:0.#}-minute match", p.XboxUserID);
         }
     }
 

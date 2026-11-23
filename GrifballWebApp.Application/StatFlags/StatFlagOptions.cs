@@ -19,4 +19,23 @@ public class StatFlagOptions
     /// <summary>Accuracy over this percentage is flagged (StatFlagRule.ImpossibleAccuracy): over 100%, allowing a little
     /// for Halo's own float rounding.</summary>
     public float MaxAccuracy { get; set; } = 100.5f;
+
+    /// <summary>A side's kills may exceed the other side's deaths by this percentage (plus
+    /// <see cref="KillsOverDeathsSlack"/>) before StatFlagRule.KillsDoNotMatchDeaths flags it: every kill is someone's
+    /// death, but a death can also be a suicide or betrayal, and hand-entered numbers are rarely exact.</summary>
+    public float KillsOverDeathsPercent { get; set; } = 50f;
+
+    /// <summary>A flat number of kills added to the allowance above, so a low-scoring game isn't flagged for one miscount.</summary>
+    public int KillsOverDeathsSlack { get; set; } = 10;
+
+    /// <summary>A hand-entered game played more than this many days from its season match's scheduled time is flagged
+    /// (StatFlagRule.DateOutsideMatchWeek): a reschedule moves the scheduled time, so a game a few days off is normal.</summary>
+    public int MaxDaysFromScheduled { get; set; } = 3;
+
+    /// <summary>A Halo player's kills or deaths per minute of the match's length above this are flagged
+    /// (StatFlagRule.StatsExceedGameLength).</summary>
+    public float MaxKillsOrDeathsPerMinute { get; set; } = 6f;
+
+    /// <summary>The same, for goals.</summary>
+    public float MaxGoalsPerMinute { get; set; } = 2f;
 }
