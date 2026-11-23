@@ -7,6 +7,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Voice;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -30,7 +31,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
     private readonly ChatLimits _limits = new();
     private readonly Speech _speech = new();
     private readonly List<short[]> _played = [];
-    private readonly Log _log = new();
+    private readonly ConversationLog _log = new();
     private ServiceProvider _services = null!;
 
     /// <summary>The speech server: each WAV it is sent answered with the next transcript; each text it speaks recorded.</summary>
@@ -65,7 +66,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
     }
 
     /// <summary>The conversation's log: each message as written.</summary>
-    private sealed class Log : ILogger<VoiceConversation>
+    private sealed class ConversationLog : ILogger<VoiceConversation>
     {
         public readonly List<string> Messages = [];
 
