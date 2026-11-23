@@ -510,6 +510,8 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     }
 
     private static readonly (string, string)[] ProSilvaOnly = [("Pro", "Silva")];
+    private static readonly string[] FallSeasons = ["Fall League 2015 Halo 3", "Fall League 2015 Halo 4"];
+    private static readonly (string, string)[] FallTitles = [("Silva", "Fall League 2015 Halo 3"), ("Hen", "Fall League 2015 Halo 4")];
 
     // ---------- A titles-only season: adopted by its season, or retired ----------
 
@@ -545,8 +547,8 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.SeasonsRetired, Is.EqualTo(1), "The titles-only 'Fall League 2015'");
-            Assert.That(await Context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EquivalentTo(new[] { "Fall League 2015 Halo 3", "Fall League 2015 Halo 4" }));
-            Assert.That(titles.Select(t => (t.GamertagUsed, t.SeasonName)), Is.EquivalentTo(new[] { ("Silva", "Fall League 2015 Halo 3"), ("Hen", "Fall League 2015 Halo 4") }));
+            Assert.That(await Context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EquivalentTo(FallSeasons));
+            Assert.That(titles.Select(t => (t.GamertagUsed, t.SeasonName)), Is.EquivalentTo(FallTitles));
         }
     }
 
