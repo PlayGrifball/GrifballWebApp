@@ -65,6 +65,13 @@ describe('BackfilledBannerComponent', () => {
     expect(links.map(l => l.textContent!.trim())).toEqual(['Stats', 'Schedule']);
   });
 
+  it('names a lone source by its own label when it is not the season\'s primary workbook', () => {
+    fixture.componentRef.setInput('sourceUrl', 'https://docs.google.com/spreadsheets/d/a');
+    fixture.componentRef.setInput('sources', [{ url: 'https://docs.google.com/spreadsheets/d/b', label: 'Schedule' }]);
+    fixture.detectChanges();
+    expect(el().querySelector('a')!.textContent).toContain('Schedule');
+  });
+
   it('calls a lone source the source spreadsheet', () => {
     fixture.componentRef.setInput('sources', [{ url: 'https://docs.google.com/spreadsheets/d/a', label: 'Stats' }]);
     fixture.detectChanges();

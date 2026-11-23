@@ -218,14 +218,24 @@ public class Season : AuditableEntity
         return removed;
     }
 
-    /// <summary>The import's record of every spreadsheet that feeds the season, the primary first; a link twice (by URL) is
+    /// <summary>The import's record of every spreadsheet that feeds the season, the primary first; a link twice (by exact URL) is
     /// kept once. Only an imported season (throws otherwise).</summary>
+    private const int MaxSourceLinks = 10;
+    private const int MaxSourceLabel = 150;
+
+    private static string Label(SeasonSourceLink link)
+    {
+        var label = string.IsNullOrWhiteSpace(link.Label) ? link.Url : link.Label;
+        return label.Trim() is { Length: > MaxSourceLabel } cut ? cut[..MaxSourceLabel] : label.Trim();
+    }
+
     public void SetArchiveSources(IEnumerable<SeasonSourceLink> links)
     {
         RequireImported();
         var kept = links.Where(l => !string.IsNullOrWhiteSpace(l.Url))
-            .DistinctBy(l => l.Url.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Select(l => new SeasonSourceLink(l.Url.Trim(), l.Label.Trim()))
+            .DistinctBy(l => l.Url.Trim(), StringComparer.Ordinal)
+            .Take(MaxSourceLinks)
+            .Select(l => new SeasonSourceLink(l.Url.Trim(), Label(l)))
             .ToList();
         HistoricalSourceLinks = kept.Count == 0 ? null : kept;
     }

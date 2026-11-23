@@ -97,6 +97,9 @@ export class BackfilledBannerComponent {
     if (sources.length > 1) {
       return [...sources];
     }
+    if (sources.length === 1 && this.sourceUrl() && sources[0].url !== this.sourceUrl()) {
+      return [sources[0]];
+    }
     const url = sources[0]?.url ?? this.sourceUrl();
     return url ? [{ url, label: 'Source spreadsheet' }] : [];
   });
