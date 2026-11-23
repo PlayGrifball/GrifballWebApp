@@ -380,8 +380,10 @@ it stays, runnable by hand with `kubectl create job --from=cronjob/grif-backup` 
 
 **Old backups.** Each migration leaves a backup, and nothing deletes them unless
 `migrations.backup.retention.enabled`: a nightly CronJob that deletes old ones, keeping the newest
-`keepLast` and any younger than `keepDays`; anything else in the folder is never touched. `onePerDay: true` also deletes any that isn't the newest of its day, at any age - for a test database that migrates many times a day. SQL Server
-deletes its own: only backups it recorded writing (its msdb history) named `<database>_*.bak` in the
+`keepLast` and any younger than `keepDays`; anything else in the folder is never touched. `onePerDay: true`
+also deletes any that isn't the newest of its day, at any age (the newest `keepLast` still stay): for a test database
+that migrates many times a day, where a later backup that day replaces an earlier pre-migration one. A day is the date
+of the file's write time for SQL Server, and the date in the name for PostgreSQL. SQL Server deletes its own: only backups it recorded writing (its msdb history) named `<database>_*.bak` in the
 backup folder, with `xp_delete_file`, which only deletes SQL Server backups. It mounts no volume, so it
 works the same against an external SQL Server. PostgreSQL's mounts the backup volume and considers only
 `pg_dump` archives named `<database>_YYYYMMDD_HHMMSS.dump`, ranked and aged by the date and time in
