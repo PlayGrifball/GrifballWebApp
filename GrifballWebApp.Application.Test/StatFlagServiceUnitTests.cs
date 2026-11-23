@@ -922,8 +922,11 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         await _statFlags.CheckRecordedGameAsync(game, null);
 
         var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.KillsDoNotMatchDeaths);
-        Assert.That(flag.Discriminator, Is.EqualTo(1));
-        Assert.That(flag.Reason, Does.Contain("40 kills").And.Contain("only 10 deaths"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.Discriminator, Is.EqualTo(1));
+            Assert.That(flag.Reason, Does.Contain("40 kills").And.Contain("only 10 deaths"));
+        }
     }
 
     [Test]
@@ -1057,8 +1060,11 @@ internal sealed class StatFlagServiceUnitTests : ApplicationDbContextTests
         await _statFlags.CheckMatchAsync(match);
 
         var flag = await Context.StatFlags.SingleAsync(f => f.Rule == StatFlagRule.StatsExceedGameLength);
-        Assert.That(flag.Discriminator, Is.EqualTo(101));
-        Assert.That(flag.Reason, Does.Contain("70 kills").And.Contain("10-minute"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(flag.Discriminator, Is.EqualTo(101));
+            Assert.That(flag.Reason, Does.Contain("70 kills").And.Contain("10-minute"));
+        }
     }
 
     [Test]
