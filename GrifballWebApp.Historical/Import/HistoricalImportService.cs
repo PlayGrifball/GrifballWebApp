@@ -1019,8 +1019,9 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         var slots = await _context.SeasonMatches.Where(m => m.SeasonID == season.SeasonID && m.BracketMatch != null)
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct);
-        var gone = matchesGone.Where(m => m.BracketMatch != null).Select(m => m.BracketMatch!.MatchBracketInfoID).ToHashSet();
-        var fed = slots.Where(s => !gone.Contains(s.BracketMatch!.MatchBracketInfoID)).ToList();
+        var removed = matchesGone.Select(m => m.SeasonMatchID).ToHashSet();
+        var gone = slots.Where(s => removed.Contains(s.SeasonMatchID)).Select(s => s.BracketMatch!.MatchBracketInfoID).ToHashSet();
+        var fed = slots.Where(s => !removed.Contains(s.SeasonMatchID)).ToList();
         int before;
         do
         {
