@@ -997,11 +997,14 @@ public partial class HistoricalImportService : IHistoricalImportService
         var matchesGone = await _context.SeasonMatches
             .Where(m => (m.HomeTeamID != null && ids.Contains(m.HomeTeamID.Value)) || (m.AwayTeamID != null && ids.Contains(m.AwayTeamID.Value)))
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct);
-        await AddBracketSlotsFedBy(season, matchesGone, ct);
-        // Each match and team gone says so: its page, and its players' profiles, hear of it
+        var redrawn = await BracketSlotsFedBy(season, matchesGone, ct);
+        // Each match and team gone says so: its page, and its players' profiles, hear of it; a slot only drawn again (its teams are
+        // still there) is no match canceled
         foreach (var match in matchesGone)
             match.Cancel();
         _context.SeasonMatches.RemoveRange(matchesGone);
+        _context.SeasonMatches.RemoveRange(redrawn);
+        counts.SeasonMatchesRemoved += matchesGone.Count + redrawn.Count;
         // A team's captain is one of its players: cleared before the rosters go (with their teams)
         foreach (var team in stale)
             team.ClearCaptain();
@@ -1013,9 +1016,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         counts.TeamsRemoved += stale.Count;
     }
 
-    /// <summary>A bracket slot fed by a removed one (its side is that slot's winner) goes too, and the slots it feeds: they
-    /// point at each other, and the bracket is drawn again right after.</summary>
-    private async Task AddBracketSlotsFedBy(Season season, List<SeasonMatch> matchesGone, CancellationToken ct)
+    /// <summary>The bracket slots fed by a removed one (a side is the winner or loser of that slot) and the slots they feed in turn:
+    /// the slots point at each other, so they go too, and the bracket is drawn again right after.</summary>
+    private async Task<List<SeasonMatch>> BracketSlotsFedBy(Season season, List<SeasonMatch> matchesGone, CancellationToken ct)
     {
         var slots = await _context.SeasonMatches.Where(m => m.SeasonID == season.SeasonID && m.BracketMatch != null)
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct);
@@ -1023,16 +1026,18 @@ public partial class HistoricalImportService : IHistoricalImportService
         var gone = slots.Where(s => removed.Contains(s.SeasonMatchID)).Select(s => s.BracketMatch!.MatchBracketInfoID).ToHashSet();
         var fed = slots.Where(s => !removed.Contains(s.SeasonMatchID)).ToList();
         int before;
+        List<SeasonMatch> redrawn = [];
         do
         {
             before = gone.Count;
             foreach (var slot in fed.Where(s => IsFedBy(s.BracketMatch!, gone)).ToList())
             {
                 gone.Add(slot.BracketMatch!.MatchBracketInfoID);
-                matchesGone.Add(slot);
+                redrawn.Add(slot);
                 fed.Remove(slot);
             }
         } while (gone.Count > before);
+        return redrawn;
     }
 
     private static bool IsFedBy(MatchBracketInfo info, HashSet<int> gone)
