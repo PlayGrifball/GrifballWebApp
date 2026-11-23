@@ -163,15 +163,17 @@ SQL
 if [ ! -d "$BACKUP_DIR" ]; then echo "No backups in $BACKUP_DIR yet."; exit 0; fi
 # Older than this, by the date and time in the name (the same clock and time zone that named it).
 cutoff=$(date -d "@$(( $(date +%s) - KEEP_DAYS * 86400 ))" +%Y%m%d_%H%M%S)
-old=$(backup_files "$BACKUP_DIR" | sort -r | awk -v keep="$KEEP_LAST" -v cutoff="$cutoff" \
-  'NR > keep && substr($0, length($0) - 19, 15) < cutoff')
+# With ONE_PER_DAY, one that isn't the newest of its day goes too (the newest are first; a kept one counts as its day's).
+old=$(backup_files "$BACKUP_DIR" | sort -r | awk -v keep="$KEEP_LAST" -v cutoff="$cutoff" -v one="$ONE_PER_DAY" \
+  '{ day = substr($0, length($0) - 19, 8); dup = (day in seen); seen[day] = 1 }
+   NR > keep && (substr($0, length($0) - 19, 15) < cutoff || (one == "true" && dup))')
 n=0
 for name in $old; do
   rm -f "$BACKUP_DIR/$name"
   echo "Deleted $BACKUP_DIR/$name"
   n=$((n + 1))
 done
-echo "Deleted $n backup(s); kept the newest $KEEP_LAST and any from the last $KEEP_DAYS days."
+echo "Deleted $n backup(s); kept the newest $KEEP_LAST and any from the last $KEEP_DAYS days$([ "$ONE_PER_DAY" = true ] && echo ", one a day outside the newest")."
 {{- end }}
 
 {{/* The backup volume (migrations.backup.volume), for the pods pg_dump and retention run in. */}}
