@@ -40,11 +40,12 @@
   --hud-accent: var(--primary, #E8922D);
   --hud-accent-hover: #F5A642;
   --hud-on-accent: #1B0E00;
-  --hud-accent-tint: rgba(232, 146, 45, 0.10);
-  --hud-accent-tint-strong: rgba(232, 146, 45, 0.20);
-  --hud-row-hover: rgba(232, 146, 45, 0.06);
-  --hud-selection: rgba(232, 146, 45, 0.34);
-  --hud-glow: 0 0 24px rgba(232, 146, 45, 0.30);
+  --hud-accent-rgb: 232, 146, 45;
+  --hud-accent-tint: rgba(var(--hud-accent-rgb), 0.10);
+  --hud-accent-tint-strong: rgba(var(--hud-accent-rgb), 0.20);
+  --hud-row-hover: rgba(var(--hud-accent-rgb), 0.06);
+  --hud-selection: rgba(var(--hud-accent-rgb), 0.34);
+  --hud-glow: 0 0 24px rgba(var(--hud-accent-rgb), 0.30);
   --hud-gold: var(--tertiary, #E6C15A);
   --hud-gold-tint: rgba(230, 193, 90, 0.14);
   --hud-red: var(--error, #E5484D);
@@ -113,11 +114,7 @@ html[data-theme-era='2008'] {
   --hud-text: #F5EAEA;
   --hud-muted: #C29EA2;
   --hud-accent-hover: #F26B6F;
-  --hud-accent-tint: rgba(229, 72, 77, 0.10);
-  --hud-accent-tint-strong: rgba(229, 72, 77, 0.20);
-  --hud-row-hover: rgba(229, 72, 77, 0.06);
-  --hud-selection: rgba(229, 72, 77, 0.34);
-  --hud-glow: 0 0 24px rgba(229, 72, 77, 0.30);
+  --hud-accent-rgb: 229, 72, 77;
   --hud-header-bg: rgba(18, 11, 12, 0.84);
   --hud-on-accent: #FFFFFF;
 }
@@ -137,11 +134,7 @@ html[data-theme-era='2011'] {
   --hud-text: #E6ECE6;
   --hud-muted: #98A89A;
   --hud-accent-hover: #FACC15;
-  --hud-accent-tint: rgba(234, 179, 8, 0.10);
-  --hud-accent-tint-strong: rgba(234, 179, 8, 0.20);
-  --hud-row-hover: rgba(234, 179, 8, 0.06);
-  --hud-selection: rgba(234, 179, 8, 0.34);
-  --hud-glow: 0 0 24px rgba(234, 179, 8, 0.30);
+  --hud-accent-rgb: 234, 179, 8;
   --hud-header-bg: rgba(11, 16, 13, 0.84);
 }
 
@@ -160,11 +153,7 @@ html[data-theme-era='2014'] {
   --hud-text: #E8EDF5;
   --hud-muted: #97A3B8;
   --hud-accent-hover: #FB923C;
-  --hud-accent-tint: rgba(249, 115, 22, 0.10);
-  --hud-accent-tint-strong: rgba(249, 115, 22, 0.20);
-  --hud-row-hover: rgba(249, 115, 22, 0.06);
-  --hud-selection: rgba(249, 115, 22, 0.34);
-  --hud-glow: 0 0 24px rgba(249, 115, 22, 0.30);
+  --hud-accent-rgb: 249, 115, 22;
   --hud-header-bg: rgba(13, 16, 23, 0.84);
 }
 
