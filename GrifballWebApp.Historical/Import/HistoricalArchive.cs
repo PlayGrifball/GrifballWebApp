@@ -91,6 +91,8 @@ public class ArchiveSeason
 /// <summary>A season's playoff bracket from its sheet: its series in the order they were played.</summary>
 public class ArchiveBracket
 {
+    /// <summary>The catalog id of the workbook the bracket was read from.</summary>
+    public string? SourceId { get; init; }
     public List<ArchiveBracketSeries> Series { get; init; } = [];
 }
 
