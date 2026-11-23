@@ -17,4 +17,11 @@
   color: var(--mat-sys-error);
 }
 
+// A pinned column (stickyEnd) covers the columns scrolling under it: solid, with an edge. Under
+// .mat-mdc-table, to beat Material's `.mat-mdc-table .mat-mdc-header-cell { background: inherit }`
+.mat-mdc-table .mat-mdc-table-sticky {
+  background: var(--hud-input, #0B1B2A);
+  border-left: 1px solid var(--hud-hairline);
+}
+
 .mat-mdc-paginator { border-top: 1px solid var(--hud-hairline); }

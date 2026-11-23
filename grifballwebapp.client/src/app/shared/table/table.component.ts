@@ -78,6 +78,8 @@ export interface Column<T> {
   cell: (element: T) => string;
   template?: number; // Optional, if you want to render custom template. cell will be ignored if template is provided.
   isSortable?: boolean;
+  /** Pinned to the table's right edge while the other columns scroll sideways under it (a row's actions). */
+  stickyEnd?: boolean;
   //isFilterable?: boolean;
   //filterValue?: (element: T) => string | number | boolean;
 };

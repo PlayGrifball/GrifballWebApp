@@ -1,6 +1,6 @@
 <table mat-table [dataSource]="current().results" matSort (matSortChange)="onSortChange($event)">
     @for (column of columns(); track column) {
-        <ng-container [matColumnDef]="column.columnDef">
+        <ng-container [matColumnDef]="column.columnDef" [stickyEnd]="column.stickyEnd ?? false">
             @if (column.isSortable === false || (column.isSortable === undefined && isSortableDefault() === false)) {
             <th mat-header-cell *matHeaderCellDef>
                 {{column.header}}
