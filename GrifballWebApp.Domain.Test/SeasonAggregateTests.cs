@@ -79,13 +79,15 @@ public class SeasonAggregateTests
         }
     }
 
+    private static readonly string[] ExpectedLabels = ["One", "Two"];
+
     [Test]
     public void SetArchiveSources_KeepsTwoUrlsThatDifferOnlyInCase_AsGoogleSheetIdsAreCaseSensitive()
     {
         var imported = Imported();
         imported.SetArchiveSources([new("https://sheets/AbC", "One"), new("https://sheets/aBC", "Two")]);
 
-        Assert.That(imported.HistoricalSourceLinks!.Select(l => l.Label), Is.EqualTo(new[] { "One", "Two" }));
+        Assert.That(imported.HistoricalSourceLinks!.Select(l => l.Label), Is.EqualTo(ExpectedLabels));
     }
 
     [Test]
@@ -99,7 +101,7 @@ public class SeasonAggregateTests
         {
             Assert.That(links[0].Label, Is.EqualTo("https://sheets/a"));
             Assert.That(links[1].Label, Has.Length.LessThanOrEqualTo(150));
-            Assert.That(System.Text.Json.JsonSerializer.Serialize(links).Length, Is.LessThan(4000));
+            Assert.That(System.Text.Json.JsonSerializer.Serialize(links), Has.Length.LessThan(4000));
         }
     }
 
