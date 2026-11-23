@@ -12,12 +12,6 @@ describe('eras', () => {
     expect(grifballEra(0, null).id).toBe('revival');
   });
 
-  it('gives each era a span that starts where the last one ends', () => {
-    const at = (year: number) => grifballEra(year, 'halo3').span;
-    expect([2010, 2011, 2013, 2014, 2018, 2019, 2022].map(at)).toEqual([
-      '2008–2010', '2011–2013', '2011–2013', '2014–2018', '2014–2018', '2019–2022', '2019–2022']);
-  });
-
   it('formats an active year span from season years', () => {
     expect(activeYearSpan([])).toBeNull();
     expect(activeYearSpan([null, 0])).toBeNull();

@@ -93,10 +93,7 @@ html[data-theme-era='spartan-hud'] {
   --hud-muted-2: #A9C8DC;
   --hud-accent-hover: #A6DCFF;
   --hud-on-accent: #04101C;
-  --hud-accent-tint: rgba(124, 203, 255, 0.08);
-  --hud-accent-tint-strong: rgba(124, 203, 255, 0.20);
-  --hud-row-hover: rgba(124, 203, 255, 0.05);
-  --hud-glow: 0 0 24px rgba(124, 203, 255, 0.35);
+  --hud-accent-rgb: 124, 203, 255;
 }
 
 html[data-theme-era='2008'] {
