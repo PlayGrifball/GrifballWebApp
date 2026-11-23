@@ -96,6 +96,7 @@ public class SysadminTools
     {
         JobControlResult.Done => done,
         JobControlResult.NotFound => throw new ToolException("There is no such job: list_jobs gives each one's group and name."),
+        JobControlResult.DeniedToAccessToken => throw new ToolException("An access token may not run this job."),
         _ => throw new ToolException("The job can't do that now: it's off, running, or needs its page's input."),
     };
 }

@@ -51,9 +51,11 @@ public class UserMergeAuditService
 {
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
-    private readonly ICurrentUserService? _currentUser;
+    private readonly ICurrentUserService _currentUser;
 
-    public UserMergeAuditService(IApplicationDbContext context, TimeProvider time, ICurrentUserService? currentUser = null)
+    /// <summary><paramref name="currentUser"/> is required, not optional: the same fail-open <see cref="UserMergeService"/>'s
+    /// own remarks explain (#549 review).</summary>
+    public UserMergeAuditService(IApplicationDbContext context, TimeProvider time, ICurrentUserService currentUser)
     {
         _context = context;
         _time = time;
@@ -134,6 +136,9 @@ public class UserMergeAuditService
     /// </summary>
     public async Task Undo(int mergeId, string? note, CancellationToken ct = default)
     {
+        if (_currentUser.IsAccessToken)
+            throw new MergeDeniedToAccessTokenException();
+
         var merge = await _context.UserMerges.AsNoTracking().FirstOrDefaultAsync(m => m.UserMergeID == mergeId, ct)
             ?? throw new MergeUndoRefusedException($"There is no merge {mergeId}");
         if (!merge.IsStanding)
@@ -159,7 +164,7 @@ public class UserMergeAuditService
             await new MergeManifestPlayer(_context).UndoAsync(manifest, ct);
             var record = await _context.UserMerges.FirstAsync(m => m.UserMergeID == mergeId, ct);
             // Undone by someone else since it was read: refused, and nothing is put back
-            if (record.Undo(_time.GetUtcNow().UtcDateTime, _currentUser?.GetCurrentUserId(), note) == UserMergeUndo.AlreadyUndone)
+            if (record.Undo(_time.GetUtcNow().UtcDateTime, _currentUser.GetCurrentUserId(), note) == UserMergeUndo.AlreadyUndone)
                 throw new MergeUndoRefusedException($"Merge {mergeId} was undone already");
             await _context.SaveChangesAsync(ct);
             await _context.CommitTransactionAsync(ct);

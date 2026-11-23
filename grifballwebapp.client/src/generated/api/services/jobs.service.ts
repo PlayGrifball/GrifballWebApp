@@ -107,7 +107,9 @@ export class JobsService extends BaseService {
   static readonly RunJobPath = '/jobs/{group}/{name}/run';
 
   /**
-   * Runs a job now, outside its schedule. Sysadmins only.
+   * Runs a job now, outside its schedule. Sysadmins only. Refused for an access token when the job can end
+   *             up merging a user (`JobsService.MergeCapableJobs`, private to that class): that can't be caught where the
+   *             merge actually happens, which runs later with no request of its own.
    *
    *
    *
@@ -122,7 +124,9 @@ export class JobsService extends BaseService {
   }
 
   /**
-   * Runs a job now, outside its schedule. Sysadmins only.
+   * Runs a job now, outside its schedule. Sysadmins only. Refused for an access token when the job can end
+   *             up merging a user (`JobsService.MergeCapableJobs`, private to that class): that can't be caught where the
+   *             merge actually happens, which runs later with no request of its own.
    *
    *
    *

@@ -7,6 +7,7 @@ using GrifballWebApp.Infrastructure.Historical;
 using GrifballWebApp.Historical.Sources;
 using GrifballWebApp.Historical.Import;
 using GrifballWebApp.Historical.Worker;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Historical;
 
@@ -16,9 +17,15 @@ namespace GrifballWebApp.Server.Historical;
 /// and on a schedule, HistoricalRefreshJob) and imports their snapshots: <see cref="Preview"/> shows what an import would remove, then
 /// <see cref="ApplyPreview"/> imports it. A compiled archive can still be uploaded (<see cref="Import"/>). Everything runs
 /// in the background (HistoricalImportWorker, in the worker role): each action returns 202 with the job's ID, and
-/// <see cref="Job"/> reports its progress and result. Running an import again with the same data changes nothing.
+/// <see cref="Job"/> reports its progress and result. Running an import again with the same data changes nothing. A normal
+/// staff action, like AdminController's own pulls - a token may call most of it - except <see cref="Import"/>,
+/// <see cref="Preview"/>, <see cref="ApplyPreview"/> and <see cref="ApproveReview"/>, which queue work the worker runs
+/// later with no request of its own (<c>HistoricalImportWorker</c>): the merge guard inside
+/// <see cref="GrifballWebApp.Application.Profile.UserMergeService.Merge"/> reads the current request, which by then
+/// doesn't exist, so it can't catch a token there. Denied at the endpoint instead (#549 review).
 /// </summary>
 [ApiController]
+[AllowAccessToken]
 public class HistoricalImportController : ControllerBase
 {
     private readonly HistoricalImportJobs _jobs;
@@ -41,6 +48,7 @@ public class HistoricalImportController : ControllerBase
     [HttpPost("historical-imports", Name = "ImportHistoricalArchive")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [RequestSizeLimit(64 * 1024 * 1024)]
 #pragma warning disable S5693 // a sysadmin's archive (its JSON files run to tens of MB); authorization runs before the form is read
     [RequestFormLimits(MultipartBodyLengthLimit = 64 * 1024 * 1024)]
@@ -108,6 +116,7 @@ public class HistoricalImportController : ControllerBase
     /// <summary>A dry run of importing every source's latest snapshot: the job lists each season's removals.</summary>
     [HttpPost("historical-imports/preview", Name = "PreviewHistoricalImport")]
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [ProducesResponseType<HistoricalImportQueued>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Preview(CancellationToken ct)
         => Queued(await _jobs.Enqueue(HistoricalImportJob.Preview(), CancellationToken.None));
@@ -118,6 +127,7 @@ public class HistoricalImportController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [ProducesResponseType<HistoricalImportQueued>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> ApplyPreview([FromRoute] int jobID, CancellationToken ct)
         => Decided(await _jobs.ApplyPreview(jobID, CancellationToken.None));
@@ -128,6 +138,7 @@ public class HistoricalImportController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [ProducesResponseType<HistoricalImportQueued>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> ApproveReview([FromRoute] int reviewID, CancellationToken ct)
         => Decided(await _jobs.Decide(reviewID, approve: true, CancellationToken.None));

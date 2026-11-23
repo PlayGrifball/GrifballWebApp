@@ -2,6 +2,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +46,7 @@ public class HistoricalImportControllerTests
                 new GrifballWebApp.Historical.Sources.HistoricalSourceFetcher(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(System.Net.HttpStatusCode.NotFound)))),
                 TimeProvider.System, NullLogger<GrifballWebApp.Historical.Sources.HistoricalSourceService>.Instance));
         _lookupSignal = new XuidLookupSignal();
-        _claims = new GamertagClaimsController(new GamertagClaimService(_context, new UserMergeService(_context)),
+        _claims = new GamertagClaimsController(new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())),
             new XuidLookupService(_context, Substitute.For<Surprenant.Grunt.Core.IHaloInfiniteClient>(), new GamertagMatching(_context),
                 Options.Create(new XuidLookupOptions()), TimeProvider.System),
             _lookupSignal);

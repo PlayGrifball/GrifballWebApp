@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.DatabaseBackup;
 
@@ -19,10 +20,12 @@ public sealed record ExportRequestDto(string Provider, string ConnectionString);
 /// Sysadmin only: the whole database as a download (<see cref="StartDownload"/>): a SQLite file, a script for PostgreSQL or
 /// SQL Server, or the server's native backup; or copied straight into a new database on any of the three
 /// (<see cref="Export"/>). Both run as jobs (BackupJobs), on the pod that runs the jobs, one at a time; the download is
-/// fetched from there (BackupDownloads).
+/// fetched from there (BackupDownloads). No access token, whatever its scope: downloading the whole database (even the
+/// read-only actions here) hands over every password hash and token hash in it, and exporting can hand it to any server.
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
+[DenyAccessToken]
 public partial class BackupController(DatabaseBackupService backups, BackupRuns runs, BackupDownloads downloads, IApplicationDbContext context, IConfiguration configuration,
     ILogger<BackupController> logger) : ControllerBase
 {

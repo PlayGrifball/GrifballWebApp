@@ -312,6 +312,18 @@ public class GrifToolsTests
     }
 
     [Test]
+    public void EffectByName_MatchesEachToolsSet_ForAReadOnlyAccessTokensFilter()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(GrifTools.EffectByName["get_season_standings"], Is.EqualTo(ToolEffect.ReadsOnly));
+            Assert.That(GrifTools.EffectByName["pull_season_match_games"], Is.EqualTo(ToolEffect.QueuesHaloPull));
+            Assert.That(GrifTools.EffectByName["decide_gamertag_claim"], Is.EqualTo(ToolEffect.ChangesData));
+            Assert.That(GrifTools.EffectByName.Keys, Is.EquivalentTo(AllTools().Select(GrifTools.Name)));
+        }
+    }
+
+    [Test]
     public void ToolNames_AreSnakeCase_AndUnique()
     {
         var names = AllTools().Select(GrifTools.Name).ToList();
@@ -485,6 +497,24 @@ public class GrifToolsTests
             Assert.That(GrifTools.Methods(typeof(SeasonTools)).Concat(GrifTools.Methods(typeof(TeamTools))).Select(m => GrifTools.RolesByName[GrifTools.Name(m)]), Has.All.Empty, "the site's public pages' tools are for anyone");
             Assert.That(GrifTools.Methods(typeof(StaffTools)).Concat(GrifTools.Methods(typeof(CommissionerTools))).Concat(GrifTools.Methods(typeof(SysadminTools)))
                 .Select(m => GrifTools.RolesByName[GrifTools.Name(m)]), Has.None.Empty, "every staff tool names its roles");
+        }
+    }
+
+    [Test]
+    public void IsReadOnlyTool_AnUnknownName_FailsClosed()
+    {
+        // GetValueOrDefault's default for a missing key is default(ToolEffect), which is ReadsOnly (0): that would make
+        // an unknown tool name read-only by accident. IsReadOnlyTool must refuse it instead (#549 review).
+        Assert.That(GrifTools.IsReadOnlyTool("not_a_real_tool"), Is.False);
+    }
+
+    [Test]
+    public void IsReadOnlyTool_AgreesWithEffectByName_ForEveryRealTool()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            foreach (var (name, effect) in GrifTools.EffectByName)
+                Assert.That(GrifTools.IsReadOnlyTool(name), Is.EqualTo(effect is ToolEffect.ReadsOnly), name);
         }
     }
 }

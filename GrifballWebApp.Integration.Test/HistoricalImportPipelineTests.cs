@@ -12,6 +12,7 @@ using static GrifballWebApp.Infrastructure.Test.HistoricalXlsx;
 using GrifballWebApp.Application.Championships;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Historical.Sources;
 using GrifballWebApp.Infrastructure.Historical;
 using GrifballWebApp.Application.Database;
@@ -74,11 +75,12 @@ public class HistoricalImportPipelineTests
         services.AddSingleton(new XuidLookupSignal());
         services.AddSingleton<TimeProvider>(_time);
         services.AddSingleton(Substitute.For<IDataPullService>());
+        services.AddSingleton(Substitute.For<IUserMergeService>());
         services.AddScoped<ChampionshipService>();
         services.AddScoped<GamertagMatching>();
         services.AddScoped<IHistoricalImportService>(provider => new HistoricalImportService(provider.GetRequiredService<GrifballContext>(), provider.GetRequiredService<IDataPullService>(),
             Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
-            provider.GetRequiredService<GamertagMatching>(), TimeProvider.System));
+            provider.GetRequiredService<GamertagMatching>(), TimeProvider.System, provider.GetRequiredService<IUserMergeService>()));
         services.AddScoped(provider => new HistoricalSourceFetcher(new HttpClient(handler)));
         services.AddScoped<HistoricalSourceService>();
         services.AddScoped<HistoricalImportJobs>();

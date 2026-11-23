@@ -86,6 +86,11 @@ public class SetGamertagService : ISetGamertagService
                 await _context.RollbackTransactionAsync(ct);
                 return "That gamertag's placeholder account could not be merged into yours: " + e.Message + " Contact a commissioner.";
             }
+            catch (MergeDeniedToAccessTokenException e)
+            {
+                await _context.RollbackTransactionAsync(ct);
+                return e.Message;
+            }
         }
 
         // The user owns the XUID now, either way: the account's past gamertags' placeholders follow
@@ -131,6 +136,10 @@ public class SetGamertagService : ISetGamertagService
             catch (MergeConflictException e)
             {
                 return "That gamertag's placeholder account could not be merged into yours: " + e.Message + " Contact a commissioner.";
+            }
+            catch (MergeDeniedToAccessTokenException e)
+            {
+                return e.Message;
             }
         }
 

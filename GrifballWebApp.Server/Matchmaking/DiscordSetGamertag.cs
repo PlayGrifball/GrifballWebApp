@@ -25,12 +25,12 @@ public class DiscordSetGamertag
         GrifballContext context,
         UserManager<Domain.Players.User> userManager,
         ISetGamertagService setGamertagService,
-        IUserMergeService? merges = null)
+        IUserMergeService merges)
     {
         _context = context;
         _userManager = userManager;
         _setGamertagService = setGamertagService;
-        _merges = merges ?? new UserMergeService(context);
+        _merges = merges;
     }
 
     /// <summary>The Set Gamertag modal (<see cref="ModalInteractions"/>): reads the gamertag text input, which arrives wrapped in a Label.</summary>

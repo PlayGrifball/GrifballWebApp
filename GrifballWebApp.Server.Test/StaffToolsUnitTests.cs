@@ -216,12 +216,16 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         _jobs.SetPaused("Discord", "Outbox", true, Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(JobControlResult.Done);
         _jobs.RunNow("Nope", "Nothing", Arg.Any<int?>(), Arg.Any<CancellationToken>()).Returns(JobControlResult.NotFound);
         _jobs.SetPaused("Discord", "Busy", false, Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(JobControlResult.Conflict);
+        // Mirrors JobsService.RunNow's own refusal of an access token on a merge-capable job (historical-refresh);
+        // mocked here since IJobControl, not the real JobsService, backs this test.
+        _jobs.RunNow("recurring", "historical-refresh", Arg.Any<int?>(), Arg.Any<CancellationToken>()).Returns(JobControlResult.DeniedToAccessToken);
 
         var listed = await Staff(Sysadmin).ListJobs();
         var ran = await Sysadmins(Sysadmin).RunJob("Discord", "Outbox");
         var paused = await Sysadmins(Sysadmin).SetJobPaused("Discord", "Outbox", true);
         var missing = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).RunJob("Nope", "Nothing"));
         var busy = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetJobPaused("Discord", "Busy", false));
+        var deniedToToken = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).RunJob("recurring", "historical-refresh"));
 
         using (Assert.EnterMultipleScope())
         {
@@ -230,6 +234,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
             Assert.That(paused, Is.EqualTo("It's paused."));
             Assert.That(missing!.Message, Does.StartWith("There is no such job"));
             Assert.That(busy!.Message, Does.StartWith("The job can't do that now"));
+            Assert.That(deniedToToken!.Message, Does.Contain("access token"));
         }
     }
 

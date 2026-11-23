@@ -140,7 +140,10 @@ public class Program
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-        builder.Services.AddProblemDetails();
+        // Every ProblemDetails response through IProblemDetailsService (the access token rules, #549) gets a trace ID too,
+        // as GlobalExceptionHandler's own already do.
+        builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+            context.ProblemDetails.Extensions["traceId"] = System.Diagnostics.Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
 
         builder.Services.AddSignalR(options =>
         {
@@ -200,6 +203,8 @@ public class Program
                 options.Filters.Add<CookieAntiforgeryFilter>();
                 // A season not announced yet is staff's alone (#435)
                 options.Filters.Add<GrifballWebApp.Server.Seasons.SeasonVisibilityFilter>();
+                // Managing tokens, the account's password/email/logins, merges and deleting it stay browser only (#549)
+                options.Filters.Add<DenyAccessTokenFilter>();
             })
             .AddJsonOptions(options => ApiJson.Configure(options.JsonSerializerOptions));
 
@@ -460,6 +465,11 @@ public class Program
         // pipeline, where the Discord callback (/signin-discord) would see the frontend's http and send
         // Discord a redirect_uri other than the https one the sign-in started with (invalid_grant).
         app.UseAuthentication();
+        // A presented grif_ token that failed to authenticate: 401 everywhere, even an [AllowAnonymous] action, before
+        // it could otherwise fall back to an anonymous 200 (#549)
+        app.Use(AccessTokenAuthentication.RequireAValidToken);
+        // A read-only access token's write: 403 saying why, before role checks give a less specific one (#549)
+        app.Use(AccessTokenAuthentication.RefuseWritesFromReadOnlyTokens);
         app.UseAuthorization();
         // Per-endpoint limits ([EnableRateLimiting]): the browser's telemetry batches
         app.UseRateLimiter();
@@ -477,6 +487,8 @@ public class Program
 
             // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.
             app.Use(BrowserAuth.RefuseForeignHubRequests);
+            // Hubs are the browser's own; an access token never opens one (#549)
+            app.Use(AccessTokenAuthentication.RefuseHubConnections);
 
             // The site's live updates and who is on it, signed in or out (LiveHub)
             app.MapHub<LiveHub>(LiveHub.Path, options => { options.CloseOnAuthenticationExpiration = true; });

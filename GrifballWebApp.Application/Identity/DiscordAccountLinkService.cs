@@ -54,11 +54,11 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
     private readonly ILogger<DiscordAccountLinkService> _logger;
     private readonly IUserMergeService _merges;
 
-    public DiscordAccountLinkService(IApplicationDbContext context, ILogger<DiscordAccountLinkService> logger, IUserMergeService? merges = null)
+    public DiscordAccountLinkService(IApplicationDbContext context, ILogger<DiscordAccountLinkService> logger, IUserMergeService merges)
     {
         _context = context;
         _logger = logger;
-        _merges = merges ?? new UserMergeService(context);
+        _merges = merges;
     }
 
     public static bool TryGetDiscordUserId(string loginProvider, string providerKey, out long discordUserId)

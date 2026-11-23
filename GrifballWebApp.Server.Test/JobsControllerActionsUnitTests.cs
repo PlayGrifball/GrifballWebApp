@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.SeasonMatchPage;
 using GrifballWebApp.Server.Jobs;
@@ -20,10 +21,12 @@ public class JobsControllerActionsUnitTests
 {
     private static readonly JobKey Cleanup = new("cleanup", "Maintenance");
     private static readonly JobKey Pull = OnDemandJobs.JobKeyOf(typeof(SeasonMatchPullJob));
+    private static readonly JobKey HistoricalRefresh = new("historical-refresh", "recurring");
 
     private readonly ISchedulerFactory _schedulers = Substitute.For<ISchedulerFactory>();
     private readonly IScheduler _scheduler = Substitute.For<IScheduler>();
     private readonly IExecutionHistoryStore _history = Substitute.For<IExecutionHistoryStore>();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly JobsController _controller;
 
     public JobsControllerActionsUnitTests()
@@ -31,7 +34,7 @@ public class JobsControllerActionsUnitTests
         _schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(_scheduler);
         _scheduler.SchedulerName.Returns("jobs-test");
         var recurring = new RecurringJobs().AddOnDemand<SeasonMatchPullJob>("Season match pull", "Pulls a match's games");
-        _controller = new JobsController(new JobsService(_schedulers, _history, recurring, new FakeTimeProvider()))
+        _controller = new JobsController(new JobsService(_schedulers, _history, recurring, new FakeTimeProvider(), _currentUser))
             .WithUser("7", "admin", "Sysadmin");
     }
 
@@ -84,6 +87,32 @@ public class JobsControllerActionsUnitTests
         var result = await _controller.Run("Maintenance", "cleanup", CancellationToken.None);
 
         Assert.That(result, Is.InstanceOf<NotFoundResult>());
+    }
+
+    [Test]
+    public async Task Run_AnAccessToken_OnAMergeCapableJob_Is403_WithoutEvenCheckingTheScheduler()
+    {
+        _currentUser.IsAccessToken.Returns(true);
+
+        var result = await _controller.Run(HistoricalRefresh.Group, HistoricalRefresh.Name, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.InstanceOf<ObjectResult>());
+            Assert.That(((ObjectResult)result).StatusCode, Is.EqualTo(403));
+            await _scheduler.DidNotReceiveWithAnyArgs().TriggerJob(default!, default!, default);
+        }
+    }
+
+    [Test]
+    public async Task Run_AnAccessToken_OnAnOrdinaryJob_StillRuns()
+    {
+        _currentUser.IsAccessToken.Returns(true);
+        _scheduler.Exists(Cleanup, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await _controller.Run(Cleanup.Group, Cleanup.Name, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<NoContentResult>());
     }
 
     [Test]

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using GrifballWebApp.Application.Database;
@@ -64,6 +65,20 @@ public partial class DuplicateSuggestionService
         _merges = merges;
         _time = time;
         _currentUser = currentUser;
+    }
+
+    /// <summary>A non-null stand-in for <see cref="SuggestAsync"/>'s read-only <c>UserMergeService</c>, which only calls
+    /// <see cref="UserMergeService.ConflictAsync"/> - never <see cref="UserMergeService.Merge"/>, the one caller of
+    /// <see cref="ICurrentUserService.IsAccessToken"/> - so nothing on this interface is ever actually called; it
+    /// exists only to satisfy the constructor, which requires one.</summary>
+    [ExcludeFromCodeCoverage(Justification = "A null object whose only caller (SuggestAsync's read-only checker) never calls any of its members")]
+    private sealed class NotAnAccessToken : ICurrentUserService
+    {
+        public static readonly NotAnAccessToken Instance = new();
+        public bool IsAccessToken => false;
+        public int? GetCurrentUserId() => null;
+        public void SetCurrentUserId(int userId) { }
+        public void SetCurrentUserIdFromClaims(System.Security.Claims.ClaimsPrincipal? user) { }
     }
 
     /// <summary>Edits allowed between two loose keys of this length: none for short gamertags (one letter changes a
@@ -208,7 +223,9 @@ public partial class DuplicateSuggestionService
     /// </summary>
     private async Task<List<DuplicateSuggestionDto>> SuggestAsync(List<Pair> pairs, int max, CancellationToken ct)
     {
-        var checker = new UserMergeService(_context);
+        // Read-only (ConflictAsync never merges, so RefuseAnAccessToken, which only Merge calls, never runs here):
+        // NotAnAccessToken is just a non-null ICurrentUserService now that the constructor requires one.
+        var checker = new UserMergeService(_context, NotAnAccessToken.Instance);
         var result = new List<DuplicateSuggestionDto>();
         var ordered = pairs.OrderBy(p => p.Match).ThenBy(p => p.Edits).ThenBy(p => p.To.IsPlaceholder)
             .ThenBy(p => p.From.Gamertag, StringComparer.OrdinalIgnoreCase).Take(max * 4);

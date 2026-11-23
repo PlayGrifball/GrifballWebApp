@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Mcp;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -44,6 +45,9 @@ public static partial class BrowserAuth
     public static bool HasBearerToken(HttpRequest request)
         => request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Whether this request is to a SignalR hub endpoint (negotiate or the connection).</summary>
+    public static bool IsHubRequest(HttpContext context) => context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is not null;
+
     /// <summary>
     /// The bearer token a hub request carries in its query: SignalR's browser client sends it there on the WebSocket and
     /// server-sent events, which can't carry headers. Null for any other request (a token in the query of an API call
@@ -51,19 +55,37 @@ public static partial class BrowserAuth
     /// </summary>
     public static string? HubAccessToken(HttpContext context)
     {
-        if (context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is null)
+        if (!IsHubRequest(context))
             return null;
         var token = context.Request.Query[HubAccessTokenParameter].ToString();
         return token.Length > 0 ? token : null;
     }
 
     /// <summary>Whether the request carries a bearer token (and so is not a browser's cookie session).</summary>
-    public static bool HasBearerToken(HttpContext context)
-        => HasBearerToken(context.Request) || HubAccessToken(context) is not null;
+    public static bool HasBearerToken(HttpContext context) => BearerToken(context) is not null;
 
-    /// <summary>The scheme that authenticates this request: the bearer token's when it has one, else the cookie's.</summary>
+    /// <summary>The bearer token's own value, from the header or (for a hub) the query; null without one.</summary>
+    public static string? BearerToken(HttpContext context)
+        => HasBearerToken(context.Request) ? context.Request.Headers.Authorization.ToString()["Bearer ".Length..].Trim() : HubAccessToken(context);
+
+    /// <summary>
+    /// The request's own personal access token (<see cref="AccessTokenService.Prefix"/>), from <see cref="BearerToken"/>;
+    /// null for any other bearer token (the API's own short-lived one) or none at all. The one check for "is this a
+    /// <c>grif_</c> token", used wherever a request needs to know (<see cref="SelectScheme"/>,
+    /// <see cref="AccessTokenAuthentication.RefuseHubConnections"/>, <see cref="AccessTokenAuthentication.RequireAValidToken"/>).
+    /// </summary>
+    public static string? AccessToken(HttpContext context)
+        => BearerToken(context) is { } token && token.StartsWith(AccessTokenService.Prefix, StringComparison.Ordinal) ? token : null;
+
+    /// <summary>
+    /// The scheme that authenticates this request: a personal access token's (<see cref="AccessTokenAuthentication"/>) for a
+    /// <c>grif_</c> bearer token, which its own scheme refuses if its scope doesn't allow the surface the request is on; the
+    /// API's own short-lived bearer token's for any other bearer token; else the cookie's.
+    /// </summary>
     public static string SelectScheme(HttpContext context)
-        => HasBearerToken(context) ? IdentityConstants.BearerScheme : IdentityConstants.ApplicationScheme;
+        => AccessToken(context) is not null ? AccessTokenAuthentication.SchemeName
+            : BearerToken(context) is not null ? IdentityConstants.BearerScheme
+            : IdentityConstants.ApplicationScheme;
 
     /// <summary>How often a cookie session is checked against the user's security stamp. Logging out changes the
     /// stamp, so a copy of the cookie stops working within this time (as do the user's other sessions).</summary>
@@ -103,7 +125,7 @@ public static partial class BrowserAuth
     /// <summary>Middleware: refuses <see cref="IsForeignHubRequest"/> requests to any hub endpoint with 403.</summary>
     public static Task RefuseForeignHubRequests(HttpContext context, RequestDelegate next)
     {
-        if (context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is null || !IsForeignHubRequest(context))
+        if (!IsHubRequest(context) || !IsForeignHubRequest(context))
             return next(context);
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(BrowserAuth).FullName!);
         LogRefusedHubRequest(logger, context.Request.Path);

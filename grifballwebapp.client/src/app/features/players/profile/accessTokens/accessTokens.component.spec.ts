@@ -3,12 +3,12 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccessTokensComponent } from './accessTokens.component';
-import type { AccessTokenDto } from '@api/models';
+import type { AccessTokenDto, AccessTokenScope } from '@api/models';
 
 const listUrl = '/api/identity/access-tokens';
 
 function token(id: string, changes: Partial<AccessTokenDto> = {}): AccessTokenDto {
-  return { id, name: 'Claude Code', createdAt: '2026-11-01T12:00:00Z', expiresAt: '2099-01-30T12:00:00Z', ...changes };
+  return { id, name: 'Claude Code', createdAt: '2026-11-01T12:00:00Z', expiresAt: '2099-01-30T12:00:00Z', scope: 'Mcp', readOnly: false, ...changes };
 }
 
 describe('AccessTokensComponent', () => {
@@ -43,15 +43,39 @@ describe('AccessTokensComponent', () => {
     fixture.detectChanges();
   }
 
-  it('lists your tokens with their dates, and marks an expired one', async () => {
-    http.expectOne(listUrl).flush([token('a'), token('b', { name: 'Old', expiresAt: '2020-01-01T00:00:00Z' })]);
+  // The lifetime and scope <select>s bind with [ngValue] (so the form keeps a number and a real AccessTokenScope,
+  // not strings off the DOM), which Angular tracks by an internal id rather than the option's literal attribute, so
+  // the form's own control is what a test drives, same as a user picking an option would end up setting it to.
+  function setDays(days: number): void {
+    fixture.componentInstance.form.controls.days.setValue(days);
+    fixture.detectChanges();
+  }
+
+  function setScope(scope: AccessTokenScope): void {
+    fixture.componentInstance.form.controls.scope.setValue(scope);
+    fixture.detectChanges();
+  }
+
+  it('lists your tokens with their dates, scope and read-only flag, and marks an expired one', async () => {
+    http.expectOne(listUrl).flush([token('a', { scope: 'Both', readOnly: true }), token('b', { name: 'Old', expiresAt: '2020-01-01T00:00:00Z' })]);
     await settle();
 
     const rows = Array.from(el().querySelectorAll('.at-tokens li'));
     expect(rows).toHaveSize(2);
     expect(rows[0].textContent).toContain('Claude Code');
+    expect(rows[0].textContent).toContain('Both');
+    expect(rows[0].textContent).toContain('read-only');
     expect(rows[0].textContent).toContain('expires');
+    expect(rows[1].textContent).not.toContain('read-only');
     expect(rows[1].querySelector('.at-expired')!.textContent).toContain('expired');
+  });
+
+  it('falls back to the raw value for a scope the page does not know', async () => {
+    // Defensive: every real AccessTokenScope is in TOKEN_SCOPES, but a mismatch should still show something.
+    http.expectOne(listUrl).flush([]);
+    await settle();
+
+    expect(fixture.componentInstance.scopeLabel('Unknown' as never)).toBe('Unknown');
   });
 
   it('says when there are none', async () => {
@@ -74,7 +98,7 @@ describe('AccessTokensComponent', () => {
     typeName('  Laptop  ');
     button('Make a token').click();
     const make = http.expectOne(req => req.method === 'POST' && req.url === listUrl);
-    expect(make.request.body).toEqual({ name: 'Laptop', days: 90 });
+    expect(make.request.body).toEqual({ name: 'Laptop', days: 90, scope: 'Mcp', readOnly: false });
     make.flush({ accessToken: token('c', { name: 'Laptop' }), token: 'grif_secret' });
     fixture.detectChanges();
     http.expectOne(listUrl).flush([token('c', { name: 'Laptop' })]);
@@ -87,23 +111,41 @@ describe('AccessTokensComponent', () => {
     expect(el().querySelector<HTMLInputElement>('#at-name')!.value).toBe('');
   });
 
-  it('makes a token for the lifetime picked, and says why one was refused', async () => {
+  it('makes a token for the lifetime, scope and read-only flag picked, and says why one was refused', async () => {
     http.expectOne(listUrl).flush([]);
     await settle();
-    const select = el().querySelector<HTMLSelectElement>('#at-days')!;
-    select.value = '365';
-    select.dispatchEvent(new Event('change'));
+    setDays(365);
+    setScope('Api');
+    el().querySelector<HTMLInputElement>('#at-readonly input')!.click();
+    fixture.detectChanges();
     typeName('Desktop');
 
     button('Make a token').click();
     const make = http.expectOne(req => req.method === 'POST' && req.url === listUrl);
-    expect(make.request.body).toEqual({ name: 'Desktop', days: 365 });
+    expect(make.request.body).toEqual({ name: 'Desktop', days: 365, scope: 'Api', readOnly: true });
     make.flush({ title: 'Request refused', detail: 'You have 10 tokens already: revoke one first.' },
       { status: 400, statusText: 'Bad Request', headers: { 'Content-Type': 'application/problem+json' } });
     await settle();
 
     expect(snackBar.open).toHaveBeenCalledWith(jasmine.stringContaining('revoke one first'), 'Close');
     expect(el().querySelector('.at-created')).toBeNull();
+  });
+
+  it('leaves out the Claude Code command for a token scoped to the REST API only', async () => {
+    http.expectOne(listUrl).flush([]);
+    await settle();
+    setScope('Api');
+    typeName('Script');
+
+    button('Make a token').click();
+    const make = http.expectOne(req => req.method === 'POST' && req.url === listUrl);
+    make.flush({ accessToken: token('c', { name: 'Script', scope: 'Api' }), token: 'grif_secret' });
+    fixture.detectChanges();
+    http.expectOne(listUrl).flush([token('c', { name: 'Script', scope: 'Api' })]);
+    await settle();
+
+    const shown = Array.from(el().querySelectorAll('.at-secret')).map(c => c.textContent);
+    expect(shown).toEqual(['grif_secret']);
   });
 
   it('revokes a token and reloads the list', async () => {

@@ -1,4 +1,6 @@
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Domain.Shared;
+using NSubstitute;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +24,7 @@ public class UserMergeServiceTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new UserMergeService(_context);
+        _service = new UserMergeService(_context, Substitute.For<ICurrentUserService>());
     }
 
     [TearDown]

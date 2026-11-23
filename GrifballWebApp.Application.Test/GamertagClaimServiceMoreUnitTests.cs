@@ -31,6 +31,30 @@ internal sealed class GamertagClaimServiceMoreUnitTests : ApplicationDbContextTe
         _service = new GamertagClaimService(Context, _mergeService, currentUser, new FakeTimeProvider(Now));
     }
 
+    /// <summary>
+    /// GamertagClaimServiceUnitTests and the test above mock IUserMergeService, which proves this service calls it but
+    /// not that a real merge service's own refusal actually reaches a caller through Approve: decide_gamertag_claim's
+    /// approve=true is exactly this path, on MCP (#549 review).
+    /// </summary>
+    [Test]
+    public async Task Approve_RefusesAnAccessToken_ThroughTheRealMergeService()
+    {
+        var claimant = User.Seed(userName: "claimant", displayName: "Claimant");
+        Context.Users.Add(claimant);
+        await Context.SaveChangesAsync();
+        var placeholder = User.ImportPlaceholder("historical:OldName", "OldName", null);
+        Context.Users.Add(placeholder);
+        await Context.SaveChangesAsync();
+        var claim = GamertagClaim.FromDiscordMatch(claimant.Id, null, "OldName", "OLDNAME", placeholder.Id);
+        Context.GamertagClaims.Add(claim);
+        await Context.SaveChangesAsync();
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.IsAccessToken.Returns(true);
+        var service = new GamertagClaimService(Context, new UserMergeService(Context, currentUser: currentUser), currentUser, new FakeTimeProvider(Now));
+
+        await Assert.ThrowsAsync<MergeDeniedToAccessTokenException>(() => service.Approve(claim.GamertagClaimID, CancellationToken.None));
+    }
+
     [Test]
     public async Task Approve_ADiscordMatch_MergesThePlaceholderIntoTheClaimant_AsADiscordMatch()
     {

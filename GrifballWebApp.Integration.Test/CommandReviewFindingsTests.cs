@@ -25,6 +25,7 @@ using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Application.Grades;
 using GrifballWebApp.Application.Historical.Vods;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Infrastructure.Teams;
@@ -82,7 +83,7 @@ public class CommandReviewFindingsTests
             new GrifballWebApp.Application.StatFlags.StaffStatFlagService(_context)),
         new SeasonMatchService(_context, Substitute.For<IDataPullService>(), _brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), _brackets,
         new TeamService(_context, new ContextDatabaseLocks(_context)),
-        new ScheduleRecommendations(_context, TimeProvider.System), runs: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context)),
+        new ScheduleRecommendations(_context, TimeProvider.System), runs: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())),
         Substitute.For<IDataPullService>(), _urls);
 
     private PersonalCommandsHandler Personal()

@@ -59,7 +59,7 @@
                     "$ref": "#/components/schemas/CreateAccessTokenRequest"
                   }
                 ],
-                "description": "What to make a token for: a name to tell it by, and how many days it lasts."
+                "description": "What to make a token for: a name to tell it by, how many days it lasts, where it works and whether it is read-only.\nGrifballWebApp.Server.Mcp.CreateAccessTokenRequest.Scope and GrifballWebApp.Server.Mcp.CreateAccessTokenRequest.ReadOnly default to what every token was before they existed (MCP only, not\nread-only), though the site always sends them: a token's scope can't be changed later, only remade."
               }
             }
           }
@@ -193,7 +193,7 @@
         "tags": [
           "Admin"
         ],
-        "summary": "Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the\n            URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only.",
+        "summary": "Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the\n            URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only. Changes which Halo account the whole site\n            uses: browser only.",
         "operationId": "SetCode",
         "requestBody": {
           "content": {
@@ -241,7 +241,7 @@
         "tags": [
           "Admin"
         ],
-        "summary": "Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode.",
+        "summary": "Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode. Browser only, like setting them.",
         "operationId": "DeleteTokens",
         "responses": {
           "204": {
@@ -3584,7 +3584,7 @@
         "tags": [
           "Identity"
         ],
-        "summary": "Sets a new password using a one-time reset token.",
+        "summary": "Sets a new password using a one-time reset token. Not GrifballWebApp.Server.Mcp.DenyAccessTokenAttribute: the one-time token in\nthe body is this action's whole security boundary, not the caller's identity, so a dropped Authorization header\nreaches it exactly the same as a kept one. Denying it would protect nothing, only look as if it did.",
         "operationId": "ResetPassword",
         "requestBody": {
           "content": {
@@ -3700,7 +3700,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Runs a job now, outside its schedule. Sysadmins only.",
+        "summary": "Runs a job now, outside its schedule. Sysadmins only. Refused for an access token when the job can end\n            up merging a user (`JobsService.MergeCapableJobs`, private to that class): that can't be caught where the\n            merge actually happens, which runs later with no request of its own.",
         "operationId": "RunJob",
         "parameters": [
           {
@@ -3736,6 +3736,16 @@
           },
           "409": {
             "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7237,7 +7247,7 @@
         "tags": [
           "StaffStatFlags"
         ],
-        "summary": "Staff looked at it: not wrong, or not worth fixing. 404 when it doesn't exist. Commissioners and\n            sysadmins only.",
+        "summary": "Staff looked at it: not wrong, or not worth fixing. 404 when it doesn't exist. Commissioners and\n            sysadmins only. A normal staff write, like VodController's own Dismiss: it only sets this flag's own dismissed\n            columns, never a merge or anything about sign-in/roles/the account, so a token may call it too (#549/#562).",
         "operationId": "DismissStatFlag",
         "parameters": [
           {
@@ -8555,7 +8565,7 @@
         "tags": [
           "UserManagement"
         ],
-        "summary": "Creates a user (204: the service answers no ID to point a Location at).",
+        "summary": "Creates a user (204: the service answers no ID to point a Location at). A new account stays browser only.",
         "operationId": "CreateUser",
         "requestBody": {
           "content": {
@@ -8672,7 +8682,7 @@
         "tags": [
           "UserManagement"
         ],
-        "summary": "Edits a user's account details. Sysadmins only.",
+        "summary": "Edits a user's account details. Sysadmins only. Can grant roles and change lockout/username: browser only.",
         "operationId": "EditUser",
         "parameters": [
           {
@@ -9502,7 +9512,9 @@
           "createdAt",
           "expiresAt",
           "id",
-          "name"
+          "name",
+          "readOnly",
+          "scope"
         ],
         "type": "object",
         "properties": {
@@ -9519,10 +9531,21 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "scope": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccessTokenScope"
+              }
+            ],
+            "description": "Where a personal access token works, chosen when it is made and never changed after (a new token instead of\nchanging one's). A token made before this existed has none stored, which deserializes as GrifballWebApp.Server.Mcp.AccessTokenScope.Mcp: what\nevery token did before scopes existed."
+          },
+          "readOnly": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false,
-        "description": "A personal access token, as its owner sees it in their list: never its secret."
+        "description": "A personal access token, as its owner sees it in their list: its scope and whether it is read-only, never its secret."
       },
       "AccessTokenResponse": {
         "required": [
@@ -9549,6 +9572,15 @@
           }
         },
         "additionalProperties": false
+      },
+      "AccessTokenScope": {
+        "enum": [
+          "Mcp",
+          "Api",
+          "Both"
+        ],
+        "type": "string",
+        "description": "Where a personal access token works, chosen when it is made and never changed after (a new token instead of\nchanging one's). A token made before this existed has none stored, which deserializes as GrifballWebApp.Server.Mcp.AccessTokenScope.Mcp: what\nevery token did before scopes existed."
       },
       "AddGamertagHistoryRequest": {
         "required": [
@@ -10559,7 +10591,9 @@
       "CreateAccessTokenRequest": {
         "required": [
           "days",
-          "name"
+          "name",
+          "readOnly",
+          "scope"
         ],
         "type": "object",
         "properties": {
@@ -10569,10 +10603,21 @@
           "days": {
             "type": "integer",
             "format": "int32"
+          },
+          "scope": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccessTokenScope"
+              }
+            ],
+            "description": "Where a personal access token works, chosen when it is made and never changed after (a new token instead of\nchanging one's). A token made before this existed has none stored, which deserializes as GrifballWebApp.Server.Mcp.AccessTokenScope.Mcp: what\nevery token did before scopes existed."
+          },
+          "readOnly": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false,
-        "description": "What to make a token for: a name to tell it by, and how many days it lasts."
+        "description": "What to make a token for: a name to tell it by, how many days it lasts, where it works and whether it is read-only.\nGrifballWebApp.Server.Mcp.CreateAccessTokenRequest.Scope and GrifballWebApp.Server.Mcp.CreateAccessTokenRequest.ReadOnly default to what every token was before they existed (MCP only, not\nread-only), though the site always sends them: a token's scope can't be changed later, only remade."
       },
       "CreateUserRequestDto": {
         "required": [
@@ -10607,7 +10652,7 @@
                 "$ref": "#/components/schemas/AccessTokenDto"
               }
             ],
-            "description": "A personal access token, as its owner sees it in their list: never its secret."
+            "description": "A personal access token, as its owner sees it in their list: its scope and whether it is read-only, never its secret."
           },
           "token": {
             "type": "string"

@@ -1,4 +1,6 @@
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Domain.Shared;
+using NSubstitute;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -86,7 +88,7 @@ internal sealed class MergeManifestUnitTests : ApplicationDbContextTests
         var from = User.Seed(userName: "mergefrom", displayName: "Merge From");
         Context.Users.AddRange(to, from);
         await Context.SaveChangesAsync();
-        await new UserMergeService(Context).Merge(to.Id, from.Id, options, CancellationToken.None);
+        await new UserMergeService(Context, Substitute.For<ICurrentUserService>()).Merge(to.Id, from.Id, options, CancellationToken.None);
         Context.ChangeTracker.Clear();
         var manifest = MergeManifest.Parse((await Context.UserMerges.AsNoTracking().SingleAsync()).Manifest);
         return (to, from, manifest);
@@ -118,7 +120,7 @@ internal sealed class MergeManifestUnitTests : ApplicationDbContextTests
         var from = User.Seed(userName: "mergefrom", xboxUserID: xbox.XboxUserID);
         Context.Users.AddRange(to, from);
         await Context.SaveChangesAsync();
-        await new UserMergeService(Context).Merge(to.Id, from.Id, new MergeOptions { TransferXbox = true, DeleteMergeFrom = false }, CancellationToken.None);
+        await new UserMergeService(Context, Substitute.For<ICurrentUserService>()).Merge(to.Id, from.Id, new MergeOptions { TransferXbox = true, DeleteMergeFrom = false }, CancellationToken.None);
         Context.ChangeTracker.Clear();
         var manifest = MergeManifest.Parse((await Context.UserMerges.AsNoTracking().SingleAsync()).Manifest);
         Assert.That((await Context.Users.FindAsync(to.Id))!.XboxUserID, Is.EqualTo(xbox.XboxUserID), "The move happened");
@@ -142,7 +144,7 @@ internal sealed class MergeManifestUnitTests : ApplicationDbContextTests
         var from = User.Seed(userName: "mergefrom", xboxUserID: xbox.XboxUserID);
         Context.Users.AddRange(to, from);
         await Context.SaveChangesAsync();
-        await new UserMergeService(Context).Merge(to.Id, from.Id, new MergeOptions { TransferXbox = true, DeleteMergeFrom = false }, CancellationToken.None);
+        await new UserMergeService(Context, Substitute.For<ICurrentUserService>()).Merge(to.Id, from.Id, new MergeOptions { TransferXbox = true, DeleteMergeFrom = false }, CancellationToken.None);
         Context.ChangeTracker.Clear();
         var manifest = MergeManifest.Parse((await Context.UserMerges.AsNoTracking().SingleAsync()).Manifest);
 
@@ -183,7 +185,7 @@ internal sealed class MergeManifestUnitTests : ApplicationDbContextTests
         Context.Set<UserExperience>().AddRange(new UserExperience(1) { UserID = to.Id }, new UserExperience(2) { UserID = from.Id });
         await Context.SaveChangesAsync();
 
-        await new UserMergeService(Context).Merge(to.Id, from.Id, new MergeOptions { DeleteMergeFrom = false }, CancellationToken.None);
+        await new UserMergeService(Context, Substitute.For<ICurrentUserService>()).Merge(to.Id, from.Id, new MergeOptions { DeleteMergeFrom = false }, CancellationToken.None);
         Context.ChangeTracker.Clear();
         var manifest = MergeManifest.Parse((await Context.UserMerges.AsNoTracking().SingleAsync()).Manifest);
         Assert.That(manifest.Entries.Any(e => e.Op == MergeManifestOp.Added && e.Table.Contains("UserExperience")), Is.True, "The merge added a new row for the target");

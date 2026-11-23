@@ -19,6 +19,7 @@ public sealed class JobControl(JobsService jobs) : IJobControl
     {
         JobChange.Done => JobControlResult.Done,
         JobChange.NotFound => JobControlResult.NotFound,
+        JobChange.DeniedToAccessToken => JobControlResult.DeniedToAccessToken,
         _ => JobControlResult.Conflict,
     };
 }

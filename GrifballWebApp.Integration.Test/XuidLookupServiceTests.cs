@@ -2,6 +2,7 @@ using GrifballWebApp.Server.Test;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -300,7 +301,7 @@ public class XuidLookupServiceTests
         var claim = await _context.GamertagClaims.SingleAsync();
         _context.ChangeTracker.Clear();
 
-        await new GamertagClaimService(_context, new UserMergeService(_context)).Approve(claim.GamertagClaimID);
+        await new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())).Approve(claim.GamertagClaimID);
 
         _context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
@@ -322,7 +323,7 @@ public class XuidLookupServiceTests
         var claim = await _context.GamertagClaims.SingleAsync();
         _context.ChangeTracker.Clear();
 
-        await new GamertagClaimService(_context, new UserMergeService(_context)).Approve(claim.GamertagClaimID);
+        await new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())).Approve(claim.GamertagClaimID);
 
         _context.ChangeTracker.Clear();
         Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.False);
@@ -408,7 +409,7 @@ public class XuidLookupServiceTests
         await Service().RunBatchAsync();
         var claim = await _context.GamertagClaims.SingleAsync();
         _context.ChangeTracker.Clear();
-        await new GamertagClaimService(_context, new UserMergeService(_context)).Reject(claim.GamertagClaimID);
+        await new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>())).Reject(claim.GamertagClaimID);
         _context.ChangeTracker.Clear();
 
         await Service().LookUpAgainAsync();

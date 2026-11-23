@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Historical.Vods;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Historical.Vods;
 
@@ -46,12 +47,14 @@ public class VodController : ControllerBase
     [HttpGet("vods/review", Name = "GetVodReview")]
     [ProducesResponseType<List<VodReviewDto>>(StatusCodes.Status200OK)]
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     public Task<List<VodReviewDto>> Review(CancellationToken ct) => _vods.Review(ct);
 
     /// <summary>The seasons with VODs still waiting to be linked. Sysadmins only.</summary>
     [HttpGet("vods/link-seasons", Name = "GetVodLinkSeasons")]
     [ProducesResponseType<List<VodLinkSeasonDto>>(StatusCodes.Status200OK)]
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     public Task<List<VodLinkSeasonDto>> LinkSeasons(CancellationToken ct) => _vods.LinkSeasons(ct);
 
     /// <summary>What a season's unresolved VOD can be linked to (its matches, teams and players). Sysadmins only.</summary>
@@ -59,6 +62,7 @@ public class VodController : ControllerBase
     [ProducesResponseType<VodLinkOptionsDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     public async Task<ActionResult<VodLinkOptionsDto>> LinkOptions([FromRoute] int seasonID, CancellationToken ct)
         => await _vods.LinkOptions(seasonID, ct) is { } options ? options : this.NotFoundProblem("There is no such season");
 
@@ -68,6 +72,7 @@ public class VodController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     public async Task<IActionResult> Link([FromRoute] int vodID, [FromBody] LinkVodRequest request, CancellationToken ct)
     {
         try
@@ -85,6 +90,7 @@ public class VodController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     public async Task<IActionResult> Dismiss([FromRoute] int vodID, CancellationToken ct)
         => await _vods.Dismiss(vodID, ct) ? NoContent() : this.NotFoundProblem("There is no such VOD");
 }

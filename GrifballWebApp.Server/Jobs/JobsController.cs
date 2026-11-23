@@ -3,15 +3,18 @@ using Microsoft.AspNetCore.Mvc;
 using Quartz;
 using System.Text.Json.Serialization;
 using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Jobs;
 
 /// <summary>
 /// The Jobs page (sysadmin only): the background jobs Quartz runs on the worker, their schedules and runs, and running,
-/// pausing and rescheduling them (<see cref="JobsService"/>).
+/// pausing and rescheduling them (<see cref="JobsService"/>). Normal staff writes, same as the MCP tools (list_jobs,
+/// run_job, set_job_paused): a token may call any of it.
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
+[AllowAccessToken]
 public class JobsController : ControllerBase
 {
     /// <summary>The most runs one history request returns.</summary>
@@ -35,11 +38,14 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<List<JobRunDto>>> History([FromRoute] string group, [FromRoute] string name, [FromQuery] int take = 50, CancellationToken ct = default)
         => await _jobs.History(new JobKey(name, group), Math.Clamp(take, 1, MaxHistory), ct);
 
-    /// <summary>Runs a job now, outside its schedule. Sysadmins only.</summary>
+    /// <summary>Runs a job now, outside its schedule. Sysadmins only. Refused for an access token when the job can end
+    /// up merging a user (<c>JobsService.MergeCapableJobs</c>, private to that class): that can't be caught where the
+    /// merge actually happens, which runs later with no request of its own.</summary>
     [HttpPost("jobs/{group}/{name}/run", Name = "RunJob")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> Run([FromRoute] string group, [FromRoute] string name, CancellationToken ct)
         => Changed(await _jobs.RunNow(new JobKey(name, group), JobUser.IdOf(User), ct));
 
@@ -83,6 +89,7 @@ public class JobsController : ControllerBase
     {
         JobChange.NotFound => NotFound(),
         JobChange.Conflict => Conflict(),
+        JobChange.DeniedToAccessToken => this.ForbiddenProblem("An access token may not run this job."),
         _ => NoContent(),
     };
 }

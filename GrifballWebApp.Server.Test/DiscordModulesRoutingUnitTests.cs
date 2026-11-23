@@ -174,7 +174,8 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(reschedules, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(Db),
                 new GrifballWebApp.Application.StatFlags.StaffStatFlagService(Db)), seasonMatches, new MatchPlannerService(Db), brackets, teams,
             new ScheduleRecommendations(Db, _time), new GrifballWebApp.Infrastructure.Scheduler.ScheduleRecommendationRuns(new OnDemandJobs(schedulers, history)),
-            new JobsService(schedulers, history, new RecurringJobs().AddOnDemand<SeasonMatchPullJob>("season-match-pull", "Pulls a match's games"), _time),
+            new JobsService(schedulers, history, new RecurringJobs().AddOnDemand<SeasonMatchPullJob>("season-match-pull", "Pulls a match's games"), _time,
+                Substitute.For<GrifballWebApp.Domain.Shared.ICurrentUserService>()),
             new GamertagClaimService(Db, Substitute.For<IUserMergeService>(), null, _time), dataPull, urls);
         _services = new ServiceCollection()
             .AddSingleton<ApplicationCommandService<ApplicationCommandContext>>(SlashCommands)
@@ -191,7 +192,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(new TeamCommandsHandler(lookups, new TeamPageService(Db, _time), new TeamHistoryService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), vods, urls))
             .AddSingleton(new MatchCommandsHandler(lookups, seasonMatches, new MatchDetailsService(Db), urls, null!, null!))
             .AddSingleton(recentMatches)
-            .AddSingleton(new DiscordSetGamertag(Db, Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null), _setGamertag))
+            .AddSingleton(new DiscordSetGamertag(Db, Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null), _setGamertag, Substitute.For<IUserMergeService>()))
             .AddSingleton(new MatchmakingButtonHandler(membership, Substitute.For<IServiceScopeFactory>(), Db, null!, null!, new RecordingLogger<MatchmakingButtonHandler>()))
             .AddSingleton(new SignupButtonHandler(Db, signups, urls))
             .AddSingleton(new MatchmakingStringMenuHandler(Db, null!, null!))

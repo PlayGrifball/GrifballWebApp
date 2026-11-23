@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Security.Claims;
+using GrifballWebApp.Server.Mcp;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -49,6 +50,12 @@ internal static class ControllerTestHelpers
 
     internal static bool ActionAllowsAnonymous(Type controller, string name) =>
         Action(controller, name).GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null;
+
+    /// <summary>Whether the action carries its own explicit <see cref="AllowAccessTokenAttribute"/> (not a class-level one, or
+    /// DenyAccessTokenFilter's own nearest-wins fallback to the controller - this checks the action itself, the way
+    /// AccessTokenAuthorizationTests reads an explicit choice).</summary>
+    internal static bool ActionAllowsAccessToken(Type controller, string name) =>
+        Action(controller, name).GetCustomAttribute<AllowAccessTokenAttribute>(inherit: true) is not null;
 }
 
 internal static class ProblemAssertions

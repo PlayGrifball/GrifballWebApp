@@ -108,7 +108,8 @@ export class AdminService extends BaseService {
 
   /**
    * Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the
-   *             URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only.
+   *             URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only. Changes which Halo account the whole site
+   *             uses: browser only.
    *
    *
    *
@@ -124,7 +125,8 @@ export class AdminService extends BaseService {
 
   /**
    * Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the
-   *             URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only.
+   *             URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only. Changes which Halo account the whole site
+   *             uses: browser only.
    *
    *
    *
@@ -144,7 +146,7 @@ export class AdminService extends BaseService {
   static readonly DeleteTokensPath = '/halo/tokens/delete';
 
   /**
-   * Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode.
+   * Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode. Browser only, like setting them.
    *
    *
    *
@@ -159,7 +161,7 @@ export class AdminService extends BaseService {
   }
 
   /**
-   * Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode.
+   * Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode. Browser only, like setting them.
    *
    *
    *

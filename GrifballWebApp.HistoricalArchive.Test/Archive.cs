@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Historical.Parsing;
 using Microsoft.EntityFrameworkCore;
@@ -82,7 +83,7 @@ public class ArchiveSetUp
         await using var context = Archive.NewContext();
         await context.Database.MigrateAsync();
         var import = new HistoricalImportService(context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions { MatchPullAttempts = 1 }),
-            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(context), TimeProvider.System);
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(context), TimeProvider.System, Substitute.For<IUserMergeService>());
         Archive.Report = await import.Run(Archive.Build.Input, new HistoricalImportRunOptions());
         await TestContext.Progress.WriteLineAsync($"Imported {Archive.Report.SeasonsCreated} seasons, {Archive.Report.MatchmakingSeasonsCreated} Late League seasons, " +
             $"{Archive.Report.StatsInserted} stat lines; {Archive.Build.Warnings.Count} build warnings, {Archive.Report.Warnings.Count} import warnings, " +

@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Archive;
@@ -39,8 +40,10 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     public void SetUp()
     {
         _dataPull = Substitute.For<IDataPullService>();
+        // A real merge service, not a mock: several tests here check an actual merge's effect (a placeholder gone,
+        // its history moved), the same as the removed optional-merges fallback used to give them for free.
         _service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, new UserMergeService(Context, Substitute.For<ICurrentUserService>()));
     }
 
     // HistoricalSourceID is "{workbook}/{sheet}" verbatim (HistoricalKeys.SeasonSourceId): the workbook is slugged
@@ -61,7 +64,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         // is only production's convenience (InfrastructureServiceCollectionExtensions)
         var statFlags = new GrifballWebApp.Application.StatFlags.StatFlagService(Context);
         var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, statFlags: statFlags);
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>(), statFlags: statFlags);
 
         var report = await service.Import(Input(
             Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10))));
@@ -90,7 +93,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         // nor fails the import call itself (caught and logged, the same way StatFlagService's own checks would be).
         var logger = new FakeLogger<HistoricalImportService>();
         var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            logger, new GamertagMatching(Context), TimeProvider.System, statFlags: new ThrowingStatFlagService(Context));
+            logger, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>(), statFlags: new ThrowingStatFlagService(Context));
 
         var report = await service.Import(Input(
             Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10))));
@@ -526,7 +529,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     {
         var logger = new FakeLogger<HistoricalImportService>();
         var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
-            logger, new GamertagMatching(Context), TimeProvider.System);
+            logger, new GamertagMatching(Context), TimeProvider.System, Substitute.For<IUserMergeService>());
 
         var report = await service.Import(Input(
             Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10)),

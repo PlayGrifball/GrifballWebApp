@@ -163,4 +163,41 @@ public class RequestTelemetryUnitTests
         diagnostics.DidNotReceive().Set("UserId", Arg.Any<string>());
         diagnostics.DidNotReceive().Set("EndpointName", Arg.Any<string>());
     }
+
+    [Test]
+    public void EnrichDiagnosticContext_AccessTokenRequest_IncludesTheTokensIdAndName_NeverItsSecret()
+    {
+        var diagnostics = Substitute.For<IDiagnosticContext>();
+        var context = new DefaultHttpContext();
+        // Authenticated (a real authentication type, unlike the other claims-only identities here) but with no
+        // ClaimTypes.NameIdentifier: UserId is left out, not set to null or thrown over - the other branch IsAuthenticated's
+        // check takes, besides an anonymous request's own (EnrichDiagnosticContext_AnonymousRequest_HasNoUserOrEndpoint).
+        var identity = new ClaimsIdentity(
+        [
+            new Claim(GrifballWebApp.Server.Mcp.AccessTokenAuthentication.TokenIdClaimType, "token-id"),
+            new Claim(GrifballWebApp.Server.Mcp.AccessTokenAuthentication.TokenNameClaimType, "Claude Code"),
+        ], GrifballWebApp.Server.Mcp.AccessTokenAuthentication.SchemeName);
+        context.User = new ClaimsPrincipal(identity);
+
+        RequestTelemetryExtensions.EnrichDiagnosticContext(diagnostics, context);
+
+        diagnostics.Received().Set("AccessTokenId", "token-id");
+        diagnostics.Received().Set("AccessTokenName", "Claude Code");
+        diagnostics.DidNotReceive().Set("UserId", Arg.Any<string>());
+    }
+
+    [Test]
+    public void EnrichDiagnosticContext_ACookieOrPasswordSession_HasNoAccessTokenFields()
+    {
+        var diagnostics = Substitute.For<IDiagnosticContext>();
+        var context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "42")], "Identity.Application")),
+        };
+
+        RequestTelemetryExtensions.EnrichDiagnosticContext(diagnostics, context);
+
+        diagnostics.DidNotReceive().Set("AccessTokenId", Arg.Any<string>());
+        diagnostics.DidNotReceive().Set("AccessTokenName", Arg.Any<string?>());
+    }
 }

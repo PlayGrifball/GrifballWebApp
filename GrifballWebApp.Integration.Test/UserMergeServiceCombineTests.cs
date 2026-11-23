@@ -1,4 +1,6 @@
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Domain.Shared;
+using NSubstitute;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -25,7 +27,7 @@ public class UserMergeServiceCombineTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new UserMergeService(_context);
+        _service = new UserMergeService(_context, Substitute.For<ICurrentUserService>());
         _to = await _context.AddUser("target", "Target");
         _from = await _context.AddUser("source", "Source");
     }
@@ -142,7 +144,7 @@ public class UserMergeServiceCombineTests
             // transaction, so only a rollback keeps it out
             (await racing.Users.SingleAsync(x => x.Id == _to.Id)).Rename("Saved by the failed merge");
             // Not a MergeConflictException: callers take that to mean nothing changed, and carry on
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing).Merge(_to.Id, _from.Id));
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing, Substitute.For<ICurrentUserService>()).Merge(_to.Id, _from.Id));
             Assert.That(ex!.Message, Does.Contain("while they were being merged"));
         }
 

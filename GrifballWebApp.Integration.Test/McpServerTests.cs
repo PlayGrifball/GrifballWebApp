@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Server;
 using GrifballWebApp.Server.Mcp;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Infrastructure.Preview;
@@ -96,7 +97,7 @@ public class McpServerTests
         using var client = Client(await ApiToken());
         using var response = await client.PostAsJsonAsync("/identity/access-tokens", new CreateAccessTokenRequest(name, 30));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        return (await response.Content.ReadFromJsonAsync<CreatedAccessTokenDto>())!;
+        return (await response.Content.ReadFromJsonAsync<CreatedAccessTokenDto>(ApiJson.Options()))!;
     }
 
     private async Task<McpClient> Connect(string accessToken)
@@ -236,7 +237,7 @@ public class McpServerTests
         using var login = await site.PostAsJsonAsync("/identity/login?useCookies=false", new { Username = userName, Password });
         using var signedIn = Client((await login.Content.ReadFromJsonAsync<AccessTokenResponse>())!.AccessToken);
         using var made = await signedIn.PostAsJsonAsync("/identity/access-tokens", new CreateAccessTokenRequest("mine", 30));
-        var created = (await made.Content.ReadFromJsonAsync<CreatedAccessTokenDto>())!;
+        var created = (await made.Content.ReadFromJsonAsync<CreatedAccessTokenDto>(ApiJson.Options()))!;
 
         using (var scope = _factory.Services.CreateScope())
         {
@@ -267,7 +268,7 @@ public class McpServerTests
         using var login = await site.PostAsJsonAsync("/identity/login?useCookies=false", new { Username = userName, Password });
         using var signedIn = Client((await login.Content.ReadFromJsonAsync<AccessTokenResponse>())!.AccessToken);
         using var made = await signedIn.PostAsJsonAsync("/identity/access-tokens", new CreateAccessTokenRequest("mine", 30));
-        var created = (await made.Content.ReadFromJsonAsync<CreatedAccessTokenDto>())!;
+        var created = (await made.Content.ReadFromJsonAsync<CreatedAccessTokenDto>(ApiJson.Options()))!;
         await using var mcp = await Connect(created.Token);
         await using var staff = await Connect((await NewAccessToken()).Token);
 
@@ -290,7 +291,7 @@ public class McpServerTests
         var created = await NewAccessToken("to revoke");
         using var site = Client(await ApiToken());
         using (var list = await site.GetAsync("/identity/access-tokens"))
-            Assert.That((await list.Content.ReadFromJsonAsync<List<AccessTokenDto>>())!.Select(t => t.ID), Does.Contain(created.AccessToken.ID));
+            Assert.That((await list.Content.ReadFromJsonAsync<List<AccessTokenDto>>(ApiJson.Options()))!.Select(t => t.ID), Does.Contain(created.AccessToken.ID));
 
         using (var revoke = await site.PostAsync($"/identity/access-tokens/{created.AccessToken.ID}/revoke", null))
             Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
@@ -299,7 +300,7 @@ public class McpServerTests
         using (var response = await client.SendAsync(ListToolsRequest()))
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
         using (var list = await site.GetAsync("/identity/access-tokens"))
-            Assert.That((await list.Content.ReadFromJsonAsync<List<AccessTokenDto>>())!.Select(t => t.ID), Does.Not.Contain(created.AccessToken.ID));
+            Assert.That((await list.Content.ReadFromJsonAsync<List<AccessTokenDto>>(ApiJson.Options()))!.Select(t => t.ID), Does.Not.Contain(created.AccessToken.ID));
         using (var again = await site.PostAsync($"/identity/access-tokens/{created.AccessToken.ID}/revoke", null))
             Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }

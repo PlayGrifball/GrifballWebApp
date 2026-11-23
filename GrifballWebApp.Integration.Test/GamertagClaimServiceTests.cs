@@ -3,6 +3,7 @@ using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
+using NSubstitute;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
@@ -26,7 +27,7 @@ public class GamertagClaimServiceTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new GamertagClaimService(_context, new UserMergeService(_context));
+        _service = new GamertagClaimService(_context, new UserMergeService(_context, Substitute.For<ICurrentUserService>()));
         _owner = User.Seed(userName: "owner", xboxUser: XboxUser.FromXbox(10, "New Tag"));
         _placeholder = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));

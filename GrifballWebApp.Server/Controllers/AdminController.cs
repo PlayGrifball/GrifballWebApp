@@ -1,5 +1,6 @@
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Server.Mcp;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -51,6 +52,7 @@ public class AdminController : ControllerBase
 
     /// <summary>Pulls a Halo Infinite match's stats and saves them (a bad match ID is no route: 404). Sysadmins only.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     [HttpPost("matches/{matchID:guid}/pull", Name = "MatchStats")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> PullMatch([FromRoute] Guid matchID)
@@ -63,6 +65,7 @@ public class AdminController : ControllerBase
     /// Which Halo mode is active and, in Gateway mode, the gateway's status from a fresh probe (the Infinite Client page).
     /// </summary>
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     [HttpGet("halo/status", Name = "HaloStatus")]
     [ProducesResponseType<HaloStatusDto>(StatusCodes.Status200OK)]
     public async Task<HaloStatusDto> HaloStatus(CancellationToken ct)
@@ -74,8 +77,10 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the
-    /// URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only.</summary>
+    /// URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only. Changes which Halo account the whole site
+    /// uses: browser only.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [HttpPost("halo/auth-code", Name = "SetCode")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -106,8 +111,9 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode.</summary>
+    /// <summary>Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode. Browser only, like setting them.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [HttpPost("halo/tokens/delete", Name = "DeleteTokens")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
@@ -134,6 +140,7 @@ public class AdminController : ControllerBase
     /// with; Gateway mode: what is wrong (the gateway is where the account is signed in, so there is no URL here).
     /// </summary>
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     [HttpGet("halo/check", Name = "CheckStatus")]
     [ProducesResponseType<string>(StatusCodes.Status200OK, "text/plain")]
     public async Task<string> CheckStatus(CancellationToken ct = default)
@@ -188,6 +195,7 @@ public class AdminController : ControllerBase
 
     /// <summary>Generates a one-time password reset link for a user. Sysadmins only.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [HttpPost("password-reset-links", Name = "GeneratePasswordResetLink")]
     [ProducesResponseType<GeneratePasswordResetLinkResponseDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -216,6 +224,7 @@ public class AdminController : ControllerBase
 
     /// <summary>Deletes expired password reset links. Sysadmins only.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     [HttpPost("password-reset-links/cleanup", Name = "CleanupExpiredPasswordResetLinks")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> CleanupExpiredPasswordResetLinks(CancellationToken ct)

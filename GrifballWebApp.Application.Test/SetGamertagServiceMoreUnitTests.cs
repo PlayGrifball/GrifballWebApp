@@ -99,6 +99,29 @@ internal sealed class SetGamertagServiceMoreUnitTests : ApplicationDbContextTest
     }
 
     [Test]
+    public async Task SetGamertag_HeldByAPlaceholder_AnAccessTokenIsRefused_WithoutLeavingTheTransactionOpen()
+    {
+        // The reviewer's finding: only MergeConflictException was caught here, so this one escaped without a
+        // rollback and without the same kind of friendly message every other refusal gives.
+        Context.Users.Add(User.Seed(userName: "alice", id: 1));
+        var xbox = XboxUser.FromXbox(Xuid, "GamerOne");
+        Context.XboxUsers.Add(xbox);
+        Context.Users.Add(User.Seed(userName: "historical:GamerOne", displayName: "GamerOne", xboxUser: xbox, isDummyUser: true, id: 2));
+        await Context.SaveChangesAsync();
+        _xboxService.GetsertXboxUserByGamertag("GamerOne", Arg.Any<CancellationToken>()).Returns(((XboxUser?)xbox, (string?)null));
+        var denied = Task.FromException(new MergeDeniedToAccessTokenException());
+        _mergeService.Merge(1, 2, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(denied);
+
+        var result = await _service.SetGamertag(1, "GamerOne", CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.EqualTo(new MergeDeniedToAccessTokenException().Message));
+            Assert.That(await SavedXboxUserIDOf(1), Is.Null, "nothing saved, and the transaction isn't left open");
+        }
+    }
+
+    [Test]
     public async Task SetGamertag_APastGamertagsPlaceholderFitsTheHistory_IsMerged()
     {
         await SeedUserAndAccount("OldTag");
@@ -132,6 +155,24 @@ internal sealed class SetGamertagServiceMoreUnitTests : ApplicationDbContextTest
         {
             Assert.That(result, Is.EqualTo("That gamertag's placeholder account could not be merged into yours: Both played the same game. Contact a commissioner."));
             Assert.That(await SavedXboxUserIDOf(1), Is.Null);
+        }
+    }
+
+    [Test]
+    public async Task SetGamertag_APastGamertagsPlaceholder_AnAccessTokenIsRefused_WithoutLeavingTheTransactionOpen()
+    {
+        await SeedUserAndAccount("OldTag");
+        Context.Users.Add(Placeholder("OldTag", id: 2));
+        await Context.SaveChangesAsync();
+        var denied = Task.FromException(new MergeDeniedToAccessTokenException());
+        _mergeService.Merge(1, 2, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(denied);
+
+        var result = await _service.SetGamertag(1, "GamerOne", CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.EqualTo(new MergeDeniedToAccessTokenException().Message));
+            Assert.That(await SavedXboxUserIDOf(1), Is.Null, "nothing saved, and the transaction isn't left open");
         }
     }
 

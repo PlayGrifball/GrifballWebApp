@@ -137,7 +137,7 @@ public class RegionTests
             User.Seed(userName: "historical:Imported", normalizedUserName: "HISTORICAL:IMPORTED", isDummyUser: true, regionID: Regions.WestNorthAmerica, regionSource: RegionSource.Import));
         await _context.SaveChangesAsync();
         var import = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
-            new GamertagMatching(_context), TimeProvider.System);
+            new GamertagMatching(_context), TimeProvider.System, Substitute.For<IUserMergeService>());
 
         var report = await import.Import(new HistoricalArchiveInput
         {

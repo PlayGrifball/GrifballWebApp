@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.UserManagement;
 using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.UserManagement;
 
@@ -23,6 +24,7 @@ public class UserManagementController : ControllerBase
     }
 
     /// <summary>Users, filtered, sorted and paged. Sysadmins only.</summary>
+    [AllowAccessToken]
     [HttpGet("users", Name = "GetUsers")]
     [ProducesResponseType<PaginationResult<UserResponseDto>>(StatusCodes.Status200OK)]
     public Task<PaginationResult<UserResponseDto>> GetUsers([FromQuery] PaginationFilter filter, [FromQuery] string? search, CancellationToken ct)
@@ -32,6 +34,7 @@ public class UserManagementController : ControllerBase
     }
 
     /// <summary>A user's account details. Sysadmins only.</summary>
+    [AllowAccessToken]
     [HttpGet("users/{userID:int}", Name = "GetUser")]
     [ProducesResponseType<UserResponseDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -40,7 +43,8 @@ public class UserManagementController : ControllerBase
         return await _userManagementService.GetUser(userID, ct) is { } user ? user : this.NotFoundProblem(ApiProblems.NoSuchUser);
     }
 
-    /// <summary>Creates a user (204: the service answers no ID to point a Location at).</summary>
+    /// <summary>Creates a user (204: the service answers no ID to point a Location at). A new account stays browser only.</summary>
+    [DenyAccessToken]
     [HttpPost("users", Name = "CreateUser")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -53,7 +57,8 @@ public class UserManagementController : ControllerBase
             return this.BadRequestProblem(result);
     }
 
-    /// <summary>Edits a user's account details. Sysadmins only.</summary>
+    /// <summary>Edits a user's account details. Sysadmins only. Can grant roles and change lockout/username: browser only.</summary>
+    [DenyAccessToken]
     [HttpPost("users/{userID:int}", Name = "EditUser")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -69,6 +74,7 @@ public class UserManagementController : ControllerBase
     }
 
     /// <summary>Merges one user into another, moving the source user's data onto the target and deleting it. Sysadmins only.</summary>
+    [DenyAccessToken]
     [HttpPost("user-merges", Name = "MergeUser")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

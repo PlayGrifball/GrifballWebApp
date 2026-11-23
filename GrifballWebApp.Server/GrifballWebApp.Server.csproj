@@ -80,7 +80,8 @@
   <!--
     LiveDelivery's cache key and per-topic queue are internal: LiveRedisTests builds the real cache key instead of a
     hand-copied format, and LiveServerUnitTests exercises the queue (a failed item never stopping the next one for the
-    same topic) directly, rather than contrive that failure through the whole public Deliver.
+    same topic) directly, rather than contrive that failure through the whole public Deliver. DenyAccessTokenFilter.IsDenied
+    (#549) is internal too, so GrifballWebApp.Server.Test can call it directly.
   -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />

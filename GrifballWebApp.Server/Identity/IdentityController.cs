@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.Mcp;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -43,6 +44,7 @@ public class IdentityController : ControllerBase
     /// (<see cref="AccessTokenResponse"/>), for clients that are not browsers.
     /// </summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost("identity/login", Name = "Login")]
@@ -72,6 +74,7 @@ public class IdentityController : ControllerBase
 
     /// <summary>Creates a new account with a username and password, in the Player role.</summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpPost("identity/register", Name = "Register")]
@@ -115,6 +118,7 @@ public class IdentityController : ControllerBase
     /// only if it is a path on this site (<see cref="IsAppRelativePath"/>), escaped as one query value.
     /// </summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [HttpGet("identity/external-login", Name = "ExternalLogin")]
     [ProducesResponseType(StatusCodes.Status302Found)]
     public IActionResult ExternalLogin([FromQuery] string? followUp)
@@ -145,6 +149,7 @@ public class IdentityController : ControllerBase
     /// of the app, not this action), which then calls this with the antiforgery token like any other change.
     /// </summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost("identity/external-login/callback", Name = "ExternalLoginCallback")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -279,6 +284,7 @@ public class IdentityController : ControllerBase
 
     /// <summary>A new bearer token for a refresh token (bearer clients only; browsers have the cookie).</summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost("identity/refresh", Name = "Refresh")]
@@ -302,6 +308,7 @@ public class IdentityController : ControllerBase
     /// <summary>Who is signed in: their display name, user ID and roles.</summary>
     [ProducesResponseType(typeof(MetaInfoResponse), StatusCodes.Status200OK)]
     [Authorize]
+    [AllowAccessToken]
     [HttpGet("identity/meta-info", Name = "MetaInfo")]
     public MetaInfoResponse MetaInfo()
     {
@@ -322,6 +329,7 @@ public class IdentityController : ControllerBase
     /// not an error, so the client asks on every first load without logging a failed request.
     /// </summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [ProducesResponseType(typeof(MetaInfoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
@@ -335,6 +343,7 @@ public class IdentityController : ControllerBase
     /// token belongs to the user signed in when it was made, so the client asks again after signing in or out.
     /// </summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [ProducesResponseType(typeof(AntiforgeryTokenResponse), StatusCodes.Status200OK)]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [HttpGet("identity/antiforgery-token", Name = "Antiforgery")]
@@ -349,6 +358,7 @@ public class IdentityController : ControllerBase
     /// within <see cref="BrowserAuth.SecurityStampValidationInterval"/>.
     /// </remarks>
     [AllowAnonymous]
+    [DenyAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
 #pragma warning disable S4502 // exempt on purpose (see above); the Fetch Metadata and Origin checks still refuse it from another site
     [IgnoreAntiforgeryToken]
@@ -362,8 +372,13 @@ public class IdentityController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Sets a new password using a one-time reset token.</summary>
+    /// <summary>
+    /// Sets a new password using a one-time reset token. Not <see cref="DenyAccessTokenAttribute"/>: the one-time token in
+    /// the body is this action's whole security boundary, not the caller's identity, so a dropped Authorization header
+    /// reaches it exactly the same as a kept one. Denying it would protect nothing, only look as if it did.
+    /// </summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<string>(StatusCodes.Status200OK, "text/plain")]
     [HttpPost("identity/password-reset", Name = "ResetPassword")]

@@ -101,7 +101,8 @@ export class StaffStatFlagsService extends BaseService {
 
   /**
    * Staff looked at it: not wrong, or not worth fixing. 404 when it doesn't exist. Commissioners and
-   *             sysadmins only.
+   *             sysadmins only. A normal staff write, like VodController's own Dismiss: it only sets this flag's own dismissed
+   *             columns, never a merge or anything about sign-in/roles/the account, so a token may call it too (#549/#562).
    *
    *
    *
@@ -117,7 +118,8 @@ export class StaffStatFlagsService extends BaseService {
 
   /**
    * Staff looked at it: not wrong, or not worth fixing. 404 when it doesn't exist. Commissioners and
-   *             sysadmins only.
+   *             sysadmins only. A normal staff write, like VodController's own Dismiss: it only sets this flag's own dismissed
+   *             columns, never a merge or anything about sign-in/roles/the account, so a token may call it too (#549/#562).
    *
    *
    *

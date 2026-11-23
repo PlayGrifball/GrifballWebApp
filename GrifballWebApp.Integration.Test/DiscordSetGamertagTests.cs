@@ -53,7 +53,8 @@ public class DiscordSetGamertagTests
         _discordSetGamertag = new DiscordSetGamertag(
             _context,
             _userManager,
-            _profileService
+            _profileService,
+            Substitute.For<IUserMergeService>()
         );
 
         _interactionContext = Substitute.For<IDiscordInteractionContext>();

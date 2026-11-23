@@ -31,19 +31,34 @@ public class UserMergeService : IUserMergeService
 {
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
-    private readonly ICurrentUserService? _currentUser;
+    private readonly ICurrentUserService _currentUser;
     /// <summary>The merge in progress: every SaveChanges of it goes through this, so the audit record has all it changed.</summary>
     private MergeManifestRecorder _recorder = null!;
 
-    public UserMergeService(IApplicationDbContext context, TimeProvider? time = null, ICurrentUserService? currentUser = null)
+    /// <summary>
+    /// <paramref name="currentUser"/> is required, not optional: an omitted one used to default to signed in (not a
+    /// token), the one way <see cref="RefuseAnAccessToken"/> could fail open (#549 review). Every caller - including
+    /// every test - must say explicitly whether the current request is a token's.
+    /// </summary>
+    public UserMergeService(IApplicationDbContext context, ICurrentUserService currentUser, TimeProvider? time = null)
     {
         _context = context;
         _time = time ?? TimeProvider.System;
         _currentUser = currentUser;
     }
 
+    /// <summary>The one choke point every merge path reaches (MCP, historical import, a gamertag set onto a placeholder,
+    /// the REST endpoints): a personal access token may never merge, whatever marked the caller's own endpoint (#549).</summary>
+    private void RefuseAnAccessToken()
+    {
+        if (_currentUser.IsAccessToken)
+            throw new MergeDeniedToAccessTokenException();
+    }
+
     public async Task Merge(int mergeToId, int mergeFromId, MergeOptions? options = null, CancellationToken ct = default)
     {
+        RefuseAnAccessToken();
+
         if (mergeToId == mergeFromId)
             throw new ArgumentException("Cannot merge a user into itself");
 
@@ -119,7 +134,7 @@ public class UserMergeService : IUserMergeService
         if (options.TransferChampionships)
             await TransferChampionships(mergeToId, mergeFromId, ct);
 
-        await SettleClaims(mergeTo, mergeFromId, options.TriggeredByUserID ?? _currentUser?.GetCurrentUserId(), ct);
+        await SettleClaims(mergeTo, mergeFromId, options.TriggeredByUserID ?? _currentUser.GetCurrentUserId(), ct);
 
         // Delete just in case it doesnt cascade
         var rolesToDelete = await _context.UserRoles.Where(x => x.UserId == mergeFromId).ToArrayAsync(ct);
@@ -147,7 +162,7 @@ public class UserMergeService : IUserMergeService
         _context.UserMerges.Add(UserMerge.Record(
             mergedAt: _time.GetUtcNow().UtcDateTime,
             trigger: options.Trigger,
-            triggeredByUserID: options.TriggeredByUserID ?? _currentUser?.GetCurrentUserId(),
+            triggeredByUserID: options.TriggeredByUserID ?? _currentUser.GetCurrentUserId(),
             reason: options.Reason,
             sourceUserID: mergeFromId,
             sourceUserName: sourceUserName,
@@ -545,6 +560,14 @@ public class MergeOptions
 
 /// <summary>The two users can't be merged as they are, e.g. both are on different teams in one season.</summary>
 public class MergeConflictException(string message) : Exception(message);
+
+/// <summary>
+/// A personal access token tried to merge users, or undo a merge (<see cref="UserMergeService.Merge"/>,
+/// <see cref="UserMergeAuditService.Undo"/>): that stays the browser's own, whatever called the merge (a REST
+/// endpoint, an MCP tool, historical import matching a Discord ID, setting a gamertag onto a placeholder). Maps to
+/// 403 (<c>GlobalExceptionHandler</c>).
+/// </summary>
+public class MergeDeniedToAccessTokenException() : Exception("An access token may not merge accounts, or undo a merge.");
 
 /// <summary>
 /// A user with historical stats or championships can't be deleted (the foreign keys are restricted): merge it

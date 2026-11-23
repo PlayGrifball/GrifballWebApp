@@ -1,4 +1,5 @@
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Server.Mcp;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -44,6 +45,7 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>The external providers this server is configured for.</summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [HttpGet("external-logins/providers", Name = "GetExternalProviders")]
     [ProducesResponseType<List<ExternalProviderDto>>(StatusCodes.Status200OK)]
     public async Task<List<ExternalProviderDto>> Providers()
@@ -55,6 +57,7 @@ public class ExternalLoginsController : ControllerBase
     }
 
     /// <summary>The signed-in user's external logins, whether they have a password, and the providers they can link.</summary>
+    [AllowAccessToken]
     [ProducesResponseType(typeof(LinkedLoginsDto), StatusCodes.Status200OK)]
     [HttpGet("me/external-logins", Name = "GetMyExternalLogins")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -72,6 +75,7 @@ public class ExternalLoginsController : ControllerBase
     }
 
     /// <summary>Starts linking a provider to the signed-in user. Returns the token for <see cref="Link"/>.</summary>
+    [DenyAccessToken]
     [ProducesResponseType(typeof(StartLinkResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [HttpPost("me/external-logins/link-token", Name = "StartExternalLoginLink")]
@@ -89,6 +93,7 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>Full-page navigation target: sends the browser to the provider to link it to the user named in the token.</summary>
     [AllowAnonymous]
+    [AllowAccessToken]
     [HttpGet("external-logins/link", Name = "ExternalLoginLink")]
     [ProducesResponseType(StatusCodes.Status302Found)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -118,6 +123,7 @@ public class ExternalLoginsController : ControllerBase
     }
 
     /// <summary>Finishes linking: adds the external login from the provider round trip to the signed-in user.</summary>
+    [DenyAccessToken]
     [ProducesResponseType(typeof(ExternalLoginDto), StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
@@ -153,6 +159,7 @@ public class ExternalLoginsController : ControllerBase
     }
 
     /// <summary>Removes one of the signed-in user's external logins. Refuses the last way to sign in.</summary>
+    [DenyAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [HttpPost("me/external-logins/remove", Name = "UnlinkExternalLogin")]
@@ -168,6 +175,7 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>Sysadmin: a user's external logins.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [AllowAccessToken]
     [ProducesResponseType(typeof(LinkedLoginsDto), StatusCodes.Status200OK)]
     [HttpGet("users/{userID:int}/external-logins", Name = "GetUserExternalLogins")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -179,6 +187,7 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>Sysadmin: removes one of a user's external logins. Refuses the user's last way to sign in.</summary>
     [Authorize(Roles = "Sysadmin")]
+    [DenyAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [HttpPost("users/{userID:int}/external-logins/remove", Name = "RemoveUserExternalLogin")]

@@ -15,6 +15,14 @@ public class StaffStatFlagsControllerUnitTests
     [Test]
     public void Controller_RequiresCommissionerOrSysadmin()
         => Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(StaffStatFlagsController))!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
+
+    // A flag is read-only information and dismissing one never merges, signs anyone out, or touches roles/the
+    // account - the same "normal staff write" category VodController's own Dismiss is in (#549/#562).
+    [TestCase(nameof(StaffStatFlagsController.List))]
+    [TestCase(nameof(StaffStatFlagsController.ForSeasonMatch))]
+    [TestCase(nameof(StaffStatFlagsController.Dismiss))]
+    public void Action_AllowsAnAccessToken(string action)
+        => Assert.That(ControllerTestHelpers.ActionAllowsAccessToken(typeof(StaffStatFlagsController), action), Is.True);
 }
 
 /// <summary>StaffStatFlagsController's database-backed unit tests: a real GrifballContext (temp-file SQLite, #402).</summary>

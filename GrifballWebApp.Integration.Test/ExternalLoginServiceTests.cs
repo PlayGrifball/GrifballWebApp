@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Server.Identity;
 
 namespace GrifballWebApp.Integration.Test;
@@ -24,7 +25,7 @@ public class ExternalLoginServiceTests
     {
         _context = await TestDatabase.NewGrifballContext();
         _userManager = IdentityTestHelpers.NewUserManager(_context);
-        _service = new ExternalLoginService(_userManager, new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>()));
+        _service = new ExternalLoginService(_userManager, new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>(), Substitute.For<IUserMergeService>()));
     }
 
     [TearDown]

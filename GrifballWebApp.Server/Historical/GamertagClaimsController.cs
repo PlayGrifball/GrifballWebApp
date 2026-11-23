@@ -3,12 +3,18 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Infrastructure.Historical;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Historical;
 
 /// <summary>
 /// Gamertag claims (roster matches the import suggests, placeholders users claimed by setting a gamertag) and the
-/// gamertag history they write: sysadmin only, like merging users (approving a claim merges a placeholder).
+/// gamertag history they write: sysadmin only. Most of this is a normal staff action, same as the MCP tools
+/// (decide_gamertag_claim), that a token may call; approving a claim and merging a suggested duplicate actually merge a
+/// placeholder into another user, so those two stay <see cref="DenyAccessTokenAttribute"/>, an early, cheap refusal -
+/// the real guarantee against a token merging through either of them, through decide_gamertag_claim on MCP, or through
+/// anything else that reaches a merge, is at the one place every merge path ends up
+/// (<see cref="GrifballWebApp.Application.Profile.UserMergeService.Merge"/>, #549 review).
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
@@ -31,12 +37,14 @@ public class GamertagClaimsController : ControllerBase
 
     /// <summary>Placeholders that may be the same player as another user (close gamertags, seasons that don't conflict).</summary>
     [HttpGet("duplicate-suggestions", Name = "GetDuplicateSuggestions")]
+    [AllowAccessToken]
     [ProducesResponseType<List<DuplicateSuggestionDto>>(StatusCodes.Status200OK)]
     public Task<List<DuplicateSuggestionDto>> DuplicateSuggestions([FromQuery] int max = 50, CancellationToken ct = default)
         => _duplicates!.List(max, ct);
 
     /// <summary>Merges a suggested placeholder into the other user (audited).</summary>
     [HttpPost("duplicate-suggestions/merge", Name = "MergeDuplicate")]
+    [DenyAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public async Task<IActionResult> MergeDuplicate([FromBody] DuplicatePairRequest request, CancellationToken ct)
@@ -47,6 +55,7 @@ public class GamertagClaimsController : ControllerBase
 
     /// <summary>The pair are different players: not suggested again.</summary>
     [HttpPost("duplicate-suggestions/dismiss", Name = "DismissDuplicate")]
+    [AllowAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DismissDuplicate([FromBody] DuplicatePairRequest request, CancellationToken ct)
     {
@@ -57,6 +66,7 @@ public class GamertagClaimsController : ControllerBase
     /// <summary>Looks up the XUIDs of import placeholders again (those not found or failed), in the background: the
     /// worker role runs them, throttled.</summary>
     [HttpPost("xuid-lookups/run", Name = "LookUpXuids")]
+    [AllowAccessToken]
     [ProducesResponseType<XuidLookupStatusDto>(StatusCodes.Status202Accepted)]
     public async Task<ActionResult<XuidLookupStatusDto>> LookUpXuids(CancellationToken ct)
     {
@@ -67,11 +77,13 @@ public class GamertagClaimsController : ControllerBase
 
     /// <summary>The background XUID lookup's status.</summary>
     [HttpGet("xuid-lookups/status", Name = "GetXuidLookupStatus")]
+    [AllowAccessToken]
     [ProducesResponseType<XuidLookupStatusDto>(StatusCodes.Status200OK)]
     public Task<XuidLookupStatusDto> XuidLookupStatus(CancellationToken ct) => _lookups.StatusAsync(ct);
 
     /// <summary>An Xbox account's past gamertags, by XUID or by its user's ID.</summary>
     [HttpGet("past-gamertags", Name = "GetPastGamertags")]
+    [AllowAccessToken]
     [ProducesResponseType<PastGamertagsDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<ActionResult<PastGamertagsDto>> PastGamertags([FromQuery] long? xboxUserID, [FromQuery] int? userID, CancellationToken ct)
@@ -82,6 +94,7 @@ public class GamertagClaimsController : ControllerBase
 
     /// <summary>Removes a past gamertag entry that was added in error.</summary>
     [HttpPost("past-gamertags/{historyID:int}/remove", Name = "RemoveGamertagHistory")]
+    [AllowAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> RemoveGamertagHistory([FromRoute] int historyID, CancellationToken ct)
@@ -92,12 +105,14 @@ public class GamertagClaimsController : ControllerBase
 
     /// <summary>Gamertag claims, pending by default.</summary>
     [HttpGet("gamertag-claims", Name = "GetGamertagClaims")]
+    [AllowAccessToken]
     [ProducesResponseType<List<GamertagClaimDto>>(StatusCodes.Status200OK)]
     public Task<List<GamertagClaimDto>> GetClaims([FromQuery] GamertagClaimStatus? status = GamertagClaimStatus.Pending, CancellationToken ct = default)
         => _claims.List(status, ct);
 
     /// <summary>Records the gamertag as the Xbox account's and merges the placeholder into the account's user.</summary>
     [HttpPost("gamertag-claims/{claimID:int}/approve", Name = "ApproveGamertagClaim")]
+    [DenyAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
@@ -109,6 +124,7 @@ public class GamertagClaimsController : ControllerBase
 
     /// <summary>Rejects a gamertag claim, with an optional reason shown to the claimant.</summary>
     [HttpPost("gamertag-claims/{claimID:int}/reject", Name = "RejectGamertagClaim")]
+    [AllowAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> RejectClaim([FromRoute] int claimID, [FromBody] RejectGamertagClaimRequest? request, CancellationToken ct)
@@ -119,6 +135,7 @@ public class GamertagClaimsController : ControllerBase
 
     /// <summary>Adds a gamertag an Xbox account is known to have had (a rename the app didn't see).</summary>
     [HttpPost("past-gamertags", Name = "AddGamertagHistory")]
+    [AllowAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> AddGamertagHistory([FromBody] AddGamertagHistoryRequest request, CancellationToken ct)

@@ -30,7 +30,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
     [SetUp]
     public void SetUp()
     {
-        _service = new UserMergeService(Context);
+        _service = new UserMergeService(Context, Substitute.For<ICurrentUserService>());
     }
 
     private async Task<(User To, User From)> TwoUsers(long? fromDiscord = null, long? toDiscord = null)
@@ -56,6 +56,34 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
 
     private Task<List<UserLogin>> LoginsOf(int userId) =>
         Context.UserLogins.AsNoTracking().Where(l => l.UserId == userId).OrderBy(l => l.LoginProvider).ToListAsync();
+
+    [Test]
+    public async Task Merge_RefusesAnAccessToken_EvenWhenEverythingElseWouldSucceed()
+    {
+        // The one choke point every merge path reaches (MCP, historical import, a gamertag set onto a placeholder,
+        // the REST endpoints): whatever marked the caller's own endpoint, this is what actually refuses it (#549).
+        var (to, from) = await TwoUsers();
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.IsAccessToken.Returns(true);
+        var service = new UserMergeService(Context, currentUser: currentUser);
+
+        await Assert.ThrowsAsync<MergeDeniedToAccessTokenException>(() => service.Merge(to.Id, from.Id));
+
+        Assert.That(await Context.Users.AnyAsync(u => u.Id == from.Id), Is.True, "nothing was touched");
+    }
+
+    [Test]
+    public async Task Merge_AllowsACookieSession_NotAnAccessToken()
+    {
+        var (to, from) = await TwoUsers();
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.IsAccessToken.Returns(false);
+        var service = new UserMergeService(Context, currentUser: currentUser);
+
+        await service.Merge(to.Id, from.Id);
+
+        Assert.That(await Context.Users.AnyAsync(u => u.Id == from.Id), Is.False, "the merge went through");
+    }
 
     [Test]
     public async Task Merge_IntoItself_Throws()
@@ -627,7 +655,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
             // The caller's own change, left unsaved: the merge saves it inside its transaction, so only a rollback keeps it out
             (await racing.Users.SingleAsync(x => x.Id == to.Id)).Rename("Saved by the failed merge");
             // Not a MergeConflictException: callers take that to mean nothing changed, and carry on
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing).Merge(to.Id, from.Id));
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing, Substitute.For<ICurrentUserService>()).Merge(to.Id, from.Id));
             Assert.That(ex!.Message, Does.Contain("while they were being merged"));
         }
 

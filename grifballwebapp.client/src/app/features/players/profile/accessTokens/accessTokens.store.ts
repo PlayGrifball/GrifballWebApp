@@ -1,8 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { AccessTokenDto } from '@api/models';
+import type { AccessTokenDto, AccessTokenScope, CreatedAccessTokenDto } from '@api/models';
 import { AccessTokensService } from '@api/services/access-tokens.service';
 import { problemText } from '@shared/errorText';
 import { resourceView } from '@shared/resourceView';
@@ -23,19 +23,26 @@ export class AccessTokensStore {
 
   private readonly _creating = signal(false);
   readonly creating = this._creating.asReadonly();
-  /** The token just made, shown this once. */
-  private readonly _created = signal<string | null>(null);
-  readonly created = this._created.asReadonly();
+  /** The token just made (null once nothing is shown): its own token and scope, which always arrive together, so one
+   * signal holds the whole DTO instead of two that could drift apart. */
+  private readonly _createdToken = signal<CreatedAccessTokenDto | null>(null);
+  /** The token itself, shown this once. */
+  readonly created = computed(() => this._createdToken()?.token ?? null);
+  /** The just-made token's scope: a new token can't change it later. */
+  readonly createdScope = computed(() => this._createdToken()?.accessToken.scope ?? null);
 
-  /** Makes a token lasting `days`; `made` runs once it is (the list then loads again). Nothing while one is being made. */
-  create(name: string, days: number, made?: () => void): void {
+  /**
+   * Makes a token lasting `days`, with the chosen `scope` and `readOnly` flag; `made` runs once it is (the list then
+   * loads again). Nothing while one is being made.
+   */
+  create(name: string, days: number, scope: AccessTokenScope, readOnly: boolean, made?: () => void): void {
     if (this.creating())
       return;
     this._creating.set(true);
-    this.api.createAccessToken({ body: { name, days } }).subscribe({
+    this.api.createAccessToken({ body: { name, days, scope, readOnly } }).subscribe({
       next: token => {
         this._creating.set(false);
-        this._created.set(token.token);
+        this._createdToken.set(token);
         this.tokens.reload();
         made?.();
       },

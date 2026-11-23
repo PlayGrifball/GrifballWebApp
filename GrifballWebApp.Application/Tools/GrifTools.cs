@@ -164,6 +164,38 @@ public static class GrifTools
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> RolesByName
         = All.SelectMany(set => Methods(set.Type)).ToDictionary(Name, Roles);
 
+    /// <summary>
+    /// Every tool as a chat model's function, made once (its schema read from the method, its class's factory worked out): each call
+    /// runs as the caller its arguments carry (<see cref="InAScopeOfItsOwn"/> binds it), so a reply only binds its caller. Declared
+    /// here, ahead of where it's otherwise used, so <see cref="EffectByName"/> can derive from this one list instead of
+    /// walking <see cref="All"/> a second time.
+    /// </summary>
+    private static readonly (MethodInfo Method, AIFunction Function, ToolEffect Effect)[] Functions = All.SelectMany(set =>
+        {
+            var create = Factory(set.Type);
+            return Methods(set.Type).Select(method => (method, (AIFunction)AIFunctionFactory.Create(method,
+                args => create(args.Services!, (ToolCaller)args.Context![typeof(ToolCaller)]!),
+                new AIFunctionFactoryOptions { Name = Name(method) }), set.Effect));
+        }).ToArray();
+
+    /// <summary>
+    /// Every tool's effect by its name, for a host that knows only the name (a read-only access token's filter, which
+    /// keeps only <see cref="ToolEffect.ReadsOnly"/> tools: not <see cref="ToolEffect.ChangesData"/>, and not
+    /// <see cref="ToolEffect.QueuesHaloPull"/> either, which saves games it finds). Derived from <see cref="Functions"/>,
+    /// the one list every tool's name and effect already come from, rather than re-deriving it from <see cref="All"/>.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, ToolEffect> EffectByName
+        = Functions.ToDictionary(t => Name(t.Method), t => t.Effect);
+
+    /// <summary>
+    /// Whether a read-only access token may list or call the tool named <paramref name="name"/>: it is in
+    /// <see cref="EffectByName"/> and read-only there. A name <see cref="EffectByName"/> does not know fails closed
+    /// (false, hidden and refused), unlike <c>GetValueOrDefault</c>, whose default for a missing key is
+    /// <c>default(ToolEffect)</c>, which is <see cref="ToolEffect.ReadsOnly"/> (0): that would make an unknown name
+    /// read-only by accident instead of refusing it.
+    /// </summary>
+    public static bool IsReadOnlyTool(string name) => EffectByName.TryGetValue(name, out var effect) && effect is ToolEffect.ReadsOnly;
+
     /// <summary>A class's tools: its own public instance methods with a [Description].</summary>
     public static IEnumerable<MethodInfo> Methods(Type type)
         => type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
@@ -224,19 +256,6 @@ public static class GrifTools
 
     /// <summary>The tools that change data, found once.</summary>
     private static readonly MethodInfo[] ChangingDataTools = ChangingData.SelectMany(Methods).ToArray();
-
-    /// <summary>
-    /// Every tool as a chat model's function, made once (its schema read from the method, its class's factory worked out): each call
-    /// runs as the caller its arguments carry (<see cref="InAScopeOfItsOwn"/> binds it), so a reply only binds its caller.
-    /// </summary>
-    private static readonly (MethodInfo Method, AIFunction Function, ToolEffect Effect)[] Functions = All.SelectMany(set =>
-        {
-            var create = Factory(set.Type);
-            return Methods(set.Type).Select(method => (method, (AIFunction)AIFunctionFactory.Create(method,
-                args => create(args.Services!, (ToolCaller)args.Context![typeof(ToolCaller)]!),
-                new AIFunctionFactoryOptions { Name = Name(method) }), set.Effect));
-        })
-        .ToArray();
 
     /// <summary>
     /// The tag on a chat tool call's <c>execute_tool</c> span that says how it went: <c>ok</c>, <c>refused</c> (a

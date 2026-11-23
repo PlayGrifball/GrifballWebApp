@@ -4,6 +4,7 @@ using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
+using NSubstitute;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.Profile;
 
@@ -27,7 +28,7 @@ public class UserMergeServiceHistoricalTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new UserMergeService(_context);
+        _service = new UserMergeService(_context, Substitute.For<ICurrentUserService>());
         _real = User.Seed(userName: "real", displayName: "Real");
         _dummy = User.Seed(userName: "historical:Old Tag", displayName: "Old Tag", isDummyUser: true);
         _season = HistoricalSeason("Winter League 2019", "agla/winter-league-2019");

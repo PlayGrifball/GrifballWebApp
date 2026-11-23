@@ -10,6 +10,9 @@ public enum JobControlResult
     NotFound,
     /// <summary>Not now: it's off, running, waits for its page's input, or has no trigger yet.</summary>
     Conflict,
+    /// <summary>A personal access token tried to run a job that can end up merging a user, which can't be caught where
+    /// the merge itself happens: that runs later, through a queue, with no request of its own.</summary>
+    DeniedToAccessToken,
 }
 
 /// <summary>

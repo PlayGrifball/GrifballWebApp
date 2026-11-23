@@ -66,6 +66,7 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         SignupTeamNameTooLongException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
         MergeConflictException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         MergeUndoRefusedException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
+        MergeDeniedToAccessTokenException => Refusal(StatusCodes.Status403Forbidden, ApiProblems.Title(StatusCodes.Status403Forbidden), exception.Message),
         UserHasHistoricalStatsException => Refusal(StatusCodes.Status409Conflict, "Conflict", "User has historical stats; merge instead."),
         GamertagClaimException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
         GamertagClaimConflictException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),

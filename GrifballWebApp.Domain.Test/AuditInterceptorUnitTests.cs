@@ -38,6 +38,7 @@ public class AuditInterceptorUnitTests
             Asked++;
             return userID;
         }
+        public bool IsAccessToken => false;
         public void SetCurrentUserId(int userId) => throw new NotSupportedException("The interceptor only reads the user");
         public void SetCurrentUserIdFromClaims(ClaimsPrincipal? user) => throw new NotSupportedException("The interceptor only reads the user");
     }

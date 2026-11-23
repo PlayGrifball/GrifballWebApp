@@ -3,6 +3,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,7 +49,7 @@ public class DiscordSetGamertagPlaceholderTests
         _userManager = _scope.ServiceProvider.GetRequiredService<UserManager<User>>();
         _setGamertag = Substitute.For<ISetGamertagService>();
         _setGamertag.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
-        _sut = new DiscordSetGamertag(_context, _userManager, _setGamertag, new UserMergeService(_context));
+        _sut = new DiscordSetGamertag(_context, _userManager, _setGamertag, new UserMergeService(_context, Substitute.For<ICurrentUserService>()));
         _interaction = Substitute.For<IDiscordInteractionContext>();
         _interaction.Interaction.User.Id.Returns(DiscordId);
         _interaction.Interaction.User.Username.Returns("activehate");

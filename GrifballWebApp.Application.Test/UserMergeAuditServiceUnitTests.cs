@@ -9,6 +9,7 @@ using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NSubstitute;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -36,8 +37,8 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
     public async Task SetUp()
     {
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
-        _merges = new UserMergeService(Context, _time);
-        _audit = new UserMergeAuditService(Context, _time);
+        _merges = new UserMergeService(Context, Substitute.For<ICurrentUserService>(), _time);
+        _audit = new UserMergeAuditService(Context, _time, Substitute.For<ICurrentUserService>());
         _real = User.Seed(userName: "real", displayName: "Real", mmr: 1200, wins: 3, losses: 1, xboxUser: XboxUser.FromXbox(10, "Real Tag"));
         _placeholder = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats")
@@ -95,6 +96,18 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         rows.AddRange((await Context.GamertagClaims.AsNoTracking().OrderBy(c => c.GamertagClaimID).ToListAsync())
             .Select(c => $"Claim {c.GamertagClaimID} {c.Status} {c.PlaceholderUserID} {c.ClaimantUserID}"));
         return rows;
+    }
+
+    [Test]
+    public async Task Undo_RefusesAnAccessToken_EvenWhenEverythingElseWouldSucceed()
+    {
+        await _merges.Merge(_real.Id, _placeholder.Id);
+        var mergeId = await Context.UserMerges.Select(m => m.UserMergeID).SingleAsync();
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.IsAccessToken.Returns(true);
+        var audit = new UserMergeAuditService(Context, _time, currentUser);
+
+        await Assert.ThrowsAsync<MergeDeniedToAccessTokenException>(() => audit.Undo(mergeId, null));
     }
 
     [Test]
@@ -293,7 +306,7 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         // Each merge and undo is a request of its own, with a fresh context: none reads another's tracked rows
         Context.ChangeTracker.Clear();
         // The stats move again: the real user is merged into another account
-        await new UserMergeService(Context, _time).Merge(second.Id, _real.Id);
+        await new UserMergeService(Context, Substitute.For<ICurrentUserService>(), _time).Merge(second.Id, _real.Id);
         Context.ChangeTracker.Clear();
         var merges = await Context.UserMerges.OrderBy(m => m.UserMergeID).ToListAsync();
 
@@ -313,7 +326,7 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         // Each merge and undo is a request of its own, with a fresh context: none reads another's tracked rows
         await _merges.Merge(_real.Id, _placeholder.Id);
         Context.ChangeTracker.Clear();
-        await new UserMergeService(Context, _time).Merge(second.Id, _real.Id);
+        await new UserMergeService(Context, Substitute.For<ICurrentUserService>(), _time).Merge(second.Id, _real.Id);
         Context.ChangeTracker.Clear();
         var merges = await Context.UserMerges.OrderBy(m => m.UserMergeID).Select(m => m.UserMergeID).ToListAsync();
 
@@ -354,7 +367,7 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         });
         await using (var racing = Context.NewContextLike(otherUndo))
         {
-            var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => new UserMergeAuditService(racing, _time).Undo(mergeId, "mine"));
+            var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => new UserMergeAuditService(racing, _time, Substitute.For<ICurrentUserService>()).Undo(mergeId, "mine"));
             Assert.That(ex!.Message, Is.EqualTo($"Merge {mergeId} was undone already"));
         }
 
@@ -472,7 +485,7 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         Context.Users.Add(other);
         await Context.SaveChangesAsync();
         await _merges.Merge(_real.Id, _placeholder.Id, MergeOptions.For(MergeTrigger.SetGamertag, "set gamertag Real Tag", _real.Id));
-        await new UserMergeService(Context, _time).Merge(_real.Id, other.Id, MergeOptions.For(MergeTrigger.DuplicateSuggestion));
+        await new UserMergeService(Context, Substitute.For<ICurrentUserService>(), _time).Merge(_real.Id, other.Id, MergeOptions.For(MergeTrigger.DuplicateSuggestion));
 
         var page = await _audit.List(new GrifballWebApp.Application.Dtos.PaginationFilter(1, 10));
         var detail = await _audit.Get(page.Results.Last().UserMergeID);

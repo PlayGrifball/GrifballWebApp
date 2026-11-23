@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Scheduler;
 using Microsoft.Extensions.Time.Testing;
@@ -42,10 +43,10 @@ public class StaffToolPortsUnitTests
         _history.QueryExecutions(Arg.Any<ExecutionHistoryQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<ExecutionHistoryEntry>([], false));
     }
 
-    private JobControl Control()
+    private JobControl Control(ICurrentUserService? currentUser = null)
     {
         var recurring = new RecurringJobs().AddOnDemand<ScheduleRecommendationJob>("schedule-recommendation", "Works out a schedule");
-        return new JobControl(new JobsService(_schedulers, _history, recurring, new FakeTimeProvider(Now)));
+        return new JobControl(new JobsService(_schedulers, _history, recurring, new FakeTimeProvider(Now), currentUser ?? Substitute.For<ICurrentUserService>()));
     }
 
     [Test]
@@ -68,6 +69,18 @@ public class StaffToolPortsUnitTests
             Assert.That(onDemand, Is.EqualTo(JobControlResult.Conflict), "an on-demand job has no schedule to pause");
         }
         await _scheduler.Received(1).TriggerJob(Cleanup, Arg.Any<JobDataMap>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task JobControl_RunNow_AnAccessTokenOnAMergeCapableJob_IsDeniedToAccessToken()
+    {
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.IsAccessToken.Returns(true);
+        var control = Control(currentUser);
+
+        var result = await control.RunNow("recurring", "historical-refresh", null);
+
+        Assert.That(result, Is.EqualTo(JobControlResult.DeniedToAccessToken));
     }
 
     [Test]

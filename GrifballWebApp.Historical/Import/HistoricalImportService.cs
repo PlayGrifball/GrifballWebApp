@@ -192,7 +192,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     private readonly GrifballWebApp.Application.StatFlags.StatFlagService _statFlags;
 
     public HistoricalImportService(IApplicationDbContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger, GamertagMatching matching, TimeProvider timeProvider,
-        GrifballWebApp.Application.Profile.IUserMergeService? merges = null, GrifballWebApp.Application.StatFlags.StatFlagService? statFlags = null)
+        GrifballWebApp.Application.Profile.IUserMergeService merges, GrifballWebApp.Application.StatFlags.StatFlagService? statFlags = null)
     {
         _context = context;
         _dataPullService = dataPullService;
@@ -200,7 +200,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         _logger = logger;
         _matching = matching;
         _timeProvider = timeProvider;
-        _merges = merges ?? new GrifballWebApp.Application.Profile.UserMergeService(context, timeProvider);
+        _merges = merges;
         _statFlags = statFlags ?? new GrifballWebApp.Application.StatFlags.StatFlagService(context, timeProvider);
     }
 
