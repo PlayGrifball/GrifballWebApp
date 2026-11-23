@@ -1166,6 +1166,9 @@ migrations:
       suspend: false
       keepLast: 5
       keepDays: 30
+      # Also delete a backup that isn't the newest of its day (SQL Server: by its file time; PostgreSQL: by the date in its name), whatever
+      # its age, still keeping the newest keepLast. For a dev or test database that migrates all the time.
+      onePerDay: false
     # Back the database up on a schedule too (a CronJob, optional), not only before a migration: with
     # nothing pending the Job writes none, so without this a database that rarely changes schema is
     # rarely backed up. Same folder and file names as the pre-migration backups (so retention above

@@ -51,7 +51,7 @@ tests:
     asserts:
       - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "msdb\\.dbo\\.backupmediafamily" }
       - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "xp_delete_file 0, @path" }
-      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "KEEP_LAST\\) AND last_write_time < DATEADD\\(day" }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "KEEP_LAST\\)\\s+AND \\(last_write_time < DATEADD\\(day" }
       - notMatchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: " -P " }
 
   - it: needs backups to exist
@@ -98,3 +98,19 @@ tests:
       - equal:
           path: spec.jobTemplate.spec.template.spec.containers[0].resources
           value: { requests: { cpu: 20m, memory: 64Mi }, limits: { cpu: 500m, memory: 256Mi } }
+
+  - it: with onePerDay, also deletes a backup that isn't the newest of its day, at any age
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup.retention: { enabled: true, onePerDay: true }
+    asserts:
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: ONE_PER_DAY, value: "true" } }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "PARTITION BY CAST\\(last_write_time AS date\\) ORDER BY last_write_time DESC" }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "N'\\\\\\$\\$\\(ONE_PER_DAY\\)' = N'true' AND day_rank > 1" }
+
+  - it: keeps every backup of a day unless onePerDay is set
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup.retention.enabled: true
+    asserts:
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: ONE_PER_DAY, value: "false" } }

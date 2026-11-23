@@ -109,7 +109,7 @@ tests:
       migrations.backup: { directory: /backup/mine, retention: { enabled: true, keepLast: 3, keepDays: 14 } }
     asserts:
       - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: '\[ "\$\(head -c 5 "\$1/\$name"\)" = PGDMP \]' }
-      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "NR > keep && substr\\(\\$0, length\\(\\$0\\) - 19, 15\\) < cutoff" }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "NR > keep && \\(substr\\(\\$0, length\\(\\$0\\) - 19, 15\\) < cutoff" }
       - notMatchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "psql|sqlcmd|nc -w" }
       - equal:
           path: "spec.jobTemplate.spec.template.spec.containers[0].env"
@@ -118,4 +118,13 @@ tests:
             - { name: BACKUP_DIR, value: /backup/mine }
             - { name: KEEP_LAST, value: "3" }
             - { name: KEEP_DAYS, value: "14" }
+            - { name: ONE_PER_DAY, value: "false" }
       - contains: { path: spec.jobTemplate.spec.template.spec.volumes, content: { name: backup, persistentVolumeClaim: { claimName: postgres-backup-pvc } } }
+
+  - it: with onePerDay, also deletes a dump that isn't the newest of its day
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup: { directory: /backup/mine, retention: { enabled: true, keepLast: 3, keepDays: 14, onePerDay: true } }
+    asserts:
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: ONE_PER_DAY, value: "true" } }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: 'one == "true" && dup' }
