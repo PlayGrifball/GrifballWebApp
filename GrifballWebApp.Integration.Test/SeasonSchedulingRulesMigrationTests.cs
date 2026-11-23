@@ -33,8 +33,11 @@ public class SeasonSchedulingRulesMigrationTests
 
         // The tables these are in are the same before the migration as after it
         var season = Season.Seed(seasonName: "Before");
-        _context.Seasons.Add(season);
-        await _context.SaveChangesAsync();
+        await using (var before = BeforeSeasonSourceLinksContext.On(_context))
+        {
+            before.Seasons.Add(season);
+            await before.SaveChangesAsync();
+        }
         var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home");
         var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away");
         _context.Teams.AddRange(home, away);

@@ -114,7 +114,8 @@ public class SeasonSignupAggregateMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_SeasonSignupAggregate"))) - 1]);
 
-        var season = await _context.AddSeason();
+        await using var seasons = BeforeSeasonSourceLinksContext.On(_context);
+        var season = await seasons.AddSeason();
         var at = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         // As the old model's public setters could leave them, in SQL: the old schema has a column the model no longer has (Approved)
         async Task<int> Insert(string name, string? teamName, bool willCaptain, bool assistance)

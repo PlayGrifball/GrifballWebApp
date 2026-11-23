@@ -123,7 +123,8 @@ public class StatsSheetAggregateMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_StatsSheetsAggregate"))) - 1]);
 
-        var season = await _context.AddSeason();
+        await using var seasons = BeforeSeasonSourceLinksContext.On(_context);
+        var season = await seasons.AddSeason();
         var traded = await _context.AddUser("traded");
         var alone = await _context.AddUser("alone");
         // As the old model's public setters could leave them

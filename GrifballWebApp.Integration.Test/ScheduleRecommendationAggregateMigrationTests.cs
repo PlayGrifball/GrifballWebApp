@@ -34,7 +34,8 @@ public class ScheduleRecommendationAggregateMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_ScheduleRecommendationAggregate"))) - 1]);
 
-        var season = await ScheduleRecommendationDatabaseTestData.AddSeason(_context);
+        await using var seasons = BeforeSeasonSourceLinksContext.On(_context);
+        var season = await ScheduleRecommendationDatabaseTestData.AddSeason(seasons);
         // Through the model of the day: the recommendations had no history yet
         await using var old = BeforeHistoryForRemainingTablesContext.On(_context);
         // As anything but the job and the apply could have written them: past the private setters, as the old model's public ones were
