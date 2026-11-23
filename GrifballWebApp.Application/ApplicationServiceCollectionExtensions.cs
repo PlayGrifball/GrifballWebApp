@@ -144,13 +144,18 @@ public static class ApplicationServiceCollectionExtensions
             .Bind(configuration.GetSection("StatFlags"))
             .Validate(options =>
             {
-                var errors = new List<string>();
-                if (options.MinTeamSize <= 0)
-                    errors.Add("MinTeamSize must be positive");
-                if (options.MaxTeamSize < options.MinTeamSize)
-                    errors.Add("MaxTeamSize must be at least MinTeamSize");
-                if (options.MaxAccuracy <= 0)
-                    errors.Add("MaxAccuracy must be positive");
+                (bool Broken, string Message)[] checks =
+                [
+                    (options.MinTeamSize <= 0, "MinTeamSize must be positive"),
+                    (options.MaxTeamSize < options.MinTeamSize, "MaxTeamSize must be at least MinTeamSize"),
+                    (options.MaxAccuracy <= 0, "MaxAccuracy must be positive"),
+                    (options.KillsOverDeathsPercent < 0, "KillsOverDeathsPercent must not be negative"),
+                    (options.KillsOverDeathsSlack < 0, "KillsOverDeathsSlack must not be negative"),
+                    (options.MaxDaysFromScheduled < 0, "MaxDaysFromScheduled must not be negative"),
+                    (options.MaxKillsOrDeathsPerMinute <= 0, "MaxKillsOrDeathsPerMinute must be positive"),
+                    (options.MaxGoalsPerMinute <= 0, "MaxGoalsPerMinute must be positive"),
+                ];
+                var errors = checks.Where(c => c.Broken).Select(c => c.Message).ToList();
 
                 if (errors.Count > 0)
                     throw new ArgumentException(string.Join(", ", errors));

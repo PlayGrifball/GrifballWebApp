@@ -326,6 +326,33 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         Assert.That(ex!.Message, Does.Contain("MaxAccuracy must be positive"));
     }
 
+    [TestCase("KillsOverDeathsPercent", "-1")]
+    [TestCase("KillsOverDeathsSlack", "-1")]
+    [TestCase("MaxDaysFromScheduled", "-1")]
+    public void AddValidatedStatFlagOptions_NegativeAllowance_Throws(string setting, string value)
+    {
+        var services = new ServiceCollection();
+        services.AddValidatedStatFlagOptions(Config(new() { [$"StatFlags:{setting}"] = value }));
+        using var provider = services.BuildServiceProvider();
+
+        var ex = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<IOptions<StatFlagOptions>>().Value);
+
+        Assert.That(ex!.Message, Does.Contain($"{setting} must not be negative"));
+    }
+
+    [TestCase("MaxKillsOrDeathsPerMinute", "0")]
+    [TestCase("MaxGoalsPerMinute", "-2")]
+    public void AddValidatedStatFlagOptions_RateNotPositive_Throws(string setting, string value)
+    {
+        var services = new ServiceCollection();
+        services.AddValidatedStatFlagOptions(Config(new() { [$"StatFlags:{setting}"] = value }));
+        using var provider = services.BuildServiceProvider();
+
+        var ex = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<IOptions<StatFlagOptions>>().Value);
+
+        Assert.That(ex!.Message, Does.Contain($"{setting} must be positive"));
+    }
+
     [Test]
     public void AddValidatedStatFlagOptions_TheDefaults_ResolveWithoutThrowing()
     {

@@ -8,5 +8,5 @@
  * Application's StatFlagService - not spread through the checks. Left for later: how a game compares to a player's
  * own history, duplicate-game detection, and roster-membership checks (the issue's other candidate rules).
  */
-export type StatFlagRule = 'ScoreDoesNotMatchGoals' | 'WinnerDoesNotMatchScores' | 'TeamSmallerThanFormat' | 'DateOutsideSeason' | 'NegativeStat' | 'ImpossibleAccuracy' | 'UndecodedCustomScore' | 'SeriesDoesNotMatchGames';
+export type StatFlagRule = 'ScoreDoesNotMatchGoals' | 'WinnerDoesNotMatchScores' | 'TeamSmallerThanFormat' | 'DateOutsideSeason' | 'NegativeStat' | 'ImpossibleAccuracy' | 'UndecodedCustomScore' | 'SeriesDoesNotMatchGames' | 'KillsDoNotMatchDeaths' | 'DateOutsideMatchWeek' | 'StatsExceedGameLength';
 

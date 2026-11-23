@@ -40,6 +40,9 @@ export class StatFlagsComponent implements OnInit {
       case 'ImpossibleAccuracy': return 'Impossible accuracy or shots';
       case 'UndecodedCustomScore': return 'Undecoded custom score';
       case 'SeriesDoesNotMatchGames': return "Series doesn't match its games";
+      case 'KillsDoNotMatchDeaths': return "Kills don't match deaths";
+      case 'DateOutsideMatchWeek': return "Date outside the match's week";
+      case 'StatsExceedGameLength': return "Stats beyond the game's length";
       default: return rule;
     }
   }
