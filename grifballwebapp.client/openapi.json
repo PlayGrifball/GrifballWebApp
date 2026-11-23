@@ -16318,7 +16318,6 @@
           "gameVersionName",
           "gameVersionSlug",
           "hasEnded",
-          "historicalSourceLinks",
           "historicalSourceUrl",
           "isHistorical",
           "isPublic",
@@ -16397,10 +16396,11 @@
           },
           "historicalSourceLinks": {
             "type": "array",
+            "nullable": true,
             "items": {
               "$ref": "#/components/schemas/SeasonSourceLink"
             },
-            "description": "The source spreadsheets of an imported season, each with its label."
+            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it)."
           },
           "historicalSourceUrl": {
             "type": "string",
@@ -16502,6 +16502,14 @@
           "isHistorical": {
             "type": "boolean",
             "description": "Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet."
+          },
+          "historicalSourceLinks": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/SeasonSourceLink"
+            },
+            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it)."
           },
           "historicalSourceUrl": {
             "type": "string",
@@ -17102,7 +17110,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "A source spreadsheet of an imported season."
+        "description": "One spreadsheet of the historical archive that feeds a season: its link and a name for it."
       },
       "SeasonSummaryDto": {
         "required": [
@@ -17195,6 +17203,14 @@
           "isHistorical": {
             "type": "boolean",
             "description": "Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet."
+          },
+          "historicalSourceLinks": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/SeasonSourceLink"
+            },
+            "description": "Every spreadsheet that feeds the imported season, the primary first (null until an import sets it)."
           },
           "historicalSourceUrl": {
             "type": "string",

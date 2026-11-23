@@ -4685,8 +4685,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .UseCollation("NOCASE");
 
                     b.Property<string>("HistoricalSourceLinks")
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("NULL");
 
                     b.Property<string>("HistoricalSourceUrl")
                         .HasMaxLength(500)

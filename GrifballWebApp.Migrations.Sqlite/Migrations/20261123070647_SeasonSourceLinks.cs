@@ -29,7 +29,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 table: "Seasons",
                 type: "TEXT",
                 maxLength: 4000,
-                nullable: true);
+                nullable: true,
+                defaultValueSql: "NULL");
 
             migrationBuilder.Sql("""
                 CREATE TRIGGER "Seasons_History_Update" AFTER UPDATE ON "Seasons" FOR EACH ROW BEGIN

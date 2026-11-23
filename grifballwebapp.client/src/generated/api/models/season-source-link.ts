@@ -3,7 +3,7 @@
 
 
 /**
- * A source spreadsheet of an imported season.
+ * One spreadsheet of the historical archive that feeds a season: its link and a name for it.
  */
 export interface SeasonSourceLink {
   label: string;

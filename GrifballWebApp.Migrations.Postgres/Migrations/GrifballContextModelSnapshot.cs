@@ -4559,8 +4559,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("case_insensitive");
 
                     b.Property<string>("HistoricalSourceLinks")
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
+                        .HasColumnType("character varying(4000)")
+                        .HasDefaultValueSql("NULL");
 
                     b.Property<string>("HistoricalSourceUrl")
                         .HasMaxLength(500)

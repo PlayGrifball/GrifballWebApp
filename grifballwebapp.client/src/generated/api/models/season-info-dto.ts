@@ -32,9 +32,9 @@ export interface SeasonInfoDto {
   hasEnded: boolean;
 
   /**
-   * The source spreadsheets of an imported season, each with its label.
+   * Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).
    */
-  historicalSourceLinks: Array<SeasonSourceLink>;
+  historicalSourceLinks?: Array<SeasonSourceLink> | null;
   historicalSourceUrl: string | null;
 
   /**

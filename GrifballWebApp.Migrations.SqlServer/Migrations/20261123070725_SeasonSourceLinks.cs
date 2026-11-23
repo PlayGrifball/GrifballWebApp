@@ -16,7 +16,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 table: "Seasons",
                 type: "nvarchar(4000)",
                 maxLength: 4000,
-                nullable: true);
+                nullable: true,
+                defaultValueSql: "NULL");
         }
 
         /// <inheritdoc />

@@ -24,7 +24,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Seasons",
                 type: "character varying(4000)",
                 maxLength: 4000,
-                nullable: true);
+                nullable: true,
+                defaultValueSql: "NULL");
 
             migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Event\".\"Seasons\"');");
         }

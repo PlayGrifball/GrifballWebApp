@@ -3,6 +3,7 @@
 
 import { SeasonChampionDto } from '../models/season-champion-dto';
 import { SeasonFormat } from '../models/season-format';
+import { SeasonSourceLink } from '../models/season-source-link';
 
 /**
  * A season in the season list: every season that has started, imported or played in the app alike.
@@ -28,6 +29,11 @@ export interface SeasonListItemDto {
    * The season is over: a section with nothing to show says it wasn't recorded.
    */
   hasEnded: boolean;
+
+  /**
+   * Every spreadsheet that feeds the imported season, the primary first (null until an import sets it).
+   */
+  historicalSourceLinks?: Array<SeasonSourceLink> | null;
   historicalSourceUrl: string | null;
 
   /**

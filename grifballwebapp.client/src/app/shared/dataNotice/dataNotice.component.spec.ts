@@ -67,7 +67,7 @@ describe('BackfilledBannerComponent', () => {
     fixture.componentRef.setInput('sources', [{ url: 'https://docs.google.com/spreadsheets/d/a', label: 'Stats' }]);
     fixture.detectChanges();
     const links = el().querySelectorAll('a');
-    expect(links.length).toBe(1);
+    expect(links).toHaveSize(1);
     expect(links[0].textContent).toContain('Source spreadsheet');
   });
 });

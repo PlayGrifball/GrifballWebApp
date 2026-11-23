@@ -33,16 +33,18 @@ public partial class SeasonConfiguration : IEntityTypeConfiguration<Season>
         entity.Property(e => e.Division).HasMaxLength(50);
         entity.Property(e => e.HistoricalSourceID).HasMaxLength(100);
         entity.Property(e => e.HistoricalSourceUrl).HasMaxLength(500);
-        // Stored as one JSON text column (a list of links, never queried by its parts), so history keeps it like any column
+        // One JSON text column (a list of links, never queried by its parts), so history keeps it like any column. Left out of
+        // an INSERT while null (a store default), so a database from before the column still takes a season
         entity.Property(e => e.HistoricalSourceLinks)
             .HasMaxLength(4000)
+            .HasDefaultValueSql("NULL")
             .HasConversion(
-                v => v.Count == 0 ? null : JsonSerializer.Serialize(v, SourceLinksJson),
-                v => string.IsNullOrEmpty(v) ? new List<SeasonSourceLink>() : (JsonSerializer.Deserialize<List<SeasonSourceLink>>(v, SourceLinksJson) ?? new List<SeasonSourceLink>()),
+                v => JsonSerializer.Serialize(v, SourceLinksJson),
+                v => JsonSerializer.Deserialize<List<SeasonSourceLink>>(v, SourceLinksJson)!,
                 new ValueComparer<IReadOnlyList<SeasonSourceLink>>(
-                    (a, b) => a != null && b != null && a.SequenceEqual(b),
-                    v => v.Aggregate(0, (h, l) => HashCode.Combine(h, l)),
-                    v => v.ToList()));
+                    (a, b) => a == null ? b == null : b != null && a.SequenceEqual(b),
+                    v => v == null ? 0 : v.Aggregate(0, (h, l) => HashCode.Combine(h, l)),
+                    v => v == null ? null! : v.ToList()));
         // Existing seasons are league seasons: a default, not an UPDATE of the temporal table
         entity.Property(e => e.Format).HasDefaultValue(SeasonFormat.LeagueSeason);
 

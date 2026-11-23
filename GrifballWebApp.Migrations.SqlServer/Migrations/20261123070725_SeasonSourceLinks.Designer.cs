@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261123052509_SeasonSourceLinks")]
+    [Migration("20261123070725_SeasonSourceLinks")]
     partial class SeasonSourceLinks
     {
         /// <inheritdoc />
@@ -2657,8 +2657,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("HistoricalSourceLinks")
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
+                        .HasColumnType("nvarchar(4000)")
+                        .HasDefaultValueSql("NULL");
 
                     b.Property<string>("HistoricalSourceUrl")
                         .HasMaxLength(500)
