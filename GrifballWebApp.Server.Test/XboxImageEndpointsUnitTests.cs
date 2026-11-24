@@ -57,7 +57,11 @@ public class XboxImageEndpointsUnitTests : SqliteGrifballContextFixture
 
         var file = (FileContentResult)await Controller().GetGamerPicture(5, new XboxImageService(Db), CancellationToken.None);
 
-        Assert.That((file.LastModified, file.EntityTag), Has.None.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(file.LastModified, Is.Not.Null);
+            Assert.That(file.EntityTag, Is.Not.Null);
+        }
     }
 
     [Test]
