@@ -225,8 +225,11 @@ public class ArchiveSeasonTests
         if (!seasons.Any(s => s.SeasonName == "Fall League 2015 Halo 3"))
             Assert.Ignore("Fall League 2015's workbook is not in this copy of the archive");
 
-        Assert.That(seasons.Select(s => s.SeasonName), Is.EquivalentTo(FallLeague2015Seasons), "No third, titles-only season");
-        Assert.That(seasons.Select(s => s.Titles), Has.All.GreaterThan(0), "Each game's champions are on its own season");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons.Select(s => s.SeasonName), Is.EquivalentTo(FallLeague2015Seasons), "No third, titles-only season");
+            Assert.That(seasons.Select(s => s.Titles), Has.All.GreaterThan(0), "Each game's champions are on its own season");
+        }
     }
 
     private static readonly string[] FallLeague2015Seasons = ["Fall League 2015 Halo 3", "Fall League 2015 Halo 4"];
