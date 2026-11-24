@@ -99,6 +99,7 @@ internal sealed class FakeApplicationDbContext :
     public DbSet<GamertagClaim> GamertagClaims { get; set; } = null!;
     public DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; } = null!;
     public DbSet<XuidLookup> XuidLookups { get; set; } = null!;
+    public DbSet<XboxUserImage> XboxUserImages { get; set; } = null!;
     public DbSet<HistoricalSource> HistoricalSources { get; set; } = null!;
     public DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; } = null!;
     public DbSet<UserMerge> UserMerges { get; set; } = null!;
@@ -176,6 +177,7 @@ internal sealed class FakeApplicationDbContext :
             .HasFilter("[Status] IN (1, 2) AND [ClaimantUserID] IS NOT NULL");
         builder.ApplyConfiguration(new HistoricalImportJobConfiguration());
         builder.ApplyConfiguration(new XuidLookupConfiguration());
+        builder.ApplyConfiguration(new XboxUserImageConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceSnapshotConfiguration());
         builder.ApplyConfiguration(new HistoricalImportSettingsConfiguration());

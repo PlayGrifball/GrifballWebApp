@@ -34,6 +34,7 @@ public interface IApplicationDbContext
     DbSet<GamertagClaim> GamertagClaims { get; }
     DbSet<HistoricalImportJob> HistoricalImportJobs { get; }
     DbSet<XuidLookup> XuidLookups { get; }
+    DbSet<XboxUserImage> XboxUserImages { get; }
     DbSet<HistoricalSource> HistoricalSources { get; }
     DbSet<HistoricalImportSettings> HistoricalImportSettings { get; }
     DbSet<UserMerge> UserMerges { get; }

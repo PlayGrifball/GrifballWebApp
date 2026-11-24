@@ -112,6 +112,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<StaffStatFlagService>();
         services.AddTransient<MatchDetailsService>();
         services.AddTransient<XboxAccounts.XboxAccountService>();
+        services.AddTransient<XboxAccounts.XboxImageService>();
         // The saved games, as /matches shows them and the agents' get_recent_games gives them
         services.AddTransient<Tools.HaloTools>();
         services.AddTransient<TeamStandingsService>();

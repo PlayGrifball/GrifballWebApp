@@ -45,6 +45,7 @@ public class GrifballContext :
     public virtual DbSet<GamertagClaim> GamertagClaims { get; set; }
     public virtual DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; }
     public virtual DbSet<XuidLookup> XuidLookups { get; set; }
+    public virtual DbSet<XboxUserImage> XboxUserImages { get; set; }
     public virtual DbSet<HistoricalSource> HistoricalSources { get; set; }
     public virtual DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; }
     public virtual DbSet<UserMerge> UserMerges { get; set; }
@@ -158,6 +159,7 @@ public class GrifballContext :
             .HasFilter(Database.IsNpgsql() ? "\"Status\" IN (1, 2) AND \"ClaimantUserID\" IS NOT NULL" : "[Status] IN (1, 2) AND [ClaimantUserID] IS NOT NULL");
         builder.ApplyConfiguration(new HistoricalImportJobConfiguration());
         builder.ApplyConfiguration(new XuidLookupConfiguration());
+        builder.ApplyConfiguration(new XboxUserImageConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceSnapshotConfiguration());
         builder.ApplyConfiguration(new HistoricalImportSettingsConfiguration());

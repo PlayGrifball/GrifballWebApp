@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.XboxAccounts;
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure.Jobs;
 
 namespace GrifballWebApp.Server.XboxAccounts;
@@ -50,5 +51,29 @@ public class XboxAccountsController : ControllerBase
         if (!await _accounts.Exists(xboxUserID, ct))
             return this.NotFoundProblem("The site has no such Xbox account");
         return Accepted(await pulls.Queue(xboxUserID, JobUser.IdOf(User), ct));
+    }
+
+    /// <summary>The account's gamer picture, as the site stored it; 404 when none is stored yet.</summary>
+    // An image for <img src>, so not in the OpenAPI document (no generated client call)
+    [ApiExplorerSettings(IgnoreApi = true)]
+    [AllowAnonymous]
+    [HttpGet("xbox-accounts/{xboxUserID:long}/gamer-picture")]
+    public Task<IActionResult> GetGamerPicture([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
+        => Image(images, xboxUserID, XboxUserImageKind.GamerPicture, ct);
+
+    /// <summary>The account's Halo Infinite emblem, as the site stored it; 404 when none is stored yet.</summary>
+    [ApiExplorerSettings(IgnoreApi = true)]
+    [AllowAnonymous]
+    [HttpGet("xbox-accounts/{xboxUserID:long}/halo-emblem")]
+    public Task<IActionResult> GetHaloEmblem([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
+        => Image(images, xboxUserID, XboxUserImageKind.HaloEmblem, ct);
+
+    private async Task<IActionResult> Image(XboxImageService images, long xboxUserID, XboxUserImageKind kind, CancellationToken ct)
+    {
+        if (await images.GetAsync(xboxUserID, kind, ct) is not { } image)
+            return NotFound();
+        // A day: a picture or an emblem changes rarely, and the job checks again every couple of weeks
+        Response.Headers.CacheControl = "public, max-age=86400";
+        return File(image.Content, image.ContentType);
     }
 }

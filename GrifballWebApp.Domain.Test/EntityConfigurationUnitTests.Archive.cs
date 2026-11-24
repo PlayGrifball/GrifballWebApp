@@ -1,5 +1,6 @@
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -159,6 +160,22 @@ public partial class EntityConfigurationUnitTests
             Assert.That(DeleteOf(ForeignKeyOf(entity, nameof(HistoricalSourceSnapshot.Source))), Is.EqualTo(DeleteBehavior.Cascade));
             Assert.That(IndexIsUnique(entity, nameof(HistoricalSourceSnapshot.HistoricalSourceID), nameof(HistoricalSourceSnapshot.FetchedAt)), Is.False,
                 "A source's snapshots, latest first");
+        }
+    }
+
+    [Test]
+    public void XboxUserImageConfiguration_KeysLengthsAndNoHistory()
+    {
+        var image = Configured(new XboxUserImageConfiguration());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TableOf(image), Is.EqualTo(("Xbox", "XboxUserImages")));
+            Assert.That(image.IsTemporal(), Is.False, "Whole images rewritten would only grow a history");
+            Assert.That(KeyOf(image), Is.EqualTo(new List<string> { nameof(XboxUserImage.XboxUserID), nameof(XboxUserImage.Kind) }), "One image of each kind an account");
+            Assert.That((MaxLengthOf(image, nameof(XboxUserImage.Source)), MaxLengthOf(image, nameof(XboxUserImage.ContentType)), MaxLengthOf(image, nameof(XboxUserImage.Error))), Is.EqualTo((500, 100, 200)));
+            var byAccount = ForeignKeyOf(image, nameof(XboxUserImage.XboxUser));
+            Assert.That((ColumnsOf(byAccount), DeleteOf(byAccount)), Is.EqualTo((new List<string> { nameof(XboxUserImage.XboxUserID) }, (DeleteBehavior?)DeleteBehavior.Cascade)));
         }
     }
 
