@@ -10,6 +10,18 @@ import { BaseService } from '../base-service';
 import { ApiConfiguration } from '../api-configuration';
 import { StrictHttpResponse } from '../strict-http-response';
 
+import { getUserGamerPicture$Jpeg } from '../fn/xbox-accounts/get-user-gamer-picture-jpeg';
+import { GetUserGamerPicture$Jpeg$Params } from '../fn/xbox-accounts/get-user-gamer-picture-jpeg';
+import { getUserGamerPicture$Png } from '../fn/xbox-accounts/get-user-gamer-picture-png';
+import { GetUserGamerPicture$Png$Params } from '../fn/xbox-accounts/get-user-gamer-picture-png';
+import { getUserGamerPicture$Webp } from '../fn/xbox-accounts/get-user-gamer-picture-webp';
+import { GetUserGamerPicture$Webp$Params } from '../fn/xbox-accounts/get-user-gamer-picture-webp';
+import { getUserHaloEmblem$Jpeg } from '../fn/xbox-accounts/get-user-halo-emblem-jpeg';
+import { GetUserHaloEmblem$Jpeg$Params } from '../fn/xbox-accounts/get-user-halo-emblem-jpeg';
+import { getUserHaloEmblem$Png } from '../fn/xbox-accounts/get-user-halo-emblem-png';
+import { GetUserHaloEmblem$Png$Params } from '../fn/xbox-accounts/get-user-halo-emblem-png';
+import { getUserHaloEmblem$Webp } from '../fn/xbox-accounts/get-user-halo-emblem-webp';
+import { GetUserHaloEmblem$Webp$Params } from '../fn/xbox-accounts/get-user-halo-emblem-webp';
 import { getXboxAccount } from '../fn/xbox-accounts/get-xbox-account';
 import { GetXboxAccount$Params } from '../fn/xbox-accounts/get-xbox-account';
 import { getXboxAccountGamerPicture$Jpeg } from '../fn/xbox-accounts/get-xbox-account-gamer-picture-jpeg';
@@ -335,6 +347,204 @@ export class XboxAccountsService extends BaseService {
    */
   getXboxAccountHaloEmblem$Webp(params: GetXboxAccountHaloEmblem$Webp$Params, context?: HttpContext): Observable<Blob> {
     const resp = this.getXboxAccountHaloEmblem$Webp$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
+    );
+  }
+
+  /** Path part for operation `getUserGamerPicture()` */
+  static readonly GetUserGamerPicturePath = '/users/{userID}/gamer-picture';
+
+  /**
+   * The gamer picture of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserGamerPicture$Png()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserGamerPicture$Png$Response(params: GetUserGamerPicture$Png$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+    const obs = getUserGamerPicture$Png(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The gamer picture of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserGamerPicture$Png$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserGamerPicture$Png(params: GetUserGamerPicture$Png$Params, context?: HttpContext): Observable<Blob> {
+    const resp = this.getUserGamerPicture$Png$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
+    );
+  }
+
+  /**
+   * The gamer picture of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserGamerPicture$Jpeg()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserGamerPicture$Jpeg$Response(params: GetUserGamerPicture$Jpeg$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+    const obs = getUserGamerPicture$Jpeg(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The gamer picture of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserGamerPicture$Jpeg$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserGamerPicture$Jpeg(params: GetUserGamerPicture$Jpeg$Params, context?: HttpContext): Observable<Blob> {
+    const resp = this.getUserGamerPicture$Jpeg$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
+    );
+  }
+
+  /**
+   * The gamer picture of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserGamerPicture$Webp()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserGamerPicture$Webp$Response(params: GetUserGamerPicture$Webp$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+    const obs = getUserGamerPicture$Webp(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The gamer picture of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserGamerPicture$Webp$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserGamerPicture$Webp(params: GetUserGamerPicture$Webp$Params, context?: HttpContext): Observable<Blob> {
+    const resp = this.getUserGamerPicture$Webp$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
+    );
+  }
+
+  /** Path part for operation `getUserHaloEmblem()` */
+  static readonly GetUserHaloEmblemPath = '/users/{userID}/halo-emblem';
+
+  /**
+   * The Halo Infinite emblem of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserHaloEmblem$Png()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserHaloEmblem$Png$Response(params: GetUserHaloEmblem$Png$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+    const obs = getUserHaloEmblem$Png(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The Halo Infinite emblem of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserHaloEmblem$Png$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserHaloEmblem$Png(params: GetUserHaloEmblem$Png$Params, context?: HttpContext): Observable<Blob> {
+    const resp = this.getUserHaloEmblem$Png$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
+    );
+  }
+
+  /**
+   * The Halo Infinite emblem of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserHaloEmblem$Jpeg()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserHaloEmblem$Jpeg$Response(params: GetUserHaloEmblem$Jpeg$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+    const obs = getUserHaloEmblem$Jpeg(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The Halo Infinite emblem of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserHaloEmblem$Jpeg$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserHaloEmblem$Jpeg(params: GetUserHaloEmblem$Jpeg$Params, context?: HttpContext): Observable<Blob> {
+    const resp = this.getUserHaloEmblem$Jpeg$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
+    );
+  }
+
+  /**
+   * The Halo Infinite emblem of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserHaloEmblem$Webp()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserHaloEmblem$Webp$Response(params: GetUserHaloEmblem$Webp$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+    const obs = getUserHaloEmblem$Webp(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The Halo Infinite emblem of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserHaloEmblem$Webp$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserHaloEmblem$Webp(params: GetUserHaloEmblem$Webp$Params, context?: HttpContext): Observable<Blob> {
+    const resp = this.getUserHaloEmblem$Webp$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<Blob>): Blob => r.body)
     );

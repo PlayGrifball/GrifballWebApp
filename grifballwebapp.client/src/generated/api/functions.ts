@@ -407,3 +407,15 @@ export type { GetXboxAccountHaloEmblem$Jpeg$Params as GetXboxAccountHaloEmblem$J
 export { getXboxAccountHaloEmblem$Jpeg as getXboxAccountHaloEmblem$Jpeg } from './fn/xbox-accounts/get-xbox-account-halo-emblem-jpeg';
 export type { GetXboxAccountHaloEmblem$Webp$Params as GetXboxAccountHaloEmblem$Webp$Params } from './fn/xbox-accounts/get-xbox-account-halo-emblem-webp';
 export { getXboxAccountHaloEmblem$Webp as getXboxAccountHaloEmblem$Webp } from './fn/xbox-accounts/get-xbox-account-halo-emblem-webp';
+export type { GetUserGamerPicture$Png$Params as GetUserGamerPicture$Png$Params } from './fn/xbox-accounts/get-user-gamer-picture-png';
+export { getUserGamerPicture$Png as getUserGamerPicture$Png } from './fn/xbox-accounts/get-user-gamer-picture-png';
+export type { GetUserGamerPicture$Jpeg$Params as GetUserGamerPicture$Jpeg$Params } from './fn/xbox-accounts/get-user-gamer-picture-jpeg';
+export { getUserGamerPicture$Jpeg as getUserGamerPicture$Jpeg } from './fn/xbox-accounts/get-user-gamer-picture-jpeg';
+export type { GetUserGamerPicture$Webp$Params as GetUserGamerPicture$Webp$Params } from './fn/xbox-accounts/get-user-gamer-picture-webp';
+export { getUserGamerPicture$Webp as getUserGamerPicture$Webp } from './fn/xbox-accounts/get-user-gamer-picture-webp';
+export type { GetUserHaloEmblem$Png$Params as GetUserHaloEmblem$Png$Params } from './fn/xbox-accounts/get-user-halo-emblem-png';
+export { getUserHaloEmblem$Png as getUserHaloEmblem$Png } from './fn/xbox-accounts/get-user-halo-emblem-png';
+export type { GetUserHaloEmblem$Jpeg$Params as GetUserHaloEmblem$Jpeg$Params } from './fn/xbox-accounts/get-user-halo-emblem-jpeg';
+export { getUserHaloEmblem$Jpeg as getUserHaloEmblem$Jpeg } from './fn/xbox-accounts/get-user-halo-emblem-jpeg';
+export type { GetUserHaloEmblem$Webp$Params as GetUserHaloEmblem$Webp$Params } from './fn/xbox-accounts/get-user-halo-emblem-webp';
+export { getUserHaloEmblem$Webp as getUserHaloEmblem$Webp } from './fn/xbox-accounts/get-user-halo-emblem-webp';
