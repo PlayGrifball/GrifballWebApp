@@ -53,6 +53,12 @@ public interface IXboxImageDownloader
 
 public sealed class XboxImageDownloader(HttpClient http) : IXboxImageDownloader
 {
+    public static void Configure(HttpClient client)
+    {
+        client.Timeout = TimeSpan.FromSeconds(30);
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (gamer pictures)");
+    }
+
     public async Task<DownloadedImage> DownloadAsync(string url, CancellationToken ct)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)

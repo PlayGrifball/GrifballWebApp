@@ -142,11 +142,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHostedService<XuidLookupWorker>();
         // The gamer pictures and Halo emblems kept for every Xbox account (XboxImageSource, run by the two jobs below)
         services.AddOptions<XboxImagesOptions>().Bind(configuration.GetSection("XboxImages"));
-        services.AddHttpClient<IXboxImageDownloader, XboxImageDownloader>(client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (gamer pictures)");
-        });
+        services.AddHttpClient<IXboxImageDownloader, XboxImageDownloader>(XboxImageDownloader.Configure);
         services.AddTransient<XboxImageSource>();
         // A season match's pull from Halo, queued from its page and the agents' tools
         services.AddTransient<ISeasonMatchPulls, SeasonMatchPulls>();

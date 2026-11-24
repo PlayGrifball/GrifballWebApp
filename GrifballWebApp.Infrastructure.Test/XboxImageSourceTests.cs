@@ -377,6 +377,86 @@ public class XboxImageSourceTests : SqliteContextFixture
         Assert.That((failure!.Message, await Context.XboxUserImages.AnyAsync()), Is.EqualTo(("The emblem mapping isn't available: Halo answered 503", false)));
     }
 
+    [Test]
+    public async Task GamerPictures_AHaloCallThatThrows_FailsItsAccounts_WithTheMessage()
+    {
+        await AddAccountsAsync(1);
+        _halo.Users(Arg.Any<IEnumerable<string>>()).Returns<HaloApiResultContainer<List<GrunUser>, HaloApiErrorContainer>>(_ => throw new HttpRequestException("gateway down"));
+
+        var report = await Source().RunGamerPicturesAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.GamerPicture);
+        Assert.That((report.Failed, row.Error), Is.EqualTo((1, "gateway down")));
+    }
+
+    [Test]
+    public async Task Emblems_AnAppearanceCallThatThrows_OrAnErrorBesides404_IsFailed()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenMapping();
+        _halo.EconomyPlayerAppearanceCustomization("xuid(1)").Returns<HaloApiResultContainer<AppearanceCustomization, HaloApiErrorContainer>>(_ => throw new HttpRequestException("gateway down"));
+        _halo.EconomyPlayerAppearanceCustomization("xuid(2)").Returns(Error<AppearanceCustomization>(500));
+
+        var report = await Source().RunEmblemsAsync();
+
+        var first = await RowAsync(1, XboxUserImageKind.HaloEmblem);
+        var second = await RowAsync(2, XboxUserImageKind.HaloEmblem);
+        Assert.That((report.Failed, first.Error, second.Error), Is.EqualTo((2, "gateway down", "Halo answered 500")));
+    }
+
+    [Test]
+    public async Task Emblems_TheMappingThrottled_StopsTheRun_BeforeAnyAccount()
+    {
+        await AddAccountsAsync(1);
+        _halo.GameCmsGetEmblemMapping().Returns(Error<Dictionary<string, Dictionary<string, EmblemImageAssets>>>(429, TimeSpan.FromSeconds(45)));
+
+        var report = await Source().RunEmblemsAsync();
+
+        Assert.That(report.ThrottledFor, Is.EqualTo(TimeSpan.FromSeconds(45)));
+        await _halo.DidNotReceiveWithAnyArgs().EconomyPlayerAppearanceCustomization(default!);
+    }
+
+    [Test]
+    public async Task Emblems_TheImageNotAnswered_IsFailed_WithWhatHaloSaid()
+    {
+        await AddAccountsAsync(1);
+        GivenMapping();
+        GivenEmblem(1, "/inventory/armor/emblems/013-001-aaaa.json");
+        _halo.GameCmsWaypointGetImage(Arg.Any<string>()).Returns(Error<byte[]>(502));
+
+        await Source().RunEmblemsAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.HaloEmblem);
+        Assert.That((row.Status, row.Error), Is.EqualTo((XboxUserImageStatus.Failed, "The emblem image: Halo answered 502")));
+    }
+
+    [Test]
+    public async Task Emblems_TheSameEmblemOnTheNextCheck_IsKept_WithoutDownloading()
+    {
+        await AddAccountsAsync(1);
+        GivenMapping();
+        GivenEmblem(1, "/inventory/armor/emblems/013-001-aaaa.json");
+        _halo.GameCmsWaypointGetImage("images/emblems/a7.png").Returns(Ok(Png));
+        var source = Source();
+        await source.RunEmblemsAsync();
+        _time.Advance(TimeSpan.FromDays(15));
+
+        var report = await source.RunEmblemsAsync();
+
+        Assert.That((report.Unchanged, report.Stored), Is.EqualTo((1, 0)));
+        await _halo.Received(1).GameCmsWaypointGetImage(Arg.Any<string>());
+    }
+
+    [Test]
+    public void TheDownloaderClient_HasATimeout_AndAUserAgent()
+    {
+        using var client = new HttpClient();
+
+        XboxImageDownloader.Configure(client);
+
+        Assert.That((client.Timeout, client.DefaultRequestHeaders.UserAgent.ToString()), Is.EqualTo((TimeSpan.FromSeconds(30), "GrifballWebApp/1.0 (gamer pictures)")));
+    }
+
     // ---- pure helpers ----
 
     [Test]
@@ -482,6 +562,28 @@ public class XboxImageDownloaderTests
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => Downloader(new Handler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.NotFound))).DownloadAsync("https://x/p", default));
 
         Assert.That(failure!.Message, Is.EqualTo("The picture's address answered 404"));
+    }
+
+    private sealed class UnsizedContent(byte[] bytes) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context) => stream.WriteAsync(bytes).AsTask();
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
+
+    [Test]
+    public async Task DownloadAsync_TooLargeWithoutALength_IsRefusedWhileReading()
+    {
+        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new UnsizedContent(new byte[XboxUserImage.MaxContentBytes + 1]) };
+        response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => Downloader(new Handler(_ => response)).DownloadAsync("https://x/p", default));
+
+        Assert.That(failure!.Message, Is.EqualTo("The picture is too large"));
     }
 
     [Test]
