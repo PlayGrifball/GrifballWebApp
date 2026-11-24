@@ -292,4 +292,14 @@ public class HistoricalArchiveResultsTests
             ((string?)"Murder Incorporated", (string?)"Junkyard Dogs"), ("Junkyard Dogs", "Murder Incorporated"),
         }));
     }
+
+    [Test]
+    public void FallLeague2020_PcStatsAndItsExtraStatsSheet_AreHalo3_AndTheChampionsRecordsOpenTitlesGoToThePcSeason()
+    {
+        var pc = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "2020-fl20-pc-schedule-stats");
+        var extra = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "2020-fl20-extra-stats");
+
+        Assert.That((pc.Config!.Season!.Name, pc.Config.Season.Titles, pc.Config.Season.Game, pc.GameVersion, extra.GameVersion),
+            Is.EqualTo(("Fall League 2020 (PC)", "Fall League 2020 (Open)", "halo3", "halo3", "halo3")));
+    }
 }
