@@ -75,6 +75,7 @@ public class XboxAccountsController : ControllerBase
             return NotFound();
         // A day: a picture or an emblem changes rarely, and the job checks again every couple of weeks
         Response.Headers.CacheControl = "public, max-age=86400";
-        return File(image.Content, image.ContentType, new DateTimeOffset(DateTime.SpecifyKind(image.CheckedAt, DateTimeKind.Utc)), null);
+                var checkedAt = DateTime.SpecifyKind(image.CheckedAt, DateTimeKind.Utc);
+        return File(image.Content, image.ContentType, new DateTimeOffset(checkedAt), new Microsoft.Net.Http.Headers.EntityTagHeaderValue($"\"{checkedAt.Ticks}\""));
     }
 }
