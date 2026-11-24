@@ -480,10 +480,11 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// <summary>A partial run: only the seasons asked for (by any of their entries' keys).</summary>
     private static void NarrowTo(HistoricalImportRunOptions options, Dictionary<string, SeasonGroup> groups)
     {
-        if (options.Seasons is { } only)
+        if (options.Seasons is not { } only)
+            return;
+        foreach (var (key, group) in groups.ToList())
         {
-            foreach (var key in groups.Where(g => !EntryKeys(g.Value).Prepend(g.Value.SourceId).Any(only.Contains))
-                .Select(g => g.Key).ToList())
+            if (!EntryKeys(group).Prepend(group.SourceId).Any(id => only.Contains(id)))
                 groups.Remove(key);
         }
     }
