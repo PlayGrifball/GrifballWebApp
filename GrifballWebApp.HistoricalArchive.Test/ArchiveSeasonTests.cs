@@ -240,7 +240,7 @@ public class ArchiveSeasonTests
     public async Task SummerLeague2018_TheStatsAndTheScheduleTabsAreOneSeason()
     {
         await using var context = Archive.NewContext();
-        var seasons = await context.Seasons.AsNoTracking().Where(s => s.SeasonName.StartsWith("Summer League 2018") && s.League.Slug == "agla")
+        var seasons = await context.Seasons.AsNoTracking().Where(s => (s.SeasonName == "Summer League 2018" || s.SeasonName == "Summer League 2018 (Fantasy Rey)") && s.League.Slug == "agla")
             .Select(s => new
             {
                 s.SeasonName,

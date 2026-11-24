@@ -18,17 +18,20 @@ public partial class HistoricalImportService
     {
         var blocked = new List<string>();
         var archiveKeys = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var (groupKey, group) in groups.Where(g => !g.Value.IsMatchmaking))
+        var candidates = groups.Where(g => !g.Value.IsMatchmaking)
+            .Select(g => (g.Key, Group: g.Value, Keys: g.Value.Entries.Select(EntrySourceId).OfType<string>()
+                .Where(k => !archiveKeys.Contains(k)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()))
+            .Where(c => c.Keys.Count > 0).ToList();
+        if (candidates.Count == 0)
+            return blocked;
+        var allKeys = candidates.SelectMany(c => c.Keys).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var imported = await _context.Seasons.AsNoTracking()
+            .Where(Season.ImportedFromArchive).Where(s => allKeys.Contains(s.HistoricalSourceID))
+            .Select(s => new { s.SeasonID, s.HistoricalSourceID, s.SeasonName })
+            .ToListAsync(ct);
+        foreach (var (groupKey, group, keys) in candidates)
         {
-            var keys = group.Entries.Select(EntrySourceId).OfType<string>()
-                .Where(k => !archiveKeys.Contains(k))
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            if (keys.Count == 0)
-                continue;
-            var leftovers = await _context.Seasons.AsNoTracking()
-                .Where(Season.ImportedFromArchive).Where(s => keys.Contains(s.HistoricalSourceID))
-                .Select(s => new { s.SeasonID, s.HistoricalSourceID, s.SeasonName })
-                .ToListAsync(ct);
+            var leftovers = imported.Where(s => keys.Contains(s.HistoricalSourceID, StringComparer.OrdinalIgnoreCase)).ToList();
             var allGone = true;
             foreach (var season in leftovers)
                 allGone &= await RetireSupersededSeason(season.SeasonID, season.HistoricalSourceID, season.SeasonName, group.SeasonName, report, options, ct);
