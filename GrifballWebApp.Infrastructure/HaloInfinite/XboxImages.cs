@@ -376,11 +376,11 @@ public class XboxImageSource
     private async Task<bool> EmblemAsync(long xuid, Dictionary<string, Dictionary<string, Surprenant.Grunt.Models.HaloInfinite.EmblemImageAssets>> mapping,
         Dictionary<string, DownloadedImage?> downloaded, XboxImagesReport report, CancellationToken ct)
     {
-        HaloApiResultContainer<Surprenant.Grunt.Models.HaloInfinite.AppearanceCustomization, HaloApiErrorContainer> response;
+        HaloApiResultContainer<Surprenant.Grunt.Models.HaloInfinite.CustomizationData, HaloApiErrorContainer> response;
         string? callError = null;
         try
         {
-            response = await _halo.EconomyPlayerAppearanceCustomization($"xuid({xuid})");
+            response = await _halo.EconomyPlayerPublicCustomization($"xuid({xuid})");
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {

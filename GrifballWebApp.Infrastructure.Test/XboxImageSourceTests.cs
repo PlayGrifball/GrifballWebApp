@@ -243,7 +243,7 @@ public class XboxImageSourceTests : SqliteContextFixture
 
         Assert.That((pictures.Checked, emblems.Checked), Is.EqualTo((0, 0)));
         await _halo.DidNotReceiveWithAnyArgs().Users(default!);
-        await _halo.DidNotReceiveWithAnyArgs().EconomyPlayerAppearanceCustomization(default!);
+        await _halo.DidNotReceiveWithAnyArgs().EconomyPlayerPublicCustomization(default!);
     }
 
     // ---- emblems ----
@@ -256,7 +256,7 @@ public class XboxImageSourceTests : SqliteContextFixture
     private void GivenMapping() => _halo.GameCmsGetEmblemMapping().Returns(Ok(Mapping()));
 
     private void GivenEmblem(long xuid, string? path, int configuration = 7)
-        => _halo.EconomyPlayerAppearanceCustomization($"xuid({xuid})").Returns(Ok(new AppearanceCustomization
+        => _halo.EconomyPlayerPublicCustomization($"xuid({xuid})").Returns(Ok(new CustomizationData
         {
             Appearance = new Appearance { Emblem = path is null ? null! : new Emblem { EmblemPath = path, ConfigurationId = configuration } },
         }));
@@ -315,7 +315,7 @@ public class XboxImageSourceTests : SqliteContextFixture
         await AddAccountsAsync(1, 2);
         GivenMapping();
         GivenEmblem(1, null);
-        _halo.EconomyPlayerAppearanceCustomization("xuid(2)").Returns(Error<AppearanceCustomization>(404));
+        _halo.EconomyPlayerPublicCustomization("xuid(2)").Returns(Error<CustomizationData>(404));
 
         var report = await Source().RunEmblemsAsync();
 
@@ -342,7 +342,7 @@ public class XboxImageSourceTests : SqliteContextFixture
         await AddAccountsAsync(1, 2, 3);
         GivenMapping();
         GivenEmblem(1, "/inventory/armor/emblems/013-001-aaaa.json");
-        _halo.EconomyPlayerAppearanceCustomization("xuid(2)").Returns(Error<AppearanceCustomization>(429, TimeSpan.FromSeconds(30)));
+        _halo.EconomyPlayerPublicCustomization("xuid(2)").Returns(Error<CustomizationData>(429, TimeSpan.FromSeconds(30)));
         _halo.GameCmsWaypointGetImage(Arg.Any<string>()).Returns(Ok(Png));
 
         var report = await Source().RunEmblemsAsync();
@@ -353,7 +353,7 @@ public class XboxImageSourceTests : SqliteContextFixture
             Assert.That(report.ThrottledFor, Is.EqualTo(TimeSpan.FromSeconds(30)));
             Assert.That(await Context.XboxUserImages.Select(i => i.XboxUserID).ToListAsync(), Is.EqualTo(new long[] { 1 }), "account 1 kept; 2 and 3 still due");
         }
-        await _halo.DidNotReceive().EconomyPlayerAppearanceCustomization("xuid(3)");
+        await _halo.DidNotReceive().EconomyPlayerPublicCustomization("xuid(3)");
     }
 
     [Test]
@@ -394,8 +394,8 @@ public class XboxImageSourceTests : SqliteContextFixture
     {
         await AddAccountsAsync(1, 2);
         GivenMapping();
-        _halo.EconomyPlayerAppearanceCustomization("xuid(1)").Returns<HaloApiResultContainer<AppearanceCustomization, HaloApiErrorContainer>>(_ => throw new HttpRequestException("gateway down"));
-        _halo.EconomyPlayerAppearanceCustomization("xuid(2)").Returns(Error<AppearanceCustomization>(500));
+        _halo.EconomyPlayerPublicCustomization("xuid(1)").Returns<HaloApiResultContainer<CustomizationData, HaloApiErrorContainer>>(_ => throw new HttpRequestException("gateway down"));
+        _halo.EconomyPlayerPublicCustomization("xuid(2)").Returns(Error<CustomizationData>(500));
 
         var report = await Source().RunEmblemsAsync();
 
@@ -413,7 +413,7 @@ public class XboxImageSourceTests : SqliteContextFixture
         var report = await Source().RunEmblemsAsync();
 
         Assert.That(report.ThrottledFor, Is.EqualTo(TimeSpan.FromSeconds(45)));
-        await _halo.DidNotReceiveWithAnyArgs().EconomyPlayerAppearanceCustomization(default!);
+        await _halo.DidNotReceiveWithAnyArgs().EconomyPlayerPublicCustomization(default!);
     }
 
     [Test]
@@ -502,7 +502,7 @@ public class XboxImageSourceTests : SqliteContextFixture
         {
             ["013-001-aaaa"] = new() { ["7"] = new EmblemImageAssets { EmblemCmsPath = " " } },
         }));
-        _halo.EconomyPlayerAppearanceCustomization("xuid(1)").Returns(Ok(new AppearanceCustomization { Appearance = null! }));
+        _halo.EconomyPlayerPublicCustomization("xuid(1)").Returns(Ok(new CustomizationData { Appearance = null! }));
         GivenEmblem(2, "/inventory/armor/emblems/013-001-aaaa.json");
 
         var report = await Source().RunEmblemsAsync();

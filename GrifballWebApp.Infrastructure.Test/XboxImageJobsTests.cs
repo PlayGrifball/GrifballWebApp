@@ -128,7 +128,7 @@ public class XboxImageJobsTests : SqliteContextFixture
     {
         await AddAccountAsync(1);
         _halo.GameCmsGetEmblemMapping().Returns(new HaloApiResultContainer<Dictionary<string, Dictionary<string, Surprenant.Grunt.Models.HaloInfinite.EmblemImageAssets>>, HaloApiErrorContainer>([], null!));
-        _halo.EconomyPlayerAppearanceCustomization("xuid(1)").Returns(new HaloApiResultContainer<Surprenant.Grunt.Models.HaloInfinite.AppearanceCustomization, HaloApiErrorContainer>(default!, new HaloApiErrorContainer { Code = 404 }));
+        _halo.EconomyPlayerPublicCustomization("xuid(1)").Returns(new HaloApiResultContainer<Surprenant.Grunt.Models.HaloInfinite.CustomizationData, HaloApiErrorContainer>(default!, new HaloApiErrorContainer { Code = 404 }));
 
         var report = await RunAsync(new XboxEmblemJob(Source(), new FakeLogger<XboxEmblemJob>()));
 
