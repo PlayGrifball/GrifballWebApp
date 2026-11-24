@@ -140,6 +140,11 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddTransient<XuidLookupService>();
         services.AddSingleton<XuidLookupSignal>();
         services.AddHostedService<XuidLookupWorker>();
+        // The gamer pictures and Halo emblems kept for every Xbox account (XboxImageSource, run by the two jobs below)
+        services.AddOptions<XboxImagesOptions>().Bind(configuration.GetSection("XboxImages"));
+        services.AddHttpClient<IXboxImageDownloader, XboxImageDownloader>(XboxImageDownloader.Configure);
+        services.AddSingleton<XboxImageThrottle>();
+        services.AddTransient<XboxImageSource>();
         // A season match's pull from Halo, queued from its page and the agents' tools
         services.AddTransient<ISeasonMatchPulls, SeasonMatchPulls>();
         // An Xbox account's pull from Halo, queued from its page
@@ -151,6 +156,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddJobs(configuration, jobs =>
         {
             jobs.Add<XboxPlaceholderJob>(XboxPlaceholderJob.Definition);
+            jobs.Add<XboxGamerPictureJob>(XboxGamerPictureJob.Definition);
+            jobs.Add<XboxEmblemJob>(XboxEmblemJob.Definition);
             // Run from the Jobs page only: it deletes users
             jobs.Add<XboxPlaceholderCleanupJob>(XboxPlaceholderCleanupJob.Definition);
             jobs.Add<ActiveSeasonPullJob>(ActiveSeasonPullJob.Definition);

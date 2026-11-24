@@ -4480,6 +4480,42 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUserImage", b =>
+                {
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("Content")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("XboxUserID", "Kind");
+
+                    b.HasIndex("Kind", "CheckedAt");
+
+                    b.ToTable("XboxUserImages", "Xbox");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Shared.AvailabilityOption", b =>
                 {
                     b.Property<int>("AvailabilityOptionID")
@@ -6052,6 +6088,17 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 {
                     b.HasOne("GrifballWebApp.Domain.Players.XboxUser", "XboxUser")
                         .WithMany("PastGamertags")
+                        .HasForeignKey("XboxUserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("XboxUser");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUserImage", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Players.XboxUser", "XboxUser")
+                        .WithMany()
                         .HasForeignKey("XboxUserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

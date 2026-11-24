@@ -9503,6 +9503,116 @@
           }
         }
       }
+    },
+    "/xbox-accounts/{xboxUserID}/gamer-picture": {
+      "get": {
+        "tags": [
+          "XboxAccounts"
+        ],
+        "summary": "The account's gamer picture, as the site stored it; 404 when none is stored yet.",
+        "operationId": "GetXboxAccountGamerPicture",
+        "parameters": [
+          {
+            "name": "xboxUserID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/xbox-accounts/{xboxUserID}/halo-emblem": {
+      "get": {
+        "tags": [
+          "XboxAccounts"
+        ],
+        "summary": "The account's Halo Infinite emblem, as the site stored it; 404 when none is stored yet.",
+        "operationId": "GetXboxAccountHaloEmblem",
+        "parameters": [
+          {
+            "name": "xboxUserID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
