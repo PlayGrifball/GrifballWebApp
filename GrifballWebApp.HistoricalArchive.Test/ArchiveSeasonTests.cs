@@ -263,6 +263,33 @@ public class ArchiveSeasonTests
 
     private static readonly string[] FallLeague2015Seasons = ["Fall League 2015 Halo 3", "Fall League 2015 Halo 4"];
 
+    /// <summary>Summer League 2011 is one Reach competition in two divisions (grifball.info's agla_* tables): Pro and Amateur,
+    /// each with its champions and games, and no Halo 3 or whole-year copy of the same games beside them.</summary>
+    [Test]
+    public async Task SummerLeague2011_IsItsProAndAmateurSeasons_AllReach_NoCopyOfTheSameGames()
+    {
+        await using var context = Archive.NewContext();
+        var seasons = await context.Seasons.AsNoTracking().Where(s => s.SeasonName.StartsWith("Summer League 2011") && s.League.Slug == "agla")
+            .Select(s => new
+            {
+                s.SeasonName,
+                Game = s.GameVersion.Slug,
+                Titles = context.Set<PlayerChampionship>().Count(c => c.SeasonID == s.SeasonID),
+                Games = context.PlayerSeasonStats.Count(x => x.SeasonID == s.SeasonID),
+            })
+            .ToListAsync();
+        if (seasons.Count == 0)
+            Assert.Ignore("The grifball.info database export is not in this copy of the archive");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons.Select(s => s.SeasonName), Is.EquivalentTo(new[] { "Summer League 2011 (Amateur)", "Summer League 2011 (Pro)" }));
+            Assert.That(seasons.Select(s => s.Game), Has.All.EqualTo("reach"));
+            Assert.That(seasons.Select(s => s.Titles), Has.All.GreaterThan(0), "The Pro and Amateur champions");
+            Assert.That(seasons.Select(s => s.Games), Has.All.GreaterThan(0));
+        }
+    }
+
     /// <summary>SML18 Fantasy by Rey's "Total Stats" and "Fixtures & Results" tabs are one season, Summer League 2018: its
     /// player stats and its schedule are on the one season, and no "(Fantasy Rey)" season is left.</summary>
     [Test]

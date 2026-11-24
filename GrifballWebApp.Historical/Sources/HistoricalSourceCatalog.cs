@@ -173,9 +173,10 @@ public static class HistoricalSourceCatalog
         // here by the champions it holds (the AGLA champions record's winners are its teams). Season -1 rows are all-time
         // totals (and h3_pstats has nothing else), so they are skipped. Its games: the Reach seasons' in gb_teamstats (a row per
         // team per game, no player lines, no dates; a forfeit's rows have no game ID), Winter League 2013's in h_games (its
-        // player lines h4_pstats' rows of the game's link). The agla_* tables are a Halo 3 league of summer 2011 (SML11) beside
-        // the Reach one, in Pro and Amateur divisions (agla_teamindex's isPro), its games in agla_gamesreported with a line per
-        // player in agla_playerstats; the champions record doesn't list it.
+        // player lines h4_pstats' rows of the game's link). Summer League 2011 (SML11) is in the agla_* tables, not in
+        // hr_pstats (its season 14 is the same 193 games, so it is not read): Reach, in Pro and Amateur divisions
+        // (agla_teamindex's isPro), its games in agla_gamesreported with a line per player in agla_playerstats; the champions
+        // record's Pro and Amateur titles are on those two.
         new Entry { HistoricalSourceID = "history-grifball-info-db", Category = "History", Year = null, Title = "grifball.info Stats Database Backup", Url = "https://docs.google.com/spreadsheets/d/1ZSJMHofO00ELIcNZ1eqWJzMls0IDuufV08Cqs1q_tv0/edit?usp=sharing", Kind = HistoricalSourceKind.GoogleSheet, SheetKey = "1ZSJMHofO00ELIcNZ1eqWJzMls0IDuufV08Cqs1q_tv0", League = "AGLA", GameVersion = "multi", Format = "LeagueSeason", Config = new HistoricalSourceConfig
         {
             Tables =
@@ -189,7 +190,6 @@ public static class HistoricalSourceCatalog
                     {
                         ["12"] = new() { Name = "Winter League 2011", Divisions = new() { ["1"] = "Pro", ["0"] = "Amateur" } },
                         ["13"] = new() { Name = "Spring League 2011" },
-                        ["14"] = new() { Name = "Summer League 2011" },
                         ["15"] = new() { Name = "Fall League 2011" },
                         ["16"] = new() { Name = "Winter League 2012" },
                         ["17"] = new() { Name = "Spring League 2012" },
@@ -205,9 +205,9 @@ public static class HistoricalSourceCatalog
                 },
                 new()
                 {
-                    Sheet = "agla_playerstats", Game = "halo3", SeasonColumn = "p_season", PlayoffsColumn = "playoffs", PerGame = true,
+                    Sheet = "agla_playerstats", Game = "reach", SeasonColumn = "p_season", PlayoffsColumn = "playoffs", PerGame = true,
                     Teams = new() { Sheet = "agla_teamindex", Key = "TeamName", Column = "TeamName" }, DivisionColumn = "isPro", StandingsSheet = "agla_teamindex",
-                    Seasons = new() { ["SML11"] = new() { Name = "Summer League 2011 Halo 3", Year = 2011, Divisions = new() { ["1"] = "Pro", ["0"] = "Amateur" } } },
+                    Seasons = new() { ["SML11"] = new() { Name = "Summer League 2011", Year = 2011, Divisions = new() { ["1"] = "Pro", ["0"] = "Amateur" } } },
                 },
             ],
             GameTables =
