@@ -38,7 +38,7 @@ describe('SignupFormComponent', () => {
         provideRouter([]),
         { provide: MatSnackBar, useValue: snackBar },
         { provide: AvailabilityService, useValue: availability },
-        { provide: AccountService, useValue: { displayName: signal('Grif') } },
+        { provide: AccountService, useValue: { displayName: signal('Grif'), personID: signal(7) } },
       ],
     });
     httpMock = TestBed.inject(HttpTestingController);
