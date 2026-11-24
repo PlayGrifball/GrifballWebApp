@@ -150,6 +150,35 @@ public class ArchiveSeasonTests
         Assert.That(titles.Select(t => $"{t.SeasonName}: {t.TeamName.ToUpperInvariant()}").ToList(), Has.Count.EqualTo(5).And.All.EqualTo("2022 H3 Action League: JUNKYARD DOGS"));
     }
 
+    private static readonly string[] Fall2020Champions = ["Regresser", "Sabasauros Rex", "Icey Tanker", "cxrnchip", "Credit Clown"];
+
+    [Test]
+    public async Task FallLeague2020_AscendedTitlesAreOnThePcStatsSeason()
+    {
+        if (!Archive.Snapshots.Manifest.ContainsKey("2020-fl20-pc-schedule-stats") ||
+            !Archive.Snapshots.Manifest.ContainsKey("history-agla-champions"))
+            Assert.Ignore("Fall League 2020's stats or champions workbook is missing from this copy of the archive");
+
+        await using var context = Archive.NewContext();
+        var seasons = await context.Seasons.AsNoTracking()
+            .Where(s => s.League.Slug == "agla" && s.SeasonName.StartsWith("Fall League 2020"))
+            .Select(s => new { s.SeasonName, Game = s.GameVersion.Slug })
+            .ToListAsync();
+        var titles = await context.Set<PlayerChampionship>().AsNoTracking()
+            .Where(c => c.Season.League.Slug == "agla" && c.Season.SeasonName.StartsWith("Fall League 2020"))
+            .Select(c => new { c.Season.SeasonName, c.Team.TeamName, c.Tier, c.GamertagUsed })
+            .ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons, Has.Count.EqualTo(1));
+            Assert.That(seasons.Select(s => (s.SeasonName, s.Game)), Is.All.EqualTo(("Fall League 2020 (PC)", "halo3")));
+            Assert.That(titles, Has.Count.EqualTo(5));
+            Assert.That(titles.Select(c => (c.SeasonName, c.TeamName, c.Tier)), Is.All.EqualTo(("Fall League 2020 (PC)", "Ascended", "Open")));
+            Assert.That(titles.Select(c => c.GamertagUsed), Is.EquivalentTo(Fall2020Champions));
+        }
+    }
+
     /// <summary>The game histories' sides named after a captain the season knows by another spelling: WL23's SPANKATRON
     /// (USURPER SZN's SPANKATR0N), SL25's nkot (Junkyard Dogs) and Squirel (Murder Incorporated) are their teams.</summary>
     [TestCase("2023-da-wl23-schedule/Game History#")]
