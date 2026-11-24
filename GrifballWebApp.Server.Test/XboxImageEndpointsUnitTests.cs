@@ -180,6 +180,7 @@ public class XboxImageEndpointsUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task GetUserGamerPicture_IsNotFound_AndBrieflyCached_ForAUserWhoseAccountHasNoImage()
     {
+        Db.XboxUsers.Add(XboxUser.FromXbox(5, "No Images"));
         var user = User.Seed(userName: "linked", xboxUserID: 5);
         Db.Users.Add(user);
         await Db.SaveChangesAsync();
