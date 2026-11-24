@@ -56,6 +56,8 @@ public class XboxAccountsController : ControllerBase
     /// <summary>The account's gamer picture, as the site stored it; 404 when none is stored yet.</summary>
     // An image for <img src>, so not in the OpenAPI document (no generated client call)
     [ApiExplorerSettings(IgnoreApi = true)]
+    [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [AllowAnonymous]
     [HttpGet("xbox-accounts/{xboxUserID:long}/gamer-picture")]
     public Task<IActionResult> GetGamerPicture([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
@@ -63,6 +65,8 @@ public class XboxAccountsController : ControllerBase
 
     /// <summary>The account's Halo Infinite emblem, as the site stored it; 404 when none is stored yet.</summary>
     [ApiExplorerSettings(IgnoreApi = true)]
+    [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [AllowAnonymous]
     [HttpGet("xbox-accounts/{xboxUserID:long}/halo-emblem")]
     public Task<IActionResult> GetHaloEmblem([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
