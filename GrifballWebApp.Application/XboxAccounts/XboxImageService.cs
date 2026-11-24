@@ -18,14 +18,14 @@ public class XboxImageService
     }
 
     /// <summary>When the account's stored image of that kind was last checked (its version); null when none is stored. Reads no bytes.</summary>
-    public async Task<DateTime?> GetCheckedAtAsync(long xboxUserID, XboxUserImageKind kind, CancellationToken ct = default)
+    public virtual async Task<DateTime?> GetCheckedAtAsync(long xboxUserID, XboxUserImageKind kind, CancellationToken ct = default)
         => await _context.XboxUserImages.AsNoTracking()
             .Where(i => i.XboxUserID == xboxUserID && i.Kind == kind && i.Status == XboxUserImageStatus.Found && i.Content != null)
             .Select(i => (DateTime?)i.CheckedAt)
             .FirstOrDefaultAsync(ct);
 
     /// <summary>The account's stored image of that kind; null when none is stored (not fetched yet, or Xbox has none).</summary>
-    public async Task<XboxImageContent?> GetAsync(long xboxUserID, XboxUserImageKind kind, CancellationToken ct = default)
+    public virtual async Task<XboxImageContent?> GetAsync(long xboxUserID, XboxUserImageKind kind, CancellationToken ct = default)
     {
         var image = await _context.XboxUserImages.AsNoTracking()
             .Where(i => i.XboxUserID == xboxUserID && i.Kind == kind && i.Status == XboxUserImageStatus.Found && i.Content != null)

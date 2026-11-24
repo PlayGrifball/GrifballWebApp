@@ -94,6 +94,22 @@ public class XboxImageEndpointsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task GetGamerPicture_WhenTheImageIsGoneByTheTimeItIsRead_IsNotFound()
+    {
+        await StoreAsync(5, XboxUserImageKind.GamerPicture);
+
+        var result = await Controller().GetGamerPicture(5, new VanishingImages(Db), CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<NotFoundResult>());
+    }
+
+    private sealed class VanishingImages(GrifballWebApp.Application.Database.IApplicationDbContext db) : XboxImageService(db)
+    {
+        public override Task<XboxImageContent?> GetAsync(long xboxUserID, XboxUserImageKind kind, CancellationToken ct = default)
+            => Task.FromResult<XboxImageContent?>(null);
+    }
+
+    [Test]
     public async Task GetHaloEmblem_GivesTheStoredEmblem_NotTheGamerPicture()
     {
         await StoreAsync(5, XboxUserImageKind.HaloEmblem);
