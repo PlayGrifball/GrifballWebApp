@@ -635,6 +635,37 @@ public class XboxImageSourceTests : SqliteContextFixture
         Assert.That((report.Due, report.Checked), Is.EqualTo((3, 2)));
     }
 
+    [Test]
+    public async Task GamerPictures_ADownloadThatTimesOut_IsFailed_AndTheChunkStillSaves()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenUsers((1, new Gamerpic { large = "https://x/1.png" }), (2, new Gamerpic { large = "https://x/2.png" }));
+        _downloader.DownloadAsync("https://x/1.png", Arg.Any<CancellationToken>()).Returns<DownloadedImage>(_ => throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout"));
+        _downloader.DownloadAsync("https://x/2.png", Arg.Any<CancellationToken>()).Returns(new DownloadedImage(Png, "image/png"));
+
+        var report = await Source().RunGamerPicturesAsync();
+
+        Assert.That((report.Failed, report.Stored), Is.EqualTo((1, 1)));
+    }
+
+    [Test]
+    public async Task GamerPictures_AUrlLongerThanTheSourceColumn_IsFailed_WithoutDownloading()
+    {
+        await AddAccountsAsync(1);
+        var url = "https://x/" + new string('a', 500);
+        GivenUsers((1, new Gamerpic { large = url }));
+
+        var report = await Source().RunGamerPicturesAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.GamerPicture);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Failed, Is.EqualTo(1));
+            Assert.That(row.Error, Is.EqualTo("The picture's address is too long"));
+            await _downloader.DidNotReceive().DownloadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        }
+    }
+
     // ---- pure helpers ----
 
     [Test]

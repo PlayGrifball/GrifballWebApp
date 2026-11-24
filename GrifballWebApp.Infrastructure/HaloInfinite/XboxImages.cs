@@ -228,7 +228,7 @@ public class XboxImageSource
         {
             response = await _halo.Users(xuids.Select(x => x.ToString()));
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             response = new(default!, new HaloApiErrorContainer());
             callError = ex.Message;
@@ -274,12 +274,18 @@ public class XboxImageSource
             report.Unchanged++;
             return;
         }
+        if (url.Length > 500)
+        {
+            Failed(row, "The picture's address is too long");
+            report.Failed++;
+            return;
+        }
         try
         {
             Found(row, url, await _downloader.DownloadAsync(url, ct));
             report.Stored++;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             Failed(row, ex.Message);
             report.Failed++;
@@ -336,7 +342,7 @@ public class XboxImageSource
         {
             response = await _halo.EconomyPlayerAppearanceCustomization($"xuid({xuid})");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             response = new(default!, new HaloApiErrorContainer());
             callError = ex.Message;
@@ -422,7 +428,7 @@ public class XboxImageSource
             Found(row, path, image);
             report.Stored++;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             Failed(row, ex.Message);
             report.Failed++;
