@@ -63,7 +63,7 @@ public partial class HistoricalImportService
 
     /// <summary>
     /// Retires an imported season that no archive season is now, in a transaction of its own and under the guardrail. It
-    /// stays, and the report says why, when anything but <paramref name="ignoredUses"/> points at it, when the guardrail
+    /// stays, and the report says why, when anything but <paramref name="retiring"/>.IgnoredUses points at it, when the guardrail
     /// stops it, or when it fails. <paramref name="remove"/> removes it (saving) and returns what to add to the report.
     /// </summary>
     /// <returns>True when it is gone (never on a dry run: it is rolled back).</returns>
