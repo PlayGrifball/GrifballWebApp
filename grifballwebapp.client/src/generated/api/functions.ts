@@ -395,3 +395,15 @@ export type { GetXboxAccountPullStatus$Params as GetXboxAccountPullStatus$Params
 export { getXboxAccountPullStatus as getXboxAccountPullStatus } from './fn/xbox-accounts/get-xbox-account-pull-status';
 export type { PullXboxAccount$Params as PullXboxAccount$Params } from './fn/xbox-accounts/pull-xbox-account';
 export { pullXboxAccount as pullXboxAccount } from './fn/xbox-accounts/pull-xbox-account';
+export type { GetXboxAccountGamerPicture$Png$Params as GetXboxAccountGamerPicture$Png$Params } from './fn/xbox-accounts/get-xbox-account-gamer-picture-png';
+export { getXboxAccountGamerPicture$Png as getXboxAccountGamerPicture$Png } from './fn/xbox-accounts/get-xbox-account-gamer-picture-png';
+export type { GetXboxAccountGamerPicture$Jpeg$Params as GetXboxAccountGamerPicture$Jpeg$Params } from './fn/xbox-accounts/get-xbox-account-gamer-picture-jpeg';
+export { getXboxAccountGamerPicture$Jpeg as getXboxAccountGamerPicture$Jpeg } from './fn/xbox-accounts/get-xbox-account-gamer-picture-jpeg';
+export type { GetXboxAccountGamerPicture$Webp$Params as GetXboxAccountGamerPicture$Webp$Params } from './fn/xbox-accounts/get-xbox-account-gamer-picture-webp';
+export { getXboxAccountGamerPicture$Webp as getXboxAccountGamerPicture$Webp } from './fn/xbox-accounts/get-xbox-account-gamer-picture-webp';
+export type { GetXboxAccountHaloEmblem$Png$Params as GetXboxAccountHaloEmblem$Png$Params } from './fn/xbox-accounts/get-xbox-account-halo-emblem-png';
+export { getXboxAccountHaloEmblem$Png as getXboxAccountHaloEmblem$Png } from './fn/xbox-accounts/get-xbox-account-halo-emblem-png';
+export type { GetXboxAccountHaloEmblem$Jpeg$Params as GetXboxAccountHaloEmblem$Jpeg$Params } from './fn/xbox-accounts/get-xbox-account-halo-emblem-jpeg';
+export { getXboxAccountHaloEmblem$Jpeg as getXboxAccountHaloEmblem$Jpeg } from './fn/xbox-accounts/get-xbox-account-halo-emblem-jpeg';
+export type { GetXboxAccountHaloEmblem$Webp$Params as GetXboxAccountHaloEmblem$Webp$Params } from './fn/xbox-accounts/get-xbox-account-halo-emblem-webp';
+export { getXboxAccountHaloEmblem$Webp as getXboxAccountHaloEmblem$Webp } from './fn/xbox-accounts/get-xbox-account-halo-emblem-webp';
