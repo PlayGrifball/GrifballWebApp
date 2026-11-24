@@ -129,24 +129,10 @@ internal sealed class HistoricalImportFailureUnitTests : ApplicationDbContextTes
     [Test]
     public async Task Import_RetiringASupersededSeasonThatFails_IsRolledBackAndReported_AndTheSeasonStays()
     {
-        static ArchiveSeason Tab(string name, string sheet, params ArchivePlayer[] players)
-        {
-            var entry = Entry(name, "halo5", "AGLA", false, players);
-            return new ArchiveSeason
-            {
-                SeasonName = name, GameVersion = entry.GameVersion, League = entry.League, Division = entry.Division,
-                SourceWorkbook = "sml18-fantasy", SourceSheet = sheet, Players = entry.Players,
-            };
-        }
-        HistoricalArchiveInput Tabs(string statsName) => new()
-        {
-            Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Summer League 2018", Tier = "Open", Team = "Hens", Roster = ["Hen"] }] },
-            Seasons = new UnifiedArchive { Seasons = [Tab(statsName, "Total Stats", Player("Silva", team: "Cabs")), Tab("Summer League 2018", "Fixtures & Results")] },
-        };
-        await _service.Import(Tabs("Summer League 2018 (Fantasy Rey)"));
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
         Context.ChangeTracker.Clear();
 
-        var report = await _service.Import(Tabs("Summer League 2018"));
+        var report = await _service.Import(TwoTabs("Summer League 2018", "Summer League 2018"));
 
         Context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())

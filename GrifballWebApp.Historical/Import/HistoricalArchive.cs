@@ -66,6 +66,9 @@ public class ArchiveSeason
     public string? Format { get; init; }
     /// <summary>Overrides the derived key ("{sourceWorkbook}/{sourceSheet}") when the archive sets one.</summary>
     public string? HistoricalSourceId { get; init; }
+    /// <summary>Keys ("{workbook}/{sheet}") of sheets that made a season of their own once and are this season now (a results
+    /// sheet named like this stats tab's season): the imported seasons they keyed are leftovers to retire.</summary>
+    public List<string> AlsoFromSheets { get; init; } = [];
     /// <summary>The champions record's name for the season's titles when it isn't <see cref="SeasonName"/>.</summary>
     public string? Titles { get; init; }
     /// <summary>When the entry's games were played, as far as its sheet says (a stats tab's TimeStamp column): the season's

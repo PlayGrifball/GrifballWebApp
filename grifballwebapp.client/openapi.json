@@ -12195,6 +12195,8 @@
           "awardsRemoved",
           "ladderBefore",
           "ladderRemoved",
+          "matchesBefore",
+          "matchesRemoved",
           "removesAnything",
           "seasonKey",
           "seasonName",
@@ -12255,6 +12257,15 @@
             "format": "int32"
           },
           "awardsRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "matchesBefore": {
+            "type": "integer",
+            "description": "The season's scheduled matches (SeasonMatch rows): measured only when a whole season goes, the one removal that takes its schedule.",
+            "format": "int32"
+          },
+          "matchesRemoved": {
             "type": "integer",
             "format": "int32"
           },

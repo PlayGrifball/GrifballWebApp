@@ -26,6 +26,7 @@ public sealed partial class HistoricalArchiveBuilder
                 continue;
             }
             var key = HistoricalKeys.SeasonSourceId(regular.SourceWorkbook!, regular.SourceSheet!);
+            NoteJoinedSheet(regular, tab, key);
             var names = SeasonTeamNames.Of(SeasonOf(regular), tab.Teams);
             foreach (var game in games)
             {
@@ -44,6 +45,15 @@ public sealed partial class HistoricalArchiveBuilder
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.Add(key);
         }
+    }
+
+    /// <summary>A result list named like a season that already has a sheet of its own joins that season: its sheet is one the season
+    /// replaces (<see cref="ArchiveSeason.AlsoFromSheets"/>).</summary>
+    private static void NoteJoinedSheet(ArchiveSeason season, ResultsTab tab, string seasonKey)
+    {
+        var sheetKey = HistoricalKeys.SeasonSourceId(season.SourceWorkbook!, tab.Sheet);
+        if (tab.CustomSeason is not null && !string.Equals(sheetKey, seasonKey, StringComparison.OrdinalIgnoreCase) && !season.AlsoFromSheets.Contains(sheetKey, StringComparer.OrdinalIgnoreCase))
+            season.AlsoFromSheets.Add(sheetKey);
     }
 
     /// <summary>A result list's season of its own, made once (by its name and workbook), with the workbook's league and division.</summary>

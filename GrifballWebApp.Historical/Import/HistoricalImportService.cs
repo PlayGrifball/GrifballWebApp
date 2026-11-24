@@ -56,7 +56,8 @@ public class HistoricalGuardrailOptions
         => TooMany(removal.StatsRemoved, removal.StatsBefore) || TooMany(removal.TeamsRemoved, removal.TeamsBefore)
            || (StopOnAnyChampionshipRemoved ? removal.TitlesRemoved > 0 : TooMany(removal.TitlesRemoved, removal.TitlesBefore))
            || TooMany(removal.LadderRemoved, removal.LadderBefore)
-           || TooMany(removal.AwardsRemoved, removal.AwardsBefore);
+           || TooMany(removal.AwardsRemoved, removal.AwardsBefore)
+           || TooMany(removal.MatchesRemoved, removal.MatchesBefore);
 
     private bool TooMany(int removed, int before) => removed > 0 && before > 0 && (decimal)removed / before > MaxRemovedFraction;
 }
@@ -78,15 +79,19 @@ public class HistoricalSeasonRemoval
     /// <summary>The season's awards (SeasonAward rows): not kept on a review, which has the other counts.</summary>
     public int AwardsBefore { get; set; }
     public int AwardsRemoved { get; set; }
+    /// <summary>The season's scheduled matches (SeasonMatch rows): measured only when a whole season goes, the one removal that takes its schedule.</summary>
+    public int MatchesBefore { get; set; }
+    public int MatchesRemoved { get; set; }
     /// <summary>Rolled back by the guardrail: left as it was until a sysadmin approves it.</summary>
     public bool Stopped { get; set; }
 
-    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0 || AwardsRemoved > 0 || LadderRemoved > 0;
+    public bool RemovesAnything => StatsRemoved > 0 || TeamsRemoved > 0 || TitlesRemoved > 0 || AwardsRemoved > 0 || LadderRemoved > 0 || MatchesRemoved > 0;
 
     // What it removes of what it had; its awards and ladder rows only when it had any
     public string Summary => $"{StatsRemoved} of {StatsBefore} stat rows, {TeamsRemoved} of {TeamsBefore} teams, {TitlesRemoved} of {TitlesBefore} titles"
         + (AwardsBefore > 0 ? $", {AwardsRemoved} of {AwardsBefore} awards" : "")
-        + (LadderBefore > 0 ? $", {LadderRemoved} of {LadderBefore} ladder rows" : "");
+        + (LadderBefore > 0 ? $", {LadderRemoved} of {LadderBefore} ladder rows" : "")
+        + (MatchesBefore > 0 ? $", {MatchesRemoved} of {MatchesBefore} matches" : "");
 }
 
 public record HistoricalImportProgress(string Stage, int SeasonsDone, int SeasonsTotal);

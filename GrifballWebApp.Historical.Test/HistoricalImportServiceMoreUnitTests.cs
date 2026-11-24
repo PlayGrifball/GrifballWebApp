@@ -516,29 +516,6 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
 
     // ---------- Sheets of one season that were two seasons ----------
 
-    private static ArchiveSeason Tab(string name, string sheet, params ArchivePlayer[] players)
-    {
-        var entry = Entry(name, "halo5", "AGLA", false, players);
-        return new ArchiveSeason
-        {
-            SeasonName = entry.SeasonName, GameVersion = entry.GameVersion, League = entry.League, Division = entry.Division,
-            SourceWorkbook = "sml18-fantasy", SourceSheet = sheet, Players = entry.Players,
-        };
-    }
-
-    private static HistoricalArchiveInput TwoTabs(string statsName, string fixturesName) => new()
-    {
-        Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Summer League 2018", Tier = "Open", Team = "Hens", Roster = ["Hen"] }] },
-        Seasons = new UnifiedArchive
-        {
-            Seasons =
-            [
-                Tab(statsName, "Total Stats", Player("Silva", team: "Cabs")),
-                Tab(fixturesName, "Fixtures & Results"),
-            ],
-        },
-    };
-
     [Test]
     public async Task Import_TabsOfOneSeasonThatWereTwo_AreOneSeasonNow_AndTheLeftoverIsRetiredWithItsTeams()
     {
@@ -556,6 +533,55 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
             Assert.That(report.SeasonsRetired, Is.EqualTo(1));
             Assert.That(seasons.Select(s => (s.SeasonName, s.HistoricalSourceID)), Is.EqualTo(MergedSeason));
             Assert.That(teams, Is.EquivalentTo(MergedTeams), "Both tabs' teams, in the one season");
+        }
+    }
+
+    [Test]
+    public async Task Import_ASheetTheBuilderJoinedToTheStatsTab_RetiresTheSeasonItMadeBefore()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+        var stats = Tab("Summer League 2018", "Total Stats", Player("Silva", team: "Cabs"));
+        var joined = new ArchiveSeason
+        {
+            SeasonName = stats.SeasonName, GameVersion = stats.GameVersion, League = stats.League, Division = stats.Division,
+            SourceWorkbook = stats.SourceWorkbook, SourceSheet = stats.SourceSheet, Players = stats.Players,
+            AlsoFromSheets = ["sml18-fantasy/Fixtures & Results"],
+        };
+
+        var report = await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [joined] } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(await Context.Seasons.AsNoTracking().Select(s => new { s.SeasonName, s.HistoricalSourceID }).ToListAsync(),
+                Is.EqualTo(new[] { new { SeasonName = "Summer League 2018", HistoricalSourceID = "sml18-fantasy/Total Stats" } }));
+        }
+    }
+
+    [Test]
+    public async Task Import_ALeftoverTwoSeasonsNameAsTheirs_IsRetiredOnce_AndFailsNothing()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+        static ArchiveSeason Joined(string name, string sheet)
+        {
+            var tab = Tab(name, sheet, Player("Silva", team: "Cabs"));
+            return new ArchiveSeason
+            {
+                SeasonName = tab.SeasonName, GameVersion = tab.GameVersion, League = tab.League, Division = tab.Division,
+                SourceWorkbook = tab.SourceWorkbook, SourceSheet = tab.SourceSheet, Players = tab.Players,
+                AlsoFromSheets = ["sml18-fantasy/Fixtures & Results"],
+            };
+        }
+
+        var report = await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [Joined("Summer League 2018", "Total Stats"), Joined("Other League", "Other Stats")] } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
         }
     }
 
@@ -650,6 +676,40 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
             Assert.That(report.Errors, Is.Empty, "no duplicate season name");
             Assert.That(report.Warnings, Has.Some.Contain("not imported this run"));
             Assert.That(await Context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EquivalentTo(BothLeftAsTheyWere), "both stay as they were");
+        }
+    }
+
+    [Test]
+    public async Task Import_DryRun_CountsTheSchedulePartingWithASupersededSeasonRemovesToo()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        var leftover = await Context.Seasons.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "sml18-fantasy/Fixtures & Results");
+        var hens = await Context.Teams.AsNoTracking().SingleAsync(t => t.SeasonID == leftover.SeasonID && t.TeamName == "Hens");
+        Context.SeasonMatches.Add(SeasonMatch.Imported(leftover.SeasonID, hens.TeamID, null, 0, 0, 1, null, null));
+        Context.SeasonMatches.Add(SeasonMatch.Imported(leftover.SeasonID, null, null, 0, 0, 1, null, null));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(TwoTabs("Summer League 2018", "Summer League 2018"), new HistoricalImportRunOptions { DryRun = true });
+
+        var removal = report.SeasonRemovals.Single(r => r.SeasonKey == "sml18-fantasy/Fixtures & Results");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((removal.MatchesBefore, removal.MatchesRemoved), Is.EqualTo((2, 2)), "Every match of a season that goes, a bracket slot with no team included");
+            Assert.That(removal.Summary, Does.Contain("2 of 2 matches"));
+        }
+    }
+
+    [Test]
+    public void TheGuardrail_StopsASeasonThatLosesItsSchedule_ButNotOneThatLosesNone()
+    {
+        var guardrail = new HistoricalGuardrailOptions();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(guardrail.Exceeded(new HistoricalSeasonRemoval { SeasonKey = "s", MatchesBefore = 10, MatchesRemoved = 10 }), Is.True);
+            Assert.That(guardrail.Exceeded(new HistoricalSeasonRemoval { SeasonKey = "s", MatchesBefore = 10, MatchesRemoved = 1 }), Is.False, "Under the share");
+            Assert.That(guardrail.Exceeded(new HistoricalSeasonRemoval { SeasonKey = "s", MatchesBefore = 10 }), Is.False);
         }
     }
 
