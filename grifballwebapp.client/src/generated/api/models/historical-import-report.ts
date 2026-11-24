@@ -78,7 +78,7 @@ export interface HistoricalImportReport {
   seasonsCreated: number;
 
   /**
-   * Titles-only seasons the champions record made whose titles are another season's now, removed.
+   * Seasons removed for another: titles-only ones whose titles are another season's now, and ones a merged season of several sheets replaces.
    */
   seasonsRetired: number;
   seasonsUpdated: number;

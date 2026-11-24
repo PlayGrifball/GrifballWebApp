@@ -1,6 +1,7 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
@@ -512,6 +513,149 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     private static readonly (string, string)[] ProSilvaOnly = [("Pro", "Silva")];
     private static readonly string[] FallSeasons = ["Fall League 2015 Halo 3", "Fall League 2015 Halo 4"];
     private static readonly (string, string)[] FallTitles = [("Silva", "Fall League 2015 Halo 3"), ("Hen", "Fall League 2015 Halo 4")];
+
+    // ---------- Sheets of one season that were two seasons ----------
+
+    private static ArchiveSeason Tab(string name, string sheet, params ArchivePlayer[] players)
+    {
+        var entry = Entry(name, "halo5", "AGLA", false, players);
+        return new ArchiveSeason
+        {
+            SeasonName = entry.SeasonName, GameVersion = entry.GameVersion, League = entry.League, Division = entry.Division,
+            SourceWorkbook = "sml18-fantasy", SourceSheet = sheet, Players = entry.Players,
+        };
+    }
+
+    private static HistoricalArchiveInput TwoTabs(string statsName, string fixturesName) => new()
+    {
+        Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Summer League 2018", Tier = "Open", Team = "Hens", Roster = ["Hen"] }] },
+        Seasons = new UnifiedArchive
+        {
+            Seasons =
+            [
+                Tab(statsName, "Total Stats", Player("Silva", team: "Cabs")),
+                Tab(fixturesName, "Fixtures & Results"),
+            ],
+        },
+    };
+
+    [Test]
+    public async Task Import_TabsOfOneSeasonThatWereTwo_AreOneSeasonNow_AndTheLeftoverIsRetiredWithItsTeams()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(2), "Imported as two seasons");
+
+        var report = await _service.Import(TwoTabs("Summer League 2018", "Summer League 2018"));
+
+        var seasons = await Context.Seasons.AsNoTracking().Select(s => new { s.SeasonName, s.HistoricalSourceID }).ToListAsync();
+        var teams = await Context.Teams.AsNoTracking().Select(t => t.TeamName).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(seasons.Select(s => (s.SeasonName, s.HistoricalSourceID)), Is.EqualTo(MergedSeason));
+            Assert.That(teams, Is.EquivalentTo(MergedTeams), "Both tabs' teams, in the one season");
+        }
+    }
+
+    [Test]
+    public async Task Import_DryRun_LeavesTheSupersededSeasonAndListsIt()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(TwoTabs("Summer League 2018", "Summer League 2018"), new HistoricalImportRunOptions { DryRun = true });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonRemovals.Select(r => r.SeasonKey), Does.Contain("sml18-fantasy/Fixtures & Results"));
+            Assert.That(report.SeasonsRetired, Is.Zero);
+        }
+    }
+
+    [Test]
+    public async Task Import_ASupersededSeasonWithStats_IsKept_AndTheReportSaysWhy()
+    {
+        HistoricalArchiveInput WithStatsOnTheFixturesTab(string statsName) => new()
+        {
+            Seasons = new UnifiedArchive
+            {
+                Seasons = [Tab(statsName, "Total Stats", Player("Silva", team: "Cabs")), Tab("Summer League 2018", "Fixtures & Results", Player("Hen", team: "Hens"))],
+            },
+        };
+        await _service.Import(WithStatsOnTheFixturesTab("Summer League 2018 (Fantasy Rey)"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(WithStatsOnTheFixturesTab("Summer League 2018"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(report.Warnings, Has.Some.Contain("sml18-fantasy/Fixtures & Results").And.Contain("stats").And.Contain("left for a sysadmin"));
+            Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(2), "Neither season is removed");
+        }
+    }
+
+    [Test]
+    public async Task Run_ASupersededSeasonWithATitle_StopsForReviewUnderTheGuardrail_AndIsKept()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(TwoTabs("Summer League 2018", "Summer League 2018"), new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions() });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(report.SeasonRemovals.Single(r => r.SeasonKey == "sml18-fantasy/Fixtures & Results").Stopped, Is.True);
+            Assert.That(report.Warnings, Has.Some.Contain("stopped for review"));
+            Assert.That(await Context.Seasons.AnyAsync(s => s.HistoricalSourceID == "sml18-fantasy/Fixtures & Results"), Is.True, "Kept for review");
+        }
+    }
+
+    [Test]
+    public async Task Import_ASupersededSeasonWithAnAwardNamingItsTeam_IsRetiredWithTheAward()
+    {
+        static HistoricalArchiveInput WithAward(string statsName)
+        {
+            var input = TwoTabs(statsName, "Summer League 2018");
+            input.Seasons!.Seasons[1].Awards.Add(new ArchiveAward { Name = "Team Most Goals", Winner = "Hens", IsTeam = true, Value = "9" });
+            return input;
+        }
+        await _service.Import(WithAward("Summer League 2018 (Fantasy Rey)"));
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.Seasons.Awards().CountAsync(), Is.EqualTo(1), "The leftover has the award");
+
+        var report = await _service.Import(TwoTabs("Summer League 2018", "Summer League 2018"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(await Context.Seasons.Awards().CountAsync(), Is.Zero, "The award went with its season");
+        }
+    }
+
+    [Test]
+    public async Task Run_AMergedSeasonWhoseLeftoverStays_IsNotImportedThisRun_AndNothingFailsOnItsName()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(TwoTabs("Summer League 2018", "Summer League 2018"), new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions() });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty, "no duplicate season name");
+            Assert.That(report.Warnings, Has.Some.Contain("not imported this run"));
+            Assert.That(await Context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EquivalentTo(BothLeftAsTheyWere), "both stay as they were");
+        }
+    }
+
+    private static readonly string[] BothLeftAsTheyWere = ["Summer League 2018 (Fantasy Rey)", "Summer League 2018"];
+    private static readonly (string, string)[] MergedSeason = [("Summer League 2018", "sml18-fantasy/Total Stats")];
+    private static readonly string[] MergedTeams = ["Cabs", "Hens"];
 
     // ---------- A titles-only season: adopted by its season, or retired ----------
 

@@ -106,7 +106,7 @@ public class HistoricalImportReport
 {
     public int SeasonsCreated { get; set; }
     public int SeasonsUpdated { get; set; }
-    /// <summary>Titles-only seasons the champions record made whose titles are another season's now, removed.</summary>
+    /// <summary>Seasons removed for another: titles-only ones whose titles are another season's now, and ones a merged season of several sheets replaces.</summary>
     public int SeasonsRetired { get; set; }
     /// <summary>Matchmaking seasons (Late League) created and updated.</summary>
     public int MatchmakingSeasonsCreated { get; set; }
@@ -328,6 +328,12 @@ public partial class HistoricalImportService : IHistoricalImportService
         await PullWaypointMatches(groups.Values, report, progress, groups.Count, ct);
 
         var championsPrefixes = ChampionsPrefixes(input.Championships);
+        // Before the merged season: it takes the name a leftover has, and a season name is unique in its league
+        foreach (var key in await RetireSupersededSeasons(groups, report, options, ct))
+        {
+            Warn(report, $"{groups[key].SeasonName}: not imported this run, a leftover season of one of its sheets stays (see above)");
+            groups.Remove(key);
+        }
         var done = await ImportSeasons(groups, gameVersions, championsPrefixes, report, options, progress, ct);
         if (input.Championships is { Champions.Count: > 0 } champions)
             await RetireLeftoverTitleSeasons(champions, archiveSeasons, leagues, report, options, ct);

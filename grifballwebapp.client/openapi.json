@@ -11955,7 +11955,7 @@
           },
           "seasonsRetired": {
             "type": "integer",
-            "description": "Titles-only seasons the champions record made whose titles are another season's now, removed.",
+            "description": "Seasons removed for another: titles-only ones whose titles are another season's now, and ones a merged season of several sheets replaces.",
             "format": "int32"
           },
           "matchmakingSeasonsCreated": {
