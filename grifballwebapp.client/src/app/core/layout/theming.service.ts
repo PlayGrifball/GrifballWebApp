@@ -109,7 +109,7 @@ export class ThemingService {
       era: '',
       primary: '#FFDE03',
       secondary: '#806f00',
-      tertiary: '#A288A6',
+      tertiary: '#FFD25E',
       neutral: '#919093',
       neutralVariant: '#8E9098',
       error: '#FF5449',

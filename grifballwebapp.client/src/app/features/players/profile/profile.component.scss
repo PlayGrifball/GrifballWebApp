@@ -49,22 +49,29 @@
 .profile-facts dd, .trophy-season, .season-table { font-size: var(--hud-text-table); }
 
 .alias-pill, .league-pill, .game-pill, .game-pill-sm, .archival-pill, .phase-pill,
-.trophy-title, .captain-badge, .stat-sub, .league-sub, .trade-sub, .source-tag {
+.trophy-title, .captain-badge, .stat-sub, .league-sub, .trade-sub, .source-tag, .trophy-meta {
   font: var(--hud-text-xs) var(--hud-font-mono);
 }
 
-.alias-pill, .league-pill, .game-pill, .game-pill-sm, .phase-pill {
+.alias-pill, .league-pill, .game-pill, .game-pill-sm, .phase-pill, .archival-pill, .captain-badge {
   padding: 2px 6px;
   border: 1px solid var(--hud-hairline);
   color: var(--hud-muted-2);
+  background: var(--hud-well);
 }
 
-.alias-pill, .league-pill, .game-pill, .game-pill-sm, .trophy-card, .stat-card { background: var(--hud-well); }
+.phase-pill {
+  background: var(--hud-panel);
+  border-color: var(--hud-border);
+  &.playoffs { border-color: var(--hud-gold); color: var(--hud-gold); font-weight: 700; }
+}
+
+.trophy-card, .stat-card { background: var(--hud-well); }
 
 .archival-pill {
   padding: 2px 8px;
   background: var(--hud-gold-tint);
-  border: 1px solid var(--hud-gold);
+  border-color: var(--hud-gold);
   color: var(--hud-gold);
 }
 
@@ -81,8 +88,8 @@
   margin-bottom: 14px;
 }
 
-.empty-state { margin: 8px 0 0; font-style: italic; }
-.career-note { margin: 12px 0 0; font-size: var(--hud-text-sm); }
+.empty-state { margin-top: 8px; font-style: italic; }
+.career-note { margin-top: 12px; font-size: var(--hud-text-sm); }
 
 .trophy-grid {
   display: grid;
@@ -121,14 +128,13 @@
 
 .trophy-meta {
   align-items: center;
-  font-size: var(--hud-text-xs);
+  font-family: var(--hud-font);
 }
 
 .captain-badge {
-  padding: 2px 6px;
   background: var(--hud-accent-tint-strong);
   color: var(--hud-accent);
-  border: 1px solid var(--hud-accent);
+  border-color: var(--hud-accent);
 }
 
 .stat-card-grid {
@@ -168,16 +174,9 @@
   tr:hover td { background: var(--hud-row-hover); }
 }
 
-.table-season-cell, .team-cell { gap: 1px; }
 .season-name { font-weight: 600; color: var(--hud-heading); }
 .league-sub { color: var(--hud-muted); }
 .trade-sub { color: var(--hud-gold); }
-
-.phase-pill {
-  background: var(--hud-panel);
-  border-color: var(--hud-border);
-  &.playoffs { border-color: var(--hud-gold); color: var(--hud-gold); font-weight: 700; }
-}
 
 .source-tag {
   color: var(--hud-muted);

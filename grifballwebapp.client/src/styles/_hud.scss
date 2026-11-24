@@ -438,8 +438,7 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
 }
 
 .hud-btn--primary:focus-visible,
-.hud-tab--active:focus-visible,
-.mat-mdc-unelevated-button:not(.mat-mdc-button-disabled):focus-visible {
+.hud-tab--active:focus-visible {
   outline: 2px solid var(--hud-on-accent);
   outline-offset: -6px;
 }
@@ -566,7 +565,7 @@ body {
     unselected-icon-color: var(--hud-control-outline),
     unselected-hover-icon-color: var(--hud-muted-2),
     label-text-color: var(--hud-text),
-    label-text-size: 20px,
+    label-text-size: var(--hud-mat-btn-text),
   ));
 
   @include mat.sidenav-overrides((
@@ -610,7 +609,7 @@ body {
     filled-container-color: var(--hud-panel-soft),
     filled-container-shape: 0,
     title-text-weight: 700,
-    title-text-size: 26px,
+    title-text-size: var(--hud-text-lede),
     subtitle-text-color: var(--hud-muted),
   ));
 
@@ -679,6 +678,11 @@ body {
 // Filled (primary) Material buttons get the HUD parallelogram, with the focus ring inside.
 .mat-mdc-unelevated-button:not(.mat-mdc-button-disabled) {
   clip-path: var(--hud-slant);
+
+  &:focus-visible {
+    outline: 2px solid var(--hud-on-accent);
+    outline-offset: -6px;
+  }
 }
 
 .mat-mdc-unelevated-button.mat-mdc-button-disabled {
@@ -738,7 +742,7 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
   display: block;
   max-width: var(--hud-max-width);
   margin: 0 auto;
-  padding: 36px var(--hud-gutter) 72px;
+  padding: 44px var(--hud-gutter) 80px;
 
   > h1:first-child, > h2:first-child {
     margin: 0 0 24px;

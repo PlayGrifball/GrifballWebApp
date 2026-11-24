@@ -50,9 +50,10 @@
     body { margin: 0; background: #0C0F14; }
     .boot-shell { min-height: 100vh; background: radial-gradient(ellipse at 50% 0%, rgba(232, 146, 45, 0.13) 0%, #10141C 45%, #0C0F14 100%); }
     .boot-shell__bar { border-bottom: 1px solid #1E2432; }
-    .boot-shell__brand { box-sizing: border-box; max-width: 1600px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 48px); height: clamp(60px, 6.5vw, 82px); display: flex; align-items: center;
+    .boot-shell__brand { box-sizing: border-box; max-width: 1600px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 48px); min-height: clamp(60px, 6.5vw, 82px); display: flex; align-items: center;
       font: 700 clamp(20px, 2.5vw, 32px) Rajdhani, 'Rajdhani Fallback', system-ui, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: #FFFDF8; }
     @media (max-width: 720px) { .boot-shell__brand { padding: 0 16px 0 68px; letter-spacing: 0.18em; } }
+    @media (max-width: 400px) { .boot-shell__brand { font-size: 17px; letter-spacing: 0.12em; } }
   </style>
 </head>
 <body class="mat-typography mat-app-background">
