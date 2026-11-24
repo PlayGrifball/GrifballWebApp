@@ -14,13 +14,12 @@ public partial class HistoricalImportService
     /// season's removals, unless anything else points at it (stats, signups, VODs, recorded games, claims): then it stays
     /// and the report says why.
     /// </summary>
-    private async Task<List<string>> RetireSupersededSeasons(Dictionary<string, SeasonGroup> groups, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
+    private async Task<List<string>> RetireSupersededSeasons(Dictionary<string, SeasonGroup> groups, HashSet<string> archiveKeys, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
     {
         var blocked = new List<string>();
         var retired = new HashSet<int>();
-        var archiveKeys = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var candidates = groups.Where(g => !g.Value.IsMatchmaking)
-            .Select(g => (g.Key, Group: g.Value, Keys: EntryKeys(g.Value)
+            .Select(g => (g.Key, Group: g.Value, Keys: AllKeys(g.Value)
                 .Where(k => !archiveKeys.Contains(k)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()))
             .Where(c => c.Keys.Count > 0).ToList();
         if (candidates.Count == 0)
@@ -46,7 +45,7 @@ public partial class HistoricalImportService
     }
 
     private Task<bool> RetireSupersededSeason(int seasonID, string key, string name, string mergedInto, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
-        => RetireSeason(seasonID, key, name, $"it is part of {mergedInto} now", ["season matches"], async removal =>
+        => RetireSeason(new SeasonRetirement(seasonID, key, name, $"it is part of {mergedInto} now", ["season matches"]), async removal =>
         {
             var counts = new HistoricalImportReport();
             var season = await _context.Seasons.WithChampionships().WithAwards().SingleAsync(s => s.SeasonID == seasonID, ct);
@@ -68,8 +67,9 @@ public partial class HistoricalImportService
     /// stops it, or when it fails. <paramref name="remove"/> removes it (saving) and returns what to add to the report.
     /// </summary>
     /// <returns>True when it is gone (never on a dry run: it is rolled back).</returns>
-    private async Task<bool> RetireSeason(int seasonID, string key, string? name, string why, string[] ignoredUses, Func<HistoricalSeasonRemoval, Task<HistoricalImportReport>> remove, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
+    private async Task<bool> RetireSeason(SeasonRetirement retiring, Func<HistoricalSeasonRemoval, Task<HistoricalImportReport>> remove, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
     {
+        var (seasonID, key, name, why, ignoredUses) = retiring;
         var used = (await UsesOf(seasonID, ct)).Except(ignoredUses).ToList();
         if (used.Count > 0)
         {
@@ -108,4 +108,7 @@ public partial class HistoricalImportService
             return false;
         }
     }
+
+    /// <summary>The season to retire, and why: <paramref name="IgnoredUses"/> are the things pointing at it that do not keep it.</summary>
+    private sealed record SeasonRetirement(int SeasonID, string Key, string? Name, string Why, string[] IgnoredUses);
 }

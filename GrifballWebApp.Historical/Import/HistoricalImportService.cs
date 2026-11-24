@@ -327,14 +327,14 @@ public partial class HistoricalImportService : IHistoricalImportService
         AssignGames(input, groups, report);
         GatherSources(groups, input.Catalog, ChampionsWorkbook(input.Championships));
         // Only the seasons asked for (the ones whose sources changed), with all of their parts
-        NarrowTo(options, groups);
+        NarrowTo(options, groups, archiveSeasons);
 
         // Matches come from the Halo Infinite API before any season's transaction: no network call holds one open.
         await PullWaypointMatches(groups.Values, report, progress, groups.Count, ct);
 
         var championsPrefixes = ChampionsPrefixes(input.Championships);
         // Before the merged season: it takes the name a leftover has, and a season name is unique in its league
-        foreach (var key in await RetireSupersededSeasons(groups, report, options, ct))
+        foreach (var key in await RetireSupersededSeasons(groups, archiveSeasons, report, options, ct))
         {
             Warn(report, $"{groups[key].SeasonName}: not imported this run, a leftover season of one of its sheets stays (see above)");
             groups.Remove(key);
@@ -441,9 +441,15 @@ public partial class HistoricalImportService : IHistoricalImportService
     private void AssignGames(HistoricalArchiveInput input, Dictionary<string, SeasonGroup> groups, HistoricalImportReport report)
     {
         var bySourceId = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
+        // A key a season owns is its own before any other season lists it as a sheet it replaced
         foreach (var group in groups.Values)
         {
-            foreach (var id in EntryKeys(group).Prepend(group.SourceId))
+            foreach (var id in OwnKeys(group))
+                bySourceId.TryAdd(id, group);
+        }
+        foreach (var group in groups.Values)
+        {
+            foreach (var id in ReplacedSheets(group))
                 bySourceId.TryAdd(id, group);
         }
         foreach (var (sourceId, matches) in input.WaypointMatches ?? [])
@@ -478,13 +484,13 @@ public partial class HistoricalImportService : IHistoricalImportService
     }
 
     /// <summary>A partial run: only the seasons asked for (by any of their entries' keys).</summary>
-    private static void NarrowTo(HistoricalImportRunOptions options, Dictionary<string, SeasonGroup> groups)
+    private static void NarrowTo(HistoricalImportRunOptions options, Dictionary<string, SeasonGroup> groups, HashSet<string> archiveSeasons)
     {
         if (options.Seasons is not { } only)
             return;
         foreach (var (key, group) in groups.ToList())
         {
-            if (!EntryKeys(group).Prepend(group.SourceId).Any(id => only.Contains(id)))
+            if (!AllKeys(group).Any(id => only.Contains(id) && (string.Equals(id, group.SourceId, StringComparison.OrdinalIgnoreCase) || !archiveSeasons.Contains(id))))
                 groups.Remove(key);
         }
     }
@@ -513,9 +519,17 @@ public partial class HistoricalImportService : IHistoricalImportService
         return done;
     }
 
-    /// <summary>Every sheet key a season's entries go by: their own and the sheets they replace.</summary>
-    private static IEnumerable<string> EntryKeys(SeasonGroup group)
-        => group.Entries.Select(EntrySourceId).OfType<string>().Concat(group.Entries.SelectMany(e => e.AlsoFromSheets));
+    /// <summary>The keys a season owns: its own and its entries'.</summary>
+    private static IEnumerable<string> OwnKeys(SeasonGroup group)
+        => group.Entries.Select(EntrySourceId).OfType<string>().Prepend(group.SourceId);
+
+    /// <summary>The sheets its entries replace (an archive file may leave the list null).</summary>
+    private static IEnumerable<string> ReplacedSheets(SeasonGroup group)
+        => group.Entries.SelectMany(e => e.AlsoFromSheets ?? []);
+
+    /// <summary>Every sheet key a season goes by.</summary>
+    private static IEnumerable<string> AllKeys(SeasonGroup group)
+        => OwnKeys(group).Concat(ReplacedSheets(group));
 
     /// <summary>"{sourceWorkbook}/{sourceSheet}", or the archive's own key; null when the entry names neither.</summary>
     private static string? EntrySourceId(ArchiveSeason entry)
@@ -669,7 +683,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             .ToList();
 
         foreach (var season in leftover)
-            await RetireSeason(season.SeasonID, season.HistoricalSourceID, season.SeasonName, "its titles are another season's now", [], async removal =>
+            await RetireSeason(new SeasonRetirement(season.SeasonID, season.HistoricalSourceID, season.SeasonName, "its titles are another season's now", []), async removal =>
             {
                 await RemoveTitlesOnlySeason(season.SeasonID, removal, ct);
                 return new HistoricalImportReport { TeamsRemoved = removal.TeamsRemoved };
