@@ -26,6 +26,9 @@ public sealed partial class HistoricalArchiveBuilder
                 continue;
             }
             var key = HistoricalKeys.SeasonSourceId(regular.SourceWorkbook!, regular.SourceSheet!);
+            var sheetKey = HistoricalKeys.SeasonSourceId(regular.SourceWorkbook!, tab.Sheet);
+            if (tab.CustomSeason is not null && !string.Equals(sheetKey, key, StringComparison.OrdinalIgnoreCase) && !regular.AlsoFromSheets.Contains(sheetKey))
+                regular.AlsoFromSheets.Add(sheetKey);
             var names = SeasonTeamNames.Of(SeasonOf(regular), tab.Teams);
             foreach (var game in games)
             {

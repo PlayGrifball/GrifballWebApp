@@ -19,7 +19,7 @@ public partial class HistoricalImportService
         var blocked = new List<string>();
         var archiveKeys = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var candidates = groups.Where(g => !g.Value.IsMatchmaking)
-            .Select(g => (g.Key, Group: g.Value, Keys: g.Value.Entries.Select(EntrySourceId).OfType<string>()
+            .Select(g => (g.Key, Group: g.Value, Keys: g.Value.Entries.Select(EntrySourceId).OfType<string>().Concat(g.Value.Entries.SelectMany(e => e.AlsoFromSheets))
                 .Where(k => !archiveKeys.Contains(k)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()))
             .Where(c => c.Keys.Count > 0).ToList();
         if (candidates.Count == 0)

@@ -90,6 +90,29 @@ public class HistoricalArchiveResultsTests
     }
 
     [Test]
+    public void AResultListNamedLikeAStatsTab_JoinsThatSeason_AndNamesItsSheetAsOneOfTheSeasons()
+    {
+        var source = Source("sml18", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Summer League 2018", Game = "halo5", League = "AGLA" },
+                Tabs = [new() { Name = "Total Stats" }],
+                Results = [new() { Sheet = "Fixtures", Layout = ResultsLayout.Series, CustomSeason = "Summer League 2018", Game = "halo5" }],
+            },
+            Workbook(("Total Stats", [StatsHeader, Row("Ace", null, 4, 1)]),
+                ("Fixtures", [Row("Fortnight 1", null, "Notorious 2-1 Ghosts Of Grif", "5-4", "2-5", "5-2")])));
+
+        var build = HistoricalArchiveBuilder.Build([source]);
+
+        var season = build.Input.Seasons.Seasons.Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.SourceSheet, Is.EqualTo("Total Stats"));
+            Assert.That(season.AlsoFromSheets, Is.EqualTo(new[] { "sml18/Fixtures" }), "The sheet this season replaces, so an import can retire the season that sheet made before");
+            Assert.That(build.Input.RecordedGames!.Select(g => g.SeasonSourceId), Is.All.EqualTo("sml18/Total Stats"));
+        }
+    }
+
+    [Test]
     public void AGameResultsTitle_GivesAForfeitItsGame_APartialCopyItsOtherSide_AndEachItsVod()
     {
         object?[] header = Row("Team", "Player", "Games Played", "Wins", "Minutes", "Goals", "Kills", "Assists", "Deaths", "Carrier Kills");

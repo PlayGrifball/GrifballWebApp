@@ -537,6 +537,30 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     }
 
     [Test]
+    public async Task Import_ASheetTheBuilderJoinedToTheStatsTab_RetiresTheSeasonItMadeBefore()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+        var stats = Tab("Summer League 2018", "Total Stats", Player("Silva", team: "Cabs"));
+        var joined = new ArchiveSeason
+        {
+            SeasonName = stats.SeasonName, GameVersion = stats.GameVersion, League = stats.League, Division = stats.Division,
+            SourceWorkbook = stats.SourceWorkbook, SourceSheet = stats.SourceSheet, Players = stats.Players,
+            AlsoFromSheets = ["sml18-fantasy/Fixtures & Results"],
+        };
+
+        var report = await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [joined] } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(await Context.Seasons.AsNoTracking().Select(s => new { s.SeasonName, s.HistoricalSourceID }).ToListAsync(),
+                Is.EqualTo(new[] { new { SeasonName = "Summer League 2018", HistoricalSourceID = "sml18-fantasy/Total Stats" } }));
+        }
+    }
+
+    [Test]
     public async Task Import_DryRun_LeavesTheSupersededSeasonAndListsIt()
     {
         await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
