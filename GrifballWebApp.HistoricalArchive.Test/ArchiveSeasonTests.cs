@@ -171,7 +171,8 @@ public class ArchiveSeasonTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(seasons.Select(s => (s.SeasonName, s.Game)), Has.Count.EqualTo(1).And.All.EqualTo(("Fall League 2020 (PC)", "halo3")));
+            Assert.That(seasons, Has.Count.EqualTo(1));
+            Assert.That(seasons.Select(s => (s.SeasonName, s.Game)), Is.All.EqualTo(("Fall League 2020 (PC)", "halo3")));
             Assert.That(titles.Select(c => (c.TeamName, c.Tier)), Is.All.EqualTo(("Ascended", "Open")));
             Assert.That(titles.Select(c => c.GamertagUsed), Is.EquivalentTo(Fall2020Champions));
         }
