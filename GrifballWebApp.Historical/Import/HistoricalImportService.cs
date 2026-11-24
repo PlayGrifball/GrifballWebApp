@@ -570,6 +570,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         if (string.IsNullOrWhiteSpace(championship.Game))
             return [];
         var game = championship.Game.Trim();
+        if (game.StartsWith("MCC ", StringComparison.OrdinalIgnoreCase))
+            game = game[4..];
         return new[] { $"{championship.Season} {game} ({championship.Tier})", $"{championship.Season} {game}" }
             .Select(n => HistoricalKeys.FallbackSeasonSourceId(leagueSlug, n));
     }

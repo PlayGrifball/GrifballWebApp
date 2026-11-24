@@ -522,8 +522,8 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         {
             Champions =
             [
-                new ArchiveChampionship { Season = "Fall League 2015", Game = "Halo 3", Tier = "Open", Team = "Cabs", Roster = ["Silva"] },
-                new ArchiveChampionship { Season = "Fall League 2015", Game = "Halo 4", Tier = "Open", Team = "Hens", Roster = ["Hen"] },
+                new ArchiveChampionship { Season = "Fall League 2015", Game = "MCC Halo 3", Tier = "Open", Team = "Cabs", Roster = ["Silva"] },
+                new ArchiveChampionship { Season = "Fall League 2015", Game = "MCC Halo 4", Tier = "Open", Team = "Hens", Roster = ["Hen"] },
             ],
         };
         await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive(), Championships = champions });
