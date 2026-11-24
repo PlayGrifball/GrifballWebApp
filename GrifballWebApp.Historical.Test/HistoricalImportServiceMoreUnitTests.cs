@@ -629,6 +629,26 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     }
 
     [Test]
+    public async Task Run_NamingTheMergedSeasonsOwnSheet_ImportsItAndLeavesOthersOut()
+    {
+        var report = await _service.Run(JoinedToStatsTab(), new HistoricalImportRunOptions { Seasons = new HashSet<string> { "sml18-fantasy/Total Stats" } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsCreated, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task Run_NamingASheetNoSeasonHas_ImportsNothing()
+    {
+        var report = await _service.Run(JoinedToStatsTab(), new HistoricalImportRunOptions { Seasons = new HashSet<string> { "other/Sheet" } });
+
+        Assert.That(report.SeasonsCreated, Is.Zero);
+    }
+
+    [Test]
     public async Task Import_AForfeitKeyedByTheSheetAMergedSeasonReplaced_GoesToTheMergedSeason()
     {
         var forfeit = new ArchiveForfeitInput
