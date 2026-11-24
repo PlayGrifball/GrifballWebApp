@@ -16,6 +16,8 @@ export type ProfilePictureKind = 'gamerPicture' | 'haloEmblem';
 export class ProfilePictureComponent {
   /** The site user whose image to show; none shows only the initial. */
   readonly userID = input<number | null | undefined>();
+  /** An Xbox account to show without any site user (a Halo game of people with no account); wins over userID. */
+  readonly xboxUserID = input<number | string | null | undefined>();
   /** The name the initial comes from (the gamertag or display name). */
   readonly name = input<string | null | undefined>();
   readonly kind = input<ProfilePictureKind>('gamerPicture');
@@ -25,9 +27,11 @@ export class ProfilePictureComponent {
   protected readonly initial = computed(() => this.name()?.trim().charAt(0).toUpperCase() || '?');
 
   protected readonly src = computed(() => {
+    const file = this.kind() === 'haloEmblem' ? 'halo-emblem' : 'gamer-picture';
+    const xboxUserID = this.xboxUserID();
+    if (xboxUserID != null) return `/api/xbox-accounts/${xboxUserID}/${file}`;
     const userID = this.userID();
-    if (userID == null) return null;
-    return `/api/users/${userID}/${this.kind() === 'haloEmblem' ? 'halo-emblem' : 'gamer-picture'}`;
+    return userID == null ? null : `/api/users/${userID}/${file}`;
   });
 
   /** The image answered 404 or was no image: the initial stays. A new user or kind gets a fresh try. */

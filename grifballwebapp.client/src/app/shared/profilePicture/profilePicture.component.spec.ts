@@ -40,6 +40,15 @@ describe('ProfilePictureComponent', () => {
     expect(image()?.classList).toContain('profile-picture__image--shown');
   });
 
+  it('asks for an Xbox account\'s picture directly, ahead of the user', () => {
+    fixture.componentRef.setInput('userID', 12);
+    fixture.componentRef.setInput('xboxUserID', '2533274791234');
+    fixture.componentRef.setInput('kind', 'haloEmblem');
+    fixture.detectChanges();
+
+    expect(image()?.getAttribute('src')).toBe('/api/xbox-accounts/2533274791234/halo-emblem');
+  });
+
   it('asks for the Halo emblem when that is the kind', () => {
     fixture.componentRef.setInput('userID', 12);
     fixture.componentRef.setInput('kind', 'haloEmblem');

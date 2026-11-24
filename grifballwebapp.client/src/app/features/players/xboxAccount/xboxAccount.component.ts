@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { ProfilePictureComponent } from '@shared/profilePicture/profilePicture.component';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { AccountService } from '@core/auth/account.service';
@@ -13,7 +14,7 @@ import { XboxAccountStore } from './xboxAccount.store';
  */
 @Component({
   selector: 'app-xbox-account',
-  imports: [RouterModule, DatePipe],
+  imports: [ProfilePictureComponent, RouterModule, DatePipe],
   templateUrl: './xboxAccount.component.html',
   styleUrl: './xboxAccount.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

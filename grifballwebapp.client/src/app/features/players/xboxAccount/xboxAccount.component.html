@@ -3,6 +3,7 @@
 
   <div class="hud-page-head">
     <span class="hud-kicker">&gt; Xbox account</span>
+    <app-profile-picture class="xa-avatar" [xboxUserID]="xuid()" [name]="a?.gamertag" />
     <h1 class="hud-title hud-title--md">{{a?.gamertag ?? 'Xbox account'}}</h1>
     <span class="xa-id">XUID {{xuid()}}</span>
   </div>

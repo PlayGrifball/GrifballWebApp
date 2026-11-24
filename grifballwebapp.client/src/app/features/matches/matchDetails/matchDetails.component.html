@@ -82,6 +82,7 @@
                   @for (player of team.players; track player.gamertag) {
                     <tr>
                       <th scope="row">
+                        <app-profile-picture class="md-avatar" [userID]="player.userID" [xboxUserID]="player.xboxUserID" [name]="player.gamertag" />
                         @if (player.userID != null) {
                           <a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag}}</a>
                         } @else {
