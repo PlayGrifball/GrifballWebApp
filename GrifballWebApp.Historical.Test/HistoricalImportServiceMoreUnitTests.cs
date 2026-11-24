@@ -600,6 +600,141 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         }
     }
 
+    private static HistoricalArchiveInput JoinedToStatsTab(params ArchiveForfeitInput[] forfeits)
+    {
+        var stats = Tab("Summer League 2018", "Total Stats", Player("Silva", team: "Cabs"), Player("Hen", team: "Hens"));
+        var joined = new ArchiveSeason
+        {
+            SeasonName = stats.SeasonName, GameVersion = stats.GameVersion, League = stats.League, Division = stats.Division,
+            SourceWorkbook = stats.SourceWorkbook, SourceSheet = stats.SourceSheet, Players = stats.Players,
+            AlsoFromSheets = ["sml18-fantasy/Fixtures & Results"],
+        };
+        return new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [joined] }, Forfeits = [.. forfeits] };
+    }
+
+    [Test]
+    public async Task Run_NamingTheSheetAMergedSeasonReplaced_StillImportsItAndRetiresTheLeftover()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(JoinedToStatsTab(), new HistoricalImportRunOptions { Seasons = new HashSet<string> { "sml18-fantasy/Fixtures & Results" } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(await Context.Seasons.AnyAsync(s => s.HistoricalSourceID == "sml18-fantasy/Fixtures & Results"), Is.False);
+            Assert.That(await Context.Seasons.AnyAsync(s => s.HistoricalSourceID == "sml18-fantasy/Total Stats"), Is.True, "The merged season itself is imported");
+        }
+    }
+
+    [Test]
+    public async Task Run_NamingTheMergedSeasonsOwnSheet_ImportsItAndLeavesOthersOut()
+    {
+        var report = await _service.Run(JoinedToStatsTab(), new HistoricalImportRunOptions { Seasons = new HashSet<string> { "sml18-fantasy/Total Stats" } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsCreated, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task Run_NamingASheetNoSeasonHas_ImportsNothing()
+    {
+        var report = await _service.Run(JoinedToStatsTab(), new HistoricalImportRunOptions { Seasons = new HashSet<string> { "other/Sheet" } });
+
+        Assert.That(report.SeasonsCreated, Is.Zero);
+    }
+
+    [Test]
+    public async Task Import_AForfeitKeyedByTheSheetAMergedSeasonReplaced_GoesToTheMergedSeason()
+    {
+        var forfeit = new ArchiveForfeitInput
+        {
+            SeasonSourceId = "sml18-fantasy/Fixtures & Results", SourceKey = "sml18-fantasy/Fixtures & Results#1",
+            Winner = "Cabs", Loser = "Hens", PlayedAt = new DateTime(2018, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        var report = await _service.Import(JoinedToStatsTab(forfeit));
+
+        var season = await Context.Seasons.SingleAsync(s => s.HistoricalSourceID == "sml18-fantasy/Total Stats");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Skipped, Has.None.Contain("no season with the key"));
+            Assert.That(report.SeasonMatchesCreated, Is.EqualTo(1));
+            Assert.That(await Context.SeasonMatches.CountAsync(m => m.SeasonID == season.SeasonID), Is.EqualTo(1), "The forfeit is the merged season's");
+        }
+    }
+
+    private static HistoricalArchiveInput MergedSeasonAndOneOwningItsAlias(params ArchiveForfeitInput[] forfeits)
+    {
+        var merged = JoinedToStatsTab().Seasons!.Seasons[0];
+        merged.AlsoFromSheets.Clear();
+        merged.AlsoFromSheets.Add("sml18-fantasy/Other");
+        var owner = Tab("Winter League 2018", "Other", Player("Silva", team: "Cabs"), Player("Hen", team: "Hens"));
+        return new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [merged, owner] }, Forfeits = [.. forfeits] };
+    }
+
+    [Test]
+    public async Task Import_AForfeitKeyedByASheetAnotherSeasonOwns_GoesToTheOwner_NotTheMergedSeasonListingItAsAnAlias()
+    {
+        var forfeit = new ArchiveForfeitInput
+        {
+            SeasonSourceId = "sml18-fantasy/Other", SourceKey = "sml18-fantasy/Other#1",
+            Winner = "Cabs", Loser = "Hens", PlayedAt = new DateTime(2018, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        var report = await _service.Import(MergedSeasonAndOneOwningItsAlias(forfeit));
+
+        var owner = await Context.Seasons.SingleAsync(s => s.HistoricalSourceID == "sml18-fantasy/Other");
+        var merged = await Context.Seasons.SingleAsync(s => s.HistoricalSourceID == "sml18-fantasy/Total Stats");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(await Context.SeasonMatches.CountAsync(m => m.SeasonID == owner.SeasonID), Is.EqualTo(1));
+            Assert.That(await Context.SeasonMatches.CountAsync(m => m.SeasonID == merged.SeasonID), Is.Zero);
+        }
+    }
+
+    [Test]
+    public async Task Run_NamingASheetAnotherSeasonOwns_ImportsTheOwner_AndLeavesItsImportedSeasonBe()
+    {
+        await _service.Import(MergedSeasonAndOneOwningItsAlias());
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(MergedSeasonAndOneOwningItsAlias(), new HistoricalImportRunOptions { Seasons = new HashSet<string> { "sml18-fantasy/Other" } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(report.SeasonsUpdated, Is.EqualTo(1), "Only the owner is imported");
+            Assert.That(await Context.Seasons.AnyAsync(s => s.HistoricalSourceID == "sml18-fantasy/Other"), Is.True);
+        }
+    }
+
+    [Test]
+    public async Task Import_ASeasonWithNoListOfSheetsItReplaces_IsImported()
+    {
+        var season = Tab("Summer League 2018", "Total Stats", Player("Silva", team: "Cabs"));
+        var withNull = new ArchiveSeason
+        {
+            SeasonName = season.SeasonName, GameVersion = season.GameVersion, League = season.League, Division = season.Division,
+            SourceWorkbook = season.SourceWorkbook, SourceSheet = season.SourceSheet, Players = season.Players, AlsoFromSheets = null!,
+        };
+
+        var report = await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [withNull] } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsCreated, Is.EqualTo(1));
+        }
+    }
+
     [Test]
     public async Task Import_ASupersededSeasonWithStats_IsKept_AndTheReportSaysWhy()
     {
