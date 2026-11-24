@@ -1,3 +1,5 @@
+using GrifballWebApp.Application.Queries;
+using Microsoft.Extensions.Logging;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
