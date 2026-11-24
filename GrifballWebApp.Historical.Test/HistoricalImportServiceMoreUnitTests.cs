@@ -573,6 +573,46 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         }
     }
 
+    [Test]
+    public async Task Import_ASupersededSeasonWithStats_IsKept_AndTheReportSaysWhy()
+    {
+        HistoricalArchiveInput WithStatsOnTheFixturesTab(string statsName) => new()
+        {
+            Seasons = new UnifiedArchive
+            {
+                Seasons = [Tab(statsName, "Total Stats", Player("Silva", team: "Cabs")), Tab("Summer League 2018", "Fixtures & Results", Player("Hen", team: "Hens"))],
+            },
+        };
+        await _service.Import(WithStatsOnTheFixturesTab("Summer League 2018 (Fantasy Rey)"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(WithStatsOnTheFixturesTab("Summer League 2018"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(report.Warnings, Has.Some.Contain("sml18-fantasy/Fixtures & Results").And.Contain("stats").And.Contain("left for a sysadmin"));
+            Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(2), "Neither season is removed");
+        }
+    }
+
+    [Test]
+    public async Task Run_ASupersededSeasonWithATitle_StopsForReviewUnderTheGuardrail_AndIsKept()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(TwoTabs("Summer League 2018", "Summer League 2018"), new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions() });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(report.SeasonRemovals.Single(r => r.SeasonKey == "sml18-fantasy/Fixtures & Results").Stopped, Is.True);
+            Assert.That(report.Warnings, Has.Some.Contain("stopped for review"));
+            Assert.That(await Context.Seasons.AnyAsync(s => s.HistoricalSourceID == "sml18-fantasy/Fixtures & Results"), Is.True, "Kept for review");
+        }
+    }
+
     private static readonly (string, string)[] MergedSeason = [("Summer League 2018", "sml18-fantasy/Total Stats")];
     private static readonly string[] MergedTeams = ["Cabs", "Hens"];
 
