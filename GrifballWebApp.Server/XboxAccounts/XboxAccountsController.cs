@@ -69,6 +69,25 @@ public class XboxAccountsController : ControllerBase
     public Task<IActionResult> GetHaloEmblem([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
         => Image(images, xboxUserID, XboxUserImageKind.HaloEmblem, ct);
 
+    /// <summary>The gamer picture of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.</summary>
+    [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    [HttpGet("users/{userID:int}/gamer-picture", Name = "GetUserGamerPicture")]
+    public Task<IActionResult> GetUserGamerPicture([FromRoute] int userID, [FromServices] XboxImageService images, CancellationToken ct)
+        => ImageOfUser(images, userID, XboxUserImageKind.GamerPicture, ct);
+
+    /// <summary>The Halo Infinite emblem of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.</summary>
+    [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    [HttpGet("users/{userID:int}/halo-emblem", Name = "GetUserHaloEmblem")]
+    public Task<IActionResult> GetUserHaloEmblem([FromRoute] int userID, [FromServices] XboxImageService images, CancellationToken ct)
+        => ImageOfUser(images, userID, XboxUserImageKind.HaloEmblem, ct);
+
+    private async Task<IActionResult> ImageOfUser(XboxImageService images, int userID, XboxUserImageKind kind, CancellationToken ct)
+        => await images.GetXboxUserIdOfAsync(userID, ct) is { } xboxUserID ? await Image(images, xboxUserID, kind, ct) : NotFound();
+
     private static Microsoft.Net.Http.Headers.EntityTagHeaderValue ETagOf(DateTime checkedAt)
         => new($"\"{DateTime.SpecifyKind(checkedAt, DateTimeKind.Utc).Ticks}\"");
 

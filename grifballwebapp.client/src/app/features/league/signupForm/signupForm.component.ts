@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, computed, inject, input, linkedSignal, numberAttribute, viewChild, signal } from '@angular/core';
+import { ProfilePictureComponent } from '@shared/profilePicture/profilePicture.component';
 import { DatePipe } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,6 +17,7 @@ import { SignupFormStore } from './signupForm.store';
 @Component({
     selector: 'app-signup-form',
     imports: [
+        ProfilePictureComponent,
         FormsModule,
         MatInputModule,
         MatFormFieldModule,

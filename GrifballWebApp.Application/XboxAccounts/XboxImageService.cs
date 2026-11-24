@@ -17,6 +17,10 @@ public class XboxImageService
         _context = context;
     }
 
+    /// <summary>The Xbox account a site user is tied to; null for a user with none (or no such user).</summary>
+    public virtual async Task<long?> GetXboxUserIdOfAsync(int userID, CancellationToken ct = default)
+        => await _context.Users.AsNoTracking().Where(u => u.Id == userID).Select(u => u.XboxUserID).FirstOrDefaultAsync(ct);
+
     /// <summary>When the account's stored image of that kind was last checked (its version); null when none is stored. Reads no bytes.</summary>
     public virtual async Task<DateTime?> GetCheckedAtAsync(long xboxUserID, XboxUserImageKind kind, CancellationToken ct = default)
         => await _context.XboxUserImages.AsNoTracking()

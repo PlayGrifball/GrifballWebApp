@@ -177,10 +177,11 @@ describe('ToolbarComponent', () => {
   });
 
   it('uses a placeholder initial while the name is unknown', () => {
+    account.isLoggedIn.set(true);
+    account.personID.set(5);
     account.displayName.set('  ');
-    expect(component.initial()).toBe('?');
-    account.displayName.set(null);
-    expect(component.initial()).toBe('?');
+    fixture.detectChanges();
+    expect(el().querySelector('.hud-user__avatar')!.textContent!.trim()).toBe('?');
   });
 
   describe('quick search', () => {

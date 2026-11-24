@@ -25,9 +25,10 @@
   justify-content: center;
   border: 1px solid var(--hud-border);
   background: radial-gradient(circle, var(--hud-accent-tint-strong) 0%, transparent 70%), var(--hud-input);
-  font: 700 clamp(64px, 16vw, 108px) var(--hud-font);
-  color: var(--hud-accent);
-  text-shadow: var(--hud-glow);
+}
+
+.profile-emblem app-profile-picture {
+  --profile-picture-size: 100%;
 }
 
 .profile-name {

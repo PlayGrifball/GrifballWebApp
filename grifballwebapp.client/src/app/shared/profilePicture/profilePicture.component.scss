@@ -1,0 +1,29 @@
+:host {
+  flex: none;
+  display: inline-flex;
+  width: var(--profile-picture-size, 38px);
+  aspect-ratio: 1;
+  container-type: inline-size;
+}
+
+.profile-picture {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.profile-picture__initial { font-size: 42cqw; line-height: 1; }
+
+.profile-picture__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+
+.profile-picture--emblem .profile-picture__image { object-fit: contain; }
+
+.profile-picture__image--shown { opacity: 1; }

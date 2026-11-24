@@ -36,7 +36,7 @@
             <h2 class="hud-h2">Roster</h2>
             @for (player of team()?.players; track player.teamPlayerID) {
                 <div class="team-player">
-                    <span class="hud-avatar" aria-hidden="true">{{(player.gamertag || '?').charAt(0)}}</span>
+                    <app-profile-picture [userID]="player.userID" [name]="player.gamertag" />
                     @if (player.userID) {
                         <a [routerLink]="['/profile', player.userID]" class="team-player__name hud-text-link">{{player.gamertag || 'Unknown Spartan'}}</a>
                     } @else {

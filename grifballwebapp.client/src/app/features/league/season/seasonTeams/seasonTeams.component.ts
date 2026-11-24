@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ProfilePictureComponent } from '@shared/profilePicture/profilePicture.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +13,7 @@ import { SeasonTeamsStore } from './seasonTeams.store';
   templateUrl: './seasonTeams.component.html',
   styleUrl: './seasonTeams.component.scss',
   imports: [
+    ProfilePictureComponent,
     RouterLink,
     FormsModule,
     SeasonTabsComponent,

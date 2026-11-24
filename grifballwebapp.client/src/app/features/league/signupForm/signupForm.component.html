@@ -8,7 +8,7 @@
 
     @if (accountService.displayName(); as name) {
     <div class="enlist-who hud-well">
-      <span class="hud-avatar hud-avatar--accent enlist-who__avatar" aria-hidden="true">{{name.charAt(0)}}</span>
+      <app-profile-picture class="enlist-who__avatar" [userID]="accountService.personID()" [name]="name" [accent]="true" />
       <span class="enlist-who__text"><span class="hud-label">Signing up as</span><span class="enlist-who__name">{{name}}</span></span>
     </div>
     }

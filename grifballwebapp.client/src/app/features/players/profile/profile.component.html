@@ -2,7 +2,7 @@
 
   <aside class="profile-card hud-panel hud-panel--chamfer" aria-labelledby="profile-name">
     <span class="hud-kicker">&gt; Service record</span>
-    <div class="profile-emblem" aria-hidden="true">{{(gamertag() || profileStats()?.displayName)?.charAt(0) ?? '?'}}</div>
+    <div class="profile-emblem"><app-profile-picture kind="haloEmblem" [userID]="userID()" [name]="gamertag() || profileStats()?.displayName" /></div>
     <h1 id="profile-name" class="profile-name">{{gamertag() || profileStats()?.displayName || 'Unknown Spartan'}}</h1>
 
     <dl class="profile-facts">

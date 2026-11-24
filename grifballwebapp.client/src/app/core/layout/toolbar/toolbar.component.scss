@@ -107,7 +107,7 @@
   &:hover, &:focus-visible { background: var(--hud-accent-tint); color: var(--hud-heading); }
 }
 
-.hud-user__avatar { width: 32px; height: 32px; }
+.hud-user__avatar { --profile-picture-size: 32px; }
 
 .hud-user__name {
   max-width: 180px;

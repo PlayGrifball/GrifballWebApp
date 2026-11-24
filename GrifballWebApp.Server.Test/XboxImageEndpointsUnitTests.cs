@@ -110,6 +110,38 @@ public class XboxImageEndpointsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task GetUserGamerPicture_GivesTheImageOfTheUsersXboxAccount()
+    {
+        await StoreAsync(5, XboxUserImageKind.GamerPicture);
+        var user = User.Seed(userName: "linked", xboxUserID: 5);
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+
+        var result = await Controller().GetUserGamerPicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+
+        Assert.That(((FileContentResult)result).FileContents, Is.EqualTo(Png));
+    }
+
+    [Test]
+    public async Task GetUserHaloEmblem_GivesTheEmblem_AndIsNotFoundForAUserWithNoXboxAccount()
+    {
+        await StoreAsync(5, XboxUserImageKind.HaloEmblem);
+        var linked = User.Seed(userName: "linked", xboxUserID: 5);
+        var unlinked = User.Seed(userName: "unlinked");
+        Db.Users.AddRange(linked, unlinked);
+        await Db.SaveChangesAsync();
+
+        var emblem = await Controller().GetUserHaloEmblem(linked.Id, new XboxImageService(Db), CancellationToken.None);
+        var none = await Controller().GetUserHaloEmblem(unlinked.Id, new XboxImageService(Db), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(emblem, Is.TypeOf<FileContentResult>());
+            Assert.That(none, Is.TypeOf<NotFoundResult>());
+        }
+    }
+
+    [Test]
     public async Task GetHaloEmblem_GivesTheStoredEmblem_NotTheGamerPicture()
     {
         await StoreAsync(5, XboxUserImageKind.HaloEmblem);

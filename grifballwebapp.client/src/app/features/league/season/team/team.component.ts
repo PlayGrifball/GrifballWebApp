@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { ProfilePictureComponent } from '@shared/profilePicture/profilePicture.component';
 import { ChangeDetectionStrategy, Component, computed, input, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -34,6 +35,7 @@ export function describeTeam(team: TeamDto): PageDescription {
 @Component({
     selector: 'app-team',
     imports: [
+        ProfilePictureComponent,
         MatButtonModule,
         SeasonTabsComponent,
         MatTableModule,

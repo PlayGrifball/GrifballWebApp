@@ -37,7 +37,7 @@
       }
       @for (player of store.homeRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
-          <span class="hud-avatar" aria-hidden="true">{{(player.gamertag || '?').charAt(0)}}</span>
+          <app-profile-picture [userID]="player.userID" [name]="player.gamertag" />
           <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag || 'Unknown Spartan'}}</a></span>
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
         </div>
@@ -77,7 +77,7 @@
         <div class="lobby-player">
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
           <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag || 'Unknown Spartan'}}</a></span>
-          <span class="hud-avatar" aria-hidden="true">{{(player.gamertag || '?').charAt(0)}}</span>
+          <app-profile-picture [userID]="player.userID" [name]="player.gamertag" />
         </div>
       }
     </div>
