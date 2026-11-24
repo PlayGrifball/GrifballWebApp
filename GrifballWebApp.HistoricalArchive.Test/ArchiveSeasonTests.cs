@@ -212,4 +212,62 @@ public class ArchiveSeasonTests
         var (won, lost) = winner == final.Home ? (final.HomeTeamScore, final.AwayTeamScore) : (final.AwayTeamScore, final.HomeTeamScore);
         Assert.That((winner, loser, won, lost), Is.EqualTo(((string?)"Beer", (string?)"Forklift Certified", (int?)2, (int?)0)));
     }
+
+    /// <summary>The champions record's "Fall League 2015" is two seasons, Halo 3 and Halo 4: its titles are on those two
+    /// (the record writes the game "MCC Halo 3"), and no titles-only "Fall League 2015" is left.</summary>
+    [Test]
+    public async Task FallLeague2015_TitlesAreOnItsHalo3AndHalo4Seasons_NotOnASeasonOfTheirOwn()
+    {
+        await using var context = Archive.NewContext();
+        var seasons = await context.Seasons.AsNoTracking().Where(s => s.SeasonName.StartsWith("Fall League 2015") && s.League.Slug == "agla")
+            .Select(s => new { s.SeasonName, Titles = context.Set<PlayerChampionship>().Count(c => c.SeasonID == s.SeasonID) })
+            .ToListAsync();
+        if (!seasons.Any(s => s.SeasonName == "Fall League 2015 Halo 3"))
+            Assert.Ignore("Fall League 2015's workbook is not in this copy of the archive");
+
+        Assert.That(seasons.Select(s => s.SeasonName), Is.EquivalentTo(FallLeague2015Seasons), "No third, titles-only season");
+        Assert.That(seasons.Select(s => s.Titles), Has.All.GreaterThan(0), "Each game's champions are on its own season");
+    }
+
+    private static readonly string[] FallLeague2015Seasons = ["Fall League 2015 Halo 3", "Fall League 2015 Halo 4"];
+
+    /// <summary>Spring League 2026 is two seasons, Major and Minor: its titles are on those, and no titles-only "Spring League
+    /// 2026" is left.</summary>
+    [Test]
+    public async Task SpringLeague2026_TitlesAreOnItsMajorAndMinorSeasons_NotOnASeasonOfTheirOwn()
+    {
+        await using var context = Archive.NewContext();
+        var names = await context.Seasons.AsNoTracking().Where(s => s.SeasonName.StartsWith("Spring League 2026")).Select(s => s.SeasonName).ToListAsync();
+        if (!names.Contains("Spring League 2026 (Major)"))
+            Assert.Ignore("Spring League 2026's workbooks are not in this copy of the archive");
+
+        Assert.That(names, Does.Not.Contain("Spring League 2026"));
+    }
+
+    /// <summary>The 2022 H3 Action League's page links the schedule workbook too, the one its bracket is in.</summary>
+    [Test]
+    public async Task H3Action2022_LinksItsScheduleWorkbook_TheBracketsToo()
+    {
+        await using var context = Archive.NewContext();
+        var season = await context.Seasons.AsNoTracking().SingleOrDefaultAsync(s => s.HistoricalSourceID == "2022-h3-action-stats/Stats");
+        if (season is null)
+            Assert.Ignore("The 2022 H3 Action League is not in this copy of the archive");
+
+        Assert.That(season.HistoricalSourceLinks!.Select(l => l.Label), Does.Contain("H3 Action League 22 Schedule"));
+    }
+
+    /// <summary>No title is on a season the archive has no stats for while a season of the same name and game has them.</summary>
+    [Test]
+    public async Task NoTitlesOnlySeason_ShareItsNameWithASeasonOfStats()
+    {
+        await using var context = Archive.NewContext();
+        var seasons = await context.Seasons.AsNoTracking().Where(s => s.HistoricalSourceID != null)
+            .Select(s => new { s.SeasonName, s.HistoricalSourceID, HasStats = context.PlayerSeasonStats.Any(p => p.SeasonID == s.SeasonID) })
+            .ToListAsync();
+        var titlesOnly = seasons.Where(s => !s.HasStats && s.HistoricalSourceID!.StartsWith("history-")).Select(s => s.SeasonName).ToList();
+        var withStats = seasons.Where(s => s.HasStats).Select(s => s.SeasonName).ToList();
+
+        var shadowed = titlesOnly.Where(t => withStats.Any(n => n.StartsWith(t + " ", StringComparison.OrdinalIgnoreCase))).ToList();
+        Assert.That(shadowed, Is.Empty, "A titles-only season whose name begins another's (Fall League 2015 / Fall League 2015 Halo 3) is the same season twice");
+    }
 }
