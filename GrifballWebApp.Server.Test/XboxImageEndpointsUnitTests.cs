@@ -65,6 +65,35 @@ public class XboxImageEndpointsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task GetGamerPicture_WithItsETag_Answers304_AndNoBody()
+    {
+        await StoreAsync(5, XboxUserImageKind.GamerPicture);
+        var first = (FileContentResult)await Controller().GetGamerPicture(5, new XboxImageService(Db), CancellationToken.None);
+        var controller = Controller();
+        controller.Request.Headers.IfNoneMatch = first.EntityTag!.ToString();
+
+        var result = await controller.GetGamerPicture(5, new XboxImageService(Db), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(((StatusCodeResult)result).StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
+            Assert.That(controller.Response.Headers.ETag.ToString(), Is.EqualTo(first.EntityTag.ToString()));
+        }
+    }
+
+    [Test]
+    public async Task GetGamerPicture_WithAnotherETag_GivesTheImage()
+    {
+        await StoreAsync(5, XboxUserImageKind.GamerPicture);
+        var controller = Controller();
+        controller.Request.Headers.IfNoneMatch = "\"1\"";
+
+        var result = await controller.GetGamerPicture(5, new XboxImageService(Db), CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<FileContentResult>());
+    }
+
+    [Test]
     public async Task GetHaloEmblem_GivesTheStoredEmblem_NotTheGamerPicture()
     {
         await StoreAsync(5, XboxUserImageKind.HaloEmblem);
