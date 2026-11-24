@@ -283,12 +283,14 @@ public class ArchiveSeasonTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(seasons.Select(s => s.SeasonName), Is.EquivalentTo(new[] { "Summer League 2011 (Amateur)", "Summer League 2011 (Pro)" }));
+            Assert.That(seasons.Select(s => s.SeasonName), Is.EquivalentTo(SummerLeague2011Seasons));
             Assert.That(seasons.Select(s => s.Game), Has.All.EqualTo("reach"));
             Assert.That(seasons.Select(s => s.Titles), Has.All.GreaterThan(0), "The Pro and Amateur champions");
             Assert.That(seasons.Select(s => s.Games), Has.All.GreaterThan(0));
         }
     }
+
+    private static readonly string[] SummerLeague2011Seasons = ["Summer League 2011 (Amateur)", "Summer League 2011 (Pro)"];
 
     /// <summary>SML18 Fantasy by Rey's "Total Stats" and "Fixtures & Results" tabs are one season, Summer League 2018: its
     /// player stats and its schedule are on the one season, and no "(Fantasy Rey)" season is left.</summary>
