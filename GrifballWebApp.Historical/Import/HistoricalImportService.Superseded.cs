@@ -67,7 +67,7 @@ public partial class HistoricalImportService
     /// stays, and the report says why, when anything but <paramref name="ignoredUses"/> points at it, when the guardrail
     /// stops it, or when it fails. <paramref name="remove"/> removes it (saving) and returns what to add to the report.
     /// </summary>
-    /// <returns>True when it is gone, or on a dry run when it would go (so the season that replaces it can follow).</returns>
+    /// <returns>True when it is gone (never on a dry run: it is rolled back).</returns>
     private async Task<bool> RetireSeason(int seasonID, string key, string? name, string why, string[] ignoredUses, Func<HistoricalSeasonRemoval, Task<HistoricalImportReport>> remove, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
     {
         var used = (await UsesOf(seasonID, ct)).Except(ignoredUses).ToList();
@@ -90,7 +90,7 @@ public partial class HistoricalImportService
                 _context.ChangeTracker.Clear();
                 if (removal.Stopped)
                     Warn(report, $"{key}: stopped for review, retiring it would remove {removal.Summary}");
-                return options.DryRun && !removal.Stopped;
+                return false;
             }
             await transaction.CommitAsync(ct);
             _context.ChangeTracker.Clear();

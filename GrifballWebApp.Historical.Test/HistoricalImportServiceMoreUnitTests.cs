@@ -600,22 +600,6 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         }
     }
 
-    [Test]
-    public async Task Import_DryRunOfAMerge_ShowsTheMergedSeasonToo()
-    {
-        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
-        Context.ChangeTracker.Clear();
-
-        var report = await _service.Run(TwoTabs("Summer League 2018", "Summer League 2018"), new HistoricalImportRunOptions { DryRun = true });
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(report.Errors, Is.Empty);
-            Assert.That(report.Warnings, Has.None.Contain("not imported this run"), "The leftover would go, so the merged season is not held back");
-            Assert.That(report.SeasonsRetired, Is.Zero, "Nothing is kept");
-        }
-    }
-
     private static HistoricalArchiveInput JoinedToStatsTab(params ArchiveForfeitInput[] forfeits)
     {
         var stats = Tab("Summer League 2018", "Total Stats", Player("Silva", team: "Cabs"));
