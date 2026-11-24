@@ -443,8 +443,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var bySourceId = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
         foreach (var group in groups.Values)
         {
-            bySourceId.TryAdd(group.SourceId, group);
-            foreach (var id in EntryKeys(group))
+            foreach (var id in EntryKeys(group).Prepend(group.SourceId))
                 bySourceId.TryAdd(id, group);
         }
         foreach (var (sourceId, matches) in input.WaypointMatches ?? [])
@@ -483,7 +482,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         if (options.Seasons is { } only)
         {
-            foreach (var key in groups.Where(g => !only.Contains(g.Value.SourceId) && !EntryKeys(g.Value).Any(only.Contains))
+            foreach (var key in groups.Where(g => !EntryKeys(g.Value).Prepend(g.Value.SourceId).Any(only.Contains))
                 .Select(g => g.Key).ToList())
                 groups.Remove(key);
         }
