@@ -329,7 +329,11 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         var championsPrefixes = ChampionsPrefixes(input.Championships);
         // Before the merged season: it takes the name a leftover has, and a season name is unique in its league
-        await RetireSupersededSeasons(groups, report, options, ct);
+        foreach (var key in await RetireSupersededSeasons(groups, report, options, ct))
+        {
+            Warn(report, $"{groups[key].SeasonName}: not imported this run, a leftover season of one of its sheets stays (see above)");
+            groups.Remove(key);
+        }
         var done = await ImportSeasons(groups, gameVersions, championsPrefixes, report, options, progress, ct);
         if (input.Championships is { Champions.Count: > 0 } champions)
             await RetireLeftoverTitleSeasons(champions, archiveSeasons, leagues, report, options, ct);

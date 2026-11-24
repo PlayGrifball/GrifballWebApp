@@ -613,6 +613,45 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         }
     }
 
+    [Test]
+    public async Task Import_ASupersededSeasonWithAnAwardNamingItsTeam_IsRetiredWithTheAward()
+    {
+        static HistoricalArchiveInput WithAward(string statsName)
+        {
+            var input = TwoTabs(statsName, "Summer League 2018");
+            input.Seasons!.Seasons[1].Awards.Add(new ArchiveAward { Name = "Team Most Goals", Winner = "Hens", IsTeam = true, Value = "9" });
+            return input;
+        }
+        await _service.Import(WithAward("Summer League 2018 (Fantasy Rey)"));
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.Seasons.Awards().CountAsync(), Is.EqualTo(1), "The leftover has the award");
+
+        var report = await _service.Import(TwoTabs("Summer League 2018", "Summer League 2018"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(await Context.Seasons.Awards().CountAsync(), Is.Zero, "The award went with its season");
+        }
+    }
+
+    [Test]
+    public async Task Run_AMergedSeasonWhoseLeftoverStays_IsNotImportedThisRun_AndNothingFailsOnItsName()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(TwoTabs("Summer League 2018", "Summer League 2018"), new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions() });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty, "no duplicate season name");
+            Assert.That(report.Warnings, Has.Some.Contain("not imported this run"));
+            Assert.That(await Context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EquivalentTo(new[] { "Summer League 2018 (Fantasy Rey)", "Summer League 2018" }), "both stay as they were");
+        }
+    }
+
     private static readonly (string, string)[] MergedSeason = [("Summer League 2018", "sml18-fantasy/Total Stats")];
     private static readonly string[] MergedTeams = ["Cabs", "Hens"];
 
