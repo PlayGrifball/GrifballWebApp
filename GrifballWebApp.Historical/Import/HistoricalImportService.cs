@@ -444,7 +444,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         foreach (var group in groups.Values)
         {
             bySourceId.TryAdd(group.SourceId, group);
-            foreach (var id in group.Entries.Select(EntrySourceId).OfType<string>())
+            foreach (var id in EntryKeys(group))
                 bySourceId.TryAdd(id, group);
         }
         foreach (var (sourceId, matches) in input.WaypointMatches ?? [])
@@ -483,7 +483,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         if (options.Seasons is { } only)
         {
-            foreach (var key in groups.Where(g => !only.Contains(g.Value.SourceId) && !g.Value.Entries.Select(EntrySourceId).Any(id => id is not null && only.Contains(id)))
+            foreach (var key in groups.Where(g => !only.Contains(g.Value.SourceId) && !EntryKeys(g.Value).Any(only.Contains))
                 .Select(g => g.Key).ToList())
                 groups.Remove(key);
         }
@@ -512,6 +512,10 @@ public partial class HistoricalImportService : IHistoricalImportService
         }
         return done;
     }
+
+    /// <summary>Every sheet key a season's entries go by: their own and the sheets they replace.</summary>
+    private static IEnumerable<string> EntryKeys(SeasonGroup group)
+        => group.Entries.Select(EntrySourceId).OfType<string>().Concat(group.Entries.SelectMany(e => e.AlsoFromSheets));
 
     /// <summary>"{sourceWorkbook}/{sourceSheet}", or the archive's own key; null when the entry names neither.</summary>
     private static string? EntrySourceId(ArchiveSeason entry)
@@ -665,43 +669,11 @@ public partial class HistoricalImportService : IHistoricalImportService
             .ToList();
 
         foreach (var season in leftover)
-        {
-            var used = await UsesOf(season.SeasonID, ct);
-            if (used.Count > 0)
-            {
-                Warn(report, $"{season.HistoricalSourceID}: its titles are another season's now, but it has {string.Join(", ", used)}; left for a sysadmin");
-                continue;
-            }
-
-            var removal = new HistoricalSeasonRemoval { SeasonKey = season.HistoricalSourceID, SeasonName = season.SeasonName };
-            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-            try
+            await RetireSeason(season.SeasonID, season.HistoricalSourceID, season.SeasonName, "its titles are another season's now", [], async removal =>
             {
                 await RemoveTitlesOnlySeason(season.SeasonID, removal, ct);
-
-                removal.Stopped = !options.DryRun && options.Guardrail?.Exceeded(removal) == true;
-                report.SeasonRemovals.Add(removal);
-                if (options.DryRun || removal.Stopped)
-                {
-                    await transaction.RollbackAsync(ct);
-                    _context.ChangeTracker.Clear();
-                    if (removal.Stopped)
-                        Warn(report, $"{season.HistoricalSourceID}: stopped for review, retiring it would remove {removal.Summary}");
-                    continue;
-                }
-                await transaction.CommitAsync(ct);
-                report.TeamsRemoved += removal.TeamsRemoved;
-                report.ChampionshipsRemoved += removal.TitlesRemoved;
-                report.SeasonsRetired++;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                await transaction.RollbackAsync(CancellationToken.None);
-                _context.ChangeTracker.Clear();
-                _logger.LogError(ex, "Retiring the titles-only season {Season} failed and was rolled back", season.HistoricalSourceID);
-                report.Errors.Add($"{season.HistoricalSourceID}: {ex.GetBaseException().Message}");
-            }
-        }
+                return new HistoricalImportReport { TeamsRemoved = removal.TeamsRemoved };
+            }, report, options, ct);
     }
 
     /// <summary>What else points at a season: anything keeps a titles-only season from being retired.</summary>

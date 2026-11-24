@@ -601,6 +601,64 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     }
 
     [Test]
+    public async Task Import_DryRunOfAMerge_ShowsTheMergedSeasonToo()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(TwoTabs("Summer League 2018", "Summer League 2018"), new HistoricalImportRunOptions { DryRun = true });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.Warnings, Has.None.Contain("not imported this run"), "The leftover would go, so the merged season is not held back");
+            Assert.That(report.SeasonsRetired, Is.Zero, "Nothing is kept");
+        }
+    }
+
+    private static HistoricalArchiveInput JoinedToStatsTab(params ArchiveForfeitInput[] forfeits)
+    {
+        var stats = Tab("Summer League 2018", "Total Stats", Player("Silva", team: "Cabs"));
+        var joined = new ArchiveSeason
+        {
+            SeasonName = stats.SeasonName, GameVersion = stats.GameVersion, League = stats.League, Division = stats.Division,
+            SourceWorkbook = stats.SourceWorkbook, SourceSheet = stats.SourceSheet, Players = stats.Players,
+            AlsoFromSheets = ["sml18-fantasy/Fixtures & Results"],
+        };
+        return new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [joined] }, Forfeits = [.. forfeits] };
+    }
+
+    [Test]
+    public async Task Run_NamingTheSheetAMergedSeasonReplaced_StillImportsItAndRetiresTheLeftover()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(JoinedToStatsTab(), new HistoricalImportRunOptions { Seasons = new HashSet<string> { "sml18-fantasy/Fixtures & Results" } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(await Context.Seasons.AnyAsync(s => s.HistoricalSourceID == "sml18-fantasy/Fixtures & Results"), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task Import_AForfeitKeyedByTheSheetAMergedSeasonReplaced_GoesToTheMergedSeason()
+    {
+        var forfeit = new ArchiveForfeitInput
+        {
+            SeasonSourceId = "sml18-fantasy/Fixtures & Results", SourceKey = "sml18-fantasy/Fixtures & Results#1",
+            Winner = "Cabs", Loser = "Hens", PlayedAt = new DateTime(2018, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        var report = await _service.Import(JoinedToStatsTab(forfeit));
+
+        Assert.That(report.Skipped, Has.None.Contain("no season with the key"));
+    }
+
+    [Test]
     public async Task Import_ASupersededSeasonWithStats_IsKept_AndTheReportSaysWhy()
     {
         HistoricalArchiveInput WithStatsOnTheFixturesTab(string statsName) => new()

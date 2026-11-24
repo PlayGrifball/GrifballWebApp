@@ -20,7 +20,7 @@ public partial class HistoricalImportService
         var retired = new HashSet<int>();
         var archiveKeys = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var candidates = groups.Where(g => !g.Value.IsMatchmaking)
-            .Select(g => (g.Key, Group: g.Value, Keys: g.Value.Entries.Select(EntrySourceId).OfType<string>().Concat(g.Value.Entries.SelectMany(e => e.AlsoFromSheets))
+            .Select(g => (g.Key, Group: g.Value, Keys: EntryKeys(g.Value)
                 .Where(k => !archiveKeys.Contains(k)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()))
             .Where(c => c.Keys.Count > 0).ToList();
         if (candidates.Count == 0)
@@ -45,20 +45,10 @@ public partial class HistoricalImportService
         return blocked;
     }
 
-    private async Task<bool> RetireSupersededSeason(int seasonID, string key, string name, string mergedInto, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
-    {
-        var used = (await UsesOf(seasonID, ct)).Where(u => u != "season matches").ToList();
-        if (used.Count > 0)
+    private Task<bool> RetireSupersededSeason(int seasonID, string key, string name, string mergedInto, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
+        => RetireSeason(seasonID, key, name, $"it is part of {mergedInto} now", ["season matches"], async removal =>
         {
-            Warn(report, $"{key}: it is part of {mergedInto} now, but it has {string.Join(", ", used)}; left for a sysadmin");
-            return false;
-        }
-
-        var removal = new HistoricalSeasonRemoval { SeasonKey = key, SeasonName = name };
-        var counts = new HistoricalImportReport();
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-        try
-        {
+            var counts = new HistoricalImportReport();
             var season = await _context.Seasons.WithChampionships().WithAwards().SingleAsync(s => s.SeasonID == seasonID, ct);
             removal.TeamsBefore = await _context.Teams.CountAsync(t => t.SeasonID == seasonID, ct);
             removal.TitlesBefore = season.PlayerChampionships.Count;
@@ -69,7 +59,29 @@ public partial class HistoricalImportService
             (removal.TeamsRemoved, removal.TitlesRemoved, removal.AwardsRemoved, removal.MatchesRemoved) = (counts.TeamsRemoved, removal.TitlesBefore, counts.AwardsRemoved, removal.MatchesBefore);
             _context.Seasons.Remove(season);
             await _context.SaveChangesAsync(ct);
+            return counts;
+        }, report, options, ct);
 
+    /// <summary>
+    /// Retires an imported season that no archive season is now, in a transaction of its own and under the guardrail. It
+    /// stays, and the report says why, when anything but <paramref name="ignoredUses"/> points at it, when the guardrail
+    /// stops it, or when it fails. <paramref name="remove"/> removes it (saving) and returns what to add to the report.
+    /// </summary>
+    /// <returns>True when it is gone, or on a dry run when it would go (so the season that replaces it can follow).</returns>
+    private async Task<bool> RetireSeason(int seasonID, string key, string? name, string why, string[] ignoredUses, Func<HistoricalSeasonRemoval, Task<HistoricalImportReport>> remove, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
+    {
+        var used = (await UsesOf(seasonID, ct)).Except(ignoredUses).ToList();
+        if (used.Count > 0)
+        {
+            Warn(report, $"{key}: {why}, but it has {string.Join(", ", used)}; left for a sysadmin");
+            return false;
+        }
+
+        var removal = new HistoricalSeasonRemoval { SeasonKey = key, SeasonName = name };
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        try
+        {
+            var counts = await remove(removal);
             removal.Stopped = !options.DryRun && options.Guardrail?.Exceeded(removal) == true;
             report.SeasonRemovals.Add(removal);
             if (options.DryRun || removal.Stopped)
@@ -78,7 +90,7 @@ public partial class HistoricalImportService
                 _context.ChangeTracker.Clear();
                 if (removal.Stopped)
                     Warn(report, $"{key}: stopped for review, retiring it would remove {removal.Summary}");
-                return false;
+                return options.DryRun && !removal.Stopped;
             }
             await transaction.CommitAsync(ct);
             _context.ChangeTracker.Clear();
@@ -91,7 +103,7 @@ public partial class HistoricalImportService
         {
             await transaction.RollbackAsync(CancellationToken.None);
             _context.ChangeTracker.Clear();
-            _logger.LogError(ex, "Retiring the superseded season {Season} failed and was rolled back", key);
+            _logger.LogError(ex, "Retiring the season {Season} failed and was rolled back", key);
             report.Errors.Add($"{key}: {ex.GetBaseException().Message}");
             return false;
         }
