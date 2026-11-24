@@ -39,7 +39,7 @@ internal static class HistoricalXlsx
     /// NULL, from h_players; teams from h_teams; Crusader traded mid-season). Its games: Reach's gb_teamstats (a row per team
     /// per game: a regular and a playoff game, a forfeit, two forfeit rows without a game ID, a deleted game, a Pro game of
     /// season 12, a game of a team without ispro, a game with one row), Halo 4's h_games (a game, a forfeit, an unplayed
-    /// game, one whose winner is neither team, a double forfeit), and the agla_* tables of a Halo 3 league (SML11: player
+    /// game, one whose winner is neither team, a double forfeit), and the agla_* tables of a Reach league (SML11: player
     /// lines per game, its teams with captains and rosters, its reported games and forfeits).
     /// </summary>
     public static byte[] GrifballInfo() => Workbook(

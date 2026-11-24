@@ -120,8 +120,8 @@ public class GamesTableParserTests
         {
             Assert.That(games.Select(g => (g.SourceKey, g.SeasonSourceId, g.GameVersion, g.IsPlayoffs, g.PlayedAt)), Is.EqualTo(new[]
             {
-                ($"{InfoId}/agla_gamesreported#1", sml11, "halo3", false, (DateTime?)new DateTime(2011, 7, 26, 2, 25, 53, DateTimeKind.Utc)),
-                ($"{InfoId}/agla_gamesreported#2", sml11, "halo3", true, (DateTime?)new DateTime(2011, 7, 27, 2, 40, 35, DateTimeKind.Utc)),
+                ($"{InfoId}/agla_gamesreported#1", sml11, "reach", false, (DateTime?)new DateTime(2011, 7, 26, 2, 25, 53, DateTimeKind.Utc)),
+                ($"{InfoId}/agla_gamesreported#2", sml11, "reach", true, (DateTime?)new DateTime(2011, 7, 27, 2, 40, 35, DateTimeKind.Utc)),
             }), "The deleted game and the second report of a game are left out");
             Assert.That(Sides(games[0]), Is.EqualTo(new[] { (1, (string?)"Red Army", Outcomes.Won, (int?)null), (2, "Blue Base", Outcomes.Lost, null) }));
             var sarge = games[0].Players[0];

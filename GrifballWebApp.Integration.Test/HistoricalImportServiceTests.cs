@@ -1668,7 +1668,7 @@ public class HistoricalImportServiceTests
             Assert.That(seasons.Select(s => (s.SeasonName, s.HistoricalSourceID, s.HistoricalSourceUrl)).OrderBy(s => s.SeasonName), Is.EqualTo(new[]
             {
                 ("Spring League 2011", "history-grifball-info-db/hr_pstats#s13", entry.Url),
-                ("Summer League 2011 Halo 3 (Amateur)", "history-grifball-info-db/agla_playerstats#sSML11_Amateur", entry.Url),
+                ("Summer League 2011 (Amateur)", "history-grifball-info-db/agla_playerstats#sSML11_Amateur", entry.Url),
                 ("Winter League 2011 (Amateur)", "history-grifball-info-db/hr_pstats#s12_Amateur", entry.Url),
                 ("Winter League 2011 (Pro)", "history-grifball-info-db/hr_pstats#s12_Pro", entry.Url),
                 ("Winter League 2013", "history-grifball-info-db/h4_pstats#s20", entry.Url),
