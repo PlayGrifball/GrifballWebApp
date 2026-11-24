@@ -561,6 +561,31 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     }
 
     [Test]
+    public async Task Import_ALeftoverTwoSeasonsNameAsTheirs_IsRetiredOnce_AndFailsNothing()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        Context.ChangeTracker.Clear();
+        static ArchiveSeason Joined(string name, string sheet)
+        {
+            var tab = Tab(name, sheet, Player("Silva", team: "Cabs"));
+            return new ArchiveSeason
+            {
+                SeasonName = tab.SeasonName, GameVersion = tab.GameVersion, League = tab.League, Division = tab.Division,
+                SourceWorkbook = tab.SourceWorkbook, SourceSheet = tab.SourceSheet, Players = tab.Players,
+                AlsoFromSheets = ["sml18-fantasy/Fixtures & Results"],
+            };
+        }
+
+        var report = await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [Joined("Summer League 2018", "Total Stats"), Joined("Other League", "Other Stats")] } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
     public async Task Import_DryRun_LeavesTheSupersededSeasonAndListsIt()
     {
         await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
@@ -661,6 +686,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         var leftover = await Context.Seasons.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "sml18-fantasy/Fixtures & Results");
         var hens = await Context.Teams.AsNoTracking().SingleAsync(t => t.SeasonID == leftover.SeasonID && t.TeamName == "Hens");
         Context.SeasonMatches.Add(SeasonMatch.Imported(leftover.SeasonID, hens.TeamID, null, 0, 0, 1, null, null));
+        Context.SeasonMatches.Add(SeasonMatch.Imported(leftover.SeasonID, null, null, 0, 0, 1, null, null));
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
@@ -669,8 +695,8 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         var removal = report.SeasonRemovals.Single(r => r.SeasonKey == "sml18-fantasy/Fixtures & Results");
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((removal.MatchesBefore, removal.MatchesRemoved), Is.EqualTo((1, 1)));
-            Assert.That(removal.Summary, Does.Contain("1 of 1 matches"));
+            Assert.That((removal.MatchesBefore, removal.MatchesRemoved), Is.EqualTo((2, 2)), "Every match of a season that goes, a bracket slot with no team included");
+            Assert.That(removal.Summary, Does.Contain("2 of 2 matches"));
         }
     }
 

@@ -52,7 +52,7 @@ public sealed partial class HistoricalArchiveBuilder
     private static void NoteJoinedSheet(ArchiveSeason season, ResultsTab tab, string seasonKey)
     {
         var sheetKey = HistoricalKeys.SeasonSourceId(season.SourceWorkbook!, tab.Sheet);
-        if (tab.CustomSeason is not null && !string.Equals(sheetKey, seasonKey, StringComparison.OrdinalIgnoreCase) && !season.AlsoFromSheets.Contains(sheetKey))
+        if (tab.CustomSeason is not null && !string.Equals(sheetKey, seasonKey, StringComparison.OrdinalIgnoreCase) && !season.AlsoFromSheets.Contains(sheetKey, StringComparer.OrdinalIgnoreCase))
             season.AlsoFromSheets.Add(sheetKey);
     }
 
