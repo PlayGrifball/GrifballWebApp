@@ -106,7 +106,7 @@ public class HistoricalImportReport
 {
     public int SeasonsCreated { get; set; }
     public int SeasonsUpdated { get; set; }
-    /// <summary>Titles-only seasons the champions record made whose titles are another season's now, removed.</summary>
+    /// <summary>Seasons removed for another: titles-only ones whose titles are another season's now, and ones a merged season of several sheets replaces.</summary>
     public int SeasonsRetired { get; set; }
     /// <summary>Matchmaking seasons (Late League) created and updated.</summary>
     public int MatchmakingSeasonsCreated { get; set; }
@@ -331,6 +331,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var done = await ImportSeasons(groups, gameVersions, championsPrefixes, report, options, progress, ct);
         if (input.Championships is { Champions.Count: > 0 } champions)
             await RetireLeftoverTitleSeasons(champions, archiveSeasons, leagues, report, options, ct);
+        await RetireSupersededSeasons(groups, report, options, ct);
         // After the seasons: their placeholders are who the players lists' Discord IDs and regions go to
         if (input.Players is { Count: > 0 } && !options.DryRun)
         {

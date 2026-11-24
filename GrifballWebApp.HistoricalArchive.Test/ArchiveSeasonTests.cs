@@ -234,6 +234,32 @@ public class ArchiveSeasonTests
 
     private static readonly string[] FallLeague2015Seasons = ["Fall League 2015 Halo 3", "Fall League 2015 Halo 4"];
 
+    /// <summary>SML18 Fantasy by Rey's "Total Stats" and "Fixtures & Results" tabs are one season, Summer League 2018: its
+    /// player stats and its schedule are on the one season, and no "(Fantasy Rey)" season is left.</summary>
+    [Test]
+    public async Task SummerLeague2018_TheStatsAndTheScheduleTabsAreOneSeason()
+    {
+        await using var context = Archive.NewContext();
+        var seasons = await context.Seasons.AsNoTracking().Where(s => s.SeasonName.StartsWith("Summer League 2018") && s.League.Slug == "agla")
+            .Select(s => new
+            {
+                s.SeasonName,
+                Stats = context.PlayerSeasonStats.Count(x => x.SeasonID == s.SeasonID),
+                Matches = context.SeasonMatches.Count(x => x.SeasonID == s.SeasonID),
+            })
+            .ToListAsync();
+        if (seasons.Count == 0)
+            Assert.Ignore("SML18 Fantasy by Rey's workbook is not in this copy of the archive");
+
+        Assert.That(seasons, Has.Count.EqualTo(1), "One season, not a '(Fantasy Rey)' one beside it");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons[0].SeasonName, Is.EqualTo("Summer League 2018"));
+            Assert.That(seasons[0].Stats, Is.GreaterThan(0), "The Total Stats tab");
+            Assert.That(seasons[0].Matches, Is.GreaterThan(0), "The Fixtures & Results tab");
+        }
+    }
+
     /// <summary>Spring League 2026 is two seasons, Major and Minor: its titles are on those, and no titles-only "Spring League
     /// 2026" is left.</summary>
     [Test]
