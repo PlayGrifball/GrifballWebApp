@@ -43,6 +43,24 @@ public sealed class XboxImagesReport
     public bool Disabled { get; set; }
 }
 
+/// <summary>When Halo last told the image jobs to wait (a 429), kept across runs so the next run does not ask again too soon.</summary>
+public sealed class XboxImageThrottle
+{
+    private readonly Dictionary<XboxUserImageKind, DateTimeOffset> _until = [];
+
+    public TimeSpan? Remaining(XboxUserImageKind kind, DateTimeOffset now)
+    {
+        lock (_until)
+            return _until.TryGetValue(kind, out var until) && until > now ? until - now : null;
+    }
+
+    public void Wait(XboxUserImageKind kind, DateTimeOffset now, TimeSpan wait)
+    {
+        lock (_until)
+            _until[kind] = now + wait;
+    }
+}
+
 /// <summary>The image a download gave.</summary>
 public sealed record DownloadedImage(byte[] Content, string ContentType);
 
@@ -104,14 +122,16 @@ public class XboxImageSource
     private readonly IXboxImageDownloader _downloader;
     private readonly XboxImagesOptions _options;
     private readonly TimeProvider _time;
+    private readonly XboxImageThrottle _throttle;
 
-    public XboxImageSource(GrifballContext context, IHaloInfiniteClient halo, IXboxImageDownloader downloader, IOptions<XboxImagesOptions> options, TimeProvider time)
+    public XboxImageSource(GrifballContext context, IHaloInfiniteClient halo, IXboxImageDownloader downloader, IOptions<XboxImagesOptions> options, TimeProvider time, XboxImageThrottle? throttle = null)
     {
         _context = context;
         _halo = halo;
         _downloader = downloader;
         _options = options.Value;
         _time = time;
+        _throttle = throttle ?? new XboxImageThrottle();
     }
 
     /// <summary>Waits between two calls to Halo (the throttle); replaceable in tests.</summary>
@@ -159,12 +179,12 @@ public class XboxImageSource
         row.Error = null;
     }
 
-    private static void NotFound(XboxUserImage row)
+    /// <summary>Halo has none. When the answer was only absent (an account left out, a mapping without the emblem), the image already shown stays until the next check.</summary>
+    private static void NotFound(XboxUserImage row, bool keepStored = false)
     {
-        if (row.Content is not null)
+        if (keepStored && row.Content is not null)
         {
-            // Halo not giving one this time doesn't take away the image already shown; try again soon
-            row.Error = "Halo no longer gave one";
+            row.Error = null;
             return;
         }
         row.Status = XboxUserImageStatus.NotFound;
@@ -181,6 +201,21 @@ public class XboxImageSource
         if (row.Content is null)
             row.Source = null;
         row.Error = error.Length > 200 ? error[..200] : error;
+    }
+
+    /// <summary>Records that Halo asked to wait: the report says so and later runs hold off until it is over.</summary>
+    private void Throttled(XboxUserImageKind kind, XboxImagesReport report, TimeSpan wait)
+    {
+        report.ThrottledFor = wait;
+        _throttle.Wait(kind, _time.GetUtcNow(), wait);
+    }
+
+    private bool HoldingOff(XboxUserImageKind kind, XboxImagesReport report)
+    {
+        if (_throttle.Remaining(kind, _time.GetUtcNow()) is not { } remaining)
+            return false;
+        report.ThrottledFor = remaining;
+        return true;
     }
 
     private static TimeSpan? ThrottleOf<T>(HaloApiResultContainer<T, HaloApiErrorContainer> response)
@@ -206,6 +241,8 @@ public class XboxImageSource
         }
         var due = await DueInOrder(XboxUserImageKind.GamerPicture).Take(Math.Max(1, _options.GamerPictureAccountsPerRun)).ToListAsync(ct);
         report.Due = await CountDueAsync(XboxUserImageKind.GamerPicture, ct);
+        if (HoldingOff(XboxUserImageKind.GamerPicture, report))
+            return report;
         var gap = Gap(_options.ProfileCallsPerMinute);
         var first = true;
         foreach (var chunk in due.Chunk(UsersPerCall))
@@ -235,7 +272,7 @@ public class XboxImageSource
         }
         if (ThrottleOf(response) is { } wait)
         {
-            report.ThrottledFor = wait;
+            Throttled(XboxUserImageKind.GamerPicture, report, wait);
             return true;
         }
         var users = response.Result;
@@ -249,10 +286,11 @@ public class XboxImageSource
                 report.Failed++;
                 continue;
             }
-            var url = PictureUrlOf(users.FirstOrDefault(u => u.xuid == xuid.ToString())?.gamerpic);
+            var user = users.FirstOrDefault(u => u.xuid == xuid.ToString());
+            var url = PictureUrlOf(user?.gamerpic);
             if (url is null)
             {
-                NotFound(row);
+                NotFound(row, keepStored: user is null);
                 report.NotFound++;
             }
             else
@@ -307,11 +345,13 @@ public class XboxImageSource
         report.Due = await CountDueAsync(XboxUserImageKind.HaloEmblem, ct);
         if (due.Count == 0)
             return report;
+        if (HoldingOff(XboxUserImageKind.HaloEmblem, report))
+            return report;
 
         var mapping = await _halo.GameCmsGetEmblemMapping();
         if (ThrottleOf(mapping) is { } mappingWait)
         {
-            report.ThrottledFor = mappingWait;
+            Throttled(XboxUserImageKind.HaloEmblem, report, mappingWait);
             return report;
         }
         if (mapping.Result is null)
@@ -349,7 +389,7 @@ public class XboxImageSource
         }
         if (ThrottleOf(response) is { } wait)
         {
-            report.ThrottledFor = wait;
+            Throttled(XboxUserImageKind.HaloEmblem, report, wait);
             return true;
         }
 
@@ -359,7 +399,7 @@ public class XboxImageSource
         {
             if (response.Error is { Code: 404 })
             {
-                NotFound(row);
+                NotFound(row, keepStored: true);
                 report.NotFound++;
             }
             else
@@ -370,10 +410,11 @@ public class XboxImageSource
             return false;
         }
 
-        var path = ImagePathOf(response.Result.Appearance?.Emblem, mapping);
+        var emblem = response.Result.Appearance?.Emblem;
+        var path = ImagePathOf(emblem, mapping);
         if (path is null)
         {
-            NotFound(row);
+            NotFound(row, keepStored: !string.IsNullOrWhiteSpace(emblem?.EmblemPath));
             report.NotFound++;
         }
         else if (await StoreEmblemAsync(row, path, downloaded, report, ct))
@@ -413,7 +454,7 @@ public class XboxImageSource
                 var response = await _halo.GameCmsWaypointGetImage(path);
                 if (ThrottleOf(response) is { } wait)
                 {
-                    report.ThrottledFor = wait;
+                    Throttled(XboxUserImageKind.HaloEmblem, report, wait);
                     return true;
                 }
                 image = response.Result is { Length: > 0 and <= XboxUserImage.MaxContentBytes } bytes && SniffContentType(bytes) is { } type

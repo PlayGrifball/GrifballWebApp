@@ -561,29 +561,6 @@ public class XboxImageSourceTests : SqliteContextFixture
     }
 
     [Test]
-    public async Task GamerPictures_AnAccountHalosAnswerOmits_KeepsTheStoredPicture_AndIsTriedAgainSoon()
-    {
-        await AddAccountsAsync(1);
-        var source = Source();
-        GivenUsers((1, new Gamerpic { large = "https://x/old.png" }));
-        _downloader.DownloadAsync("https://x/old.png", Arg.Any<CancellationToken>()).Returns(new DownloadedImage(Png, "image/png"));
-        await source.RunGamerPicturesAsync();
-        _time.Advance(TimeSpan.FromDays(15));
-        GivenUsers();
-
-        await source.RunGamerPicturesAsync();
-        _time.Advance(TimeSpan.FromHours(7));
-        var again = await source.RunGamerPicturesAsync();
-
-        var row = await RowAsync(1, XboxUserImageKind.GamerPicture);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That((row.Status, row.Content), Is.EqualTo((XboxUserImageStatus.Found, Png)));
-            Assert.That(again.Due, Is.EqualTo(1));
-        }
-    }
-
-    [Test]
     public async Task Emblems_AThrottledImageCall_StopsTheRun_AndRecordsNothingForTheAccount()
     {
         await AddAccountsAsync(1, 2);
@@ -663,6 +640,29 @@ public class XboxImageSourceTests : SqliteContextFixture
             Assert.That(report.Failed, Is.EqualTo(1));
             Assert.That(row.Error, Is.EqualTo("The picture's address is too long"));
             await _downloader.DidNotReceive().DownloadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Test]
+    public async Task GamerPictures_AnAccountHalosAnswerOmits_KeepsTheStoredPicture_UntilTheNextCheck()
+    {
+        await AddAccountsAsync(1);
+        var source = Source();
+        GivenUsers((1, new Gamerpic { large = "https://x/old.png" }));
+        _downloader.DownloadAsync("https://x/old.png", Arg.Any<CancellationToken>()).Returns(new DownloadedImage(Png, "image/png"));
+        await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromDays(15));
+        GivenUsers();
+
+        await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromHours(7));
+        var again = await source.RunGamerPicturesAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.GamerPicture);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((row.Status, row.Content), Is.EqualTo((XboxUserImageStatus.Found, Png)));
+            Assert.That(again.Due, Is.Zero, "not re-checked every few hours");
         }
     }
 

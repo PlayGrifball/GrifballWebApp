@@ -143,6 +143,7 @@ public static class InfrastructureServiceCollectionExtensions
         // The gamer pictures and Halo emblems kept for every Xbox account (XboxImageSource, run by the two jobs below)
         services.AddOptions<XboxImagesOptions>().Bind(configuration.GetSection("XboxImages"));
         services.AddHttpClient<IXboxImageDownloader, XboxImageDownloader>(XboxImageDownloader.Configure);
+        services.AddSingleton<XboxImageThrottle>();
         services.AddTransient<XboxImageSource>();
         // A season match's pull from Halo, queued from its page and the agents' tools
         services.AddTransient<ISeasonMatchPulls, SeasonMatchPulls>();
