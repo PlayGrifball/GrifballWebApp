@@ -18,6 +18,12 @@ export interface HistoricalSeasonRemoval {
    */
   ladderBefore: number;
   ladderRemoved: number;
+
+  /**
+   * The season's scheduled matches (SeasonMatch rows): measured only when a whole season goes, the one removal that takes its schedule.
+   */
+  matchesBefore: number;
+  matchesRemoved: number;
   removesAnything: boolean;
   seasonKey: string;
   seasonName: string | null;

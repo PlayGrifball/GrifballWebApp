@@ -56,8 +56,9 @@ public partial class HistoricalImportService
             removal.TeamsBefore = await _context.Teams.CountAsync(t => t.SeasonID == seasonID, ct);
             removal.TitlesBefore = season.PlayerChampionships.Count;
             removal.AwardsBefore = await _context.Seasons.Awards().CountAsync(a => a.SeasonID == seasonID, ct);
+            removal.MatchesBefore = await _context.SeasonMatches.CountAsync(m => m.SeasonID == seasonID, ct);
             await RemoveTeamsNoLongerThere(season, new SeasonTeams(), counts, ct);
-            (removal.TeamsRemoved, removal.TitlesRemoved, removal.AwardsRemoved) = (counts.TeamsRemoved, removal.TitlesBefore, counts.AwardsRemoved);
+            (removal.TeamsRemoved, removal.TitlesRemoved, removal.AwardsRemoved, removal.MatchesRemoved) = (counts.TeamsRemoved, removal.TitlesBefore, counts.AwardsRemoved, counts.SeasonMatchesRemoved);
             _context.Seasons.Remove(season);
             await _context.SaveChangesAsync(ct);
 

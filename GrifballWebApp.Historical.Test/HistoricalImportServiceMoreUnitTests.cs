@@ -653,6 +653,39 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         }
     }
 
+    [Test]
+    public async Task Import_DryRun_CountsTheSchedulePartingWithASupersededSeasonRemovesToo()
+    {
+        await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
+        var leftover = await Context.Seasons.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "sml18-fantasy/Fixtures & Results");
+        var hens = await Context.Teams.AsNoTracking().SingleAsync(t => t.SeasonID == leftover.SeasonID && t.TeamName == "Hens");
+        Context.SeasonMatches.Add(SeasonMatch.Imported(leftover.SeasonID, hens.TeamID, null, 0, 0, 1, null, null));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(TwoTabs("Summer League 2018", "Summer League 2018"), new HistoricalImportRunOptions { DryRun = true });
+
+        var removal = report.SeasonRemovals.Single(r => r.SeasonKey == "sml18-fantasy/Fixtures & Results");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((removal.MatchesBefore, removal.MatchesRemoved), Is.EqualTo((1, 1)));
+            Assert.That(removal.Summary, Does.Contain("1 of 1 matches"));
+        }
+    }
+
+    [Test]
+    public void TheGuardrail_StopsASeasonThatLosesItsSchedule_ButNotOneThatLosesNone()
+    {
+        var guardrail = new HistoricalGuardrailOptions();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(guardrail.Exceeded(new HistoricalSeasonRemoval { SeasonKey = "s", MatchesBefore = 10, MatchesRemoved = 10 }), Is.True);
+            Assert.That(guardrail.Exceeded(new HistoricalSeasonRemoval { SeasonKey = "s", MatchesBefore = 10, MatchesRemoved = 1 }), Is.False, "Under the share");
+            Assert.That(guardrail.Exceeded(new HistoricalSeasonRemoval { SeasonKey = "s", MatchesBefore = 10 }), Is.False);
+        }
+    }
+
     private static readonly string[] BothLeftAsTheyWere = ["Summer League 2018 (Fantasy Rey)", "Summer League 2018"];
     private static readonly (string, string)[] MergedSeason = [("Summer League 2018", "sml18-fantasy/Total Stats")];
     private static readonly string[] MergedTeams = ["Cabs", "Hens"];
