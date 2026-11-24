@@ -30,7 +30,7 @@ internal sealed class HistoricalImportFailureUnitTests : ApplicationDbContextTes
     private static readonly string[] OnlySeason8 = ["Late League Season 8 (Halo 3)"];
 
     private readonly RefusingSaves _saves = new(context => LostPlayersStatAfterItsSeason(context)
-        || context.ChangeTracker.Entries<Season>().Any(e => e.State == EntityState.Deleted && e.Entity.SeasonName == "Winter League 2021"));
+        || context.ChangeTracker.Entries<Season>().Any(e => e.State == EntityState.Deleted && e.Entity.SeasonName is "Winter League 2021" or "Summer League 2018"));
 
     /// <summary>A save adding Lost Player's stat row, its "Broken ..." season (or matchmaking season) saved already.</summary>
     private static bool LostPlayersStatAfterItsSeason(DbContext context)
@@ -123,6 +123,37 @@ internal sealed class HistoricalImportFailureUnitTests : ApplicationDbContextTes
             Assert.That(report.SeasonsRetired, Is.Zero);
             Assert.That(await Context.Seasons.AnyAsync(s => s.SeasonID == titlesOnly.SeasonID), Is.True, "rolled back: it stays");
             Assert.That(await Context.Teams.CountAsync(t => t.SeasonID == titlesOnly.SeasonID), Is.EqualTo(2), "with its teams");
+        }
+    }
+
+    [Test]
+    public async Task Import_RetiringASupersededSeasonThatFails_IsRolledBackAndReported_AndTheSeasonStays()
+    {
+        static ArchiveSeason Tab(string name, string sheet, params ArchivePlayer[] players)
+        {
+            var entry = Entry(name, "halo5", "AGLA", false, players);
+            return new ArchiveSeason
+            {
+                SeasonName = name, GameVersion = entry.GameVersion, League = entry.League, Division = entry.Division,
+                SourceWorkbook = "sml18-fantasy", SourceSheet = sheet, Players = entry.Players,
+            };
+        }
+        HistoricalArchiveInput Tabs(string statsName) => new()
+        {
+            Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Summer League 2018", Tier = "Open", Team = "Hens", Roster = ["Hen"] }] },
+            Seasons = new UnifiedArchive { Seasons = [Tab(statsName, "Total Stats", Player("Silva", team: "Cabs")), Tab("Summer League 2018", "Fixtures & Results")] },
+        };
+        await _service.Import(Tabs("Summer League 2018 (Fantasy Rey)"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(Tabs("Summer League 2018"));
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Has.Some.EqualTo($"sml18-fantasy/Fixtures & Results: {Refusal}"));
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(await Context.Seasons.AnyAsync(s => s.HistoricalSourceID == "sml18-fantasy/Fixtures & Results"), Is.True, "rolled back: it stays");
         }
     }
 }
