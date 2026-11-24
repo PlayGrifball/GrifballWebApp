@@ -66,8 +66,26 @@
   // Shapes (chamfered panels: .hud-panel--chamfer in _hud.scss)
   --hud-slant: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
 
-  --hud-max-width: 1720px;
-  --hud-gutter: clamp(16px, 2.5vw, 40px);
+  --hud-max-width: 1600px;
+  --hud-gutter: clamp(16px, 3vw, 48px);
+
+  // Type & control scale (Rajdhani is condensed, so desktop steps up to fill wide viewports cleanly)
+  --hud-text-xs: 15px;
+  --hud-text-sm: 17px;
+  --hud-text-table: 19px;
+  --hud-text-body: 22px;
+  --hud-text-lede: 25px;
+  --hud-text-heading: 30px;
+
+  --hud-btn-height: 60px;
+  --hud-btn-text: 21px;
+  --hud-mat-btn-height: 54px;
+  --hud-mat-btn-text: 20px;
+  --hud-compact-btn-height: 48px;
+  --hud-compact-btn-text: 16px;
+  --hud-tab-height: 52px;
+  --hud-tab-text: 18px;
+  --hud-input-height: 52px;
 }
 
 // Optional Era & Legacy Presets selected from /theme
@@ -153,6 +171,20 @@ html[data-theme-era='2014'] {
 
 @media (max-width: 600px) {
   :root {
-    --hud-gutter: 16px;
+    --hud-text-xs: 12px;
+    --hud-text-sm: 14px;
+    --hud-text-table: 15px;
+    --hud-text-body: 17px;
+    --hud-text-lede: 19px;
+    --hud-text-heading: 22px;
+    --hud-btn-height: 48px;
+    --hud-btn-text: 17px;
+    --hud-mat-btn-height: 46px;
+    --hud-mat-btn-text: 16px;
+    --hud-compact-btn-height: 44px;
+    --hud-compact-btn-text: 14px;
+    --hud-tab-height: 44px;
+    --hud-tab-text: 15px;
+    --hud-input-height: 44px;
   }
 }

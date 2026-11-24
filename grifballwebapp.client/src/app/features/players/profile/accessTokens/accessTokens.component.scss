@@ -22,24 +22,24 @@
 }
 
 .at-label {
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
   color: var(--hud-muted);
 }
 
 .at-input {
-  min-height: 44px;
-  min-width: 200px;
-  padding: 0 10px;
-  font-size: 16px;
+  min-height: var(--hud-input-height);
+  min-width: 240px;
+  padding: 0 12px;
+  font-size: var(--hud-text-table);
   border: 1px solid var(--hud-border);
   background: transparent;
   color: inherit;
 }
 
 .at-btn {
-  min-height: 44px;
-  padding: 0 16px;
-  font-size: 14px;
+  min-height: var(--hud-compact-btn-height);
+  padding: 0 18px;
+  font-size: var(--hud-compact-btn-text);
 }
 
 .at-created {

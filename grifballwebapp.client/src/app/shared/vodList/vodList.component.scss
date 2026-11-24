@@ -4,9 +4,9 @@
 
 .vod-list__items {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
-  gap: 16px;
-  margin: 12px 0 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 20px;
+  margin: 14px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -51,7 +51,7 @@
 
 .vod-card__length {
   font-family: var(--hud-font-mono);
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
   color: var(--hud-muted);
 }
 
@@ -89,14 +89,14 @@
 
 .vod-card__when {
   color: var(--hud-muted);
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
 }
 
 .vod-card__context {
   display: flex;
   flex-wrap: wrap;
   gap: 0 14px;
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
 }
 
 .vod-card__link {

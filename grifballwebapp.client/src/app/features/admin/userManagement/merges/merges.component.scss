@@ -18,16 +18,22 @@
 .merges-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 }
 
 .merges-table th,
 .merges-table td {
-  padding: 8px 10px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--hud-border);
   text-align: left;
   white-space: nowrap;
   vertical-align: top;
+}
+
+.merges-table th {
+  font-family: var(--hud-font-mono);
+  font-size: var(--hud-text-sm);
+  color: var(--hud-muted);
 }
 
 .merges-strong {
@@ -38,7 +44,7 @@
 .merges-note {
   display: block;
   color: var(--hud-muted);
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
 }
 
 .merges-refusal {
@@ -47,13 +53,13 @@
   margin-top: 4px;
   white-space: normal;
   color: var(--hud-red);
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
 }
 
 .merges-btn {
-  min-height: 44px;
-  padding: 0 16px;
-  font-size: 14px;
+  min-height: var(--hud-compact-btn-height);
+  padding: 0 18px;
+  font-size: var(--hud-compact-btn-text);
 }
 
 .merges-pager {

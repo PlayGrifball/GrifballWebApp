@@ -4,7 +4,7 @@
 
 .md-id {
   color: var(--hud-muted);
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
   overflow-wrap: anywhere;
 }
 
@@ -39,18 +39,18 @@
   justify-content: center;
   gap: 4px 16px;
   color: var(--hud-muted);
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
 }
 
 .md-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 }
 
 .md-table th,
 .md-table td {
-  padding: 8px 10px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--hud-border);
   text-align: left;
   white-space: nowrap;
@@ -66,7 +66,7 @@
 .md-note {
   display: block;
   color: var(--hud-muted);
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
   font-weight: 400;
 }
 
@@ -80,10 +80,10 @@
 }
 
 .md-medal {
-  padding: 4px 10px;
+  padding: 6px 12px;
   border: 1px solid var(--hud-hairline);
   background: var(--hud-well);
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
 }
 
 .md-medal__count {
@@ -93,8 +93,8 @@
 
 .md-players {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
   margin-top: 16px;
 }
 

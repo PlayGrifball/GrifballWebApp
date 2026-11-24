@@ -36,14 +36,14 @@
   &__home { color: var(--hud-red-text); }
   &__away { color: var(--hud-blue-text); }
   &__sep { color: var(--hud-muted); }
-  &__results { display: flex; gap: 32px; font-family: var(--hud-font-mono); font-size: 13px; text-transform: uppercase; color: var(--hud-muted-2); }
-  &__time { padding: 6px 12px; border: 1px solid var(--hud-border); font-family: var(--hud-font-mono); font-size: 13px; text-transform: uppercase; }
+  &__results { display: flex; gap: 32px; font-family: var(--hud-font-mono); font-size: var(--hud-text-sm); text-transform: uppercase; color: var(--hud-muted-2); }
+  &__time { padding: 8px 14px; border: 1px solid var(--hud-border); font-family: var(--hud-font-mono); font-size: var(--hud-text-sm); text-transform: uppercase; }
 }
 
-.lobby-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 28px; }
+.lobby-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr)); gap: 32px; }
 // The game's link to its match details page, a flex item (not running text): a 44px tap target
 a.lobby-game-meta__id { display: inline-flex; align-items: center; min-height: 44px; }
-.lobby-game-meta__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; button { min-height: 44px; } }
+.lobby-game-meta__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; button { min-height: var(--hud-compact-btn-height); font-size: var(--hud-compact-btn-text); } }
 
 .lobby-path {
   padding: 8px 18px;
@@ -67,12 +67,12 @@ a.lobby-game-meta__id { display: inline-flex; align-items: center; min-height: 4
 .lobby-possible {
   display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--hud-hairline);
   &__title { font-family: var(--hud-font-mono); color: var(--hud-heading); overflow-wrap: anywhere; }
-  &__teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px; }
+  &__teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 16px; }
 }
 
 // Box scores: a tab for each game (and the series), the two sides (app-box-score) in a .hud-grid
 .lobby-games-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
 .lobby-scoreboard { display: grid; gap: 16px; }
-.lobby-game-meta { display: flex; flex-wrap: wrap; gap: 12px; font: 13px var(--hud-font-mono); color: var(--hud-muted); overflow-wrap: anywhere; code { color: var(--hud-heading); } }
+.lobby-game-meta { display: flex; flex-wrap: wrap; gap: 12px; font: var(--hud-text-sm) var(--hud-font-mono); color: var(--hud-muted); overflow-wrap: anywhere; code { color: var(--hud-heading); } }
 
 .lobby-slot { margin-top: 12px; }

@@ -60,12 +60,14 @@ describe('LeaderboardsComponent', () => {
 
     expect(rows()).toEqual([['1', 'Legendary', '5', 'Summer League 2011 (Pro), Winter League 2012 (Pro)']]);
     expect(el().querySelector('tbody a')!.getAttribute('href')).toBe('/profile/1');
+    expect(el().querySelector('.board__entity')!.getAttribute('title')).toBe('Legendary');
     expect([...el().querySelectorAll('.board__titles a')].map(a => a.getAttribute('href'))).toEqual(['/season/11', '/season/12']);
 
     choose('Dynasties');
     expect(rows()[0].slice(0, 4)).toEqual(['1', 'Relentless', '4', '6']);
     expect(el().querySelector('.board__titles a')!.getAttribute('href')).toBe('/season/11/team/40');
     expect(el().querySelector('tbody a')!.getAttribute('href')).toBe('/history/team/40');
+    expect(el().querySelector('.board__entity')!.getAttribute('title')).toBe('Relentless');
 
     choose('Kills');
     expect(rows()).toEqual([['1', 'Killer', '500', '30', '1.50', '3']]);

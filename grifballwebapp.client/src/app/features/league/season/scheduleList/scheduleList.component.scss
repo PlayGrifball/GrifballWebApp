@@ -12,8 +12,8 @@
 
 .sched-weeks {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr));
+  gap: 22px;
 }
 
 .sched-week {
@@ -25,11 +25,11 @@
 
 .sched-week__title {
   margin: 0;
-  padding: 12px 16px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--hud-hairline);
   font-family: var(--hud-font-mono);
   font-weight: 400;
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
   letter-spacing: 0.1em;
   color: var(--hud-muted);
 }
@@ -44,8 +44,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px 16px;
-  min-height: 44px;
+  padding: 14px 20px;
+  min-height: 48px;
   box-sizing: border-box;
 
   &:hover { background: var(--hud-accent-tint); }
@@ -53,7 +53,7 @@
 
 .sched-match__teams {
   font-weight: 700;
-  font-size: 18px;
+  font-size: var(--hud-text-lede);
   color: var(--hud-heading);
 }
 
@@ -92,11 +92,11 @@
 .sched-recommend__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 
   th,
   td {
-    padding: 6px 8px;
+    padding: 10px 14px;
     border-top: 1px solid var(--hud-hairline);
     text-align: left;
     white-space: nowrap;
@@ -105,6 +105,8 @@
   th {
     border-top: 0;
     color: var(--hud-muted);
+    font-family: var(--hud-font-mono);
+    font-size: var(--hud-text-sm);
     font-weight: 600;
   }
 }

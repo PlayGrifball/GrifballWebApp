@@ -13,10 +13,14 @@
 
 .late-league-queue__number {
   font-family: var(--hud-font-mono);
-  font-size: 40px;
+  font-size: 48px;
   line-height: 1;
   color: var(--hud-heading);
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 600px) {
+  .late-league-queue__number { font-size: 40px; }
 }
 
 .late-league-queue__actions { align-items: center; }

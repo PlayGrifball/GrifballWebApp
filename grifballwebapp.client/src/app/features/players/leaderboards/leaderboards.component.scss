@@ -15,14 +15,20 @@
 .board {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 }
 
 .board th,
 .board td {
-  padding: 8px 10px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--hud-border);
   text-align: left;
+}
+
+.board th {
+  font-family: var(--hud-font-mono);
+  font-size: var(--hud-text-sm);
+  color: var(--hud-muted);
 }
 
 .board .hud-num { text-align: right; }
@@ -42,7 +48,56 @@
 
 .board__titles {
   color: var(--hud-muted);
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
+
+  a {
+    color: var(--hud-gold);
+    font-weight: 700;
+    font-size: var(--hud-text-table);
+
+    &:hover {
+      color: var(--hud-accent-hover);
+    }
+  }
+}
+
+.board__title-item {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.board__title-sep {
+  padding-right: 4px;
+}
+
+@media (max-width: 600px) {
+  .board th,
+  .board td {
+    padding: 6px 4px;
+  }
+
+  .board th {
+    font-size: var(--hud-text-xs);
+  }
+
+  .board a.board__entity {
+    display: block;
+    min-width: 44px;
+    max-width: 76px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 44px;
+  }
+
+  .board__title-item {
+    display: block;
+    white-space: normal;
+  }
+
+  .board__title-sep {
+    display: none;
+  }
 }
 
 .board-filter {

@@ -37,13 +37,13 @@
 }
 
 .deployment__meta {
-  font: 12px var(--hud-font-mono);
+  font: var(--hud-text-xs) var(--hud-font-mono);
   color: var(--hud-muted);
 }
 
 .deployment__captain {
-  padding: 1px 4px;
-  font: 12px var(--hud-font-mono);
+  padding: 2px 6px;
+  font: var(--hud-text-xs) var(--hud-font-mono);
   color: var(--hud-accent);
   border: 1px solid var(--hud-accent);
 }
@@ -52,7 +52,7 @@
 
 // The record is the team's, not the player's own (Season History, below, has theirs)
 .deployment__record-label {
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
   color: var(--hud-muted);
   text-transform: uppercase;
 }
@@ -67,8 +67,8 @@
 }
 
 .deployment__finish {
-  padding: 1px 6px;
-  font: 12px var(--hud-font-mono);
+  padding: 2px 8px;
+  font: var(--hud-text-xs) var(--hud-font-mono);
   border: 1px solid var(--hud-border);
   color: var(--hud-muted-2);
   white-space: nowrap;

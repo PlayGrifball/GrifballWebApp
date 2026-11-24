@@ -13,11 +13,11 @@
 .season-overview {
   display: flex;
   flex-wrap: wrap;
-  gap: 28px;
+  gap: 36px;
 }
 
-.season-overview__standings { flex: 3 1 520px; }
-.season-overview__week { flex: 2 1 320px; }
+.season-overview__standings { flex: 3 1 620px; min-width: 0; }
+.season-overview__week { flex: 2 1 420px; min-width: 0; }
 
 .season-meta {
   display: flex;
@@ -27,10 +27,10 @@
 }
 
 .season-meta__pill {
-  padding: 3px 8px;
+  padding: 5px 12px;
   border: 1px solid var(--hud-border);
   background: var(--hud-input);
-  font: 12px var(--hud-font-mono);
+  font: var(--hud-text-xs) var(--hud-font-mono);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -47,7 +47,7 @@
 }
 
 .season-counts {
-  margin: 4px 0 0;
-  font: 400 13px var(--hud-font-mono);
+  margin: 6px 0 0;
+  font: 400 var(--hud-text-sm) var(--hud-font-mono);
   letter-spacing: 0.04em;
 }

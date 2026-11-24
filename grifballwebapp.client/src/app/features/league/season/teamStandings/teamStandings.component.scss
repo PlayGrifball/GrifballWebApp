@@ -3,7 +3,7 @@
 }
 
 .standings__rank {
-  width: 48px;
+  width: 64px;
   color: var(--hud-muted);
   font-weight: 700;
 }
@@ -13,7 +13,7 @@
   align-items: center;
   min-height: 44px;
   font-weight: 700;
-  font-size: 19px;
+  font-size: var(--hud-text-lede);
   text-decoration: none;
 }
 
@@ -22,10 +22,10 @@
 }
 
 .standings__finish {
-  width: 72px;
+  width: 96px;
   text-align: right;
   font-weight: 700;
 }
 
 .standings__empty { margin: 0; padding: 16px 18px; }
-.standings__note { margin: 0; padding: 8px 18px; font-size: 13px; }
+.standings__note { margin: 0; padding: 10px 20px; font-size: var(--hud-text-sm); }
