@@ -666,6 +666,80 @@ public class XboxImageSourceTests : SqliteContextFixture
         }
     }
 
+    [Test]
+    public async Task GamerPictures_AnAccountHaloAnswersWithoutAPicture_LosesTheStoredOne()
+    {
+        await AddAccountsAsync(1);
+        var source = Source();
+        GivenUsers((1, new Gamerpic { large = "https://x/old.png" }));
+        _downloader.DownloadAsync("https://x/old.png", Arg.Any<CancellationToken>()).Returns(new DownloadedImage(Png, "image/png"));
+        await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromDays(15));
+        GivenUsers((1, null));
+
+        await source.RunGamerPicturesAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.GamerPicture);
+        Assert.That((row.Status, row.Content), Is.EqualTo((XboxUserImageStatus.NotFound, (byte[]?)null)));
+    }
+
+    [Test]
+    public async Task Emblems_AnAccountWithNoEquippedEmblem_LosesTheStoredOne()
+    {
+        await AddAccountsAsync(1);
+        var source = Source();
+        GivenMapping();
+        GivenEmblem(1, "/inventory/armor/emblems/013-001-aaaa.json");
+        _halo.GameCmsWaypointGetImage("images/emblems/a7.png").Returns(Ok(Png));
+        await source.RunEmblemsAsync();
+        _time.Advance(TimeSpan.FromDays(15));
+        GivenEmblem(1, null);
+
+        await source.RunEmblemsAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.HaloEmblem);
+        Assert.That((row.Status, row.Content), Is.EqualTo((XboxUserImageStatus.NotFound, (byte[]?)null)));
+    }
+
+    [Test]
+    public async Task GamerPictures_AThrottle_IsRemembered_SoTheNextRunDoesNotCallHalo()
+    {
+        await AddAccountsAsync(1);
+        var source = Source();
+        _halo.Users(Arg.Any<IEnumerable<string>>()).Returns(Error<List<GrunUser>>(429, TimeSpan.FromMinutes(10)));
+        await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromMinutes(5));
+
+        var during = await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromMinutes(6));
+        var after = await source.RunGamerPicturesAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((during.Due, during.Checked, during.ThrottledFor), Is.EqualTo((1, 0, (TimeSpan?)TimeSpan.FromMinutes(5))));
+            await _halo.Received(2).Users(Arg.Any<IEnumerable<string>>());
+            Assert.That(after.ThrottledFor, Is.EqualTo(TimeSpan.FromMinutes(10)), "asked again once the wait was over");
+        }
+    }
+
+    [Test]
+    public async Task Emblems_AThrottle_IsRemembered_SoTheNextRunDoesNotCallHalo()
+    {
+        await AddAccountsAsync(1);
+        var source = Source();
+        _halo.GameCmsGetEmblemMapping().Returns(Error<Dictionary<string, Dictionary<string, EmblemImageAssets>>>(429, TimeSpan.FromMinutes(10)));
+        await source.RunEmblemsAsync();
+        _time.Advance(TimeSpan.FromMinutes(5));
+
+        var during = await source.RunEmblemsAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(during.ThrottledFor, Is.EqualTo(TimeSpan.FromMinutes(5)));
+            await _halo.Received(1).GameCmsGetEmblemMapping();
+        }
+    }
+
     // ---- pure helpers ----
 
     [Test]
