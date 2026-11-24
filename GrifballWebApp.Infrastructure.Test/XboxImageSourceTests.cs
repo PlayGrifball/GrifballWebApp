@@ -457,6 +457,73 @@ public class XboxImageSourceTests : SqliteContextFixture
         Assert.That((client.Timeout, client.DefaultRequestHeaders.UserAgent.ToString()), Is.EqualTo((TimeSpan.FromSeconds(30), "GrifballWebApp/1.0 (gamer pictures)")));
     }
 
+    [Test]
+    public async Task GamerPictures_AnAnswerWithNeitherResultNorCode_IsFailed_AsNoAnswer()
+    {
+        await AddAccountsAsync(1);
+        _halo.Users(Arg.Any<IEnumerable<string>>()).Returns(Error<List<GrunUser>>(0));
+
+        await Source().RunGamerPicturesAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.GamerPicture);
+        Assert.That(row.Error, Is.EqualTo("Halo gave no answer"));
+    }
+
+    [Test]
+    public async Task AFailureMessageOverTwoHundredCharacters_IsCut()
+    {
+        await AddAccountsAsync(1);
+        _halo.Users(Arg.Any<IEnumerable<string>>()).Returns<HaloApiResultContainer<List<GrunUser>, HaloApiErrorContainer>>(_ => throw new HttpRequestException(new string('x', 300)));
+
+        await Source().RunGamerPicturesAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.GamerPicture);
+        Assert.That(row.Error, Has.Length.EqualTo(200));
+    }
+
+    [Test]
+    public async Task GamerPictures_OneStoredAndOneFailed_CountsBoth()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenUsers((1, new Gamerpic { large = "https://x/1.png" }), (2, new Gamerpic { large = "https://x/2.png" }));
+        _downloader.DownloadAsync("https://x/1.png", Arg.Any<CancellationToken>()).Returns(new DownloadedImage(Png, "image/png"));
+        _downloader.DownloadAsync("https://x/2.png", Arg.Any<CancellationToken>()).Returns<DownloadedImage>(_ => throw new InvalidOperationException("answered 500"));
+
+        var report = await Source().RunGamerPicturesAsync();
+
+        Assert.That((report.Stored, report.Failed), Is.EqualTo((1, 1)));
+    }
+
+    [Test]
+    public async Task Emblems_AnAppearanceWithoutAnEmblem_OrAMappingWithoutAPath_IsNotFound()
+    {
+        await AddAccountsAsync(1, 2);
+        _halo.GameCmsGetEmblemMapping().Returns(Ok(new Dictionary<string, Dictionary<string, EmblemImageAssets>>
+        {
+            ["013-001-aaaa"] = new() { ["7"] = new EmblemImageAssets { EmblemCmsPath = " " } },
+        }));
+        _halo.EconomyPlayerAppearanceCustomization("xuid(1)").Returns(Ok(new AppearanceCustomization { Appearance = null! }));
+        GivenEmblem(2, "/inventory/armor/emblems/013-001-aaaa.json");
+
+        var report = await Source().RunEmblemsAsync();
+
+        Assert.That(report.NotFound, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task XboxImageService_GivesAStoredImageWithoutAType_AsBinary_AndTheAccountOfARow()
+    {
+        await AddAccountsAsync(1);
+        Context.XboxUserImages.Add(new XboxUserImage { XboxUserID = 1, Kind = XboxUserImageKind.GamerPicture, Status = XboxUserImageStatus.Found, Content = Png, CheckedAt = _time.GetUtcNow().UtcDateTime });
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var image = await new XboxImageService(Context).GetAsync(1, XboxUserImageKind.GamerPicture);
+        var row = await Context.XboxUserImages.Include(i => i.XboxUser).SingleAsync();
+
+        Assert.That((image!.ContentType, row.XboxUser.XboxUserID), Is.EqualTo(("application/octet-stream", 1L)));
+    }
+
     // ---- pure helpers ----
 
     [Test]
@@ -469,6 +536,7 @@ public class XboxImageSourceTests : SqliteContextFixture
             Assert.That(XboxImageSource.SniffContentType([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]), Is.EqualTo("image/webp"));
             Assert.That(XboxImageSource.SniffContentType([0x3C, 0x73, 0x76, 0x67]), Is.Null, "an SVG is not served");
             Assert.That(XboxImageSource.SniffContentType([]), Is.Null);
+            Assert.That(XboxImageSource.SniffContentType([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45]), Is.Null, "RIFF but not WebP");
         }
     }
 
@@ -536,6 +604,14 @@ public class XboxImageDownloaderTests
         var image = await Downloader(new Handler(_ => Image([1, 2, 3], "image/PNG"))).DownloadAsync("https://images.example/pic.png", default);
 
         Assert.That((image.Content, image.ContentType), Is.EqualTo((new byte[] { 1, 2, 3 }, "image/png")));
+    }
+
+    [Test]
+    public async Task DownloadAsync_AnAnswerWithoutAType_IsRefused()
+    {
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => Downloader(new Handler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent([1]) })).DownloadAsync("https://x/p", default));
+
+        Assert.That(failure!.Message, Is.EqualTo("The picture's address didn't serve an image"));
     }
 
     [Test]

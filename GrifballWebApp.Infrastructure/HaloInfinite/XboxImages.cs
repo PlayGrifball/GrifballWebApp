@@ -168,12 +168,12 @@ public class XboxImageSource
     }
 
     private static TimeSpan? ThrottleOf<T>(HaloApiResultContainer<T, HaloApiErrorContainer> response)
-        => response.Result is null && response.Error is { Code: 429 } throttled
+        => response.Error is { Code: 429 } throttled
             ? throttled.RetryAfter is { } wait && wait > TimeSpan.Zero ? wait : TimeSpan.FromMinutes(1)
             : null;
 
     private static string Describe<T>(HaloApiResultContainer<T, HaloApiErrorContainer> response)
-        => response.Error is { } error ? (error.Code == 0 ? "Halo gave no answer" : $"Halo answered {error.Code}") : "Halo gave no answer";
+        => response.Error is { Code: not 0 } error ? $"Halo answered {error.Code}" : "Halo gave no answer";
 
     private static TimeSpan Gap(int callsPerMinute) => TimeSpan.FromMinutes(1) / Math.Max(1, callsPerMinute);
 

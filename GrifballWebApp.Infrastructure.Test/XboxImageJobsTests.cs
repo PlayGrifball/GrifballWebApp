@@ -72,6 +72,14 @@ public class XboxImageJobsTests : SqliteContextFixture
     }
 
     [Test]
+    public void Report_WithSomeStoredAndSomeFailed_Succeeds()
+    {
+        var report = XboxImageJobReports.Of(new XboxImagesReport { Due = 2, Checked = 2, Stored = 1, Failed = 1 }, "gamer picture", new FakeLogger<XboxGamerPictureJob>());
+
+        Assert.That(report.Result, Is.EqualTo(JobRunResult.Succeeded));
+    }
+
+    [Test]
     public async Task GamerPictureJob_WhenEveryCheckFails_Fails()
     {
         await AddAccountAsync(1);
