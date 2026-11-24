@@ -70,7 +70,7 @@
         @default {
           @if (metric(); as m) {
             <table class="board">
-              <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">{{m.title}}</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Per game</th><th scope="col" class="hud-num">Seasons</th></tr></thead>
+              <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">{{m.title}}</th><th scope="col" class="hud-num">Games</th>@if (m.showPerGame) {<th scope="col" class="hud-num">Per game</th>}<th scope="col" class="hud-num">Seasons</th></tr></thead>
               <tbody>
                 @for (p of m.leaders; track p.userID) {
                   <tr [class.board__row--highlighted]="spotlight()?.userID === p.userID">
@@ -78,7 +78,7 @@
                     <td><a class="board__entity" [routerLink]="['/profile', p.userID]" [title]="p.gamertag">{{p.gamertag}}</a></td>
                     <td class="hud-num">{{p.statValue}}</td>
                     <td class="hud-num">{{p.gamesPlayed}}@if (p.perGame != null && p.gamesDecidedByVote) {<span class="hud-muted"> ({{p.gamesDecidedByVote}} by vote)</span>}</td>
-                    <td class="hud-num">{{p.perGameText}}</td>
+                    @if (m.showPerGame) {<td class="hud-num">{{p.perGameText}}</td>}
                     <td class="hud-num">{{p.seasonsCount}}</td>
                   </tr>
                 }

@@ -76,7 +76,8 @@ describe('LeaderboardsComponent', () => {
     choose('Carrier stops');
     expect(rows()[0][1]).toBe('Wall');
     choose('Games played');
-    expect(rows()).toEqual([['1', 'Ironman', '300', '30', '-', '3']]);
+    expect(rows()).toEqual([['1', 'Ironman', '300', '30', '3']]);
+    expect(Array.from(el().querySelectorAll('th')).map(th => th.textContent!.trim())).toEqual(['#', 'Player', 'Games played', 'Games', 'Seasons']);
     expect(el().querySelector('[aria-pressed="true"]')!.textContent!.trim()).toBe('Games played');
   });
 

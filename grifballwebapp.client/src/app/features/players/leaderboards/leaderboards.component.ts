@@ -74,6 +74,7 @@ export class LeaderboardsComponent implements OnInit {
       return null;
     return {
       title: METRICS[board].title,
+      showPerGame: board !== 'games',
       leaders: METRICS[board].list(boards).map(leader => ({
         ...leader,
         perGameText: leader.perGame == null ? '-' : formatNumber(leader.perGame, this.locale, '1.2-2'),
