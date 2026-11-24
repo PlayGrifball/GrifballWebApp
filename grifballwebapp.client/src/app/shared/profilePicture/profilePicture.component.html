@@ -1,9 +1,9 @@
 <span class="hud-avatar profile-picture" [class.hud-avatar--accent]="accent()" [class.profile-picture--emblem]="kind() === 'haloEmblem'" aria-hidden="true">
-  <span class="profile-picture__initial">{{ initial() }}</span>
+  <span class="profile-picture__initial" [class.profile-picture__initial--hidden]="state() === 'loaded'">{{ initial() }}</span>
   @if (src(); as url) {
-    @if (!failed()) {
-      <img class="profile-picture__image" [class.profile-picture__image--shown]="loaded()" [src]="url" alt="" loading="lazy" decoding="async"
-        (load)="loaded.set(true)" (error)="failed.set(true)">
+    @if (state() !== 'failed') {
+      <img class="profile-picture__image" [class.profile-picture__image--shown]="state() === 'loaded'" [src]="url" alt="" loading="lazy" decoding="async"
+        (load)="state.set('loaded')" (error)="state.set('failed')">
     }
   }
 </span>

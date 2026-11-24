@@ -21,10 +21,6 @@
 .profile-emblem {
   aspect-ratio: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--hud-border);
-  background: radial-gradient(circle, var(--hud-accent-tint-strong) 0%, transparent 70%), var(--hud-input);
 }
 
 .profile-emblem app-profile-picture {

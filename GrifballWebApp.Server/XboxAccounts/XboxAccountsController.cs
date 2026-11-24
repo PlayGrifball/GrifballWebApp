@@ -86,17 +86,28 @@ public class XboxAccountsController : ControllerBase
         => ImageOfUser(images, userID, XboxUserImageKind.HaloEmblem, ct);
 
     private async Task<IActionResult> ImageOfUser(XboxImageService images, int userID, XboxUserImageKind kind, CancellationToken ct)
-        => await images.GetXboxUserIdOfAsync(userID, ct) is { } xboxUserID ? await Image(images, xboxUserID, kind, ct) : NotFound();
+        => await images.GetXboxUserIdOfAsync(userID, ct) is { } xboxUserID ? await Image(images, xboxUserID, kind, ct, UserImageMaxAge) : NotFoundBriefly();
+
+    // A user can be tied to another Xbox account (a re-tie, a merge), so their URL is not kept for a day like an account's
+    private const int UserImageMaxAge = 300;
+    private const int AccountImageMaxAge = 86400;
+
+    // A roster asks for every player's picture; remember for a few minutes that most have none
+    private NotFoundResult NotFoundBriefly()
+    {
+        Response.Headers.CacheControl = "public, max-age=300";
+        return NotFound();
+    }
 
     private static Microsoft.Net.Http.Headers.EntityTagHeaderValue ETagOf(DateTime checkedAt)
         => new($"\"{DateTime.SpecifyKind(checkedAt, DateTimeKind.Utc).Ticks}\"");
 
-    private async Task<IActionResult> Image(XboxImageService images, long xboxUserID, XboxUserImageKind kind, CancellationToken ct)
+    private async Task<IActionResult> Image(XboxImageService images, long xboxUserID, XboxUserImageKind kind, CancellationToken ct, int maxAge = AccountImageMaxAge)
     {
         if (await images.GetCheckedAtAsync(xboxUserID, kind, ct) is not { } version)
-            return NotFound();
-        // A day: a picture or an emblem changes rarely, and the job checks again every couple of weeks
-        Response.Headers.CacheControl = "public, max-age=86400";
+            return NotFoundBriefly();
+        // A picture or an emblem changes rarely, and the job checks again every couple of weeks
+        Response.Headers.CacheControl = $"public, max-age={maxAge}";
         var request = Request.GetTypedHeaders();
         var etag = ETagOf(version);
         if (request.IfNoneMatch.Any(t => t.Compare(etag, useStrongComparison: false)))

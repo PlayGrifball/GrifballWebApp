@@ -34,7 +34,6 @@ export class ProfilePictureComponent {
     return userID == null ? null : `/api/users/${userID}/${file}`;
   });
 
-  /** The image answered 404 or was no image: the initial stays. A new user or kind gets a fresh try. */
-  protected readonly failed = linkedSignal<string | null, boolean>({ source: this.src, computation: () => false });
-  protected readonly loaded = linkedSignal<string | null, boolean>({ source: this.src, computation: () => false });
+  /** Whether the image is still coming, is in, or answered 404 (the initial stays). A new user or kind gets a fresh try. */
+  protected readonly state = linkedSignal<string | null, 'pending' | 'loaded' | 'failed'>({ source: this.src, computation: () => 'pending' });
 }

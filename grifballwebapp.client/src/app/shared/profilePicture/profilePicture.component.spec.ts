@@ -33,11 +33,13 @@ describe('ProfilePictureComponent', () => {
 
     expect(image()?.getAttribute('src')).toBe('/api/users/12/gamer-picture');
     expect(image()?.classList).not.toContain('profile-picture__image--shown');
+    expect(el().querySelector('.profile-picture__initial')?.classList).not.toContain('profile-picture__initial--hidden');
 
     image()?.dispatchEvent(new Event('load'));
     fixture.detectChanges();
 
     expect(image()?.classList).toContain('profile-picture__image--shown');
+    expect(el().querySelector('.profile-picture__initial')?.classList).toContain('profile-picture__initial--hidden');
   });
 
   it('asks for an Xbox account\'s picture directly, ahead of the user', () => {
