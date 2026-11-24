@@ -516,29 +516,6 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
 
     // ---------- Sheets of one season that were two seasons ----------
 
-    private static ArchiveSeason Tab(string name, string sheet, params ArchivePlayer[] players)
-    {
-        var entry = Entry(name, "halo5", "AGLA", false, players);
-        return new ArchiveSeason
-        {
-            SeasonName = entry.SeasonName, GameVersion = entry.GameVersion, League = entry.League, Division = entry.Division,
-            SourceWorkbook = "sml18-fantasy", SourceSheet = sheet, Players = entry.Players,
-        };
-    }
-
-    private static HistoricalArchiveInput TwoTabs(string statsName, string fixturesName) => new()
-    {
-        Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Summer League 2018", Tier = "Open", Team = "Hens", Roster = ["Hen"] }] },
-        Seasons = new UnifiedArchive
-        {
-            Seasons =
-            [
-                Tab(statsName, "Total Stats", Player("Silva", team: "Cabs")),
-                Tab(fixturesName, "Fixtures & Results"),
-            ],
-        },
-    };
-
     [Test]
     public async Task Import_TabsOfOneSeasonThatWereTwo_AreOneSeasonNow_AndTheLeftoverIsRetiredWithItsTeams()
     {

@@ -30,6 +30,25 @@ internal static class HistoricalImportUnitTestData
         Players = [.. players],
     };
 
+
+    /// <summary>A sheet of the SML18 Fantasy workbook (Summer League 2018): its tabs are one season, whatever their names say.</summary>
+    public static ArchiveSeason Tab(string name, string sheet, params ArchivePlayer[] players)
+    {
+        var entry = Entry(name, "halo5", "AGLA", false, players);
+        return new ArchiveSeason
+        {
+            SeasonName = entry.SeasonName, GameVersion = entry.GameVersion, League = entry.League, Division = entry.Division,
+            SourceWorkbook = "sml18-fantasy", SourceSheet = sheet, Players = entry.Players,
+        };
+    }
+
+    /// <summary>The workbook's stats tab (player Silva, team Cabs) and its schedule tab (no players), and the champions record's Hens title.</summary>
+    public static HistoricalArchiveInput TwoTabs(string statsName, string fixturesName) => new()
+    {
+        Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Summer League 2018", Tier = "Open", Team = "Hens", Roster = ["Hen"] }] },
+        Seasons = new UnifiedArchive { Seasons = [Tab(statsName, "Total Stats", Player("Silva", team: "Cabs")), Tab(fixturesName, "Fixtures & Results")] },
+    };
+
     /// <summary>A sheet's row: one game played, one death.</summary>
     public static ArchivePlayer Player(string gamertag, int kills = 0, int stint = 1, string? team = null, int wins = 0, int losses = 0) => new()
     {
