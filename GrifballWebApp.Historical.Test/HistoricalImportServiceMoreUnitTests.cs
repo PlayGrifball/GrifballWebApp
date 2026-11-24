@@ -1,6 +1,7 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
@@ -648,10 +649,11 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         {
             Assert.That(report.Errors, Is.Empty, "no duplicate season name");
             Assert.That(report.Warnings, Has.Some.Contain("not imported this run"));
-            Assert.That(await Context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EquivalentTo(new[] { "Summer League 2018 (Fantasy Rey)", "Summer League 2018" }), "both stay as they were");
+            Assert.That(await Context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EquivalentTo(BothLeftAsTheyWere), "both stay as they were");
         }
     }
 
+    private static readonly string[] BothLeftAsTheyWere = ["Summer League 2018 (Fantasy Rey)", "Summer League 2018"];
     private static readonly (string, string)[] MergedSeason = [("Summer League 2018", "sml18-fantasy/Total Stats")];
     private static readonly string[] MergedTeams = ["Cabs", "Hens"];
 
