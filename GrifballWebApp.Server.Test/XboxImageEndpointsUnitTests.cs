@@ -142,6 +142,59 @@ public class XboxImageEndpointsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task TheUserImageEndpoints_KeepAUsersImageForMinutes_NotADay()
+    {
+        await StoreAsync(5, XboxUserImageKind.GamerPicture);
+        var user = User.Seed(userName: "linked", xboxUserID: 5);
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+        var byUser = Controller();
+        var byAccount = Controller();
+
+        await byUser.GetUserGamerPicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+        await byAccount.GetGamerPicture(5, new XboxImageService(Db), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(byUser.Response.Headers.CacheControl.ToString(), Is.EqualTo("public, max-age=300"));
+            Assert.That(byAccount.Response.Headers.CacheControl.ToString(), Is.EqualTo("public, max-age=86400"));
+        }
+    }
+
+    [Test]
+    public async Task GetUserGamerPicture_WithItsETag_Answers304()
+    {
+        await StoreAsync(5, XboxUserImageKind.GamerPicture);
+        var user = User.Seed(userName: "linked", xboxUserID: 5);
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+        var first = (FileContentResult)await Controller().GetUserGamerPicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+        var controller = Controller();
+        controller.Request.Headers.IfNoneMatch = first.EntityTag!.ToString();
+
+        var result = await controller.GetUserGamerPicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+
+        Assert.That(((StatusCodeResult)result).StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
+    }
+
+    [Test]
+    public async Task GetUserGamerPicture_IsNotFound_AndBrieflyCached_ForAUserWhoseAccountHasNoImage()
+    {
+        var user = User.Seed(userName: "linked", xboxUserID: 5);
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+        var controller = Controller();
+
+        var result = await controller.GetUserGamerPicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<NotFoundResult>());
+            Assert.That(controller.Response.Headers.CacheControl.ToString(), Is.EqualTo("public, max-age=300"));
+        }
+    }
+
+    [Test]
     public async Task GetHaloEmblem_GivesTheStoredEmblem_NotTheGamerPicture()
     {
         await StoreAsync(5, XboxUserImageKind.HaloEmblem);
