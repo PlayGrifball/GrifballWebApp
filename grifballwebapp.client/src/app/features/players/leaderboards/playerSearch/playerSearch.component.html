@@ -10,7 +10,7 @@
       aria-controls="playerSearchList"
       [attr.aria-expanded]="open()"
       [attr.aria-activedescendant]="active() >= 0 ? 'playerSearchOption' + active() : null"
-      placeholder="Search gamertag..."
+      placeholder="Search player or past gamertag..."
       [value]="query()"
       (input)="onInput($any($event.target).value)"
       (keydown)="onKeydown($event)"
