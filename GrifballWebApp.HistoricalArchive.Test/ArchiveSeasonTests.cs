@@ -161,19 +161,20 @@ public class ArchiveSeasonTests
 
         await using var context = Archive.NewContext();
         var seasons = await context.Seasons.AsNoTracking()
-            .Where(s => s.League.Slug == "agla" && (s.SeasonName == "Fall League 2020" || s.SeasonName == "Fall League 2020 (PC)"))
+            .Where(s => s.League.Slug == "agla" && s.SeasonName.StartsWith("Fall League 2020"))
             .Select(s => new { s.SeasonName, Game = s.GameVersion.Slug })
             .ToListAsync();
         var titles = await context.Set<PlayerChampionship>().AsNoTracking()
-            .Where(c => c.Season.League.Slug == "agla" && c.Season.SeasonName == "Fall League 2020 (PC)")
-            .Select(c => new { c.Team.TeamName, c.Tier, c.GamertagUsed })
+            .Where(c => c.Season.League.Slug == "agla" && c.Season.SeasonName.StartsWith("Fall League 2020"))
+            .Select(c => new { c.Season.SeasonName, c.Team.TeamName, c.Tier, c.GamertagUsed })
             .ToListAsync();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons, Has.Count.EqualTo(1));
             Assert.That(seasons.Select(s => (s.SeasonName, s.Game)), Is.All.EqualTo(("Fall League 2020 (PC)", "halo3")));
-            Assert.That(titles.Select(c => (c.TeamName, c.Tier)), Is.All.EqualTo(("Ascended", "Open")));
+            Assert.That(titles, Has.Count.EqualTo(5));
+            Assert.That(titles.Select(c => (c.SeasonName, c.TeamName, c.Tier)), Is.All.EqualTo(("Fall League 2020 (PC)", "Ascended", "Open")));
             Assert.That(titles.Select(c => c.GamertagUsed), Is.EquivalentTo(Fall2020Champions));
         }
     }
