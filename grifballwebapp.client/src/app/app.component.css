@@ -60,11 +60,11 @@ main {
   flex: none;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 14px;
+  min-height: var(--hud-tab-height);
+  padding: 0 18px;
   border-bottom: 2px solid transparent;
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--hud-text-table);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -102,10 +102,10 @@ main {
 .app-drawer__link {
   display: flex;
   align-items: center;
-  min-height: 48px;
-  padding: 0 20px;
+  min-height: var(--hud-tab-height);
+  padding: 0 22px;
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--hud-text-table);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--hud-text);

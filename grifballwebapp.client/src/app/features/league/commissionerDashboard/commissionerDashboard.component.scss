@@ -43,13 +43,13 @@
 
 .cd-badge {
   margin-left: 10px;
-  min-width: 24px;
-  padding: 0 6px;
+  min-width: 26px;
+  padding: 2px 8px;
   box-sizing: border-box;
   background: var(--hud-accent);
   color: var(--hud-on-accent);
   font-family: var(--hud-font-mono);
-  font-size: 13px;
+  font-size: var(--hud-text-xs);
   line-height: 22px;
   text-align: center;
 }
@@ -93,7 +93,7 @@
   padding: 4px 0;
 }
 
-.cd-why { font-size: 13px; overflow-wrap: anywhere; }
+.cd-why { font-size: var(--hud-text-sm); overflow-wrap: anywhere; }
 
 .cd-severity {
   display: inline-flex;

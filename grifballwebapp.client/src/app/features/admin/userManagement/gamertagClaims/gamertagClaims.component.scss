@@ -29,12 +29,12 @@
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 }
 
 .claims-table th,
 .claims-table td {
-  padding: 8px 10px;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--hud-border);
   text-align: left;
   vertical-align: top;
@@ -44,19 +44,22 @@
 // A header breaks between words, never inside one
 .claims-table th {
   overflow-wrap: normal;
+  font-family: var(--hud-font-mono);
+  font-size: var(--hud-text-sm);
+  color: var(--hud-muted);
 }
 
 // The claims table's columns (Decision only on the Pending tab; without it the others share its room). The table is
 // only a table at the page's full width (about 1190px), where the Gamertag column fits the longest season name (each
 // stays on one line; a list of them breaks between seasons).
-.claims-col-gamertag { width: 17%; }
-.claims-col-xbox { width: 19%; }
+.claims-col-gamertag { width: 20%; }
+.claims-col-xbox { width: 17%; }
 .claims-col-placeholder { width: 9%; }
 .claims-col-season { width: 12%; }
 .claims-col-team { width: 10%; }
 .claims-col-kind { width: 9%; }
 .claims-col-created { width: 9%; }
-.claims-col-decision { width: 15%; }
+.claims-col-decision { width: 14%; }
 // The possible duplicates table's
 .claims-col-pair { width: 40%; }
 .claims-col-pair-decision { width: 20%; }
@@ -103,8 +106,8 @@
   // part under another (the name spans the rows they take up, so each goes in the second column)
   .claims-table td[data-label] {
     display: grid;
-    grid-template-columns: 108px minmax(0, 1fr);
-    column-gap: 12px;
+    grid-template-columns: 118px minmax(0, 1fr);
+    column-gap: 10px;
     align-items: baseline;
   }
 
@@ -113,14 +116,24 @@
     grid-row: span 12;
     color: var(--hud-muted);
     font-family: var(--hud-font-mono);
-    font-size: 12px;
+    font-size: var(--hud-text-xs);
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
 
   // The gamertag heads its card
   .claims-table td.claims-strong {
-    font-size: 17px;
+    font-size: var(--hud-text-body);
+  }
+}
+
+@media (max-width: 600px) {
+  .claims-table td {
+    padding: 4px 10px;
+  }
+
+  .claims-table td[data-label] {
+    grid-template-columns: 100px minmax(0, 1fr);
   }
 }
 
@@ -132,7 +145,13 @@
 .claims-note {
   display: block;
   color: var(--hud-muted);
-  font-size: 12px;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .claims-note {
+    font-size: var(--hud-text-xs);
+  }
 }
 
 // Season links under a gamertag's link: far enough below it to tap apart (WCAG 2.5.8's 24px spacing)
@@ -147,9 +166,9 @@
 }
 
 .claims-btn {
-  min-height: 44px;
-  padding: 0 16px;
-  font-size: 14px;
+  min-height: var(--hud-compact-btn-height);
+  padding: 0 18px;
+  font-size: var(--hud-compact-btn-text);
 }
 
 .claims-btn--reject {
@@ -167,9 +186,9 @@
 .claims-reason {
   flex: 1 1 100%;
   min-width: 0;
-  min-height: 44px;
-  padding: 0 10px;
-  font-size: 14px;
+  min-height: var(--hud-input-height);
+  padding: 0 12px;
+  font-size: var(--hud-text-table);
   border: 1px solid var(--hud-border);
   background: transparent;
   color: inherit;

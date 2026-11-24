@@ -20,15 +20,21 @@
 .board {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 }
 
 .board th,
 .board td {
-  padding: 8px 10px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--hud-border);
   text-align: left;
   white-space: nowrap;
+}
+
+.board th {
+  font-family: var(--hud-font-mono);
+  font-size: var(--hud-text-sm);
+  color: var(--hud-muted);
 }
 
 .board .hud-num { text-align: right; }
@@ -41,9 +47,9 @@
 }
 
 // A player's games decided by vote, after their games played
-.by-vote { font-size: 12px; }
+.by-vote { font-size: var(--hud-text-xs); }
 
 .vote-note {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
 }

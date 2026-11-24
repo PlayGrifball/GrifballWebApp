@@ -17,18 +17,18 @@
 
 .seasons-filter select,
 .seasons-filter input {
-  min-height: 44px;
-  padding: 8px 10px;
+  min-height: var(--hud-input-height);
+  padding: 10px 14px;
   border: 1px solid var(--hud-control-outline);
   background: var(--hud-input);
   color: var(--hud-text);
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 }
 
 .seasons-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(440px, 100%), 1fr));
+  gap: 22px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -66,7 +66,7 @@
   align-items: center;
   min-height: 44px;
   color: var(--hud-heading);
-  font-size: 18px;
+  font-size: var(--hud-text-lede);
   font-weight: 700;
 }
 
@@ -76,7 +76,7 @@
   gap: 4px 12px;
   margin: 0;
   color: var(--hud-muted);
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
 }
 
 .season-card__champion {
@@ -85,7 +85,7 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 
   a {
     display: inline-flex;
@@ -98,7 +98,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
 }
 // A league, game or format: the list filtered by it
 .season-card__filter {

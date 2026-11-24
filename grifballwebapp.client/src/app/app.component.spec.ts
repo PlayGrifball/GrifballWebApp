@@ -527,8 +527,8 @@ describe('AppComponent behaviour', () => {
     await fixture.whenStable();
     expect(component.visibleNavLinks()).toHaveSize(shown());
 
-    // The user chip leaves 150px: room for Home beside the menu button, which now shows.
-    toolbarWidth = 150;
+    // The user chip narrows the bar so only Home fits beside the menu button, which now shows.
+    toolbarWidth = 100 + MENU_BUTTON_WIDTH + 2;
     account.isLoggedIn.set(true);
     await fixture.whenStable();
     expect(component.showMenu()).toBeTrue();

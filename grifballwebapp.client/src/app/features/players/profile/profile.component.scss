@@ -7,12 +7,15 @@
   gap: 24px;
 }
 
-.profile-card {
-  flex: 1 1 280px;
-  max-width: 360px;
+.profile-card, .profile-main, .section-header, .trophy-info, .stat-card, .table-season-cell, .team-cell, .profile-facts div {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+}
+
+.profile-card {
+  flex: 1 1 340px;
+  max-width: 440px;
+  gap: 16px;
 }
 
 .profile-emblem {
@@ -22,14 +25,14 @@
   justify-content: center;
   border: 1px solid var(--hud-border);
   background: radial-gradient(circle, var(--hud-accent-tint-strong) 0%, transparent 70%), var(--hud-input);
-  font: 700 clamp(64px, 16vw, 100px) var(--hud-font);
+  font: 700 clamp(64px, 16vw, 108px) var(--hud-font);
   color: var(--hud-accent);
   text-shadow: var(--hud-glow);
 }
 
 .profile-name {
   margin: 0;
-  font-size: 28px;
+  font-size: 34px;
   text-shadow: var(--hud-glow);
   overflow-wrap: anywhere;
 }
@@ -38,65 +41,72 @@
   margin: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
-  div { display: flex; flex-direction: column; gap: 2px; }
+  gap: 12px 16px;
+  div { gap: 2px; }
   dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 }
 
-.alias-pill, .league-pill, .game-pill, .game-pill-sm, .archival-pill, .phase-pill {
-  padding: 1px 5px;
-  font: 12px var(--hud-font-mono);
-  background: var(--hud-well);
-  border: 1px solid var(--hud-hairline);
-  color: var(--hud-muted-2);
+.profile-facts dd, .trophy-season, .season-table { font-size: var(--hud-text-table); }
+
+.alias-pill, .league-pill, .game-pill, .game-pill-sm, .archival-pill, .phase-pill,
+.trophy-title, .captain-badge, .stat-sub, .league-sub, .trade-sub, .source-tag, .trophy-meta {
+  font: var(--hud-text-xs) var(--hud-font-mono);
 }
 
+.alias-pill, .league-pill, .game-pill, .game-pill-sm, .phase-pill, .archival-pill, .captain-badge {
+  padding: 2px 6px;
+  border: 1px solid var(--hud-hairline);
+  color: var(--hud-muted-2);
+  background: var(--hud-well);
+}
+
+.phase-pill {
+  background: var(--hud-panel);
+  border-color: var(--hud-border);
+  &.playoffs { border-color: var(--hud-gold); color: var(--hud-gold); font-weight: 700; }
+}
+
+.trophy-card, .stat-card { background: var(--hud-well); }
+
 .archival-pill {
-  padding: 1px 6px;
+  padding: 2px 8px;
   background: var(--hud-gold-tint);
   border-color: var(--hud-gold);
   color: var(--hud-gold);
 }
 
-.aliases-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.aliases-list, .trophy-meta { display: flex; flex-wrap: wrap; gap: 4px; }
 
 .profile-main {
-  flex: 999 1 500px;
+  flex: 999 1 560px;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  gap: 28px;
 }
 
 .section-header {
-  display: flex;
-  flex-direction: column;
   gap: 2px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
-.empty-state { margin: 8px 0 0; font-style: italic; }
-.career-note { margin: 12px 0 0; font-size: 13px; }
+.empty-state { margin-top: 8px; font-style: italic; }
+.career-note { margin-top: 12px; font-size: var(--hud-text-sm); }
 
 .trophy-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 12px;
 }
 
 .trophy-card {
   display: flex;
   gap: 10px;
-  padding: 10px 14px;
-  background: var(--hud-well);
+  padding: 12px 16px;
   border-left: 3px solid var(--hud-gold);
 }
 
 .trophy-ring-icon { color: var(--hud-gold); flex: none; padding-top: 2px; }
 
 .trophy-info {
-  display: flex;
-  flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
@@ -104,13 +114,11 @@
 .trophy-title {
   display: flex;
   justify-content: space-between;
-  font: 12px var(--hud-font-mono);
 }
 
 .trophy-tier { font-weight: 700; color: var(--hud-gold); }
 
 .trophy-season {
-  font-size: 15px;
   font-weight: 700;
   color: var(--hud-heading);
   overflow: hidden;
@@ -119,42 +127,33 @@
 }
 
 .trophy-meta {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  font-family: var(--hud-font);
 }
 
 .captain-badge {
-  padding: 1px 4px;
-  font: 12px var(--hud-font-mono);
   background: var(--hud-accent-tint-strong);
   color: var(--hud-accent);
-  border: 1px solid var(--hud-accent);
+  border-color: var(--hud-accent);
 }
 
 .stat-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .stat-card {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  background: var(--hud-well);
+  gap: 4px;
+  padding: 14px 16px;
 }
 
 .stat-val {
-  font: 700 22px var(--hud-font);
+  font: 700 28px var(--hud-font);
   color: var(--hud-heading);
 }
 
-.stat-sub { font: 12px var(--hud-font-mono); }
 .positive-spread { color: var(--hud-green-text) !important; }
 .negative-spread { color: var(--hud-red-text) !important; }
 
@@ -162,12 +161,12 @@
   width: 100%;
   border-collapse: collapse;
   th, td {
-    padding: 8px 10px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--hud-hairline);
     white-space: nowrap;
   }
   th {
-    font: 600 12px var(--hud-font-mono);
+    font: 600 var(--hud-text-sm) var(--hud-font-mono);
     text-transform: uppercase;
     color: var(--hud-muted);
     text-align: left;
@@ -175,19 +174,11 @@
   tr:hover td { background: var(--hud-row-hover); }
 }
 
-.table-season-cell, .team-cell { display: flex; flex-direction: column; gap: 1px; }
 .season-name { font-weight: 600; color: var(--hud-heading); }
-.league-sub, .trade-sub { font: 12px var(--hud-font-mono); color: var(--hud-muted); }
+.league-sub { color: var(--hud-muted); }
 .trade-sub { color: var(--hud-gold); }
 
-.phase-pill {
-  background: var(--hud-panel);
-  border-color: var(--hud-border);
-  &.playoffs { border-color: var(--hud-gold); color: var(--hud-gold); font-weight: 700; }
-}
-
 .source-tag {
-  font: 12px var(--hud-font-mono);
   color: var(--hud-muted);
   &.waypoint { color: var(--hud-accent); font-weight: 600; }
 }

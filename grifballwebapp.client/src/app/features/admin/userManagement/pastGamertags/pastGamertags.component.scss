@@ -18,15 +18,21 @@
 .pg-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 }
 
 .pg-table th,
 .pg-table td {
-  padding: 8px 10px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--hud-border);
   text-align: left;
   white-space: nowrap;
+}
+
+.pg-table th {
+  font-family: var(--hud-font-mono);
+  font-size: var(--hud-text-sm);
+  color: var(--hud-muted);
 }
 
 // Links in the table: a tap target of at least 44px
@@ -43,9 +49,9 @@
 }
 
 .pg-btn {
-  min-height: 44px;
-  padding: 0 16px;
-  font-size: 14px;
+  min-height: var(--hud-compact-btn-height);
+  padding: 0 18px;
+  font-size: var(--hud-compact-btn-text);
 }
 
 .pg-btn--reject {
@@ -59,8 +65,8 @@
 
 .pg-add__fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
-  gap: 12px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 14px 18px;
 }
 
 .pg-field {
@@ -70,15 +76,15 @@
   min-width: 0;
 
   label {
-    font-size: 13px;
+    font-size: var(--hud-text-sm);
     color: var(--hud-muted);
   }
 
   input {
-    min-height: 44px;
+    min-height: var(--hud-input-height);
     box-sizing: border-box;
-    padding: 0 10px;
-    font-size: 14px;
+    padding: 0 12px;
+    font-size: var(--hud-text-table);
     background: var(--hud-input);
     border: 1px solid var(--hud-border);
     color: inherit;
@@ -91,6 +97,6 @@
 
 .pg-error {
   color: var(--hud-red);
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
   margin: 4px 0 0;
 }

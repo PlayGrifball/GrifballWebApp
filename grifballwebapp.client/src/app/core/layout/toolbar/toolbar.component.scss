@@ -14,10 +14,10 @@
   max-width: var(--hud-max-width);
   margin: 0 auto;
   padding: 0 var(--hud-gutter);
-  min-height: 68px;
+  min-height: clamp(60px, 6.5vw, 82px);
   display: flex;
   align-items: center;
-  gap: 8px 28px;
+  gap: 8px clamp(12px, 2vw, 28px);
 }
 
 .hud-header__menu { margin-left: -8px; margin-right: -16px; }
@@ -26,19 +26,21 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: clamp(8px, 1vw, 12px);
   min-height: 44px;
   font-weight: 700;
-  font-size: 26px;
+  font-size: clamp(20px, 2.5vw, 32px);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--hud-heading);
 }
 
 .hud-brand__mark {
-  width: 30px;
-  height: 30px;
-  color: var(--hud-accent);
+  height: 1.08em;
+  width: auto;
+  aspect-ratio: 107 / 100;
+  flex: none;
+  display: block;
 }
 
 .hud-header__tools {
@@ -61,7 +63,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   font-family: inherit;
-  font-size: inherit;
+  font-size: clamp(17px, 1.8vw, 22px);
   color: inherit;
   cursor: pointer;
 
@@ -114,13 +116,11 @@
   white-space: nowrap;
 }
 
-.hud-header__login { min-height: 44px; padding: 0 26px; font-size: 16px; }
+.hud-header__login { min-height: clamp(44px, 4.2vw, 52px); padding: 0 clamp(20px, 2.4vw, 30px); font-size: clamp(16px, 1.5vw, 19px); }
 
 @media (max-width: 720px) {
-  .hud-header__bar { gap: 8px 12px; min-height: 60px; }
   .hud-header__menu { margin-right: 0; }
-  .hud-brand { font-size: 20px; gap: 8px; letter-spacing: 0.18em; }
-  .hud-brand__mark { width: 24px; height: 24px; }
+  .hud-brand { letter-spacing: 0.18em; }
   .hud-user { padding: 5px; }
   // The name stays the chip's accessible name; only the avatar shows.
   .hud-user__name {
@@ -130,7 +130,6 @@
     overflow: hidden;
     clip-path: inset(50%);
   }
-  .hud-header__login { padding: 0 20px; }
 }
 
 // The smallest phones: menu, wordmark, search and theme buttons and Login have to share 360px. The icon

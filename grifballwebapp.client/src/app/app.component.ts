@@ -13,8 +13,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { SiteFooterComponent } from './core/layout/siteFooter/siteFooter.component';
 import { AppLog } from '@core/telemetry/appLog';
 
-/** Room taken in the toolbar by the menu button (with its gap) when it is shown. */
-export const MENU_BUTTON_WIDTH = 48;
+/** Room taken in the toolbar by the menu button when it is shown (52px button - 24px horizontal margins + up to 28px bar gap). */
+export const MENU_BUTTON_WIDTH = 56;
 
 /** The space between two links in the toolbar: .toolbar-links' gap (app.component.css). */
 export const NAV_LINK_GAP = 4;

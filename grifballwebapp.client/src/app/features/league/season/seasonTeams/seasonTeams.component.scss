@@ -34,13 +34,13 @@
 .teams-search-input {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 44px;
+  min-height: var(--hud-input-height);
   box-sizing: border-box;
-  padding: 10px 12px;
+  padding: 10px 14px;
   background: none;
   border: none;
   color: var(--hud-text);
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 
   &:focus {
     outline: none;
@@ -50,7 +50,7 @@
 .search-clear-btn {
   flex: none;
   min-width: 44px;
-  min-height: 44px;
+  min-height: var(--hud-input-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -59,7 +59,7 @@
   color: var(--hud-muted);
   cursor: pointer;
   padding: 0 12px;
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
 
   &:hover {
     color: var(--hud-heading);
@@ -67,7 +67,7 @@
 }
 
 .teams-toolbar__meta {
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -80,9 +80,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 8px 16px;
   text-decoration: none;
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -90,22 +90,22 @@
 
 .teams-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(min(440px, 100%), 1fr));
+  gap: 22px;
   align-items: stretch;
 }
 
 .team-card {
   display: flex;
   flex-direction: column;
-  padding: 16px 20px;
+  padding: 22px 26px;
   background: var(--hud-panel);
 }
 
 .team-card__head {
   border-bottom: 1px solid var(--hud-hairline);
-  padding-bottom: 12px;
-  margin-bottom: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .team-card__title-row {
@@ -117,7 +117,7 @@
 
 .team-card__name {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--hud-text-lede);
   font-weight: 700;
   color: var(--hud-heading);
   overflow-wrap: anywhere;
@@ -127,7 +127,7 @@
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
-  font-size: 15px;
+  font-size: var(--hud-text-sm);
   font-weight: 700;
   color: var(--hud-heading);
   font-variant-numeric: tabular-nums;
@@ -135,13 +135,13 @@
 }
 
 .record-source {
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
   font-weight: normal;
   color: var(--hud-muted);
 }
 
 .record-tbd {
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
   font-weight: normal;
   color: var(--hud-accent);
 }
@@ -158,7 +158,7 @@
 }
 
 .team-card__empty-roster {
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
   margin: 12px 0;
 }
 
@@ -191,7 +191,7 @@
 }
 
 .player-name {
-  font-size: 14px;
+  font-size: var(--hud-text-table);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -215,7 +215,7 @@
 }
 
 .hud-link-more {
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
   font-weight: 600;
   color: var(--hud-accent);
   text-decoration: none;

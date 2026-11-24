@@ -9,17 +9,71 @@
 body {
   background: var(--hud-bg);
   color: var(--hud-text);
-  font-size: 17px;
+  font-size: var(--hud-text-body);
+  line-height: 1.45;
   font-weight: 500;
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4 {
-  color: var(--hud-heading);
   font-family: var(--hud-font);
-  font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+h1, h2, h3, h4,
+.hud-title,
+.hud-h2,
+.hud-card__title,
+.hud-avatar,
+.hud-btn--primary,
+.hud-vs {
+  font-weight: 700;
+}
+
+h1, h2, h3, h4,
+.hud-kicker,
+.hud-label,
+.hud-details > dt,
+.hud-title,
+.hud-h2,
+.hud-card__title,
+.hud-avatar,
+.hud-btn,
+.hud-more,
+.hud-tab,
+.mat-mdc-header-cell,
+.hud-pill {
+  text-transform: uppercase;
+}
+
+h1, h2, h3, h4,
+.hud-title,
+.hud-h2,
+.hud-card__title,
+.hud-vs,
+.hud-details > dd {
+  color: var(--hud-heading);
+}
+
+.hud-page,
+.hud-panel,
+.hud-card,
+.hud-avatar,
+.hud-btn,
+.hud-tab,
+main > :not(router-outlet):not(:has(> .hud-page)) {
+  box-sizing: border-box;
+}
+
+.hud-title,
+.hud-h2,
+.hud-lede,
+.hud-empty,
+.hud-details,
+.hud-phase-bar,
+main > :not(router-outlet):not(:has(> .hud-page)) > h1:first-child,
+main > :not(router-outlet):not(:has(> .hud-page)) > h2:first-child {
+  margin: 0;
 }
 
 // One visible focus style for everything that can be focused with a keyboard.
@@ -53,14 +107,24 @@ h1, h2, h3, h4 {
 // Page layout
 // ---------------------------------------------------------------------------
 
-.hud-page {
-  box-sizing: border-box;
-  max-width: var(--hud-max-width);
-  margin: 0 auto;
-  padding: 36px var(--hud-gutter) 72px;
+.hud-page,
+.hud-page-head,
+.hud-page-head__text,
+.hud-section,
+.hud-form,
+.hud-form-group,
+.hud-options,
+.hud-card,
+.hud-phase-step {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+}
+
+.hud-page {
+  max-width: var(--hud-max-width);
+  margin: 0 auto;
+  padding: 44px var(--hud-gutter) 80px;
+  gap: 36px;
 }
 
 .hud-page--narrow {
@@ -68,23 +132,21 @@ h1, h2, h3, h4 {
 }
 
 .hud-page-head {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
 }
 
 .hud-kicker,
-.hud-label {
+.hud-label,
+.hud-details > dt {
   font-family: var(--hud-font-mono);
-  font-size: 14px;
+  font-size: var(--hud-text-sm);
   font-weight: 400;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--hud-accent);
 }
 
-.hud-label {
-  font-size: 13px;
+.hud-label,
+.hud-details > dt {
   color: var(--hud-muted);
 }
 
@@ -95,40 +157,31 @@ h1, h2, h3, h4 {
 // heading right under it (8px gap) - padding there instead would reach into the heading's own box.
 a.hud-kicker {
   display: inline-block;
-  padding-top: 23px;
-  margin-top: -23px;
+  padding-top: 24px;
+  margin-top: -24px;
 }
 
 .hud-label--gold { color: var(--hud-gold); }
 .hud-label--accent { color: var(--hud-accent); }
 
 .hud-title {
-  margin: 0;
-  font-weight: 700;
-  font-size: clamp(2.25rem, 7vw, 4rem);
+  font-size: clamp(2.5rem, 6vw, 4.75rem);
   line-height: 0.95;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--hud-heading);
   text-shadow: var(--hud-glow);
   overflow-wrap: anywhere;
 }
 
-.hud-title--xl { font-size: clamp(2.5rem, 9vw, 4.5rem); }
-.hud-title--md { font-size: clamp(2rem, 6vw, 3.25rem); line-height: 1; letter-spacing: 0.06em; }
+.hud-title--xl { font-size: clamp(2.75rem, 7vw, 5.25rem); }
+.hud-title--md { font-size: clamp(2.25rem, 5vw, 3.75rem); line-height: 1; letter-spacing: 0.06em; }
 
 .hud-h2 {
-  margin: 0;
-  font-weight: 700;
-  font-size: 22px;
+  font-size: var(--hud-text-heading);
   letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--hud-heading);
 }
 
 .hud-lede {
-  margin: 0;
-  font-size: 19px;
+  font-size: var(--hud-text-lede);
   color: var(--hud-muted-2);
   max-width: 68ch;
 }
@@ -136,14 +189,11 @@ a.hud-kicker {
 .hud-muted { color: var(--hud-muted); }
 
 .hud-section {
-  display: flex;
-  flex-direction: column;
   gap: 12px;
   min-width: 0;
 }
 
 .hud-empty {
-  margin: 0;
   padding: 18px;
   border: 1px dashed var(--hud-border);
   background: var(--hud-well);
@@ -157,19 +207,24 @@ a.hud-kicker {
 
 // A page head with its actions (Create, Merge, ...) beside the title, wrapping under it when there
 // is no room.
+.hud-page-head--actions,
+.hud-actions,
+.hud-tabs,
+.hud-phase-bar {
+  display: flex;
+  flex-wrap: wrap;
+}
+
 .hud-page-head--actions {
   flex-direction: row;
-  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px 24px;
+}
 
-  > .hud-page-head__text {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-width: 0;
-  }
+.hud-page-head__text {
+  gap: 8px;
+  min-width: 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,49 +232,45 @@ a.hud-kicker {
 // ---------------------------------------------------------------------------
 
 .hud-form {
-  display: flex;
-  flex-direction: column;
   gap: 20px;
   min-width: 0;
 }
 
 .hud-form-group {
-  display: flex;
-  flex-direction: column;
   gap: 12px;
   min-width: 0;
 
   > .hud-kicker { margin: 0 0 2px; }
-  > p.hud-muted { margin: -4px 0 4px; font-size: 16px; }
+  > p.hud-muted { margin: -4px 0 4px; font-size: var(--hud-text-sm); }
   > mat-form-field { width: 100%; }
 }
 
 // Fields side by side where they fit, one per row on a phone.
-.hud-field-grid {
+.hud-field-grid,
+.hud-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
-  gap: 12px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+}
+
+.hud-field-grid {
+  gap: 16px 22px;
 
   > mat-form-field { width: 100%; min-width: 0; }
 }
 
 // Checkboxes and toggles, one per line.
 .hud-options {
-  display: flex;
-  flex-direction: column;
   gap: 4px;
 }
 
 // A label and its value, e.g. a user's details.
 .hud-details {
-  margin: 0;
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
-  gap: 8px 16px;
+  gap: 10px 24px;
   align-items: baseline;
 
-  > dt { font-family: var(--hud-font-mono); font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hud-muted); }
-  > dd { margin: 0; color: var(--hud-heading); font-weight: 600; overflow-wrap: anywhere; }
+  > dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 }
 
 // ---------------------------------------------------------------------------
@@ -227,8 +278,7 @@ a.hud-kicker {
 // ---------------------------------------------------------------------------
 
 .hud-panel {
-  box-sizing: border-box;
-  padding: 24px;
+  padding: 30px;
   background: var(--hud-panel);
   border: 1px solid var(--hud-border);
 }
@@ -247,10 +297,16 @@ a.hud-kicker {
     var(--panel-bg, var(--hud-panel));
 }
 
-.hud-panel--chamfer-lg { --cut: 36px; padding: clamp(24px, 4vw, 40px); }
+.hud-panel--chamfer-lg { --cut: 36px; padding: clamp(26px, 4vw, 48px); }
 
 @media (max-width: 600px) {
+  .hud-page { padding: 24px var(--hud-gutter) 56px; gap: 24px; }
+  .hud-panel { padding: 20px; }
   .hud-panel--chamfer, .hud-panel--chamfer-lg { --cut: 20px; }
+  .hud-btn { padding: 0 24px; }
+  .hud-btn--primary { padding: 0 30px; }
+  .hud-tab { padding: 0 18px; }
+  .mat-mdc-cell, .mat-mdc-header-cell { padding-inline: 14px; }
 }
 
 .hud-well {
@@ -260,14 +316,11 @@ a.hud-kicker {
 
 // Objective-style card: a link or block with a coloured top rule.
 .hud-card {
-  box-sizing: border-box;
-  padding: 22px;
+  padding: 26px;
   background: var(--hud-panel-faint);
   border: 1px solid var(--hud-hairline);
   border-top: 3px solid var(--hud-border);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   color: var(--hud-muted-2);
 }
 
@@ -275,23 +328,17 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
 .hud-card--active { border-top-color: var(--hud-accent); }
 
 .hud-card__title {
-  font-weight: 700;
-  font-size: 22px;
+  font-size: var(--hud-text-heading);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--hud-heading);
 }
 
 .hud-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
-  gap: 16px;
+  gap: 22px;
 }
 
 // Square avatar placeholder with the player's initial.
 .hud-avatar {
   flex: none;
-  box-sizing: border-box;
   width: 38px;
   height: 38px;
   display: inline-flex;
@@ -300,8 +347,6 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
   background: var(--hud-avatar);
   border: 1px solid var(--hud-border);
   color: var(--hud-muted-2);
-  font-weight: 700;
-  text-transform: uppercase;
 }
 
 .hud-avatar--accent { border-color: var(--hud-accent); color: var(--hud-heading); }
@@ -310,22 +355,25 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
 // Buttons and tabs (for links and native buttons; Material buttons are themed below)
 // ---------------------------------------------------------------------------
 
-.hud-btn {
-  box-sizing: border-box;
-  min-height: 48px;
-  padding: 0 26px;
+.hud-btn,
+.hud-more,
+.hud-tab {
   display: inline-flex;
   align-items: center;
+  font-weight: 600;
+}
+
+.hud-btn {
+  min-height: var(--hud-btn-height);
+  padding: 0 36px;
   justify-content: center;
   gap: 8px;
   border: 1px solid var(--hud-accent);
   background: transparent;
   color: var(--hud-text);
   font: inherit;
-  font-weight: 600;
-  font-size: 17px;
+  font-size: var(--hud-btn-text);
   letter-spacing: 0.16em;
-  text-transform: uppercase;
   text-align: center;
   cursor: pointer;
 
@@ -336,55 +384,41 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
 // The parallelogram: clip-path would cut an outside focus ring, so it is drawn inside.
 .hud-btn--primary {
   border: 0;
-  padding: 0 32px;
+  padding: 0 42px;
   background: var(--hud-accent);
   color: var(--hud-on-accent);
-  font-weight: 700;
   letter-spacing: 0.18em;
   clip-path: var(--hud-slant);
 
-  &:hover { background: var(--hud-accent-hover); color: var(--hud-on-accent); }
-  &:focus-visible { outline: 2px solid var(--hud-on-accent); outline-offset: -6px; }
+  &:hover { background: var(--hud-accent-hover); }
 }
 
 .hud-btn--block { width: 100%; }
 
 .hud-actions {
-  display: flex;
-  flex-wrap: wrap;
   gap: 12px;
 }
 
 .hud-more {
   align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
   min-height: 44px;
-  font-weight: 600;
+  font-size: var(--hud-tab-text);
   letter-spacing: 0.14em;
-  text-transform: uppercase;
   color: var(--hud-accent);
 
   &:hover { color: var(--hud-heading); }
 }
 
 .hud-tabs {
-  display: flex;
-  flex-wrap: wrap;
   gap: 6px;
 }
 
 .hud-tab {
-  box-sizing: border-box;
-  min-height: 44px;
-  padding: 0 18px;
-  display: inline-flex;
-  align-items: center;
+  min-height: var(--hud-tab-height);
+  padding: 0 26px;
   border: 1px solid var(--hud-border);
-  font-weight: 600;
-  font-size: 15px;
+  font-size: var(--hud-tab-text);
   letter-spacing: 0.14em;
-  text-transform: uppercase;
   color: var(--hud-text);
 
   &:hover { border-color: var(--hud-accent); color: var(--hud-heading); }
@@ -395,9 +429,18 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
   background: var(--hud-accent);
   color: var(--hud-on-accent);
   clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
 
-  &:hover { color: var(--hud-on-accent); }
-  &:focus-visible { outline: 2px solid var(--hud-on-accent); outline-offset: -6px; }
+.hud-btn--primary:hover,
+.hud-tab--active,
+.hud-tab--active:hover {
+  color: var(--hud-on-accent);
+}
+
+.hud-btn--primary:focus-visible,
+.hud-tab--active:focus-visible {
+  outline: 2px solid var(--hud-on-accent);
+  outline-offset: -6px;
 }
 
 // ---------------------------------------------------------------------------
@@ -427,9 +470,7 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  font-weight: 700;
-  font-size: 19px;
-  color: var(--hud-heading);
+  font-size: var(--hud-text-lede);
 
   > :first-child { border-left: 3px solid var(--hud-red); padding-left: 10px; overflow-wrap: anywhere; }
   > :last-child { border-right: 3px solid var(--hud-blue); padding-right: 10px; text-align: right; overflow-wrap: anywhere; }
@@ -444,67 +485,55 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
 body {
   @include mat.button-overrides((
     filled-container-shape: 0,
-    filled-container-height: 44px,
-    filled-horizontal-padding: 26px,
-    filled-label-text-font: var(--hud-font),
-    filled-label-text-size: 16px,
+    filled-container-height: var(--hud-mat-btn-height),
+    filled-horizontal-padding: 32px,
+    filled-label-text-size: var(--hud-mat-btn-text),
     filled-label-text-weight: 700,
     filled-label-text-tracking: 0.16em,
     filled-label-text-transform: uppercase,
     outlined-container-shape: 0,
-    outlined-container-height: 44px,
+    outlined-container-height: var(--hud-mat-btn-height),
     outlined-outline-color: var(--hud-accent),
     outlined-label-text-color: var(--hud-text),
-    outlined-label-text-font: var(--hud-font),
-    outlined-label-text-size: 16px,
+    outlined-label-text-size: var(--hud-mat-btn-text),
     outlined-label-text-weight: 600,
     outlined-label-text-tracking: 0.14em,
     outlined-label-text-transform: uppercase,
     text-container-shape: 0,
-    text-container-height: 44px,
-    text-label-text-font: var(--hud-font),
-    text-label-text-size: 16px,
+    text-container-height: var(--hud-mat-btn-height),
+    text-label-text-size: var(--hud-mat-btn-text),
     text-label-text-weight: 600,
     text-label-text-tracking: 0.12em,
     text-label-text-transform: uppercase,
-    protected-container-shape: 0,
-    protected-container-height: 44px,
-    protected-label-text-transform: uppercase,
-    protected-label-text-tracking: 0.14em,
-    tonal-container-shape: 0,
-    tonal-container-height: 44px,
-    tonal-label-text-transform: uppercase,
-    tonal-label-text-tracking: 0.14em,
   ));
 
-  // 48px: big enough to tap (Material's default is 40)
+  // 48px+: big enough to tap (Material's default is 40)
   @include mat.icon-button-overrides((
     icon-color: var(--hud-text),
     container-shape: 0,
-    state-layer-size: 48px,
+    state-layer-size: 52px,
   ));
 
   @include mat.table-overrides((
     background-color: transparent,
     header-headline-color: var(--hud-muted),
     header-headline-font: var(--hud-font-mono),
-    header-headline-size: 13px,
+    header-headline-size: var(--hud-text-sm),
     header-headline-weight: 400,
     header-headline-tracking: 0.06em,
-    header-container-height: 46px,
+    header-container-height: 54px,
     row-item-label-text-color: var(--hud-text),
-    row-item-label-text-font: var(--hud-font),
-    row-item-label-text-size: 17px,
+    row-item-label-text-size: var(--hud-text-body),
     row-item-label-text-weight: 500,
     row-item-outline-color: var(--hud-hairline),
-    row-item-container-height: 52px,
+    row-item-container-height: 60px,
   ));
 
   @include mat.paginator-overrides((
     container-background-color: transparent,
     container-text-color: var(--hud-muted),
     container-text-font: var(--hud-font-mono),
-    container-text-size: 13px,
+    container-text-size: var(--hud-text-sm),
     enabled-icon-color: var(--hud-text),
     disabled-icon-color: var(--hud-disabled-icon),
   ));
@@ -520,8 +549,7 @@ body {
     outlined-caret-color: var(--hud-accent),
     filled-container-shape: 0,
     filled-container-color: var(--hud-input),
-    container-text-font: var(--hud-font),
-    container-text-size: 18px,
+    container-text-size: var(--hud-text-body),
   ));
 
   @include mat.select-overrides((
@@ -537,8 +565,7 @@ body {
     unselected-icon-color: var(--hud-control-outline),
     unselected-hover-icon-color: var(--hud-muted-2),
     label-text-color: var(--hud-text),
-    label-text-font: var(--hud-font),
-    label-text-size: 17px,
+    label-text-size: var(--hud-mat-btn-text),
   ));
 
   @include mat.sidenav-overrides((
@@ -553,13 +580,12 @@ body {
 
   @include mat.list-overrides((
     list-item-label-text-color: var(--hud-text),
-    list-item-label-text-font: var(--hud-font),
-    list-item-label-text-size: 16px,
+    list-item-label-text-size: 19px,
     list-item-label-text-weight: 600,
     list-item-label-text-tracking: 0.14em,
     list-item-hover-label-text-color: var(--hud-heading),
     list-item-container-shape: 0,
-    list-item-one-line-container-height: 48px,
+    list-item-one-line-container-height: 52px,
     active-indicator-shape: 0,
     active-indicator-color: var(--hud-accent-tint),
   ));
@@ -568,8 +594,7 @@ body {
     container-color: var(--hud-surface-container),
     container-shape: 0,
     item-label-text-color: var(--hud-text),
-    item-label-text-font: var(--hud-font),
-    item-label-text-size: 16px,
+    item-label-text-size: 18px,
     item-label-text-weight: 600,
     item-icon-color: var(--hud-accent),
   ));
@@ -583,21 +608,17 @@ body {
     outlined-outline-color: var(--hud-border),
     filled-container-color: var(--hud-panel-soft),
     filled-container-shape: 0,
-    title-text-font: var(--hud-font),
     title-text-weight: 700,
-    title-text-size: 20px,
+    title-text-size: var(--hud-text-lede),
     subtitle-text-color: var(--hud-muted),
-    subtitle-text-font: var(--hud-font),
   ));
 
   @include mat.dialog-overrides((
     container-color: var(--hud-input),
     container-shape: 0,
     subhead-color: var(--hud-heading),
-    subhead-font: var(--hud-font),
     subhead-weight: 700,
     supporting-text-color: var(--hud-text),
-    supporting-text-font: var(--hud-font),
   ));
 
   @include mat.snack-bar-overrides((
@@ -623,6 +644,11 @@ body {
 // Material does not expose these through tokens.
 .mat-mdc-header-cell { text-transform: uppercase; }
 
+.mat-mdc-cell,
+.mat-mdc-header-cell {
+  padding-inline: 24px;
+}
+
 .mat-mdc-header-row,
 .mat-mdc-row { background: transparent; }
 
@@ -638,8 +664,7 @@ body {
 // not padded). !important is needed because plain overrides of the same specificity lose to
 // Material's own later declaration. 16px matches the label's inset.
 .mdc-text-field--outlined {
-  padding-left: 16px !important;
-  padding-right: 16px !important;
+  padding-inline: 16px !important;
 }
 
 // Fields with a suffix (the colour picker's toggle button) want no padding on that side, so their
@@ -654,7 +679,10 @@ body {
 .mat-mdc-unelevated-button:not(.mat-mdc-button-disabled) {
   clip-path: var(--hud-slant);
 
-  &:focus-visible { outline: 2px solid var(--hud-on-accent); outline-offset: -6px; }
+  &:focus-visible {
+    outline: 2px solid var(--hud-on-accent);
+    outline-offset: -6px;
+  }
 }
 
 .mat-mdc-unelevated-button.mat-mdc-button-disabled {
@@ -673,7 +701,7 @@ body {
 // so it is as short as one line of text (about 20px) inside a taller header cell: 46px, matching
 // the table's own header-container-height above, makes most of the row tappable instead (WCAG
 // 2.5.8). height: 100% does not work here: percentage heights do not resolve against a table cell.
-.mat-sort-header-container { height: 46px; }
+.mat-sort-header-container { height: 54px; }
 
 // A checkbox, radio button or slide toggle (with its label) is only as tall as its text line, 32-40px:
 // under the 44px minimum tap target (WCAG 2.5.8). The extra height is invisible (the control and
@@ -712,10 +740,9 @@ mat-slide-toggle .mdc-form-field { min-height: 44px; align-items: center; }
 // Pages that do not lay themselves out with .hud-page still get the page width and gutter.
 main > :not(router-outlet):not(:has(> .hud-page)) {
   display: block;
-  box-sizing: border-box;
   max-width: var(--hud-max-width);
   margin: 0 auto;
-  padding: 36px var(--hud-gutter) 72px;
+  padding: 44px var(--hud-gutter) 80px;
 
   > h1:first-child, > h2:first-child {
     margin: 0 0 24px;
@@ -755,13 +782,12 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
 // 24px each, the least a touch target may be (WCAG 2.5.8). In the overlay, to outweigh their own
 // styles, which load later.
 .cdk-overlay-container .mtx-calendar-header {
-  // The time while the date is being picked, the same
-  .mtx-calendar-header-time:not(.active) { opacity: 0.85; }
-
-  .mtx-calendar-header-year, .mtx-calendar-header-date, .mtx-calendar-header-hours,
-  .mtx-calendar-header-minutes, .mtx-calendar-header-ampm {
-    &:not(.active) { opacity: 0.85; }
-  }
+  .mtx-calendar-header-time:not(.active),
+  .mtx-calendar-header-year:not(.active),
+  .mtx-calendar-header-date:not(.active),
+  .mtx-calendar-header-hours:not(.active),
+  .mtx-calendar-header-minutes:not(.active),
+  .mtx-calendar-header-ampm:not(.active) { opacity: 0.85; }
 
   .mtx-calendar-header-ampm { min-height: 24px; min-width: 24px; }
 }
@@ -800,12 +826,11 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
+  padding: 4px 10px;
   border: 1px solid var(--hud-border);
   background: var(--hud-well);
-  font: 400 12px var(--hud-font-mono);
+  font: 400 var(--hud-text-xs) var(--hud-font-mono);
   letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--hud-muted-2);
 }
 
@@ -822,8 +847,6 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
 }
 
 .hud-phase-bar {
-  display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -831,11 +854,9 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
 }
 
 .hud-phase-step {
-  flex: 1 1 160px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 14px;
+  flex: 1 1 200px;
+  gap: 4px;
+  padding: 14px 18px;
   border: 1px solid var(--hud-hairline);
   border-top: 2px solid var(--hud-border);
   background: var(--hud-well);
@@ -853,13 +874,13 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
 
 .hud-phase-step__name {
   font-family: var(--hud-font-mono);
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--hud-heading);
 }
 
 .hud-phase-step__meta {
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
   color: var(--hud-muted);
 }

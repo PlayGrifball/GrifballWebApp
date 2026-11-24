@@ -37,31 +37,31 @@
     <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="tableLabel()"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
       @switch (board()) {
         @case ('rings') {
-          <table class="board">
+          <table class="board board--titles">
             <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">Titles</th><th scope="col">Seasons won</th></tr></thead>
             <tbody>
               @for (p of b.ringLeaders; track p.userID) {
                 <tr [class.board__row--highlighted]="spotlight()?.userID === p.userID">
                   <td class="hud-num">{{p.rank}}</td>
-                  <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
+                  <td><a class="board__entity" [routerLink]="['/profile', p.userID]" [title]="p.gamertag">{{p.gamertag}}</a></td>
                   <td class="hud-num">{{p.ringsCount}}</td>
-                  <td class="board__titles">@for (title of p.titles; track title.seasonID + title.tier; let last = $last) {<a [routerLink]="['/season', title.seasonID]">{{title.seasonName}}</a> ({{title.tier}})@if (!last) {, }}</td>
+                  <td class="board__titles">@for (title of p.titles; track title.seasonID + title.tier; let last = $last) {<span class="board__title-item"><a [routerLink]="['/season', title.seasonID]"><span class="board__title-name">{{title.seasonName}}</span> ({{title.tier}})</a>@if (!last) {<span class="board__title-sep">, </span>}</span>}</td>
                 </tr>
               }
             </tbody>
           </table>
         }
         @case ('dynasties') {
-          <table class="board">
+          <table class="board board--titles">
             <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Team</th><th scope="col" class="hud-num">Titles</th><th scope="col" class="hud-num">Seasons</th><th scope="col">Seasons won</th></tr></thead>
             <tbody>
               @for (t of b.dynasties; track t.latestTeamID) {
                 <tr>
                   <td class="hud-num">{{t.rank}}</td>
-                  <td><a [routerLink]="['/history', 'team', t.latestTeamID]">{{t.teamName}}</a></td>
+                  <td><a class="board__entity" [routerLink]="['/history', 'team', t.latestTeamID]" [title]="t.teamName">{{t.teamName}}</a></td>
                   <td class="hud-num">{{t.championshipsCount}}</td>
                   <td class="hud-num">{{t.seasonsActive}}</td>
-                  <td class="board__titles">@for (title of t.titles; track title.seasonID + title.tier; let last = $last) {<a [routerLink]="['/season', title.seasonID, 'team', title.teamID]">{{title.seasonName}}</a> ({{title.tier}})@if (!last) {, }}</td>
+                  <td class="board__titles">@for (title of t.titles; track title.seasonID + title.tier; let last = $last) {<span class="board__title-item"><a [routerLink]="['/season', title.seasonID, 'team', title.teamID]"><span class="board__title-name">{{title.seasonName}}</span> ({{title.tier}})</a>@if (!last) {<span class="board__title-sep">, </span>}</span>}</td>
                 </tr>
               }
             </tbody>
@@ -70,15 +70,15 @@
         @default {
           @if (metric(); as m) {
             <table class="board">
-              <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">{{m.title}}</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Per game</th><th scope="col" class="hud-num">Seasons</th></tr></thead>
+              <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">{{m.title}}</th><th scope="col" class="hud-num">Games</th>@if (m.showPerGame) {<th scope="col" class="hud-num">Per game</th>}<th scope="col" class="hud-num">Seasons</th></tr></thead>
               <tbody>
                 @for (p of m.leaders; track p.userID) {
                   <tr [class.board__row--highlighted]="spotlight()?.userID === p.userID">
                     <td class="hud-num">{{p.rank}}</td>
-                    <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
+                    <td><a class="board__entity" [routerLink]="['/profile', p.userID]" [title]="p.gamertag">{{p.gamertag}}</a></td>
                     <td class="hud-num">{{p.statValue}}</td>
                     <td class="hud-num">{{p.gamesPlayed}}@if (p.perGame != null && p.gamesDecidedByVote) {<span class="hud-muted"> ({{p.gamesDecidedByVote}} by vote)</span>}</td>
-                    <td class="hud-num">{{p.perGameText}}</td>
+                    @if (m.showPerGame) {<td class="hud-num">{{p.perGameText}}</td>}
                     <td class="hud-num">{{p.seasonsCount}}</td>
                   </tr>
                 }

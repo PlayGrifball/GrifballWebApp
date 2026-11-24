@@ -11,7 +11,7 @@
   flex-wrap: wrap;
   gap: 4px 12px;
   margin: 0 0 16px;
-  font-size: 13px;
+  font-size: var(--hud-text-sm);
 }
 
 .jb-section {
@@ -19,18 +19,18 @@
 }
 
 .jb-detail {
-  padding: 16px;
+  padding: 20px;
 }
 
 .jb-heading {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: var(--hud-text-lede);
   color: var(--hud-heading);
 }
 
 .jb-subheading {
   margin: 20px 0 8px;
-  font-size: 15px;
+  font-size: var(--hud-text-table);
   color: var(--hud-heading);
 }
 
@@ -41,15 +41,21 @@
 .jb-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--hud-text-table);
 }
 
 .jb-table th,
 .jb-table td {
-  padding: 8px 10px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--hud-border);
   text-align: left;
   vertical-align: middle;
+}
+
+.jb-table th {
+  font-family: var(--hud-font-mono);
+  font-size: var(--hud-text-sm);
+  color: var(--hud-muted);
 }
 
 .jb-table th,
@@ -75,7 +81,7 @@
 
 .jb-note {
   display: block;
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
   color: var(--hud-muted);
 }
 
@@ -92,10 +98,10 @@
 
 .jb-state {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border: 1px solid var(--hud-border);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--hud-text-xs);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -124,9 +130,9 @@
 }
 
 .jb-btn {
-  min-height: 44px;
-  padding: 0 14px;
-  font-size: 14px;
+  min-height: var(--hud-compact-btn-height);
+  padding: 0 18px;
+  font-size: var(--hud-compact-btn-text);
 }
 
 .jb-actions .jb-btn + .jb-btn {
@@ -152,8 +158,8 @@
 }
 
 .jb-input {
-  min-height: 44px;
-  padding: 0 10px;
+  min-height: var(--hud-input-height);
+  padding: 0 12px;
   border: 1px solid var(--hud-border);
   border-radius: 4px;
   background: var(--hud-input);

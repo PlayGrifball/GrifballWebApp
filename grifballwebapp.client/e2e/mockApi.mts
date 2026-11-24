@@ -666,8 +666,10 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
             }),
     '/api/leaderboards': answer('getLeaderboards', {
               ringLeaders: [{ rank: 1, userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
-                { rank: 2, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
-              dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
+                { rank: 2, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] },
+                { rank: 3, userID: 504, gamertag: 'SpartanCommandant117', ringsCount: 1, titles: [title(10, 'Spring Showdown', 'Open', 42)] }],
+              dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] },
+                { rank: 2, teamName: 'Truthless and the Truthlessettes', latestTeamID: 43, latestSeasonID: 5, championshipsCount: 1, seasonsActive: 2, titles: [title(10, 'Spring Showdown', 'Open', 43)] }],
               goalLeaders: [leader(1, 501, 'Legendary', 120, 4), leader(2, 117, 'MasterChief117', 88, 2.93)],
               killLeaders: [leader(1, 117, 'MasterChief117', 640, 21.33)],
               gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
