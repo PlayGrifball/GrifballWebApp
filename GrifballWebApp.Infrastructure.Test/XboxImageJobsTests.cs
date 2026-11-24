@@ -72,6 +72,14 @@ public class XboxImageJobsTests : SqliteContextFixture
     }
 
     [Test]
+    public void Report_WhenTheFeatureIsOff_SaysSo()
+    {
+        var report = XboxImageJobReports.Of(new XboxImagesReport { Disabled = true }, "emblem", new FakeLogger<XboxEmblemJob>());
+
+        Assert.That((report.Result, report.Summary), Is.EqualTo((JobRunResult.Skipped, "Xbox images are turned off (XboxImages:Enabled)")));
+    }
+
+    [Test]
     public void Report_WithSomeStoredAndSomeFailed_Succeeds()
     {
         var report = XboxImageJobReports.Of(new XboxImagesReport { Due = 2, Checked = 2, Stored = 1, Failed = 1 }, "gamer picture", new FakeLogger<XboxGamerPictureJob>());

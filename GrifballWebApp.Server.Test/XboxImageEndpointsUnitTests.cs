@@ -51,6 +51,16 @@ public class XboxImageEndpointsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task GetGamerPicture_CarriesWhenItWasChecked_AsLastModified()
+    {
+        await StoreAsync(5, XboxUserImageKind.GamerPicture);
+
+        var file = (FileContentResult)await Controller().GetGamerPicture(5, new XboxImageService(Db), CancellationToken.None);
+
+        Assert.That(file.LastModified, Is.Not.Null);
+    }
+
+    [Test]
     public async Task GetHaloEmblem_GivesTheStoredEmblem_NotTheGamerPicture()
     {
         await StoreAsync(5, XboxUserImageKind.HaloEmblem);

@@ -39,6 +39,8 @@ public sealed class XboxImagesReport
     public TimeSpan? ThrottledFor { get; set; }
     /// <summary>How many accounts were due when the run began (0: nothing to do).</summary>
     public int Due { get; set; }
+    /// <summary>Set when XboxImages:Enabled is off: the run did nothing.</summary>
+    public bool Disabled { get; set; }
 }
 
 /// <summary>The image a download gave.</summary>
@@ -81,7 +83,8 @@ public sealed class XboxImageDownloader(HttpClient http) : IXboxImageDownloader
                 throw new InvalidOperationException("The picture is too large");
             await buffer.WriteAsync(chunk.AsMemory(0, read), ct);
         }
-        return new DownloadedImage(buffer.ToArray(), type.ToLowerInvariant());
+        var bytes = buffer.ToArray();
+        return new DownloadedImage(bytes, XboxImageSource.SniffContentType(bytes) ?? throw new InvalidOperationException("The picture isn't a PNG, JPEG or WebP"));
     }
 }
 
@@ -121,9 +124,16 @@ public class XboxImageSource
         var retry = now - _options.RetryFailedAfter;
         return _context.XboxUsers
             .Where(x => !_context.XboxUserImages.Any(i => i.XboxUserID == x.XboxUserID && i.Kind == kind
-                && (i.Status == XboxUserImageStatus.Failed ? i.CheckedAt > retry : i.CheckedAt > again)))
+                && (i.Status == XboxUserImageStatus.Failed || i.Error != null ? i.CheckedAt > retry : i.CheckedAt > again)))
             .Select(x => x.XboxUserID);
     }
+
+    /// <summary>The accounts due, those never checked first, then the longest unchecked, so failures coming due again don't starve the rest.</summary>
+    private IQueryable<long> DueInOrder(XboxUserImageKind kind)
+        => Due(kind)
+            .OrderBy(x => _context.XboxUserImages.Any(i => i.XboxUserID == x && i.Kind == kind) ? 1 : 0)
+            .ThenBy(x => _context.XboxUserImages.Where(i => i.XboxUserID == x && i.Kind == kind).Select(i => i.CheckedAt).FirstOrDefault())
+            .ThenBy(x => x);
 
     public Task<int> CountDueAsync(XboxUserImageKind kind, CancellationToken ct) => Due(kind).CountAsync(ct);
 
@@ -151,6 +161,12 @@ public class XboxImageSource
 
     private static void NotFound(XboxUserImage row)
     {
+        if (row.Content is not null)
+        {
+            // Halo not giving one this time doesn't take away the image already shown; try again soon
+            row.Error = "Halo no longer gave one";
+            return;
+        }
         row.Status = XboxUserImageStatus.NotFound;
         row.Source = null;
         row.ContentType = null;
@@ -184,9 +200,12 @@ public class XboxImageSource
     {
         var report = new XboxImagesReport();
         if (!_options.Enabled)
+        {
+            report.Disabled = true;
             return report;
-        var due = await Due(XboxUserImageKind.GamerPicture).OrderBy(x => x).Take(Math.Max(1, _options.GamerPictureAccountsPerRun)).ToListAsync(ct);
-        report.Due = due.Count;
+        }
+        var due = await DueInOrder(XboxUserImageKind.GamerPicture).Take(Math.Max(1, _options.GamerPictureAccountsPerRun)).ToListAsync(ct);
+        report.Due = await CountDueAsync(XboxUserImageKind.GamerPicture, ct);
         var gap = Gap(_options.ProfileCallsPerMinute);
         var first = true;
         foreach (var chunk in due.Chunk(UsersPerCall))
@@ -274,9 +293,12 @@ public class XboxImageSource
     {
         var report = new XboxImagesReport();
         if (!_options.Enabled)
+        {
+            report.Disabled = true;
             return report;
-        var due = await Due(XboxUserImageKind.HaloEmblem).OrderBy(x => x).Take(Math.Max(1, _options.EmblemAccountsPerRun)).ToListAsync(ct);
-        report.Due = due.Count;
+        }
+        var due = await DueInOrder(XboxUserImageKind.HaloEmblem).Take(Math.Max(1, _options.EmblemAccountsPerRun)).ToListAsync(ct);
+        report.Due = await CountDueAsync(XboxUserImageKind.HaloEmblem, ct);
         if (due.Count == 0)
             return report;
 
@@ -348,8 +370,11 @@ public class XboxImageSource
             NotFound(row);
             report.NotFound++;
         }
-        else
-            await StoreEmblemAsync(row, path, downloaded, report, ct);
+        else if (await StoreEmblemAsync(row, path, downloaded, report, ct))
+        {
+            report.Checked--;
+            return true;
+        }
         return false;
     }
 
@@ -367,19 +392,24 @@ public class XboxImageSource
             : null;
     }
 
-    private async Task StoreEmblemAsync(XboxUserImage row, string path, Dictionary<string, DownloadedImage?> downloaded, XboxImagesReport report, CancellationToken ct)
+    private async Task<bool> StoreEmblemAsync(XboxUserImage row, string path, Dictionary<string, DownloadedImage?> downloaded, XboxImagesReport report, CancellationToken ct)
     {
         if (row.Status == XboxUserImageStatus.Found && row.Content is not null && row.Source == path)
         {
             row.Error = null;
             report.Unchanged++;
-            return;
+            return false;
         }
         try
         {
             if (!downloaded.TryGetValue(path, out var image))
             {
                 var response = await _halo.GameCmsWaypointGetImage(path);
+                if (ThrottleOf(response) is { } wait)
+                {
+                    report.ThrottledFor = wait;
+                    return true;
+                }
                 image = response.Result is { Length: > 0 and <= XboxUserImage.MaxContentBytes } bytes && SniffContentType(bytes) is { } type
                     ? new DownloadedImage(bytes, type)
                     : null;
@@ -397,6 +427,7 @@ public class XboxImageSource
             Failed(row, ex.Message);
             report.Failed++;
         }
+        return false;
     }
 
     /// <summary>The image type of the bytes by their first bytes (the gateway gives the image without its type); null for anything but PNG, JPEG or WebP.</summary>

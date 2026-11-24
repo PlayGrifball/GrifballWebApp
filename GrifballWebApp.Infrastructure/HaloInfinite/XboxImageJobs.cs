@@ -17,7 +17,7 @@ public sealed class XboxGamerPictureJob(XboxImageSource images, ILogger<XboxGame
     public static RecurringJob Definition => new()
     {
         Key = Key,
-        Description = "Fetches and keeps the gamer picture of every Xbox account, 100 accounts every five minutes",
+        Description = "Fetches and keeps the gamer picture of every Xbox account",
         DefaultSchedule = (trigger, now) => trigger
             .StartAt(now + TimeSpan.FromMinutes(2))
             .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount)),
@@ -43,7 +43,7 @@ public sealed class XboxEmblemJob(XboxImageSource images, ILogger<XboxEmblemJob>
     public static RecurringJob Definition => new()
     {
         Key = Key,
-        Description = "Fetches and keeps the Halo Infinite emblem of every Xbox account, 60 accounts every five minutes",
+        Description = "Fetches and keeps the Halo Infinite emblem of every Xbox account",
         DefaultSchedule = (trigger, now) => trigger
             .StartAt(now + TimeSpan.FromMinutes(3))
             .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount)),
@@ -62,11 +62,12 @@ internal static partial class XboxImageJobReports
     {
         if (report.ThrottledFor is { } wait)
             LogThrottled(logger, what, wait);
-        var summary = report.Due == 0
+        var summary = report.Disabled ? "Xbox images are turned off (XboxImages:Enabled)"
+            : report.Due == 0
             ? $"Every Xbox account has its {what} checked"
             : $"{report.Checked} of {report.Due} accounts checked: {report.Stored} stored, {report.Unchanged} unchanged, {report.NotFound} without one, {report.Failed} failed"
               + (report.ThrottledFor is { } w ? $"; Halo is throttling, stopped (wait {w})" : "");
-        var result = report.Due == 0 ? JobRunReport.Skipped(summary)
+        var result = report.Disabled || report.Due == 0 ? JobRunReport.Skipped(summary)
             : report.Failed > 0 && report.Stored + report.Unchanged + report.NotFound == 0 ? JobRunReport.Failed(summary)
             : JobRunReport.Succeeded(summary);
         return result.With("due", report.Due).With("checked", report.Checked).With("stored", report.Stored)

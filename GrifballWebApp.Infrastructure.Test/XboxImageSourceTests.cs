@@ -524,6 +524,117 @@ public class XboxImageSourceTests : SqliteContextFixture
         Assert.That((image!.ContentType, row.XboxUser.XboxUserID), Is.EqualTo(("application/octet-stream", 1L)));
     }
 
+    [Test]
+    public async Task GamerPictures_AFailedRefreshOfAStoredPicture_IsTriedAgainAfterSixHours_NotFourteenDays()
+    {
+        await AddAccountsAsync(1);
+        var source = Source();
+        GivenUsers((1, new Gamerpic { large = "https://x/old.png" }));
+        _downloader.DownloadAsync("https://x/old.png", Arg.Any<CancellationToken>()).Returns(new DownloadedImage(Png, "image/png"));
+        await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromDays(15));
+        GivenUsers((1, new Gamerpic { large = "https://x/new.png" }));
+        _downloader.DownloadAsync("https://x/new.png", Arg.Any<CancellationToken>()).Returns<DownloadedImage>(_ => throw new InvalidOperationException("answered 500"));
+        await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromHours(7));
+
+        var again = await source.RunGamerPicturesAsync();
+
+        Assert.That(again.Due, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task GamerPictures_AccountsWithoutARow_GoBeforeAccountsThatKeepFailing()
+    {
+        await AddAccountsAsync(1, 2);
+        var options = new XboxImagesOptions { Enabled = true, ProfileCallsPerMinute = 3, GamerPictureAccountsPerRun = 1 };
+        var source = new XboxImageSource(Context, _halo, _downloader, Options.Create(options), _time) { Delay = (_, _) => Task.CompletedTask };
+        GivenUsers((1, new Gamerpic { large = "https://x/1.png" }), (2, new Gamerpic { large = "https://x/2.png" }));
+        _downloader.DownloadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns<DownloadedImage>(_ => throw new InvalidOperationException("answered 403"));
+        await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromHours(7));
+
+        await source.RunGamerPicturesAsync();
+
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.XboxUserImages.Select(i => i.XboxUserID).OrderBy(x => x).ToListAsync(), Is.EqualTo(new long[] { 1, 2 }));
+    }
+
+    [Test]
+    public async Task GamerPictures_AnAccountHalosAnswerOmits_KeepsTheStoredPicture_AndIsTriedAgainSoon()
+    {
+        await AddAccountsAsync(1);
+        var source = Source();
+        GivenUsers((1, new Gamerpic { large = "https://x/old.png" }));
+        _downloader.DownloadAsync("https://x/old.png", Arg.Any<CancellationToken>()).Returns(new DownloadedImage(Png, "image/png"));
+        await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromDays(15));
+        GivenUsers();
+
+        await source.RunGamerPicturesAsync();
+        _time.Advance(TimeSpan.FromHours(7));
+        var again = await source.RunGamerPicturesAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.GamerPicture);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((row.Status, row.Content), Is.EqualTo((XboxUserImageStatus.Found, Png)));
+            Assert.That(again.Due, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task Emblems_AThrottledImageCall_StopsTheRun_AndRecordsNothingForTheAccount()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenMapping();
+        GivenEmblem(1, "/inventory/armor/emblems/013-001-aaaa.json");
+        GivenEmblem(2, "/inventory/armor/emblems/013-001-aaaa.json");
+        _halo.GameCmsWaypointGetImage(Arg.Any<string>()).Returns(Error<byte[]>(429, TimeSpan.FromMinutes(3)));
+
+        var report = await Source().RunEmblemsAsync();
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.ThrottledFor, Is.EqualTo(TimeSpan.FromMinutes(3)));
+            Assert.That((report.Checked, report.Failed), Is.EqualTo((0, 0)));
+            Assert.That(await Context.XboxUserImages.CountAsync(), Is.Zero);
+            await _halo.Received(1).GameCmsWaypointGetImage(Arg.Any<string>());
+        }
+    }
+
+    [Test]
+    public async Task Emblems_AMappingThatNoLongerHasTheEmblem_KeepsTheStoredImage()
+    {
+        await AddAccountsAsync(1);
+        var source = Source();
+        GivenMapping();
+        GivenEmblem(1, "/inventory/armor/emblems/013-001-aaaa.json");
+        _halo.GameCmsWaypointGetImage("images/emblems/a7.png").Returns(Ok(Png));
+        await source.RunEmblemsAsync();
+        _time.Advance(TimeSpan.FromDays(15));
+        GivenEmblem(1, "/inventory/armor/emblems/013-001-unknown.json");
+
+        await source.RunEmblemsAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.HaloEmblem);
+        Assert.That((row.Status, row.Content), Is.EqualTo((XboxUserImageStatus.Found, Png)));
+    }
+
+    [Test]
+    public async Task Run_CountsEveryAccountDue_NotJustTheBatch()
+    {
+        await AddAccountsAsync(1, 2, 3);
+        var options = new XboxImagesOptions { Enabled = true, ProfileCallsPerMinute = 3, GamerPictureAccountsPerRun = 2 };
+        var source = new XboxImageSource(Context, _halo, _downloader, Options.Create(options), _time) { Delay = (_, _) => Task.CompletedTask };
+        GivenUsers();
+
+        var report = await source.RunGamerPicturesAsync();
+
+        Assert.That((report.Due, report.Checked), Is.EqualTo((3, 2)));
+    }
+
     // ---- pure helpers ----
 
     [Test]
@@ -578,6 +689,8 @@ public class XboxImageSourceTests : SqliteContextFixture
 [TestFixture]
 public class XboxImageDownloaderTests
 {
+    private static readonly byte[] Png = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
+
     private sealed class Handler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
         public int Requests { get; private set; }
@@ -601,9 +714,17 @@ public class XboxImageDownloaderTests
     [Test]
     public async Task DownloadAsync_AnImageOverHttps_GivesItsBytesAndType()
     {
-        var image = await Downloader(new Handler(_ => Image([1, 2, 3], "image/PNG"))).DownloadAsync("https://images.example/pic.png", default);
+        var image = await Downloader(new Handler(_ => Image(Png, "image/PNG"))).DownloadAsync("https://images.example/pic.png", default);
 
-        Assert.That((image.Content, image.ContentType), Is.EqualTo((new byte[] { 1, 2, 3 }, "image/png")));
+        Assert.That((image.Content, image.ContentType), Is.EqualTo((Png, "image/png")));
+    }
+
+    [Test]
+    public async Task DownloadAsync_AnImageThatIsNotPngJpegOrWebp_IsRefused()
+    {
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => Downloader(new Handler(_ => Image("<svg onload=alert(1)/>"u8.ToArray(), "image/svg+xml"))).DownloadAsync("https://x/p", default));
+
+        Assert.That(failure!.Message, Is.EqualTo("The picture isn't a PNG, JPEG or WebP"));
     }
 
     [Test]
