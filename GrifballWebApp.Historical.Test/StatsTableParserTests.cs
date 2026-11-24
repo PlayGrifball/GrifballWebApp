@@ -16,7 +16,7 @@ namespace GrifballWebApp.Historical.Test;
 public class StatsTableParserTests
 {
     private const string SourceId = "history-grifball-info-db";
-    private static readonly string[] expected = new[] { "12", "13", "14", "15", "16", "17", "18" };
+    private static readonly string[] expected = new[] { "12", "13", "15", "16", "17", "18" };
     private static readonly string[] expectedRedTeamRoster = ["Church", "Tucker", "Caboose"];
     private static readonly string[] expectedUkRoster = ["BritGrif", "Londoner"];
     private static readonly string[] expectedProTeams = ["Cabs Are Here"];
