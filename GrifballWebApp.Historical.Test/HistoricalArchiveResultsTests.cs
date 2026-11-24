@@ -96,7 +96,8 @@ public class HistoricalArchiveResultsTests
             {
                 Season = new SeasonDefaults { Name = "Summer League 2018", Game = "halo5", League = "AGLA" },
                 Tabs = [new() { Name = "Total Stats" }],
-                Results = [new() { Sheet = "Fixtures", Layout = ResultsLayout.Series, CustomSeason = "Summer League 2018", Game = "halo5" }],
+                Results = [new() { Sheet = "Fixtures", Layout = ResultsLayout.Series, CustomSeason = "Summer League 2018", Game = "halo5" },
+                    new() { Sheet = "Fixtures", Layout = ResultsLayout.Series, CustomSeason = "Summer League 2018", Game = "halo5" }],
             },
             Workbook(("Total Stats", [StatsHeader, Row("Ace", null, 4, 1)]),
                 ("Fixtures", [Row("Fortnight 1", null, "Notorious 2-1 Ghosts Of Grif", "5-4", "2-5", "5-2")])));
