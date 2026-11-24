@@ -46,8 +46,8 @@ public class StatsTableParserTests
             ("hr_pstats#s13", "Spring League 2011", "reach", "Open", false, "AGLA"),
             ("hr_pstats#s13", "Spring League 2011", "reach", "Open", true, "AGLA"),
             ("h4_pstats#s20", "Winter League 2013", "halo4", "Open", false, "AGLA"),
-            ("agla_playerstats#sSML11_Amateur", "Summer League 2011 Halo 3 (Amateur)", "halo3", "Amateur", false, "AGLA"),
-            ("agla_playerstats#sSML11_Amateur", "Summer League 2011 Halo 3 (Amateur)", "halo3", "Amateur", true, "AGLA"),
+            ("agla_playerstats#sSML11_Amateur", "Summer League 2011 (Amateur)", "reach", "Amateur", false, "AGLA"),
+            ("agla_playerstats#sSML11_Amateur", "Summer League 2011 (Amateur)", "reach", "Amateur", true, "AGLA"),
         }));
             Assert.That(seasons.Select(s => s.SourceWorkbook), Is.All.EqualTo(SourceId));
         }
@@ -221,7 +221,7 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(config.Tables.Select(t => (t.Sheet, t.Game, t.PerGame)), Is.EqualTo(new[] { ("hr_pstats", "reach", false), ("h4_pstats", "halo4", true), ("agla_playerstats", "halo3", true) }));
+            Assert.That(config.Tables.Select(t => (t.Sheet, t.Game, t.PerGame)), Is.EqualTo(new[] { ("hr_pstats", "reach", false), ("h4_pstats", "halo4", true), ("agla_playerstats", "reach", true) }));
             Assert.That(config.Tables[0].Seasons.Keys, Is.EqualTo(expected), "In order");
             Assert.That(config.Tables[0].Seasons["12"].Divisions, Is.EqualTo(new Dictionary<string, string> { ["1"] = "Pro", ["0"] = "Amateur" }));
         }
