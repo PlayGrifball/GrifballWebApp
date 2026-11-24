@@ -107,7 +107,7 @@ public class HistoricalArchiveResultsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(season.SourceSheet, Is.EqualTo("Total Stats"));
-            Assert.That(season.AlsoFromSheets, Is.EqualTo(new[] { "sml18/Fixtures" }), "The sheet this season replaces, so an import can retire the season that sheet made before");
+            Assert.That(string.Join(";", season.AlsoFromSheets), Is.EqualTo("sml18/Fixtures"), "The sheet this season replaces, so an import can retire the season that sheet made before");
             Assert.That(build.Input.RecordedGames!.Select(g => g.SeasonSourceId), Is.All.EqualTo("sml18/Total Stats"));
         }
     }
