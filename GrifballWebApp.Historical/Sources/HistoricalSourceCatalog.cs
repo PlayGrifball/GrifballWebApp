@@ -167,7 +167,7 @@ public static class HistoricalSourceCatalog
             // Its single-game records were all set in Winter League 2008 (January 2008, games of league 1)
             Awards = [new() { Sheet = "Records", Layout = AwardsLayout.Records, Tab = "Season_Player_Stats#s1" }],
         } },
-        // The grifball.info stats database (2011-2013): Reach seasons 12-18 in hr_pstats (a row per player, team, season and
+        // The grifball.info stats database (2011-2013): Reach seasons 12-18 (but 14) in hr_pstats (a row per player, team, season and
         // phase; teams and Winter League 2011's Pro/Amateur split in gb_teamindex), Halo 4's season 20 in h4_pstats (a row per
         // player per game; gamertags in h_players, teams in h_teams). The workbook has no season names: each season ID is named
         // here by the champions it holds (the AGLA champions record's winners are its teams). Season -1 rows are all-time

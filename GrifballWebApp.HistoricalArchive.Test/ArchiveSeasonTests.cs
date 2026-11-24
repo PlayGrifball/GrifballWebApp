@@ -275,6 +275,7 @@ public class ArchiveSeasonTests
                 s.SeasonName,
                 Game = s.GameVersion.Slug,
                 Titles = context.Set<PlayerChampionship>().Count(c => c.SeasonID == s.SeasonID),
+                TitlesOffTheStatsTeams = context.Set<PlayerChampionship>().Count(c => c.SeasonID == s.SeasonID && !context.PlayerSeasonStats.Any(x => x.TeamID == c.TeamID)),
                 Games = context.PlayerSeasonStats.Count(x => x.SeasonID == s.SeasonID),
             })
             .ToListAsync();
@@ -286,6 +287,7 @@ public class ArchiveSeasonTests
             Assert.That(seasons.Select(s => s.SeasonName), Is.EquivalentTo(SummerLeague2011Seasons));
             Assert.That(seasons.Select(s => s.Game), Has.All.EqualTo("reach"));
             Assert.That(seasons.Select(s => s.Titles), Has.All.GreaterThan(0), "The Pro and Amateur champions");
+            Assert.That(seasons.Select(s => s.TitlesOffTheStatsTeams), Has.All.EqualTo(0), "Each title is on a team of that season with stats, not a titles-only team");
             Assert.That(seasons.Select(s => s.Games), Has.All.GreaterThan(0));
         }
     }
