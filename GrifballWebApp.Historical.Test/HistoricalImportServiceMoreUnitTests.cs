@@ -527,12 +527,13 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
 
     private static HistoricalArchiveInput TwoTabs(string statsName, string fixturesName) => new()
     {
+        Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Summer League 2018", Tier = "Open", Team = "Hens", Roster = ["Hen"] }] },
         Seasons = new UnifiedArchive
         {
             Seasons =
             [
                 Tab(statsName, "Total Stats", Player("Silva", team: "Cabs")),
-                Tab(fixturesName, "Fixtures & Results", Player("Hen", team: "Hens")),
+                Tab(fixturesName, "Fixtures & Results"),
             ],
         },
     };

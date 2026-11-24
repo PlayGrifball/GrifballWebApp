@@ -328,10 +328,11 @@ public partial class HistoricalImportService : IHistoricalImportService
         await PullWaypointMatches(groups.Values, report, progress, groups.Count, ct);
 
         var championsPrefixes = ChampionsPrefixes(input.Championships);
+        // Before the merged season: it takes the name a leftover has, and a season name is unique in its league
+        await RetireSupersededSeasons(groups, report, options, ct);
         var done = await ImportSeasons(groups, gameVersions, championsPrefixes, report, options, progress, ct);
         if (input.Championships is { Champions.Count: > 0 } champions)
             await RetireLeftoverTitleSeasons(champions, archiveSeasons, leagues, report, options, ct);
-        await RetireSupersededSeasons(groups, report, options, ct);
         // After the seasons: their placeholders are who the players lists' Discord IDs and regions go to
         if (input.Players is { Count: > 0 } && !options.DryRun)
         {
