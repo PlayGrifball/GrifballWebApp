@@ -359,13 +359,14 @@ public class XboxImageSource
 
         var gap = Gap(_options.EmblemCallsPerMinute);
         var downloaded = new Dictionary<string, DownloadedImage?>();
+        var itemImages = new Dictionary<string, string?>();
         var first = true;
         foreach (var xuid in due)
         {
             if (!first)
                 await Delay(gap, ct);
             first = false;
-            if (await EmblemAsync(xuid, mapping.Result, downloaded, report, ct))
+            if (await EmblemAsync(xuid, mapping.Result, downloaded, itemImages, report, ct))
                 break;
             await _context.SaveChangesAsync(ct);
         }
@@ -374,7 +375,7 @@ public class XboxImageSource
 
     /// <summary>The emblem of one account. Returns true when Halo throttled the run (nothing recorded for the account).</summary>
     private async Task<bool> EmblemAsync(long xuid, Dictionary<string, Dictionary<string, Surprenant.Grunt.Models.HaloInfinite.EmblemImageAssets>> mapping,
-        Dictionary<string, DownloadedImage?> downloaded, XboxImagesReport report, CancellationToken ct)
+        Dictionary<string, DownloadedImage?> downloaded, Dictionary<string, string?> itemImages, XboxImagesReport report, CancellationToken ct)
     {
         HaloApiResultContainer<Surprenant.Grunt.Models.HaloInfinite.CustomizationData, HaloApiErrorContainer> response;
         string? callError = null;
@@ -412,17 +413,60 @@ public class XboxImageSource
 
         var emblem = response.Result.Appearance?.Emblem;
         var path = ImagePathOf(emblem, mapping);
+        var ofItem = false;
+        if (path is null && !string.IsNullOrWhiteSpace(emblem?.EmblemPath))
+        {
+            try
+            {
+                var (itemPath, throttled) = await ItemImagePathAsync(emblem.EmblemPath, itemImages, report);
+                if (throttled)
+                {
+                    report.Checked--;
+                    return true;
+                }
+                path = itemPath;
+                ofItem = path is not null;
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                Failed(row, ex.Message);
+                report.Failed++;
+                return false;
+            }
+        }
         if (path is null)
         {
             NotFound(row, keepStored: !string.IsNullOrWhiteSpace(emblem?.EmblemPath));
             report.NotFound++;
         }
-        else if (await StoreEmblemAsync(row, path, downloaded, report, ct))
+        else if (await StoreEmblemAsync(row, path, ofItem, downloaded, report, ct))
         {
             report.Checked--;
             return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// The image of an emblem the mapping lacks (a special or promotional one): the preview its own item gives. Null when the item
+    /// has none. One item call an emblem for the run. Throws when the call failed.
+    /// </summary>
+    private async Task<(string? Path, bool Throttled)> ItemImagePathAsync(string emblemPath, Dictionary<string, string?> itemImages, XboxImagesReport report)
+    {
+        if (itemImages.TryGetValue(emblemPath, out var known))
+            return (known, false);
+        var response = await _halo.GameCmsGetItem(emblemPath.TrimStart('/'), string.Empty);
+        if (ThrottleOf(response) is { } wait)
+        {
+            Throttled(XboxUserImageKind.HaloEmblem, report, wait);
+            return (null, true);
+        }
+        if (response.Result is null && response.Error is not { Code: 404 })
+            throw new InvalidOperationException("The emblem item: " + Describe(response));
+        var path = response.Result?.CommonData?.DisplayPath?.Media?.MediaUrl?.Path?.TrimStart('/');
+        path = string.IsNullOrWhiteSpace(path) ? null : path;
+        itemImages[emblemPath] = path;
+        return (path, false);
     }
 
     /// <summary>The emblem image's path: the emblem's file name without ".json" in the mapping, then its configuration.</summary>
@@ -439,7 +483,7 @@ public class XboxImageSource
             : null;
     }
 
-    private async Task<bool> StoreEmblemAsync(XboxUserImage row, string path, Dictionary<string, DownloadedImage?> downloaded, XboxImagesReport report, CancellationToken ct)
+    private async Task<bool> StoreEmblemAsync(XboxUserImage row, string path, bool ofItem, Dictionary<string, DownloadedImage?> downloaded, XboxImagesReport report, CancellationToken ct)
     {
         if (row.Status == XboxUserImageStatus.Found && row.Content is not null && row.Source == path)
         {
@@ -451,7 +495,7 @@ public class XboxImageSource
         {
             if (!downloaded.TryGetValue(path, out var image))
             {
-                var response = await _halo.GameCmsWaypointGetImage(path);
+                var response = ofItem ? await _halo.GameCmsGetImage(path) : await _halo.GameCmsWaypointGetImage(path);
                 if (ThrottleOf(response) is { } wait)
                 {
                     Throttled(XboxUserImageKind.HaloEmblem, report, wait);

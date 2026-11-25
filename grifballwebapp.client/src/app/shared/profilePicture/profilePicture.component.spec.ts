@@ -60,6 +60,61 @@ describe('ProfilePictureComponent', () => {
     expect(el().querySelector('.profile-picture--emblem')).not.toBeNull();
   });
 
+  it('shows the gamer picture when an emblem is missing and the fallback is on', () => {
+    fixture.componentRef.setInput('userID', 12);
+    fixture.componentRef.setInput('kind', 'haloEmblem');
+    fixture.componentRef.setInput('fallbackToGamerPicture', true);
+    fixture.detectChanges();
+
+    image()?.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    expect(image()?.getAttribute('src')).toBe('/api/users/12/gamer-picture');
+    expect(el().querySelector('.profile-picture--emblem')).toBeNull();
+  });
+
+  it('keeps the initial when the gamer picture is missing too', () => {
+    fixture.componentRef.setInput('userID', 12);
+    fixture.componentRef.setInput('name', 'Grif');
+    fixture.componentRef.setInput('kind', 'haloEmblem');
+    fixture.componentRef.setInput('fallbackToGamerPicture', true);
+    fixture.detectChanges();
+    image()?.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    image()?.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    expect(image()).toBeNull();
+    expect(initial()).toBe('G');
+  });
+
+  it('does not fall back to the gamer picture unless asked', () => {
+    fixture.componentRef.setInput('userID', 12);
+    fixture.componentRef.setInput('name', 'Grif');
+    fixture.componentRef.setInput('kind', 'haloEmblem');
+    fixture.detectChanges();
+
+    image()?.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    expect(image()).toBeNull();
+  });
+
+  it('starts again with the emblem for another user after falling back', () => {
+    fixture.componentRef.setInput('userID', 12);
+    fixture.componentRef.setInput('kind', 'haloEmblem');
+    fixture.componentRef.setInput('fallbackToGamerPicture', true);
+    fixture.detectChanges();
+    image()?.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('userID', 13);
+    fixture.detectChanges();
+
+    expect(image()?.getAttribute('src')).toBe('/api/users/13/halo-emblem');
+  });
+
   it('keeps the initial when the picture is not there', () => {
     fixture.componentRef.setInput('userID', 12);
     fixture.componentRef.setInput('name', 'Grif');

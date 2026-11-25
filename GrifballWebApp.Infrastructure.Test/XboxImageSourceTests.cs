@@ -295,6 +295,99 @@ public class XboxImageSourceTests : SqliteContextFixture
         Assert.That(_waits, Is.EqualTo(new[] { TimeSpan.FromSeconds(1) }), "a wait between the two accounts' calls");
     }
 
+    private void GivenItem(string itemPath, string? imagePath)
+        => _halo.GameCmsGetItem(itemPath, string.Empty).Returns(Ok(new InGameItem
+        {
+            CommonData = new CommonItemData
+            {
+                DisplayPath = imagePath is null ? null! : new DisplayPath { Media = new Media { MediaUrl = new Surprenant.Grunt.Models.HaloInfinite.ApiIngress.ApiEndpoint { Path = imagePath } } },
+            },
+        }));
+
+    [Test]
+    public async Task Emblems_OneNotInTheMapping_TakesTheImageItsItemGives()
+    {
+        await AddAccountsAsync(1);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/3627007-SpartanEmblem.json");
+        GivenItem("Inventory/Spartan/Emblems/3627007-SpartanEmblem.json", "progression/Inventory/Emblems/3627007-SpartanEmblem-SM.png");
+        _halo.GameCmsGetImage("progression/Inventory/Emblems/3627007-SpartanEmblem-SM.png").Returns(Ok(Png));
+
+        var report = await Source().RunEmblemsAsync();
+
+        var row = await RowAsync(1, XboxUserImageKind.HaloEmblem);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Stored, report.NotFound), Is.EqualTo((1, 0)));
+            Assert.That((row.Status, row.Source, row.Content), Is.EqualTo((XboxUserImageStatus.Found, "progression/Inventory/Emblems/3627007-SpartanEmblem-SM.png", Png)));
+        }
+        await _halo.DidNotReceiveWithAnyArgs().GameCmsWaypointGetImage(default!);
+    }
+
+    [Test]
+    public async Task Emblems_TwoAccountsWithTheSameUnmappedEmblem_AskForItsItemAndImageOnce()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/3627007-SpartanEmblem.json");
+        GivenEmblem(2, "/Inventory/Spartan/Emblems/3627007-SpartanEmblem.json");
+        GivenItem("Inventory/Spartan/Emblems/3627007-SpartanEmblem.json", "progression/Inventory/Emblems/3627007-SpartanEmblem-SM.png");
+        _halo.GameCmsGetImage(Arg.Any<string>()).Returns(Ok(Png));
+
+        var report = await Source().RunEmblemsAsync();
+
+        Assert.That(report.Stored, Is.EqualTo(2));
+        await _halo.Received(1).GameCmsGetItem(Arg.Any<string>(), Arg.Any<string>());
+        await _halo.Received(1).GameCmsGetImage(Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task Emblems_OneNotInTheMapping_WhoseItemHasNoImage_IsNotFound()
+    {
+        await AddAccountsAsync(1);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/3627007-SpartanEmblem.json");
+        GivenItem("Inventory/Spartan/Emblems/3627007-SpartanEmblem.json", null);
+
+        var report = await Source().RunEmblemsAsync();
+
+        Assert.That((report.NotFound, report.Failed), Is.EqualTo((1, 0)));
+        await _halo.DidNotReceiveWithAnyArgs().GameCmsGetImage(default!);
+    }
+
+    [Test]
+    public async Task Emblems_AnItemHalo404s_IsNotFound_AndOneItemCallFailing_IsFailed()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/gone.json");
+        GivenEmblem(2, "/Inventory/Spartan/Emblems/down.json");
+        _halo.GameCmsGetItem("Inventory/Spartan/Emblems/gone.json", string.Empty).Returns(Error<InGameItem>(404));
+        _halo.GameCmsGetItem("Inventory/Spartan/Emblems/down.json", string.Empty).Returns(Error<InGameItem>(503));
+
+        var report = await Source().RunEmblemsAsync();
+
+        Assert.That((report.NotFound, report.Failed), Is.EqualTo((1, 1)));
+    }
+
+    [Test]
+    public async Task Emblems_TheItemCallThrottled_StopsAtOnce_AndRecordsNothingForThatAccount()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/3627007-SpartanEmblem.json");
+        _halo.GameCmsGetItem(Arg.Any<string>(), Arg.Any<string>()).Returns(Error<InGameItem>(429, TimeSpan.FromSeconds(30)));
+
+        var report = await Source().RunEmblemsAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.ThrottledFor, Is.EqualTo(TimeSpan.FromSeconds(30)));
+            Assert.That(await Context.XboxUserImages.CountAsync(i => i.Kind == XboxUserImageKind.HaloEmblem), Is.Zero);
+        }
+        await _halo.DidNotReceiveWithAnyArgs().EconomyPlayerPublicCustomization("xuid(2)");
+    }
+
     [Test]
     public async Task Emblems_OneNotInTheMapping_IsNotFound()
     {
@@ -302,6 +395,7 @@ public class XboxImageSourceTests : SqliteContextFixture
         GivenMapping();
         GivenEmblem(1, "/inventory/armor/emblems/013-001-unknown.json");
         GivenEmblem(2, "/inventory/armor/emblems/013-001-aaaa.json", configuration: 99);
+        _halo.GameCmsGetItem(Arg.Any<string>(), Arg.Any<string>()).Returns(Error<InGameItem>(404));
 
         var report = await Source().RunEmblemsAsync();
 
