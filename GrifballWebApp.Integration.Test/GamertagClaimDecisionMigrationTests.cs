@@ -33,10 +33,14 @@ public class GamertagClaimDecisionMigrationTests
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_GamertagClaimDecision"))) - 1]);
 
         var placeholder = User.Seed(userName: "historical:Old Tag", isDummyUser: true);
-        _context.Users.Add(placeholder);
-        _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "A"), XboxUser.FromXbox(2, "B"),
-            XboxUser.FromXbox(3, "C"), XboxUser.FromXbox(4, "D"));
-        await _context.SaveChangesAsync();
+        await using (var seeding = new ContextBeforeDecision(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).Options))
+        {
+            seeding.Users.Add(placeholder);
+            seeding.XboxUsers.AddRange(XboxUser.FromXbox(1, "A"), XboxUser.FromXbox(2, "B"),
+                XboxUser.FromXbox(3, "C"), XboxUser.FromXbox(4, "D"));
+            await seeding.SaveChangesAsync();
+        }
 
         var created = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var approvedAt = created.AddDays(1);
