@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, linkedSignal, numberAttribute } from '@angular/core';
+import { computed, ChangeDetectionStrategy, Component, inject, input, linkedSignal, numberAttribute } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -37,7 +37,10 @@ import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 export class EditUserComponent {
   private readonly store = inject(EditUserStore);
   /** The user is on the way: the form is a skeleton. */
-  readonly pending = this.store.pending;
+  readonly firstLoad = this.store.firstLoad;
+  /** Failed, or no such user: an error in place of the form, never an empty one that would save over them. */
+  readonly failed = this.store.failed;
+  readonly found = computed(() => this.store.loaded() !== null);
 
   /** The :userID of the route. Angular keeps this page when only it changes, so a new one resets the form to that user. */
   readonly userID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });

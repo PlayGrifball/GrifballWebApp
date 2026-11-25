@@ -67,10 +67,12 @@ export class TeamComponent {
   readonly calendarPath = computed(() => `teams/${this.teamID()}/calendar.ics`);
 
   readonly team = this.store.team;
-  readonly teamLoaded = this.store.teamLoaded;
+  readonly teamFirstLoad = this.store.teamFirstLoad;
   readonly matches = this.store.matches;
   /** The matches have loaded: a backfilled or ended season without any says so. */
   readonly matchesLoaded = this.store.matchesLoaded;
+  readonly matchesFirstLoad = this.store.matchesFirstLoad;
+  readonly matchesFailed = this.store.matchesFailed;
   readonly matchCount = computed(() => this.matches().length);
   /** No matches, and none to come: the team's season was backfilled or is over. */
   readonly noMatches = computed(() => {

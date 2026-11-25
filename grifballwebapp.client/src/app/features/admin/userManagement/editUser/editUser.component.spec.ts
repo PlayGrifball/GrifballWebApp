@@ -54,6 +54,7 @@ describe('EditUserComponent', () => {
   async function load(): Promise<void> {
     fixture.detectChanges();
     http.expectOne('/api/users/15').flush(structuredClone(user));
+    await fixture.whenStable();
     fixture.detectChanges();
     http.expectOne('/api/users/15/external-logins').flush({ hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '111', providerDisplayName: 'Discord' }] });
     fixture.detectChanges();
@@ -63,12 +64,20 @@ describe('EditUserComponent', () => {
 
   const el = () => fixture.nativeElement as HTMLElement;
 
-  it('does not fetch anything for user id 0', () => {
+  it('does not fetch anything for user id 0, and offers no form', async () => {
     fixture.componentRef.setInput('userID', '0');
-    const log = spyOn(console, 'warn');
     fixture.detectChanges();
+    await fixture.whenStable();
     http.expectNone(() => true);
-    expect(log).toHaveBeenCalledWith('Edit user: no user ID in the route');
+    expect(el().textContent).toContain('No such user.');
+    expect(el().querySelector('form')).toBeNull();
+  });
+
+  it('holds the form with a skeleton while the user loads', () => {
+    fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')).not.toBeNull();
+    expect(el().querySelector('form')).toBeNull();
+    http.expectOne('/api/users/15').flush(structuredClone(user));
   });
 
   it('loads the user and renders a checkbox per role', async () => {
@@ -80,11 +89,15 @@ describe('EditUserComponent', () => {
     expect(labels).toEqual(['Lockout Enabled', 'Is Dummy User', 'Sysadmin', 'Commissioner']);
   });
 
-  it('logs a failed load', () => {
+  it('logs a failed load, and says so with no form that would save an empty user', async () => {
     const log = spyOn(console, 'error');
     fixture.detectChanges();
-    http.expectOne('/api/users/15').flush('x', { status: 404, statusText: 'Not Found' });
+    http.expectOne('/api/users/15').flush('x', { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+    fixture.detectChanges();
     expect(log).toHaveBeenCalled();
+    expect(el().querySelector('[role="alert"]')!.textContent).toContain("The user couldn't be loaded.");
+    expect(el().querySelector('form')).toBeNull();
   });
 
   it('posts the edited user, including role changes', async () => {
@@ -150,6 +163,7 @@ describe('EditUserComponent', () => {
     expect(el().textContent).not.toContain('Linked accounts');
 
     http.expectOne('/api/users/16').flush({ ...structuredClone(user), userID: 16, userName: 'simmons', lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    await fixture.whenStable();
     fixture.detectChanges();
     http.expectOne('/api/users/16/external-logins').flush({ hasPassword: true, logins: [] });
     await fixture.whenStable();
@@ -165,14 +179,15 @@ describe('EditUserComponent', () => {
     save.flush(null);
   });
 
-  it("drops the previous user's answer when it arrives late", () => {
+  it("cancels the previous user's request when the route moves on", async () => {
     fixture.detectChanges();
     const late = http.expectOne('/api/users/15');
 
     fixture.componentRef.setInput('userID', '16');
     fixture.detectChanges();
+    expect(late.cancelled).toBeTrue();
     http.expectOne('/api/users/16').flush({ ...structuredClone(user), userID: 16, userName: 'simmons' });
-    late.flush(structuredClone(user));
+    await fixture.whenStable();
 
     expect(component.model().userName).toBe('simmons');
     fixture.detectChanges();

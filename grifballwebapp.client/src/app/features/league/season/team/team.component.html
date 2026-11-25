@@ -19,7 +19,7 @@
 
     <div class="team-layout">
         <aside class="hud-section team-side">
-            @if (!teamLoaded()) {
+            @if (teamFirstLoad()) {
             <app-skeleton label="the roster" [count]="8" />
             } @else {
             <div class="team-record hud-panel hud-panel--chamfer">
@@ -69,8 +69,10 @@
             <app-season-player-stats #stats class="team-stats" [class.team-stats--shown]="stats.hasRows()" [seasonID]="seasonID()" [teamID]="teamID()" />
 
             <h2 id="team-matches" class="hud-h2">Matches</h2>
-            @if (!matchesLoaded()) {
+            @if (matchesFirstLoad()) {
                 <app-skeleton label="matches" shape="table" [count]="6" [columns]="5" />
+            } @else if (matchesFailed()) {
+                <p class="hud-empty hud-empty--error" role="alert">The matches couldn't be loaded. Refresh the page to try again.</p>
             } @else if (noMatches()) {
                 <app-data-notice message="Match results weren't recorded for this season." [sourceUrl]="team()?.season?.historicalSourceUrl" />
             } @else {

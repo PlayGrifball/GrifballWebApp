@@ -253,6 +253,14 @@ describe('SeasonEditComponent', () => {
     expect(saveButton().textContent).toContain('Create New Season');
   });
 
+  it('says a season that fails to load could not be, with no form to save a copy from', async () => {
+    spyOn(console, 'error');
+    api.getSeason.and.returnValue(throwError(() => new Error('down')));
+    await render();
+    expect(el().querySelector('[role="alert"]')!.textContent).toContain("The season couldn't be loaded.");
+    expect(el().querySelector('form')).toBeNull();
+  });
+
   it('keeps the empty form for a season that does not exist', async () => {
     api.getSeason.and.returnValue(of(null));
     await render();

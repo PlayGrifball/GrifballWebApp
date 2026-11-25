@@ -60,8 +60,10 @@ export class SeasonEditComponent implements OnInit {
 
   /** Every season, for "Copy from" (chosen by its ID). */
   private readonly seasons = this.store.seasons;
-  /** The season to edit is in: the form is a skeleton until then. */
-  readonly loaded = this.store.loaded;
+  /** The season to edit is on its way: the form is a skeleton. */
+  readonly firstLoad = this.store.firstLoad;
+  /** It could not be loaded: an error in place of the form, never a new season's form that would save a copy. */
+  readonly failed = this.store.failed;
   /** The seasons this one can copy from: all but itself. */
   readonly copyableSeasons = computed(() => this.seasons().filter(season => season.seasonID !== this.model().seasonID));
   /**
