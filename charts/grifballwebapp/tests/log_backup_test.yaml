@@ -1,0 +1,162 @@
+suite: log backups
+templates:
+  - templates/backup-log.yaml
+  - templates/backup-retention.yaml
+  - templates/migrations-job.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+  # Log backups require it.
+  migrations.backup.retention.enabled: true
+tests:
+  - it: is off by default
+    template: templates/backup-log.yaml
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: runs a CronJob every 15 minutes off the hour, one at a time, as a grif-backup pod
+    template: templates/backup-log.yaml
+    set:
+      migrations.backup.log.enabled: true
+    asserts:
+      - isKind: { of: CronJob }
+      - equal: { path: metadata.name, value: grif-backup-log }
+      - equal: { path: spec.schedule, value: "5-59/15 * * * *" }
+      # databaseWaitSeconds (300), then an hour for the backup.
+      - equal: { path: spec.jobTemplate.spec.activeDeadlineSeconds, value: 3900 }
+      - equal: { path: spec.suspend, value: false }
+      - equal: { path: spec.concurrencyPolicy, value: Forbid }
+      - equal: { path: spec.jobTemplate.spec.template.metadata.labels.app, value: grif-backup }
+      - equal: { path: spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot, value: true }
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content: { name: BACKUP_DIR, value: /var/opt/mssql/backup/grif-x }
+
+  - it: waits for the database, starts the log chain if it has none, then writes a verified .trn
+    template: templates/backup-log.yaml
+    set:
+      migrations.backup.log: { enabled: true, schedule: "*/5 * * * *", suspend: true }
+    asserts:
+      - equal: { path: spec.schedule, value: "*/5 * * * *" }
+      - equal: { path: spec.suspend, value: true }
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: '\[ "\$state" = ONLINE \]'
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: 'LOG_FILE="\$BACKUP_DIR/\$\{DB_NAME\}_log_\$\{stamp\}\.trn"'
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "last_log_backup_lsn FROM sys.database_recovery_status"
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "BACKUP LOG \\[\\\\\\$\\$\\(DB_NAME\\)\\] TO DISK"
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "isn''t in FULL recovery yet"
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "RESTORE VERIFYONLY FROM DISK = N'\\\\\\$\\$\\(LOG_FILE\\)'"
+
+  - it: refuses to render without the pre-migration backups, rather than leave the database SIMPLE
+    template: templates/backup-log.yaml
+    set:
+      migrations.backup: { enabled: false, log: { enabled: true } }
+    asserts:
+      - failedTemplate: { errorMessage: "migrations.backup.log needs migrations.enabled and migrations.backup.enabled: without them the database would be left in SIMPLE recovery with no log backups" }
+
+  - it: refuses to render without the migration Job
+    template: templates/backup-log.yaml
+    set:
+      migrations: { enabled: false, backup: { log: { enabled: true } } }
+    asserts:
+      - failedTemplate: { errorMessage: "migrations.backup.log needs migrations.enabled and migrations.backup.enabled: without them the database would be left in SIMPLE recovery with no log backups" }
+
+  - it: refuses to render without retention, which alone deletes the .trn files
+    template: templates/backup-log.yaml
+    set:
+      migrations.backup: { retention: { enabled: false }, log: { enabled: true } }
+    asserts:
+      - failedTemplate: { errorMessage: "migrations.backup.log needs migrations.backup.retention.enabled: nothing else deletes the .trn files" }
+
+  - it: is SQL Server only
+    template: templates/backup-log.yaml
+    set:
+      database.provider: postgres
+      postgres.enabled: true
+      migrations.backup.log.enabled: true
+    asserts:
+      - failedTemplate: { errorMessage: migrations.backup.log is SQL Server only }
+
+  - it: keeps the migration Job's database in SIMPLE recovery by default
+    template: templates/migrations-job.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "SET RECOVERY SIMPLE;"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: DB_USER, value: sa }
+
+  - it: puts it in FULL recovery with log backups on
+    template: templates/migrations-job.yaml
+    set:
+      migrations.backup.log.enabled: true
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "SET RECOVERY FULL;"
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "SET RECOVERY SIMPLE"
+
+  - it: leaves an external SQL Server's recovery model to its owner
+    template: templates/migrations-job.yaml
+    set:
+      mssql.enabled: false
+      database: { host: sql.example.internal, user: grif, password: { secretName: grif-db, key: password } }
+      migrations.backup.log.enabled: true
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "SET RECOVERY"
+
+  - it: says an external database must be FULL already, rather than waiting for a deploy
+    template: templates/backup-log.yaml
+    set:
+      mssql.enabled: false
+      database: { host: sql.example.internal, user: grif, password: { secretName: grif-db, key: password } }
+      migrations.backup.log.enabled: true
+    asserts:
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "an external server''s recovery model is its owner''s to set"
+      - notMatchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "sets it on the next deploy"
+
+  - it: lets the log backup pods reach SQL Server without the scheduled backup
+    template: templates/networkpolicy.yaml
+    set:
+      migrations.backup.log.enabled: true
+    documentSelector: { path: metadata.name, value: grif-backup }
+    asserts:
+      - equal: { path: spec.podSelector.matchLabels.app, value: grif-backup }
+
+  - it: has retention delete log backups no kept full backup needs
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup.retention.enabled: true
+    asserts:
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "_log_\\*\\.trn"
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "s.backup_finish_date >= @base"
+      # go-sqlcmd 1.10 drops the statement after a -- comment in -Q text: block comments only.
+      - notMatchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "\\n\\s*-- "

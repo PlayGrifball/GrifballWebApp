@@ -1,0 +1,118 @@
+{{- $m := .Values.migrations -}}
+{{- $l := $m.backup.log -}}
+{{- if $l.enabled }}
+{{- if not (and $m.enabled $m.backup.enabled) }}
+{{- fail "migrations.backup.log needs migrations.enabled and migrations.backup.enabled: without them the database would be left in SIMPLE recovery with no log backups" }}
+{{- end }}
+{{- if not $m.backup.retention.enabled }}
+{{- fail "migrations.backup.log needs migrations.backup.retention.enabled: nothing else deletes the .trn files" }}
+{{- end }}
+{{- if include "grif.postgres" . }}
+{{- fail "migrations.backup.log is SQL Server only" }}
+{{- end }}
+{{- if include "grif.onDemandWakesDatabase" . }}
+{{- fail "migrations.backup.log would keep an onDemand database awake: turn one off" }}
+{{- end }}
+# Backs the transaction log up on a schedule (values.yaml, migrations.backup.log), to the backup folder
+# as <database>_log_<date>_<time>.trn: checksummed, then verified. The migration Job keeps the chart's own
+# SQL Server's database in FULL recovery while this is on; an external one must be FULL already. With no full backup to start the log chain from yet, it writes one
+# first (<database>_<date>_<time>.bak, as the others). A database that doesn't exist yet is skipped.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: grif-backup-log
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup-log
+spec:
+  schedule: {{ $l.schedule | quote }}
+  suspend: {{ $l.suspend | default false }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      # The wait for the database, then the backup: a first one can carry a large log.
+      activeDeadlineSeconds: {{ add (int $m.databaseWaitSeconds) 3600 }}
+      template:
+        metadata:
+          labels:
+            # grif-backup's network policy and SQL Server's ingress cover it.
+            app: grif-backup
+            {{- include "grif.podLabels" . | nindent 12 }}
+            app.kubernetes.io/component: backup-log
+            {{- with $m.podLabels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $m.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with include "grif.migrationPodSecurityContext" . }}
+          securityContext:
+            {{- . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: backup-log
+              {{- include "grif.migrationStepImage" . | nindent 14 }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  {{- include "grif.waitForDatabaseScript" . | nindent 18 }}
+                  {{- include "grif.waitForDatabaseOnlineScript" . | nindent 18 }}
+                  stamp=$(date +%Y%m%d_%H%M%S)
+                  echo "Backing up the log of $DB_NAME"
+                  # Not in FULL recovery: fails rather than back nothing up.
+                  sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b \
+                    -v BACKUP_DIR="$BACKUP_DIR" DB_NAME="$DB_NAME" \
+                    BASE_FILE="$BACKUP_DIR/${DB_NAME}_${stamp}.bak" LOG_FILE="$BACKUP_DIR/${DB_NAME}_log_${stamp}.trn" \
+                    -Q "SET NOCOUNT ON;
+                      IF DB_ID(N'\$$(DB_NAME)') IS NULL BEGIN PRINT N'Database \$$(DB_NAME) doesn''t exist yet: nothing to back up.'; RETURN; END;
+                      IF CONVERT(nvarchar(60), DATABASEPROPERTYEX(N'\$$(DB_NAME)', 'Recovery')) <> N'FULL'
+                        THROW 50000, N'Database \$$(DB_NAME) isn''t in FULL recovery{{ if include "grif.managesRecoveryModel" . }} yet: the migration Job sets it on the next deploy{{ else }}: an external server''s recovery model is its owner''s to set{{ end }}.', 1;
+                      EXEC master.sys.xp_create_subdir N'\$$(BACKUP_DIR)';
+                      {{ include "grif.mssqlCompression" . }}
+                      DECLARE @sql nvarchar(max);
+                      IF (SELECT last_log_backup_lsn FROM sys.database_recovery_status WHERE database_id = DB_ID(N'\$$(DB_NAME)')) IS NULL
+                      BEGIN
+                        PRINT N'No log chain yet: a full backup first, \$$(BASE_FILE)';
+                        SET @sql = N'BACKUP DATABASE [\$$(DB_NAME)] TO DISK = N''\$$(BASE_FILE)'' WITH CHECKSUM, FORMAT, INIT, ' + @compression + N', NAME = ''Log chain base''';
+                        EXEC (@sql);
+                      END;
+                      SET @sql = N'BACKUP LOG [\$$(DB_NAME)] TO DISK = N''\$$(LOG_FILE)'' WITH CHECKSUM, FORMAT, INIT, ' + @compression + N', NAME = ''Scheduled log backup''';
+                      EXEC (@sql);
+                      RESTORE VERIFYONLY FROM DISK = N'\$$(LOG_FILE)' WITH CHECKSUM;
+                      PRINT N'Backed up and verified: \$$(LOG_FILE)';"
+              env:
+                {{- include "grif.dbEnv" . | nindent 16 }}
+                - name: BACKUP_DIR
+                  value: {{ include "grif.backupDir" . | quote }}
+                - name: WAIT_SECONDS
+                  value: {{ $m.databaseWaitSeconds | quote }}
+                {{- with $m.extraEnv }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+              resources:
+                {{- include "grif.migrationSmallResources" . | nindent 16 }}
+          {{- with $m.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $m.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $m.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

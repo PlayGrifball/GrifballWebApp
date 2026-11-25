@@ -12,6 +12,7 @@
 # deletes its own files: only backups it recorded writing (msdb) named <database>_*.bak in the backup
 # folder, and xp_delete_file 0 only deletes SQL Server backups. One goes once it's older than keepDays
 # and isn't among the newest keepLast; with onePerDay, so does one that isn't the newest of its day.
+# Log backups (<database>_log_*.trn) go once they ended before the oldest full backup left began.
 {{- end }}
 apiVersion: batch/v1
 kind: CronJob
@@ -109,7 +110,38 @@ spec:
                     FETCH NEXT FROM old INTO @path;
                   END;
                   CLOSE old; DEALLOCATE old;
-                  PRINT CONCAT(N'Deleted ', @n, N' backup(s); kept the newest ', \$$(KEEP_LAST), N' and any from the last ', \$$(KEEP_DAYS), N' days.');"
+                  PRINT CONCAT(N'Deleted ', @n, N' backup(s); kept the newest ', \$$(KEEP_LAST), N' and any from the last ', \$$(KEEP_DAYS), N' days.');
+                  /* Log backups (migrations.backup.log) that ended before the oldest full backup left began: no restore needs them. */
+                  DECLARE @base datetime = (
+                    SELECT MIN(s.backup_start_date)
+                    FROM sys.dm_os_enumerate_filesystem(N'\$$(BACKUP_DIR)', N'\$$(DB_NAME)_*.bak') f
+                    JOIN msdb.dbo.backupmediafamily m ON m.physical_device_name = f.full_filesystem_path
+                    JOIN msdb.dbo.backupset s ON s.media_set_id = m.media_set_id AND s.type = 'D'
+                    WHERE f.is_directory = 0);
+                  SET @n = 0;
+                  DECLARE oldlog CURSOR LOCAL FAST_FORWARD FOR
+                    SELECT f.full_filesystem_path
+                    FROM sys.dm_os_enumerate_filesystem(N'\$$(BACKUP_DIR)', N'\$$(DB_NAME)_log_*.trn') f
+                    WHERE f.is_directory = 0
+                      AND EXISTS (SELECT 1 FROM msdb.dbo.backupmediafamily m
+                                  JOIN msdb.dbo.backupset s ON s.media_set_id = m.media_set_id AND s.type = 'L'
+                                  WHERE m.physical_device_name = f.full_filesystem_path)
+                      AND NOT EXISTS (SELECT 1 FROM msdb.dbo.backupmediafamily m
+                                      JOIN msdb.dbo.backupset s ON s.media_set_id = m.media_set_id
+                                      WHERE m.physical_device_name = f.full_filesystem_path AND s.backup_finish_date >= @base);
+                  IF @base IS NOT NULL
+                  BEGIN
+                    OPEN oldlog; FETCH NEXT FROM oldlog INTO @path;
+                    WHILE @@FETCH_STATUS = 0
+                    BEGIN
+                      EXEC master.sys.xp_delete_file 0, @path;
+                      SET @n += 1;
+                      FETCH NEXT FROM oldlog INTO @path;
+                    END;
+                    CLOSE oldlog;
+                  END;
+                  DEALLOCATE oldlog;
+                  PRINT CONCAT(N'Deleted ', @n, N' log backup(s) older than every full backup kept.');"
               env:
                 {{- include "grif.dbEnv" . | nindent 16 }}
                 - name: BACKUP_DIR

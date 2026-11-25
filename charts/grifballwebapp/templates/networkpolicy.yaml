@@ -403,7 +403,7 @@ spec:
             matchLabels:
               app: grif-backup-retention
         {{- end }}
-        {{- if and .Values.migrations.enabled .Values.migrations.backup.enabled .Values.migrations.backup.scheduled.enabled }}
+        {{- if include "grif.backupPods" . }}
         - podSelector:
             matchLabels:
               app: grif-backup
@@ -471,7 +471,7 @@ spec:
             matchLabels:
               app: grif-migrate
         {{- end }}
-        {{- if and .Values.migrations.enabled .Values.migrations.backup.enabled .Values.migrations.backup.scheduled.enabled }}
+        {{- if include "grif.backupPods" . }}
         - podSelector:
             matchLabels:
               app: grif-backup
@@ -562,7 +562,7 @@ spec:
     {{- end }}
 ---
 {{- end }}
-{{- if and .Values.migrations.enabled .Values.migrations.backup.enabled .Values.migrations.backup.scheduled.enabled }}
+{{- if include "grif.backupPods" . }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

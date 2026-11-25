@@ -378,6 +378,18 @@ database that doesn't exist yet is skipped. With SQL Server, like retention, it 
 can be paused with `suspend: true` (`migrations.backup.scheduled.suspend`, `migrations.backup.retention.suspend`):
 it stays, runnable by hand with `kubectl create job --from=cronjob/grif-backup` (or `grif-backup-retention`).
 
+**Log backups and the recovery model** (SQL Server). With the chart's own SQL Server, the Job sets the
+database's recovery model on every deploy; an external server's is left to its owner. SIMPLE by default, where SQL Server truncates the log itself and a restore goes back to a full
+backup. `migrations.backup.log.enabled` makes it FULL and adds a CronJob, `grif-backup-log` (`schedule`,
+default every 15 minutes from :05, off the hour the nightly backup takes), that writes `<database>_log_<date>_<time>.trn` to the same folder, checksummed
+and verified, so a restore can stop at any point between them: the newest full backup (the nightly
+copy-only one included), then every `.trn` after it in order. With no full backup to start the log chain
+from (a new database, or one just switched from SIMPLE), it writes one first. Against an external server
+the database must be FULL already; the CronJob fails saying so otherwise. FULL without log backups
+would grow the log until its disk fills. Not with `onDemand`'s database, which it would keep awake.
+Retention deletes a `.trn` once it ended before the oldest full backup kept began; it's required, as are
+`migrations.enabled` and `migrations.backup.enabled` (the render fails without them).
+
 **Old backups.** Each migration leaves a backup, and nothing deletes them unless
 `migrations.backup.retention.enabled`: a nightly CronJob that deletes old ones, keeping the newest
 `keepLast` and any younger than `keepDays`; anything else in the folder is never touched. `onePerDay: true`

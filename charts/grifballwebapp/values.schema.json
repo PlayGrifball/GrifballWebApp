@@ -801,6 +801,15 @@
                 "schedule": { "type": "string", "minLength": 9 },
                 "suspend": { "type": "boolean" }
               }
+            },
+            "log": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "schedule": { "type": "string", "minLength": 9 },
+                "suspend": { "type": "boolean" }
+              }
             }
           }
         },
