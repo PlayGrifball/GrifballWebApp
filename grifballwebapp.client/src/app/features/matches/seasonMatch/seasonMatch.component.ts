@@ -7,7 +7,6 @@ import { SeasonMatchPageDto } from './seasonMatchPageDto';
 import { MatchAction, SeasonMatchStore } from './seasonMatch.store';
 import { BoxScoreComponent } from './boxScore/boxScore.component';
 import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
-import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
@@ -20,7 +19,6 @@ import { Observable } from 'rxjs';
 
 import { ToDatePipe } from '@shared/toDate.pipe';
 import { errorText } from '@shared/errorText';
-import { provideDatePickers } from '@shared/datePickers';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { ManualGamesComponent } from './manualGames/manualGames.component';
 import { GameSlot, slotChoices } from './manualGames/manualGameForm';
@@ -119,7 +117,6 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
         MatButtonModule,
         ErrorMessageComponent,
         RegexMatchValidValidatorDirective,
-        MtxDatetimepickerModule,
         MatTableModule,
         ToDatePipe,
         VodListComponent,
@@ -132,7 +129,7 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
-    providers: [provideDatePickers(), SeasonMatchStore],
+    providers: [SeasonMatchStore],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonMatchComponent {
