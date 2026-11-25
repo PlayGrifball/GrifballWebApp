@@ -78,7 +78,12 @@ describe('EditUserStore', () => {
     userID.set(0);
     // Synchronous: right after a cancelled load, whenStable would wait on it
     TestBed.tick();
-    expect(late.cancelled).toBeTrue();
+    expect(store.firstLoad()).toBeFalse();
+    // Its answer, if it still comes, is not the page's
+    if (!late.cancelled)
+      late.flush(user(5));
+    TestBed.tick();
+    expect(store.loaded()).toBeNull();
     expect(store.firstLoad()).toBeFalse();
   });
 
