@@ -1021,12 +1021,22 @@ const vodReview = [
 ];
 
 /**
+ * A player's or an Xbox account's picture, as an <img> asks for it. Every fixture player has one: the API answers 404 for
+ * a player without a picture (as it should), which the browser logs as a console error, and Lighthouse's best practices
+ * would count that against the pages it measures with this mock.
+ */
+const PICTURE = /^\/api\/(users|xbox-accounts)\/\d+\/profile-picture$/;
+const PICTURE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8" fill="#a01826"/><circle cx="4" cy="3" r="2" fill="#1847a3"/></svg>';
+
+/**
  * How to answer one request: status, content type and body; undefined for an unknown path (404). `query`: the request's
  * query string ("?status=Approved"); an endpoint mocked for that exact query answers it, any other query its path's.
  */
 export function mockResponse(role: Role, path: string, query = ''): { status: number, contentType: string, body: string } | undefined {
   const routes = mockRoutes(role);
   const key = query && path + query in routes ? path + query : path;
+  if (!(key in routes) && PICTURE.test(path))
+    return { status: 200, contentType: 'image/svg+xml', body: PICTURE_SVG };
   if (!(key in routes))
     return undefined;
   const { body } = routes[key];
