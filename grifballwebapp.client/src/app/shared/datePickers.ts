@@ -1,4 +1,4 @@
-import { Provider } from '@angular/core';
+import { Directive, Provider } from '@angular/core';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 
 /**
@@ -27,3 +27,13 @@ export function provideDatePickers(): Provider[] {
     }
   });
 }
+
+/**
+ * Provides the date-time pickers' adapter to the fields inside it: for a page that defers its pickers (@defer), so the
+ * adapter loads with them, not with the page (a provider on the page's component would load it at once).
+ */
+@Directive({
+  selector: '[appDatePickers]',
+  providers: [provideDatePickers()],
+})
+export class DatePickersDirective {}
