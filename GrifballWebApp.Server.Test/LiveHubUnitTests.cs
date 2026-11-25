@@ -428,6 +428,10 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     [TestCase("/usermanagement/merges")]
     [TestCase("/seasonManager")]
     [TestCase("/commissioner-dashboard")]
+    [TestCase("/sysadmin")]
+    [TestCase("/sysadmin/jobs")]
+    [TestCase("/sysadmin/databasebackup")]
+    [TestCase("/infiniteclient")]
     [TestCase("/season/1/playergrades")]
     [TestCase("/season/1/signups")]
     public async Task AStaffPage_IsTheStaffArea(string path)
@@ -436,6 +440,14 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         var pages = new PresencePages(new SeasonVisibility(Db), Db);
 
         Assert.That(await pages.Shown(path), Is.EqualTo(PresenceSnapshot.StaffArea));
+    }
+
+    [Test]
+    public async Task TheOldBackupAddress_IsNoStaffPage_ItMovedUnderSysAdmin()
+    {
+        var pages = new PresencePages(new SeasonVisibility(Db), Db);
+
+        Assert.That(await pages.Shown("/databasebackup"), Is.Not.EqualTo(PresenceSnapshot.StaffArea));
     }
 
     [Test]

@@ -82,7 +82,7 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
 
 ## Using it
 
-Sysadmins: User management > Historical Import (`/usermanagement/historicalimport`). "Refresh sources" downloads;
+Sysadmins: SysAdmin > Historical Import (`/sysadmin/historicalimport`). "Refresh sources" downloads;
 "Import" runs a preview first, listing what each season would lose, then "Apply this import" imports exactly what was
 previewed. A compiled archive (the old JSON files) can still be uploaded with `POST /api/historical-imports`.
 

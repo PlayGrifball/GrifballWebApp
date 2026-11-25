@@ -35,8 +35,9 @@ export const serverRoutes: ServerRoute[] = [
     'seasonManager',
     'seasonEdit/:seasonID',
     'seasonAvailability/:seasonID',
-    'infiniteclient',
-    'databasebackup',
+    'sysadmin',
+    'sysadmin/**', // historical import, jobs, telemetry, the Infinite Client, database backup
+    'infiniteclient', // the Infinite Client's registered sign-in redirect
     'usermanagement',
     'usermanagement/**', // the user editor, merging and gamertag claims
     'excel',

@@ -5,7 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import type { HaloInfiniteMode, HaloStatusDto } from '@api/models';
 import { InfiniteClientStore } from './infiniteClient.store';
 
@@ -22,7 +22,8 @@ export type HaloStatus = HaloStatusDto;
         MatFormFieldModule,
         FormsModule,
         MatButtonModule,
-        ErrorMessageComponent
+        ErrorMessageComponent,
+        RouterLink,
     ],
     templateUrl: './infiniteClient.component.html',
     styleUrl: './infiniteClient.component.scss',
