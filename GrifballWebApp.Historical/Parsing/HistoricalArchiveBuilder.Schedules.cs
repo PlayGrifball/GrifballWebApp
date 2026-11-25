@@ -11,7 +11,8 @@ public sealed partial class HistoricalArchiveBuilder
     /// Each schedule's matches date their season's undated games. The schedule's matches of the same two teams on one day are
     /// one meeting; in the schedule's order, a meeting dates the first undated series of those teams (in their result list's
     /// order), and the next, until it has dated as many games as it has entries (a series' games each an entry, a per-game
-    /// tab's games each their own). A meeting with nothing left to date is left out, and said in a warning; of a season whose
+    /// tab's games each their own; <see cref="ScheduleTab.WholeSeries"/>: an entry each match, all its games). A meeting
+    /// with nothing left to date is left out, and said in a warning; of a season whose
     /// results are lost (<see cref="ScheduleTab.Unplayed"/>) it is a match with no result, when the season has both teams.
     /// </summary>
     private void AddSchedules()
@@ -33,7 +34,7 @@ public sealed partial class HistoricalArchiveBuilder
                 .Where(g => string.Equals(g.SeasonSourceId, key, StringComparison.OrdinalIgnoreCase) && g.Teams.Count == 2)
                 .GroupBy(g => g.Series ?? g.SourceKey, StringComparer.Ordinal)
                 .Where(g => g.All(game => game.PlayedAt is null))
-                .Select(g => (Games: g.ToList(), IsSeries: g.First().Series is not null, Pair: Pair(g.First().Teams[0].Name, g.First().Teams[1].Name)))
+                .Select(g => (Games: g.ToList(), Pair: Pair(g.First().Teams[0].Name, g.First().Teams[1].Name)))
                 .ToList();
             var meetings = matches
                 .Select(m => (m.PlayedAt, Home: ScheduledTeam(names, m.First), Away: ScheduledTeam(names, m.Second)))
@@ -44,15 +45,20 @@ public sealed partial class HistoricalArchiveBuilder
             var left = 0;
             foreach (var meeting in meetings)
             {
-                var games = 0;
-                while (games < meeting.Count && undated.FindIndex(u => u.Pair == meeting.Pair) is var index and >= 0)
+                var (entries, dated) = (0, false);
+                while (entries < meeting.Count && undated.FindIndex(u => u.Pair == meeting.Pair) is var index and >= 0)
                 {
-                    foreach (var game in undated[index].Games)
+                    // A whole match: its teams' undated games (or one-game series) in a row
+                    var end = index + 1;
+                    while (tab.WholeSeries && end < undated.Count && undated[end].Pair == meeting.Pair)
+                        end++;
+                    foreach (var game in undated.Skip(index).Take(end - index).SelectMany(u => u.Games))
                         game.PlayedAt = meeting.PlayedAt;
-                    games += undated[index].Games.Count;
-                    undated.RemoveAt(index);
+                    entries += tab.WholeSeries ? 1 : undated[index].Games.Count;
+                    undated.RemoveRange(index, end - index);
+                    dated = true;
                 }
-                if (games > 0)
+                if (dated)
                     continue;
                 if (tab.Unplayed && names.Knows(meeting.Home) && names.Knows(meeting.Away))
                     _scheduled.Add(new ArchiveScheduledMatchInput

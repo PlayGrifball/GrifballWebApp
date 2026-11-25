@@ -41,13 +41,18 @@ public static partial class ScheduleParser
             {
                 if (dayOf(r, c) is not DateTime day)
                     continue;
-                // A line each ("9:30pm: Impulse (5) vs. High Voltage (1)", a blank line, the next)
-                foreach (var line in row[c].Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                // A line each ("9:30pm: Impulse (5) vs. High Voltage (1)", a blank line, the next), or a run of spaces
+                // between them (GWL SL23's "A @ B      8PM EST      C @ D      9PM EST")
+                var pieces = Pieces().Split(row[c]).Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
+                for (var i = 0; i < pieces.Count; i++)
                 {
-                    var timed = LeadingTime().Match(line);
-                    if (Teams(timed.Success ? line[timed.Length..] : line) is not { } teams)
+                    var timed = LeadingTime().Match(pieces[i]);
+                    if (Teams(timed.Success ? pieces[i][timed.Length..] : pieces[i]) is not { } teams)
                         continue;
-                    var time = Time(line) ?? Time(row[0]) ?? (r + 1 < sheet.Rows.Count && TimeOnly().IsMatch(sheet.Cell(r + 1, c).Trim()) ? Time(sheet.Cell(r + 1, c)) : null);
+                    var time = Time(pieces[i])
+                        ?? (i + 1 < pieces.Count && TimeOnly().IsMatch(pieces[i + 1]) ? Time(pieces[i + 1]) : null)
+                        ?? Time(row[0])
+                        ?? (r + 1 < sheet.Rows.Count && TimeOnly().IsMatch(sheet.Cell(r + 1, c).Trim()) ? Time(sheet.Cell(r + 1, c)) : null);
                     matches.Add(new CalendarMatch(At(day, time), teams.First, teams.Second));
                 }
             }
@@ -70,10 +75,13 @@ public static partial class ScheduleParser
         var width = 1;
         for (var r = 0; r < sheet.Rows.Count; r++)
         {
-            if (calendar.Days(sheet.Rows[r]) is { Count: > 0 } found)
+            if (calendar.Days(sheet.Rows[r], out var inline) is { Count: > 0 } found)
             {
                 width = found.Count > 1 ? found.Zip(found.Skip(1), (a, b) => b.Column - a.Column).Min() : width;
                 days = found;
+                // A week's label beside its days' matches ("March 5th - 11th"): the row is its own matches'
+                if (inline)
+                    rows[r] = (days, width);
                 continue;
             }
             rows[r] = (days, width);
@@ -112,9 +120,29 @@ public static partial class ScheduleParser
         /// <summary>A row of days of the month was found with no month to put it in.</summary>
         public bool NeedsMonth { get; private set; }
 
-        /// <summary>The row's days, each with its column; empty when it is no row of days.</summary>
-        public List<(int Column, DateTime Day)> Days(string[] row)
+        /// <summary>The weekday headers' columns (Sunday's 0), from the last row naming five or more weekdays.</summary>
+        private Dictionary<int, int> _weekdays = [];
+
+        /// <summary>The row's days, each with its column; empty when it is no row of days. <paramref name="inline"/>: the
+        /// row is a week's ("March 5th - 11th" in its first cell, its days the weekday headers' columns), its matches in it.</summary>
+        public List<(int Column, DateTime Day)> Days(string[] row, out bool inline)
         {
+            inline = false;
+            var weekdays = Enumerable.Range(0, row.Length).Select(c => (Column: c, Day: Array.IndexOf(Weekdays, row[c].Trim().ToLowerInvariant())))
+                .Where(w => w.Day >= 0).ToList();
+            if (weekdays.Count >= 5)
+                _weekdays = weekdays.ToDictionary(w => w.Column, w => w.Day);
+            if (row.Length > 0 && _weekdays.Count > 0 && year is not null && WeekRange().Match(row[0].Trim()) is { Success: true } week
+                && MonthOf(week.Groups["month"].Value) is var wm and > 0 && Day(week.Groups["day"].Value) is int wd)
+            {
+                var y = _last is { } before ? before.Year + (wm < before.Month ? 1 : 0) : year.Value;
+                if (wd <= DateTime.DaysInMonth(y, wm))
+                {
+                    var start = new DateTime(y, wm, wd);
+                    inline = true;
+                    return Seen([.. _weekdays.OrderBy(w => w.Key).Select(w => (w.Key, start.AddDays((w.Value - (int)start.DayOfWeek + 7) % 7)))]);
+                }
+            }
             var dates = Enumerable.Range(0, row.Length).Select(c => (Column: c, Day: Date(row[c]))).Where(d => d.Day is not null)
                 .Select(d => (d.Column, Day: d.Day!.Value)).ToList();
             if (dates.Count > 0)
@@ -269,6 +297,14 @@ public static partial class ScheduleParser
     /// <summary>"2-0 " before the first team ("2-0 G over Z").</summary>
     [GeneratedRegex(@"^\d{1,2}\s*-\s*\d{1,2}\s+(?=\D)")]
     private static partial Regex LeadingScore();
+
+    /// <summary>A week: "March 5th - 11th", "March 26th - April 1st", "Make Up Week April 9th - 15th".</summary>
+    [GeneratedRegex(@"(?<month>[A-Za-z]{3,9})\.?\s+(?<day>\d{1,2})(st|nd|rd|th)?\s*-\s*([A-Za-z]{3,9}\.?\s+)?\d{1,2}(st|nd|rd|th)?$")]
+    private static partial Regex WeekRange();
+
+    /// <summary>What separates a cell's matches: a line break, or a run of three or more spaces.</summary>
+    [GeneratedRegex(@"\n|\s{3,}")]
+    private static partial Regex Pieces();
 
     /// <summary>"July 31st", "Aug 1": a month's name and a day.</summary>
     [GeneratedRegex(@"^(?<month>[A-Za-z]{3,9})\.?\s+(?<day>\d{1,2})(st|nd|rd|th)?$")]

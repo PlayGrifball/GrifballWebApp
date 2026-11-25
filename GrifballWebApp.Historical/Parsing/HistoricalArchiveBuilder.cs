@@ -498,14 +498,17 @@ public sealed partial class HistoricalArchiveBuilder
             var players = PlayersOf(season);
             var teamOf = season.SelectMany(s => s.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName))
                 .GroupBy(p => HistoricalKeys.Normalize(p.Gamertag)).ToDictionary(g => g.Key, g => g.First().TeamName!.Trim());
+            // A nickname the tab names is its player's gamertag
+            string? Named(string? name) => name is null ? null
+                : tab.Names.FirstOrDefault(n => string.Equals(n.Key, name.Trim(), StringComparison.OrdinalIgnoreCase)).Value ?? name;
             foreach (var team in teams)
             {
-                var captain = SeasonPlayer(team.Captain, players);
+                var captain = SeasonPlayer(Named(team.Captain), players);
                 var name = (team.TeamName.Length > 0 ? Closest(team.TeamName, known) : null)
                     ?? (captain is not null ? teamOf.GetValueOrDefault(HistoricalKeys.Normalize(captain)) : null);
                 if (name is null)
                     continue;
-                var picks = team.Picks.Select(p => SeasonPlayer(p.Gamertag, players) is { } gamertag ? p with { Gamertag = gamertag } : null).OfType<ArchiveDraftPick>().ToList();
+                var picks = team.Picks.Select(p => SeasonPlayer(Named(p.Gamertag), players) is { } gamertag ? p with { Gamertag = gamertag } : null).OfType<ArchiveDraftPick>().ToList();
                 regular.Teams.Add(team with { TeamName = name, Captain = captain, Picks = picks });
             }
             if (_changedSourceIds?.Contains(sourceId) != false)

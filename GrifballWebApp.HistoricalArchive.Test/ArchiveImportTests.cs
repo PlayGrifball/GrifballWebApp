@@ -155,9 +155,13 @@ public class ArchiveImportTests
     }
 
     /// <summary>The seasons (their source IDs' workbook) whose catalog entries name a draft tab that isn't a bid draft's.</summary>
+    /// <summary>The workbooks with a draft, and the seasons ("{workbook}/{tab}") of a draft that names its season's tab.</summary>
     private static HashSet<string> DraftedWorkbooks() => ArchiveSnapshots.ImportedEntries()
-        .SelectMany(e => e.Config!.Drafts.Where(d => d.Order != DraftOrder.None).Select(d => d.Season ?? e.HistoricalSourceID))
+        .SelectMany(e => e.Config!.Drafts.Where(d => d.Order != DraftOrder.None).Select(d => d.Tab is { } tab ? $"{d.Season ?? e.HistoricalSourceID}/{tab}" : d.Season ?? e.HistoricalSourceID))
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A season of a drafted workbook, or the drafted season of its workbook.</summary>
+    private static bool Drafted(HashSet<string> drafted, string sourceID) => drafted.Contains(Workbook(sourceID)) || drafted.Contains(sourceID);
 
     private static string Workbook(string sourceID) => sourceID.Split('/')[0];
 
@@ -167,7 +171,7 @@ public class ArchiveImportTests
     {
         var drafted = DraftedWorkbooks();
 
-        Assert.That((await Seasons()).Where(s => drafted.Contains(Workbook(s.SourceID)) && (s.CaptainsOrdered == 0 || s.Picks == 0))
+        Assert.That((await Seasons()).Where(s => Drafted(drafted, s.SourceID) && (s.CaptainsOrdered == 0 || s.Picks == 0))
             .Select(s => $"{s.Name}: {s.CaptainsOrdered} captains ordered, {s.Picks} picks"), Is.Empty);
     }
 

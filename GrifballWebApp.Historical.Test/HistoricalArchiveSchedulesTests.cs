@@ -124,4 +124,25 @@ public class HistoricalArchiveSchedulesTests
 
         Assert.That(build.Input.RecordedGames!.Select(g => g.PlayedAt), Is.EquivalentTo(new DateTime?[] { June1, June1, June8 }));
     }
+
+    [Test]
+    public void AWholeSeriesEntry_DatesItsTeamsUndatedGamesInARow()
+    {
+        // GWL SL23: a per-game tab's games, a match's in a row; the schedule lists each match once
+        var source = Source("gwl23", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "GWL Spring League 2023", Game = "reach" },
+                Tabs = [new() { Name = "Stats" }],
+                Results = [new() { Sheet = "Game Results", Layout = ResultsLayout.Series }],
+                Schedules = [new() { Sheet = "Schedule", WholeSeries = true }],
+            },
+            Workbook(("Stats", [StatsHeader, Row("Ace", "Alpha", 4, 1), Row("Bee", "Bravo", 4, 1), Row("Cee", "Charlie", 4, 1)]),
+                ("Game Results", [Row("Alpha over Bravo 5-4"), Row("Bravo over Alpha 5-1"), Row("Charlie over Alpha 5-0"), Row("Alpha over Bravo 5-2")]),
+                ("Schedule", [Row("Date", "6/1/2020", "6/8/2020"), Row(null, "Ace @ Bee", "Bee @ Ace"), Row(null, "Cee @ Ace")])));
+
+        var build = HistoricalArchiveBuilder.Build([source]);
+
+        Assert.That(build.Input.RecordedGames!.Select(g => g.PlayedAt), Is.EqualTo(new DateTime?[] { June1, June1, June1, June8 }),
+            "Captains name their teams; the first match is both games in a row");
+    }
 }

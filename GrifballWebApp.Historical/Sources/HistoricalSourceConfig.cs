@@ -390,6 +390,9 @@ public class DraftTab
     public DraftLayout Layout { get; init; }
     /// <summary>What a board's columns say of the draft's order.</summary>
     public DraftOrder Order { get; init; }
+    /// <summary>Players the draft names by a nickname (any case), to their gamertag as the stats write it (SML20 Reach PC's
+    /// "Galvan": Galvann), who would otherwise be no player of the season.</summary>
+    public Dictionary<string, string> Names { get; init; } = [];
 }
 
 public enum DraftLayout
@@ -513,6 +516,9 @@ public class ScheduleTab
     public Dictionary<string, string> Teams { get; init; } = [];
     /// <summary>The season's results are lost: each meeting that dates no game is a match of its own, on its day, with no result.</summary>
     public bool Unplayed { get; init; }
+    /// <summary>Each entry is a whole match whose games are a per-game tab's rows (GWL SL23's "A @ B"): it dates its teams' first
+    /// undated game and the undated games of theirs right after it.</summary>
+    public bool WholeSeries { get; init; }
 }
 
 /// <summary>

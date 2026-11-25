@@ -9,6 +9,8 @@ namespace GrifballWebApp.Historical.Test;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class ScheduleParserTests
 {
+    private static readonly string[] NoMonth = ["sml20/Full Schedule: rows of days of the month not read (the tab's Year and Month aren't set)"];
+
     private static SheetTable Sheet(params string[][] rows) => new() { Name = "Full Schedule", Rows = [.. rows] };
 
     private static List<CalendarMatch> Parse(ScheduleTab tab, SheetTable sheet, List<string>? warnings = null)
@@ -118,7 +120,7 @@ public class ScheduleParserTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(matches, Is.Empty);
-            Assert.That(warnings, Is.EqualTo(new[] { "sml20/Full Schedule: rows of days of the month not read (the tab's Year and Month aren't set)" }));
+            Assert.That(warnings, Is.EqualTo(NoMonth));
         }
     }
 
@@ -136,5 +138,23 @@ public class ScheduleParserTests
         {
             (NinePm(2017, 7, 31), "OMG", "NH"), (NinePm(2017, 7, 31), "DROP", "DJ"), (NinePm(2017, 8, 1), "ARK", "4G1B"),
         }));
+    }
+
+    [Test]
+    public void AWeeksRow_DatesItsOwnCells_ByTheWeekdayHeaders_EachMatchTheTimeAfterIt()
+    {
+        // GWL SL23's Schedule: weekday headers, then a row per week, its label first, its matches beside it
+        var sheet = Sheet(
+            ["AWAY @ HOME", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday ", "Saturday "],
+            ["March 26th - April 1st", "", "Dhlyn @ ActiveHate           7PM EST              ActiveHate @ Dhlyn         Double Header", "", "", "", "", "Mavbrid @ oDhmon 10PM EST", "Blue = Rescheduled Games"]);
+
+        var matches = Parse(new ScheduleTab { Sheet = "Schedule", Year = 2023 }, sheet);
+
+        Assert.That(matches, Is.EqualTo(new[]
+        {
+            new CalendarMatch(new DateTime(2023, 3, 27, 23, 0, 0, DateTimeKind.Utc), "Dhlyn", "ActiveHate"),
+            new CalendarMatch(new DateTime(2023, 3, 27, 0, 0, 0, DateTimeKind.Utc), "ActiveHate", "Dhlyn"),
+            new CalendarMatch(new DateTime(2023, 4, 2, 2, 0, 0, DateTimeKind.Utc), "Mavbrid", "oDhmon"),
+        }), "Monday the 27th, Saturday April 1st; the legend right of Saturday is no day's");
     }
 }

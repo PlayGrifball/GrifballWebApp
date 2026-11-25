@@ -406,21 +406,23 @@ public class ArchiveSeasonTests
 
     /// <summary>
     /// Seasons whose matches are dated by their schedule (#603): most of their matches have the day the calendar gives them
-    /// (a match the calendar doesn't list, or names a team of no rule finds, stays undated). Those whose results are lost
+    /// (a match the calendar doesn't list, or names a team of no rule finds, stays undated; WL21's calendars fill only their
+    /// first weeks). SL19's per-game rows become its same-day series once dated (97 games, 50 matches). Those whose results are lost
     /// (SML20, WL20 and SL20 Reach PC) have their schedule's matches, with no result.
     /// </summary>
-    [TestCase("Spring League 2019", 70)]
+    [TestCase("Spring League 2019", 45)]
     [TestCase("Spring League 2017 (Pro)", 35)]
     [TestCase("Spring League 2017 (Amateur)", 75)]
     [TestCase("Fall League 2020 (PC)", 35)]
-    [TestCase("Winter League 2021 (Legacy)", 30)]
-    [TestCase("Winter League 2021 (Rookie)", 18)]
+    [TestCase("Winter League 2021 (Legacy)", 7)]
+    [TestCase("Winter League 2021 (Rookie)", 5)]
     [TestCase("Spring League 2020 (Halo 5 Console)", 20)]
     [TestCase("Spring League 2020 (Reach Console)", 9)]
     [TestCase("Summer League 2020", 30)]
-    [TestCase("Winter League 2020 (Reach PC)", 20)]
+    [TestCase("Winter League 2020 (Reach PC)", 15)]
     [TestCase("Spring League 2020 (Reach PC)", 10)]
     [TestCase("GGL Summer League 2017", 15)]
+    [TestCase("GWL Spring League 2023", 40)]
     public async Task AScheduledSeason_HasItsMatchesDays(string seasonName, int dated)
     {
         await using var context = Archive.NewContext();
