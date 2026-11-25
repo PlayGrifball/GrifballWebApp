@@ -336,12 +336,95 @@ public class IdentityControllerActionTests
     {
         _signInManager.GetExternalLoginInfoAsync().Returns(Info(email: null));
         ExternalResult(IdentitySignInResult.Failed);
-        _userManager.FindByNameAsync("discordName").Returns(User.Seed(userName: "discordName"));
+        _userManager.FindByNameAsync("discordName").Returns(User.Seed(userName: "discordName", passwordHash: "hash"));
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
         Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Already a user"));
         await _userManager.DidNotReceiveWithAnyArgs().FindByEmailAsync(default!);
+        await _userManager.DidNotReceiveWithAnyArgs().AddLoginAsync(default!, default!);
+    }
+
+    [TestCase(true, "Identity.Application")]
+    [TestCase(false, "Identity.Bearer")]
+    public async Task ExternalLoginCallback_UnclaimedNamesake_AddsLoginToThemAndSignsIn(bool useCookies, string scheme)
+    {
+        var info = Info();
+        var namesake = User.Seed(id: 1042, userName: "discordName");
+        _signInManager.GetExternalLoginInfoAsync().Returns(info);
+        _userManager.FindByNameAsync("discordName").Returns(namesake);
+        _userManager.GetLoginsAsync(namesake).Returns(new List<UserLoginInfo>());
+        _userManager.AddLoginAsync(namesake, info).Returns(IdentityResult.Success);
+        ExternalResult(IdentitySignInResult.Success);
+
+        var result = await _controller.ExternalLoginCallback(useCookies, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<EmptyResult>());
+            Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(scheme));
+        }
+        Received.InOrder(() =>
+        {
+            _ = _userManager.AddLoginAsync(namesake, info);
+            _ = _discordLinks.TryLinkAsync(namesake, "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _ = _signInManager.ExternalLoginSignInAsync("Discord", "key-1", true, true);
+        });
+        await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_UnclaimedNamesakeAddLoginFails_ReturnsErrorWithoutNewAccount()
+    {
+        var info = Info();
+        var namesake = User.Seed(id: 1042, userName: "discordName");
+        _signInManager.GetExternalLoginInfoAsync().Returns(info);
+        _userManager.FindByNameAsync("discordName").Returns(namesake);
+        _userManager.GetLoginsAsync(namesake).Returns(new List<UserLoginInfo>());
+        _userManager.AddLoginAsync(namesake, info).Returns(IdentityResult.Failed());
+
+        var result = await _controller.ExternalLoginCallback(true, CancellationToken.None);
+
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Failed to add the Discord login to your existing account"));
+        await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _signInManager.DidNotReceiveWithAnyArgs().ExternalLoginSignInAsync(default!, default!, default, default);
+    }
+
+    private static IEnumerable<TestCaseData> ClaimedNamesakes()
+    {
+        yield return new TestCaseData(User.Seed(userName: "discordName", isDummyUser: true)).SetName("{m}(placeholder)");
+        yield return new TestCaseData(User.Seed(userName: "discordName", passwordHash: "hash")).SetName("{m}(password)");
+        yield return new TestCaseData(User.Seed(userName: "discordName", email: "x@y.z")).SetName("{m}(email)");
+        yield return new TestCaseData(User.Seed(userName: "discordName", discordUserID: 7)).SetName("{m}(discord link)");
+    }
+
+    [TestCaseSource(nameof(ClaimedNamesakes))]
+    public async Task ExternalLoginCallback_ClaimedNamesake_ReturnsAlreadyAUser(User namesake)
+    {
+        _signInManager.GetExternalLoginInfoAsync().Returns(Info(email: null));
+        ExternalResult(IdentitySignInResult.Failed);
+        _userManager.FindByNameAsync("discordName").Returns(namesake);
+        _userManager.GetLoginsAsync(namesake).Returns(new List<UserLoginInfo>());
+
+        var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
+
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Already a user"));
+        await _userManager.DidNotReceiveWithAnyArgs().AddLoginAsync(default!, default!);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_NamesakeWithAnotherLogin_ReturnsAlreadyAUser()
+    {
+        var namesake = User.Seed(userName: "discordName");
+        _signInManager.GetExternalLoginInfoAsync().Returns(Info(email: null));
+        ExternalResult(IdentitySignInResult.Failed);
+        _userManager.FindByNameAsync("discordName").Returns(namesake);
+        _userManager.GetLoginsAsync(namesake).Returns(new List<UserLoginInfo> { new("Discord", "other-key", "Discord") });
+
+        var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
+
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Already a user"));
+        await _userManager.DidNotReceiveWithAnyArgs().AddLoginAsync(default!, default!);
     }
 
     [Test]

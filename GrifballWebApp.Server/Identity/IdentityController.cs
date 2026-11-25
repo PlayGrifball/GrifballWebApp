@@ -175,6 +175,16 @@ public class IdentityController : ControllerBase
             }
             existingUser = botLinked;
         }
+        if (existingUser is null && await UnclaimedNamesakeAsync(info) is { } namesake)
+        {
+            // An imported account nobody has signed in to, under this Discord name: theirs, not a second account
+            var added = await _userManager.AddLoginAsync(namesake, info);
+            if (!added.Succeeded)
+            {
+                return this.BadRequestProblem("Failed to add the Discord login to your existing account");
+            }
+            existingUser = namesake;
+        }
 
         // Before signing in, as a bearer sign-in writes the response: the bot's Discord link, for an account without one
         if (existingUser is not null)
@@ -192,6 +202,22 @@ public class IdentityController : ControllerBase
             return this.BadRequestProblem(refusal);
         }
         return await RegisterExternalAsync(info, ct);
+    }
+
+    /// <summary>The account named as this Discord user when no one can sign in to it yet: not a placeholder, and no login,
+    /// password, email or Discord link. Null otherwise.</summary>
+    private async Task<User?> UnclaimedNamesakeAsync(ExternalLoginInfo info)
+    {
+        var name = info.Principal.FindFirstValue(ClaimTypes.Name);
+        if (string.IsNullOrEmpty(name) || await _userManager.FindByNameAsync(name) is not { } user)
+        {
+            return null;
+        }
+        if (user.IsDummyUser || user.PasswordHash is not null || user.Email is not null || user.DiscordUserID is not null)
+        {
+            return null;
+        }
+        return (await _userManager.GetLoginsAsync(user)).Count == 0 ? user : null;
     }
 
     /// <summary>Why an external sign-in was refused, or null when it found no account.</summary>
