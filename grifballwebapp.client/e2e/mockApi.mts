@@ -1035,10 +1035,8 @@ const PICTURE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><
 export function mockResponse(role: Role, path: string, query = ''): { status: number, contentType: string, body: string } | undefined {
   const routes = mockRoutes(role);
   const key = query && path + query in routes ? path + query : path;
-  if (!(key in routes) && PICTURE.test(path))
-    return { status: 200, contentType: 'image/svg+xml', body: PICTURE_SVG };
   if (!(key in routes))
-    return undefined;
+    return PICTURE.test(path) ? { status: 200, contentType: 'image/svg+xml', body: PICTURE_SVG } : undefined;
   const { body } = routes[key];
   if (body === null)
     return { status: 204, contentType: 'application/json', body: '' };

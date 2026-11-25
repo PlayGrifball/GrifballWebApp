@@ -33,8 +33,7 @@ async function watch(page: Page): Promise<{ calls: string[], errors: string[] }>
       calls.push(url.pathname);
   });
   page.on('console', message => {
-    // A player with no stored picture answers 404 and the page keeps their initial; the browser logs that 404
-    if (message.type() === 'error' && !/\/profile-picture$/.test(message.location().url))
+    if (message.type() === 'error')
       errors.push(message.text());
   });
   page.on('pageerror', error => errors.push(error.message));
