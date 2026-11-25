@@ -4,6 +4,7 @@ using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure.Jobs;
 
 namespace GrifballWebApp.Server.XboxAccounts;
@@ -84,6 +85,28 @@ public class XboxAccountsController : ControllerBase
     [HttpGet("users/{userID:int}/halo-emblem", Name = "GetUserHaloEmblem")]
     public Task<IActionResult> GetUserHaloEmblem([FromRoute] int userID, [FromServices] XboxImageService images, CancellationToken ct)
         => ImageOfUser(images, userID, XboxUserImageKind.HaloEmblem, ct);
+
+    /// <summary>The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.</summary>
+    [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    [HttpGet("xbox-accounts/{xboxUserID:long}/profile-picture", Name = "GetXboxAccountProfilePicture")]
+    public Task<IActionResult> GetProfilePicture([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
+        => ShownImage(images, xboxUserID, null, UserImageMaxAge, ct);
+
+    /// <summary>The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.</summary>
+    [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    [HttpGet("users/{userID:int}/profile-picture", Name = "GetUserProfilePicture")]
+    public async Task<IActionResult> GetUserProfilePicture([FromRoute] int userID, [FromServices] XboxImageService images, CancellationToken ct)
+        => await images.GetAccountAndChoiceOfAsync(userID, ct) is var (xboxUserID, choice)
+            ? await ShownImage(images, xboxUserID, choice, UserImageMaxAge, ct)
+            : NotFoundBriefly();
+
+    // The choice can change, so the answer is not kept for a day even for an account
+    private async Task<IActionResult> ShownImage(XboxImageService images, long xboxUserID, ProfilePictureChoice? choice, int maxAge, CancellationToken ct)
+        => await images.GetShownKindAsync(xboxUserID, choice, ct) is { } kind ? await Image(images, xboxUserID, kind, ct, maxAge) : NotFoundBriefly();
 
     private async Task<IActionResult> ImageOfUser(XboxImageService images, int userID, XboxUserImageKind kind, CancellationToken ct)
         => await images.GetXboxUserIdOfAsync(userID, ct) is { } xboxUserID ? await Image(images, xboxUserID, kind, ct, UserImageMaxAge) : NotFoundBriefly();

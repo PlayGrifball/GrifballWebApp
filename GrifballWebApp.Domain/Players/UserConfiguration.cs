@@ -13,6 +13,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
     /// <summary>Who chose a region is one the model knows.</summary>
     public static readonly string KnownRegionSource = $"RegionSource IS NULL OR RegionSource IN ({ByUser}, {BySysadmin}, {ByImport})";
 
+    /// <summary>Which Xbox image shows for a user is one the model knows.</summary>
+    public static readonly string KnownProfilePicture = $"ProfilePicture IN ({(int)ProfilePictureChoice.Emblem}, {(int)ProfilePictureChoice.GamerPicture})";
+
     /// <summary>A region is set with who chose it, and only then (User.ChooseRegion).</summary>
     public const string RegionHasSource = "(RegionID IS NULL AND RegionSource IS NULL) OR (RegionID IS NOT NULL AND RegionSource IS NOT NULL)";
 
@@ -30,10 +33,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             tb.IsTemporal();
             tb.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", KnownRegionSource);
             tb.HasCheckConstraint("CK_Auth_Users_RegionHasSource", RegionHasSource);
+            tb.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", KnownProfilePicture);
             tb.HasCheckConstraint("CK_Auth_Users_LateLeagueRecord", LateLeagueRecord);
         });
 
         entity.Property(e => e.DisplayName).HasMaxLength(User.DisplayNameMaxLength);
+        entity.Property(e => e.ProfilePicture).HasDefaultValue(ProfilePictureChoice.Emblem);
 
         // Worked out from the user name, not stored
         entity.Ignore(e => e.IsImportPlaceholder);

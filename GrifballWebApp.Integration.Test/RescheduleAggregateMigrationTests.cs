@@ -39,7 +39,7 @@ public class RescheduleAggregateMigrationTests
         // Its teams as that model had them: no placing
         await using var old = BeforeTeamArchivedPlacingContext.On(_context);
         var s = await RescheduleTestData.SeedAsync(old);
-        var commissioner = await RescheduleTestData.AddUser(_context, "commish");
+        var commissioner = await RescheduleTestData.AddUser(old, "commish");
         var other = SeasonMatch.Seed(s.Season.SeasonID, s.Away.TeamID, s.Home.TeamID, bestOf: 1);
         var third = SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1);
         _context.SeasonMatches.AddRange(other, third);

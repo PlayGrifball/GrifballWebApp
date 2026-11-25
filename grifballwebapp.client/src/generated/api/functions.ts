@@ -209,6 +209,8 @@ export type { GetRegions$Params as GetRegions$Params } from './fn/my-profile/get
 export { getRegions as getRegions } from './fn/my-profile/get-regions';
 export type { SetMyRegion$Params as SetMyRegion$Params } from './fn/my-profile/set-my-region';
 export { setMyRegion as setMyRegion } from './fn/my-profile/set-my-region';
+export type { SetMyProfilePicture$Params as SetMyProfilePicture$Params } from './fn/my-profile/set-my-profile-picture';
+export { setMyProfilePicture as setMyProfilePicture } from './fn/my-profile/set-my-profile-picture';
 export type { PreviewGamertagClaim$Params as PreviewGamertagClaim$Params } from './fn/my-profile/preview-gamertag-claim';
 export { previewGamertagClaim as previewGamertagClaim } from './fn/my-profile/preview-gamertag-claim';
 export type { GetMyGamertagClaims$Params as GetMyGamertagClaims$Params } from './fn/my-profile/get-my-gamertag-claims';
@@ -419,3 +421,15 @@ export type { GetUserHaloEmblem$Jpeg$Params as GetUserHaloEmblem$Jpeg$Params } f
 export { getUserHaloEmblem$Jpeg as getUserHaloEmblem$Jpeg } from './fn/xbox-accounts/get-user-halo-emblem-jpeg';
 export type { GetUserHaloEmblem$Webp$Params as GetUserHaloEmblem$Webp$Params } from './fn/xbox-accounts/get-user-halo-emblem-webp';
 export { getUserHaloEmblem$Webp as getUserHaloEmblem$Webp } from './fn/xbox-accounts/get-user-halo-emblem-webp';
+export type { GetXboxAccountProfilePicture$Png$Params as GetXboxAccountProfilePicture$Png$Params } from './fn/xbox-accounts/get-xbox-account-profile-picture-png';
+export { getXboxAccountProfilePicture$Png as getXboxAccountProfilePicture$Png } from './fn/xbox-accounts/get-xbox-account-profile-picture-png';
+export type { GetXboxAccountProfilePicture$Jpeg$Params as GetXboxAccountProfilePicture$Jpeg$Params } from './fn/xbox-accounts/get-xbox-account-profile-picture-jpeg';
+export { getXboxAccountProfilePicture$Jpeg as getXboxAccountProfilePicture$Jpeg } from './fn/xbox-accounts/get-xbox-account-profile-picture-jpeg';
+export type { GetXboxAccountProfilePicture$Webp$Params as GetXboxAccountProfilePicture$Webp$Params } from './fn/xbox-accounts/get-xbox-account-profile-picture-webp';
+export { getXboxAccountProfilePicture$Webp as getXboxAccountProfilePicture$Webp } from './fn/xbox-accounts/get-xbox-account-profile-picture-webp';
+export type { GetUserProfilePicture$Png$Params as GetUserProfilePicture$Png$Params } from './fn/xbox-accounts/get-user-profile-picture-png';
+export { getUserProfilePicture$Png as getUserProfilePicture$Png } from './fn/xbox-accounts/get-user-profile-picture-png';
+export type { GetUserProfilePicture$Jpeg$Params as GetUserProfilePicture$Jpeg$Params } from './fn/xbox-accounts/get-user-profile-picture-jpeg';
+export { getUserProfilePicture$Jpeg as getUserProfilePicture$Jpeg } from './fn/xbox-accounts/get-user-profile-picture-jpeg';
+export type { GetUserProfilePicture$Webp$Params as GetUserProfilePicture$Webp$Params } from './fn/xbox-accounts/get-user-profile-picture-webp';
+export { getUserProfilePicture$Webp as getUserProfilePicture$Webp } from './fn/xbox-accounts/get-user-profile-picture-webp';

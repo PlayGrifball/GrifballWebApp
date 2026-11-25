@@ -192,10 +192,10 @@ public class RecordedGameOneLinePerUserMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_RecordedGameOneLinePerUser"))) - 1]);
 
-        var (alpha, bravo) = (User.Seed(userName: "alpha"), User.Seed(userName: "bravo"));
-        _context.Users.AddRange(alpha, bravo);
-        await _context.SaveChangesAsync();
         await using var old = BeforeRecordedGameResultDetailsContext.On(_context);
+        var (alpha, bravo) = (User.Seed(userName: "alpha"), User.Seed(userName: "bravo"));
+        old.Users.AddRange(alpha, bravo);
+        await old.SaveChangesAsync();
         // Lines as a merge of two accounts that both played a game left them (one per save, so the keys are in order)
         var first = RecordedGame.Seed("archive/1");
         var second = RecordedGame.Seed("archive/2");

@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Server.XboxAccounts;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -222,6 +223,96 @@ public class XboxImageEndpointsUnitTests : SqliteGrifballContextFixture
         {
             Assert.That(none, Is.TypeOf<NotFoundResult>());
             Assert.That(unknown, Is.TypeOf<NotFoundResult>());
+        }
+    }
+
+    private async Task StoreBothAsync(long xuid)
+    {
+        await StoreAsync(xuid, XboxUserImageKind.HaloEmblem);
+        Db.XboxUserImages.Add(new XboxUserImage { XboxUserID = xuid, Kind = XboxUserImageKind.GamerPicture, Status = XboxUserImageStatus.Found, Content = [0xFF, 0xD8, 0xFF, 1], ContentType = "image/jpeg", CheckedAt = DateTime.UtcNow });
+        await Db.SaveChangesAsync();
+    }
+
+    [Test]
+    public async Task GetUserProfilePicture_GivesTheEmblem_UntilTheUserChoosesTheGamerPicture()
+    {
+        await StoreBothAsync(5);
+        var user = User.Seed(userName: "grif", xboxUser: await Db.XboxUsers.FindAsync(5L));
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+
+        var emblem = (FileContentResult)await Controller().GetUserProfilePicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+        user.ChooseProfilePicture(ProfilePictureChoice.GamerPicture);
+        await Db.SaveChangesAsync();
+        var picture = (FileContentResult)await Controller().GetUserProfilePicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(emblem.ContentType, Is.EqualTo("image/png"));
+            Assert.That(picture.ContentType, Is.EqualTo("image/jpeg"));
+        }
+    }
+
+    [Test]
+    public async Task GetUserProfilePicture_FallsBackToTheGamerPicture_WhenThereIsNoEmblem()
+    {
+        await StoreAsync(5, XboxUserImageKind.GamerPicture);
+        var user = User.Seed(userName: "grif", xboxUser: await Db.XboxUsers.FindAsync(5L));
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+
+        var result = await Controller().GetUserProfilePicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<FileContentResult>());
+    }
+
+    [Test]
+    public async Task TheProfilePictureEndpoints_AreNotFound_ForNoAccountOrNoImage()
+    {
+        var user = User.Seed(userName: "nobody");
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+
+        var noAccount = await Controller().GetUserProfilePicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+        var noImage = await Controller().GetProfilePicture(404, new XboxImageService(Db), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(noAccount, Is.TypeOf<NotFoundResult>());
+            Assert.That(noImage, Is.TypeOf<NotFoundResult>());
+        }
+    }
+
+    [Test]
+    public async Task GetProfilePicture_OfAnAccount_FollowsItsUsersChoice()
+    {
+        await StoreBothAsync(5);
+        var user = User.Seed(userName: "grif", xboxUser: await Db.XboxUsers.FindAsync(5L));
+        user.ChooseProfilePicture(ProfilePictureChoice.GamerPicture);
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+
+        var file = (FileContentResult)await Controller().GetProfilePicture(5, new XboxImageService(Db), CancellationToken.None);
+
+        Assert.That(file.ContentType, Is.EqualTo("image/jpeg"));
+    }
+
+    [Test]
+    public async Task ProfilePictureService_SavesTheChoice_OrSaysThereIsNoSuchUser()
+    {
+        var user = User.Seed(userName: "grif");
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+        var service = new GrifballWebApp.Application.Profile.ProfilePictureService(Db);
+
+        var saved = await service.Set(user.Id, ProfilePictureChoice.GamerPicture);
+        var missing = await service.Set(99999, ProfilePictureChoice.GamerPicture);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(saved, Is.True);
+            Assert.That((await Db.Users.FindAsync(user.Id))!.ProfilePicture, Is.EqualTo(ProfilePictureChoice.GamerPicture));
+            Assert.That(missing, Is.False);
         }
     }
 }

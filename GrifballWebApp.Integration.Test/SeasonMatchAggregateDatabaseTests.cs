@@ -110,8 +110,8 @@ public class SeasonMatchAggregateDatabaseTests
         await _context.SaveChangesAsync();
 
         // Reschedule requests left pending on decided matches (#297): closed, unless the match is reopened above
-        var requester = await _context.Users.FirstAsync();
-        var commissioner = (await _context.Users.OrderBy(u => u.Id).Skip(1).FirstAsync()).Id;
+        var requester = await old.Users.FirstAsync();
+        var commissioner = (await old.Users.OrderBy(u => u.Id).Skip(1).FirstAsync()).Id;
         var onDecided = await RescheduleTestData.AddReschedule(_context, rows["decided"].SeasonMatchID, requester.Id);
         var onReopened = await RescheduleTestData.AddReschedule(_context, rows["two winners"].SeasonMatchID, requester.Id);
         var onUndecided = await RescheduleTestData.AddReschedule(_context, seeded.SeasonMatch.SeasonMatchID, requester.Id);

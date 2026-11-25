@@ -1,5 +1,7 @@
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +18,7 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class MyProfileControllerUnitTests : SqliteGrifballContextFixture
 {
-    private MyProfileController Controller() => new(new RegionService(Db), null!);
+    private MyProfileController Controller() => new(new RegionService(Db), new ProfilePictureService(Db), null!);
 
     [Test]
     public async Task Regions_ReturnsTheSeededRegions()
@@ -61,6 +63,39 @@ public class MyProfileControllerUnitTests : SqliteGrifballContextFixture
         var result = await controller.SetRegion(new SetRegionRequest { RegionID = 999 }, CancellationToken.None);
 
         result.AssertProblem(StatusCodes.Status400BadRequest, "There is no such region");
+    }
+
+    [Test]
+    public async Task SetProfilePicture_RepliesUnauthorized_ForAnUnknownCaller()
+    {
+        var result = await Controller().WithAnonymousUser().SetProfilePicture(new SetProfilePictureRequest { ProfilePicture = ProfilePictureChoice.GamerPicture }, CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status401Unauthorized, "You must be signed in");
+    }
+
+    [Test]
+    public async Task SetProfilePicture_SetsTheCallersChoice_AndRefusesAnUnknownOne()
+    {
+        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        var controller = Controller().WithUser(user.Id.ToString());
+
+        var saved = await controller.SetProfilePicture(new SetProfilePictureRequest { ProfilePicture = ProfilePictureChoice.GamerPicture }, CancellationToken.None);
+        var refused = await controller.SetProfilePicture(new SetProfilePictureRequest { ProfilePicture = (ProfilePictureChoice)9 }, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.StatusOf(saved), Is.EqualTo(StatusCodes.Status204NoContent));
+            Assert.That(await Db.Users.Where(u => u.Id == user.Id).Select(u => u.ProfilePicture).SingleAsync(), Is.EqualTo(ProfilePictureChoice.GamerPicture));
+            refused.AssertProblem(StatusCodes.Status400BadRequest, "There is no such profile picture");
+        }
+    }
+
+    [Test]
+    public async Task SetProfilePicture_RepliesNotFound_ForASignedInUserWhoIsGone()
+    {
+        var result = await Controller().WithUser("987654").SetProfilePicture(new SetProfilePictureRequest { ProfilePicture = ProfilePictureChoice.GamerPicture }, CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status404NotFound, "There is no such user");
     }
 
     [Test]
