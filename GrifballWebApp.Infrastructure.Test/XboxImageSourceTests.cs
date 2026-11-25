@@ -374,6 +374,40 @@ public class XboxImageSourceTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task Emblems_AnItemWithAMissingLinkOnTheWayToItsImage_IsNotFound()
+    {
+        await AddAccountsAsync(1, 2, 3);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/nodisplay.json");
+        GivenEmblem(2, "/Inventory/Spartan/Emblems/nomedia2.json");
+        GivenEmblem(3, "/Inventory/Spartan/Emblems/nopath.json");
+        _halo.GameCmsGetItem("Inventory/Spartan/Emblems/nodisplay.json", string.Empty).Returns(Ok(new InGameItem { CommonData = new CommonItemData { DisplayPath = null! } }));
+        _halo.GameCmsGetItem("Inventory/Spartan/Emblems/nomedia2.json", string.Empty).Returns(Ok(new InGameItem { CommonData = new CommonItemData { DisplayPath = new DisplayPath { Media = null! } } }));
+        _halo.GameCmsGetItem("Inventory/Spartan/Emblems/nopath.json", string.Empty).Returns(Ok(new InGameItem
+        {
+            CommonData = new CommonItemData { DisplayPath = new DisplayPath { Media = new Media { MediaUrl = new Surprenant.Grunt.Models.HaloInfinite.ApiIngress.ApiEndpoint { Path = null! } } } },
+        }));
+
+        var report = await Source().RunEmblemsAsync();
+
+        Assert.That((report.NotFound, report.Failed), Is.EqualTo((3, 0)));
+    }
+
+    [Test]
+    public async Task Emblems_AnImageThatIsNotAnImage_IsNotFound()
+    {
+        await AddAccountsAsync(1);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/3627007-SpartanEmblem.json");
+        GivenItem("Inventory/Spartan/Emblems/3627007-SpartanEmblem.json", "progression/Inventory/Emblems/3627007-SpartanEmblem-SM.png");
+        _halo.GameCmsGetImage(Arg.Any<string>()).Returns(Ok(new byte[] { 0x3C, 0x73, 0x76, 0x67 }));
+
+        var report = await Source().RunEmblemsAsync();
+
+        Assert.That((report.Stored, report.NotFound), Is.EqualTo((0, 1)));
+    }
+
+    [Test]
     public async Task Emblems_AnItemCallThatAnswersNothing_IsFailed_AndOneThrottledWithoutAWait_WaitsAMinute()
     {
         await AddAccountsAsync(1);
