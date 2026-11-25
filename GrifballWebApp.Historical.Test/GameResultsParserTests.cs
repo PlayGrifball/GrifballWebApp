@@ -15,6 +15,8 @@ public class GameResultsParserTests
     private static readonly string[] ZedNotRead = ["fl20/Game History: results not read: Alpha v Charlie: FF Zed Win, no winner"];
     private static readonly int[] SixFiveOne = [6, 5, 1];
     private static readonly bool[] RegularThenPlayoffs = [false, true, true];
+    private static readonly bool[] OneRegularGame = [false];
+    private static readonly bool[] RegularThenPlayoffGame = [false, true];
     private static readonly string[] TableSeries = ["fl20/Game Results#2", "fl20/Game Results#2", "fl20/Game Results#5", "fl20/Game Results#8"];
     private static readonly string[] TableKeys = ["fl20/Game Results#2", "fl20/Game Results#3", "fl20/Game Results#5", "fl20/Game Results#8"];
     private static readonly bool[] ThirdIsForfeit = [false, false, true, false];
@@ -188,6 +190,35 @@ public class GameResultsParserTests
             Assert.That(games.Select(g => g.IsPlayoffs), Is.EqualTo(Enumerable.Repeat(false, 9).Concat(Enumerable.Repeat(true, 3))));
             Assert.That(warnings, Is.EqualTo(GameOneNotRead));
         }
+    }
+
+    [Test]
+    public void Series_PlayoffsFrom_MakesTheCellsBelowItsAnchorInItsColumnPlayoffGames()
+    {
+        var sheet = Sheet(
+            ["Overall Standings", "", "Week 1 Results", "", "Playoffs: Round 1"],
+            ["Team", "", "Alpha over Bravo 5-3", "", "Aftershock vs Legendary"],
+            ["Aftershock", "", "Charlie over Delta 5-1", "", "Aftershock over Legendary 5-2"],
+            ["Underrated", "", "Alpha over Charlie 5-4", "", "Underrated over Oblivion 5-3"]);
+
+        var games = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series, PlayoffsFrom = "Playoffs: Round 1" }, sheet);
+
+        Assert.That(games.Select(g => (g.Teams[0].Name, g.IsPlayoffs)), Is.EqualTo(new[]
+        {
+            ((string?)"Alpha", false), ("Charlie", false), ("Aftershock", true), ("Alpha", false), ("Underrated", true),
+        }), "Only the anchor's column from its row down is the playoffs; the weeks beside it stay regular season");
+    }
+
+    [Test]
+    public void Series_PlayoffsFrom_NotInTheSheet_LeavesEverythingRegularSeason_AndAPlayoffsRowStaysPlayoffs()
+    {
+        var missing = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series, PlayoffsFrom = "Playoffs: Round 1" },
+            Sheet(["Week 1", "Alpha over Bravo 5-3"]));
+        Assert.That(missing.Select(g => g.IsPlayoffs), Is.EqualTo(OneRegularGame));
+
+        var rowPhase = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series, PlayoffsFrom = "Playoffs: Round 1" },
+            Sheet(["Week 1", "Alpha over Bravo 5-3"], ["Playoffs", "Charlie over Delta 5-1"]));
+        Assert.That(rowPhase.Select(g => g.IsPlayoffs), Is.EqualTo(RegularThenPlayoffGame), "A phase row still decides when the anchor is absent");
     }
 
     [Test]
