@@ -110,6 +110,7 @@ public class GamertagClaimDecisionMigrationTests
             var claim = modelBuilder.Entity<GamertagClaim>();
             claim.Ignore(c => c.DecidedAt);
             claim.Ignore(c => c.DecidedByUserID);
+            modelBuilder.Entity<User>().Ignore(u => u.ProfilePicture);
         }
     }
 }

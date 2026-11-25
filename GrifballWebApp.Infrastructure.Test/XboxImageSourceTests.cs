@@ -385,7 +385,7 @@ public class XboxImageSourceTests : SqliteContextFixture
             Assert.That(report.ThrottledFor, Is.EqualTo(TimeSpan.FromSeconds(30)));
             Assert.That(await Context.XboxUserImages.CountAsync(i => i.Kind == XboxUserImageKind.HaloEmblem), Is.Zero);
         }
-        await _halo.DidNotReceiveWithAnyArgs().EconomyPlayerPublicCustomization("xuid(2)");
+        await _halo.DidNotReceive().EconomyPlayerPublicCustomization("xuid(2)");
     }
 
     [Test]
@@ -598,6 +598,7 @@ public class XboxImageSourceTests : SqliteContextFixture
         }));
         _halo.EconomyPlayerPublicCustomization("xuid(1)").Returns(Ok(new CustomizationData { Appearance = null! }));
         GivenEmblem(2, "/inventory/armor/emblems/013-001-aaaa.json");
+        _halo.GameCmsGetItem(Arg.Any<string>(), Arg.Any<string>()).Returns(Error<InGameItem>(404));
 
         var report = await Source().RunEmblemsAsync();
 
