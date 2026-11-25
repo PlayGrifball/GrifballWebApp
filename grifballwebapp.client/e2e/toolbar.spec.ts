@@ -101,3 +101,13 @@ test('the toolbar lays out its links again on signing in, at every screen size',
   }
   expect(problems).toEqual([]);
 });
+
+// The logo is drawn in shapes, so it stays sharp blown up: no picture inside it (a PNG in it was 460 kB, a slow LCP).
+test('the logo is vector shapes, with no picture inside', async ({ request }) => {
+  const response = await request.get(`${SITE}/assets/grifLogo.svg`);
+  expect(response.ok()).toBe(true);
+  const svg = await response.text();
+  expect(svg).toContain('<path');
+  expect(svg).not.toMatch(/<image\b|data:image\//);
+  expect(svg.length).toBeLessThan(400_000);
+});
