@@ -115,7 +115,8 @@ public partial class HistoricalImportService
     {
         var games = await _context.RecordedGames.Where(g => g.SeasonID == seasonID)
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
-            .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).Include(g => g.MatchedMatch!).ThenInclude(m => m.Players)
+            .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
+            .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
             .AsSplitQuery().ToListAsync(ct);
         foreach (var game in games)
         {
