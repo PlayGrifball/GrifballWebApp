@@ -775,6 +775,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(2));
 
         var report = await _service.Import(WithGames(TwoTabs("Summer League 2018", "Summer League 2018"), "sml18-fantasy/Total Stats", "sml18#1", "sml18#2"));
+        Assert.That(report.Warnings.Concat(report.Errors), Is.Empty);
 
         var merged = await Context.Seasons.SingleAsync();
         using (Assert.EnterMultipleScope())
