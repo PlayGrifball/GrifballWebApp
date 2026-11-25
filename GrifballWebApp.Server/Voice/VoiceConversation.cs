@@ -23,9 +23,10 @@ namespace GrifballWebApp.Server.Voice;
 /// <param name="play">Plays an answer (48 kHz stereo) in the channel.</param>
 /// <param name="optedIn">Whether a speaker opted in; null: <see cref="VoiceConsents"/>, in a scope of its own.</param>
 /// <param name="endOfLine">How long a speaker is quiet before their line ends; null: <see cref="VoiceLines.Silence"/>.</param>
+/// <param name="logIgnoredTranscripts">Whether a line not addressed to the bot is logged with its words (off: only its length).</param>
 public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat, IChatSpeech speech, TimeProvider time,
     ILogger<VoiceConversation> log, Func<short[], CancellationToken, Task> play, Func<ulong, Task<bool>>? optedIn = null,
-    TimeSpan? endOfLine = null)
+    TimeSpan? endOfLine = null, bool logIgnoredTranscripts = false)
 {
     private readonly Func<ulong, Task<bool>> _optedIn = optedIn ?? (async speaker =>
     {
@@ -197,6 +198,8 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
         {
             var ignored = words == 0 ? VoiceTelemetry.NothingHeard : VoiceTelemetry.NotAddressed;
             Ignored(log, speaker, seconds, words, transcribed, ignored);
+            if (logIgnoredTranscripts && words > 0)
+                IgnoredTranscript(log, speaker, transcript);
             return ignored;
         }
         var outcome = VoiceTelemetry.Answered;
@@ -267,6 +270,9 @@ public sealed partial class VoiceConversation(IServiceScopeFactory scopes, GrifC
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Voice: {Speaker}'s line ({Seconds:F1} s of audio, {Words} words, transcribed in {Transcribe} ms) got no answer: {Outcome}")]
     private static partial void Ignored(ILogger log, ulong speaker, double seconds, int words, int transcribe, string outcome);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Voice: {Speaker}'s ignored line was heard as {Transcript}")]
+    private static partial void IgnoredTranscript(ILogger log, ulong speaker, string transcript);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Voice: {Speaker} (signed in: {SignedIn}) is answered by {Model}")]
     private static partial void Answerer(ILogger log, ulong speaker, bool signedIn, string model);

@@ -122,7 +122,8 @@ public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider se
     {
         var conversation = new VoiceConversation(services.GetRequiredService<IServiceScopeFactory>(), services.GetRequiredService<GrifChat>(),
             services.GetRequiredService<IChatSpeech>(), services.GetRequiredService<TimeProvider>(),
-            services.GetRequiredService<ILogger<VoiceConversation>>(), link.PlayAsync, endOfLine: options?.EndOfLine);
+            services.GetRequiredService<ILogger<VoiceConversation>>(), link.PlayAsync, endOfLine: options?.EndOfLine,
+            logIgnoredTranscripts: options?.LogIgnoredTranscripts ?? false);
         link.Wants = conversation.Wants;
         link.Heard += conversation.Hear;
         return conversation;
@@ -158,5 +159,6 @@ public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider se
     }
 }
 
-/// <summary>The voice chat's settings: how long a speaker is quiet before their line is over (Speech:EndOfLineMilliseconds).</summary>
-public sealed record VoiceOptions(TimeSpan EndOfLine);
+/// <summary>The voice chat's settings: how long a speaker is quiet before their line is over (Speech:EndOfLineMilliseconds), and whether
+/// ignored lines are logged with their words (Speech:LogIgnoredTranscripts, off by default: for debugging the wake word).</summary>
+public sealed record VoiceOptions(TimeSpan EndOfLine, bool LogIgnoredTranscripts = false);

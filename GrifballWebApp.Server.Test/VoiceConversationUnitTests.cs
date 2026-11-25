@@ -126,7 +126,8 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
             await _services.DisposeAsync();
     }
 
-    private VoiceConversation Conversation(IChatClient model, bool modelConfigured = true, Func<ulong, Task<bool>>? optedIn = null)
+    private VoiceConversation Conversation(IChatClient model, bool modelConfigured = true, Func<ulong, Task<bool>>? optedIn = null,
+        bool logIgnoredTranscripts = false)
     {
         _services = new ServiceCollection()
             .AddSingleton<GrifballContext>(Db)
@@ -146,7 +147,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         {
             _played.Add(pcm);
             return Task.CompletedTask;
-        }, optedIn);
+        }, optedIn, logIgnoredTranscripts: logIgnoredTranscripts);
     }
 
     private async Task OptedIn(ulong discordUserId)
@@ -241,6 +242,21 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
             Assert.That(exported.Counted(VoiceTelemetry.NotAddressed), Is.EqualTo(1L));
             Assert.That(exported.Spans.Select(s => s.OperationName), Is.EquivalentTo(NotAddressedSpans));
             Assert.That(exported.Spans.Single(s => s.OperationName == "voice.answer").GetTagItem("grif.voice.outcome"), Is.EqualTo(VoiceTelemetry.NotAddressed));
+        }
+    }
+
+    [Test]
+    public async Task ALineNotAddressedToTheBot_IsLoggedWithItsWords_WhenIgnoredTranscriptsAreLogged()
+    {
+        await OptedIn(Speaker);
+        _speech.Transcripts.Enqueue("Greg what's my record");
+
+        await SaysALine(Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi")), logIgnoredTranscripts: true));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_log.Messages, Has.One.Contains("got no answer").And.Contains("not_addressed"));
+            Assert.That(_log.Messages, Has.One.Contains("heard as").And.Contains("Greg what's my record"));
         }
     }
 
