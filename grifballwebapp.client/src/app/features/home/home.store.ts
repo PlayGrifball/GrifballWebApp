@@ -26,6 +26,9 @@ export class HomeStore {
   readonly pastSeasons = this._pastSeasons.asReadonly();
   private readonly _total = signal(0);
   readonly total = this._total.asReadonly();
+  /** A page of past seasons has arrived (or the first failed to): the table is a skeleton until then. */
+  private readonly _pastSeasonsLoaded = signal(false);
+  readonly pastSeasonsLoaded = this._pastSeasonsLoaded.asReadonly();
 
   constructor() {
     // A season or a match of one changed: the events as they are now come with it, as this viewer may see them (the
@@ -67,8 +70,12 @@ export class HomeStore {
       tap(result => {
         this._total.set(result.totalCount);
         this._pastSeasons.set(result.results);
+        this._pastSeasonsLoaded.set(true);
       }),
-      catchError(() => EMPTY),
+      catchError(() => {
+        this._pastSeasonsLoaded.set(true);
+        return EMPTY;
+      }),
     );
   }
 }

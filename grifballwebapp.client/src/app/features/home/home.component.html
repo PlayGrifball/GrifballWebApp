@@ -1,7 +1,9 @@
-<div class="hud-page" [class.hud-waiting]="!eventsLoaded()">
+<div class="hud-page">
 
   <section class="home-hero hud-panel hud-panel--chamfer-lg" aria-labelledby="home-hero-title">
-    @if (hero(); as hero) {
+    @if (!eventsLoaded()) {
+      <app-skeleton label="the current season" [count]="4" />
+    } @else if (hero(); as hero) {
       @let event = hero.event;
       <span class="hud-kicker">&gt; {{hero.kicker}}</span>
       <h1 id="home-hero-title" class="hud-title hud-title--xl"><a class="home-hero__title-link" [routerLink]="['/season', event.seasonID]">{{event.name}}</a></h1>
@@ -116,6 +118,9 @@
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row [animate.enter]="rowEnter()" *matRowDef="let row; columns: displayedColumns;"></tr>
       </table>
+      @if (!pastSeasonsLoaded()) {
+        <app-skeleton label="past seasons" shape="table" [header]="false" [count]="10" [columns]="4" />
+      }
       <mat-paginator [pageSizeOptions]="[10, 20, 100]" showFirstLastButtons [length]="total()"
                      aria-label="Select page" />
     </div>

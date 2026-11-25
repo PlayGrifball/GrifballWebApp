@@ -293,15 +293,17 @@ describe('Home page events', () => {
       expect(links).toEqual(['/season/4', '/season/4?tab=schedule']);
     });
 
-    it('keeps the page hidden until the events are in, then shows it', () => {
+    it('shows skeletons for the hero and the past seasons until each is in', () => {
       fixture.detectChanges();
-      const page = () => el().querySelector('.hud-page')!;
-      expect(page().classList).toContain('hud-waiting');
+      const skeletons = () => Array.from(el().querySelectorAll('app-skeleton')).map(s => s.textContent!.trim());
+      expect(skeletons()).toEqual(['Loading the current season…', 'Loading past seasons…']);
       http.expectOne('/api/events').flush('x', { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+      expect(skeletons()).toEqual(['Loading past seasons…']);
+      expect(el().textContent).toContain('There are no current or upcoming events');
       http.match(r => r.url === '/api/seasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
       fixture.detectChanges();
-      expect(page().classList).not.toContain('hud-waiting');
-      expect(el().textContent).toContain('There are no current or upcoming events');
+      expect(skeletons()).toEqual([]);
     });
 
     it('says so when there are no events', () => {

@@ -8,6 +8,7 @@ import { RouterModule } from '@angular/router';
 import { combineLatest, of, switchMap, tap } from 'rxjs';
 import { eventTitles, isUnderWay, SeasonEvent, seasonPhaseSteps } from '@shared/seasonEvents';
 import { pageNow } from '@shared/pageNow';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SeasonPhaseBarComponent } from '@shared/seasonPhaseBar/seasonPhaseBar.component';
 import { LateLeagueQueueComponent } from '../lateLeague';
 import { rowEnterAnimation } from '@shared/rowEnterAnimation';
@@ -28,6 +29,7 @@ import { HomeStore } from './home.store';
         MatRow,
         MatTableModule,
         LateLeagueQueueComponent,
+        SkeletonComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [HomeStore],
@@ -46,7 +48,7 @@ export class HomeComponent implements OnInit {
    * pageNow): decides which events are under way, and so whether Sign up is offered. */
   readonly now = pageNow();
   readonly currentAndFutureEvents = this.store.events;
-  /** The events have loaded (or failed to): the page is shown then, in one go. */
+  /** The events have loaded (or failed to): the hero panel is a skeleton until then. */
   readonly eventsLoaded = this.store.eventsLoaded;
   /** The event the hero panel is about, with its status line and sentence; null without events. */
   readonly hero = computed(() => {
@@ -60,6 +62,7 @@ export class HomeComponent implements OnInit {
   });
   readonly total = this.store.total;
   readonly pastSeasons = this.store.pastSeasons;
+  readonly pastSeasonsLoaded = this.store.pastSeasonsLoaded;
   paginator = viewChild(MatPaginator);
   paginator$ = toObservable(this.paginator);
   pageSize: WritableSignal<number> = signal(10);

@@ -156,6 +156,13 @@ describe('HomeStore', () => {
       expect(store.pastSeasons()).toEqual([shown]);
       expect(store.total()).toBe(11);
     });
+
+    it('is loaded once a page arrives, or the first one fails', () => {
+      expect(store.pastSeasonsLoaded()).toBeFalse();
+      store.loadPastSeasons(10, 1, undefined, undefined).subscribe();
+      http.expectOne(r => r.url === '/api/seasons').flush(null, { status: 500, statusText: 'Server Error' });
+      expect(store.pastSeasonsLoaded()).toBeTrue();
+    });
   });
 
   describe('live', () => {
