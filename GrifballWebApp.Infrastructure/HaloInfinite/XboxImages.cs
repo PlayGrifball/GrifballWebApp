@@ -366,7 +366,7 @@ public class XboxImageSource
             if (!first)
                 await Delay(gap, ct);
             first = false;
-            if (await EmblemAsync(xuid, mapping.Result, downloaded, itemImages, report, ct))
+            if (await EmblemAsync(xuid, mapping.Result, gap, downloaded, itemImages, report, ct))
                 break;
             await _context.SaveChangesAsync(ct);
         }
@@ -374,7 +374,7 @@ public class XboxImageSource
     }
 
     /// <summary>The emblem of one account. Returns true when Halo throttled the run (nothing recorded for the account).</summary>
-    private async Task<bool> EmblemAsync(long xuid, Dictionary<string, Dictionary<string, Surprenant.Grunt.Models.HaloInfinite.EmblemImageAssets>> mapping,
+    private async Task<bool> EmblemAsync(long xuid, Dictionary<string, Dictionary<string, Surprenant.Grunt.Models.HaloInfinite.EmblemImageAssets>> mapping, TimeSpan gap,
         Dictionary<string, DownloadedImage?> downloaded, Dictionary<string, string?> itemImages, XboxImagesReport report, CancellationToken ct)
     {
         HaloApiResultContainer<Surprenant.Grunt.Models.HaloInfinite.CustomizationData, HaloApiErrorContainer> response;
@@ -418,7 +418,7 @@ public class XboxImageSource
         {
             try
             {
-                var (itemPath, throttled) = await ItemImagePathAsync(emblem.EmblemPath, itemImages, report);
+                var (itemPath, throttled) = await ItemImagePathAsync(emblem.EmblemPath, itemImages, report, gap, ct);
                 if (throttled)
                 {
                     report.Checked--;
@@ -451,10 +451,11 @@ public class XboxImageSource
     /// The image of an emblem the mapping lacks (a special or promotional one): the preview its own item gives. Null when the item
     /// has none. One item call an emblem for the run. Throws when the call failed.
     /// </summary>
-    private async Task<(string? Path, bool Throttled)> ItemImagePathAsync(string emblemPath, Dictionary<string, string?> itemImages, XboxImagesReport report)
+    private async Task<(string? Path, bool Throttled)> ItemImagePathAsync(string emblemPath, Dictionary<string, string?> itemImages, XboxImagesReport report, TimeSpan gap, CancellationToken ct)
     {
         if (itemImages.TryGetValue(emblemPath, out var known))
             return (known, false);
+        await Delay(gap, ct);
         var response = await _halo.GameCmsGetItem(emblemPath.TrimStart('/'), string.Empty);
         if (ThrottleOf(response) is { } wait)
         {
@@ -493,7 +494,8 @@ public class XboxImageSource
         }
         try
         {
-            if (!downloaded.TryGetValue(path, out var image))
+            var key = (ofItem ? "item:" : "mapping:") + path;
+            if (!downloaded.TryGetValue(key, out var image))
             {
                 var response = ofItem ? await _halo.GameCmsGetImage(path) : await _halo.GameCmsWaypointGetImage(path);
                 if (ThrottleOf(response) is { } wait)
@@ -502,7 +504,7 @@ public class XboxImageSource
                     return true;
                 }
                 image = EmblemImageOf(response);
-                downloaded[path] = image;
+                downloaded[key] = image;
             }
             if (image is null)
                 throw new InvalidOperationException("The emblem image isn't a PNG, JPEG or WebP, or is too large");

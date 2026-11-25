@@ -38,8 +38,8 @@ export class ProfileIdentityStore {
   private readonly _savingPicture = signal(false);
   readonly savingPicture = this._savingPicture.asReadonly();
 
-  /** Saves which of the user's Xbox images shows for them; `saved` runs once it is. */
-  setProfilePicture(profilePicture: ProfilePictureChoice, saved: () => void): void {
+  /** Saves which of the user's Xbox images shows for them; `saved` runs once it is, `failed` when it is not. */
+  setProfilePicture(profilePicture: ProfilePictureChoice, saved: () => void, failed: () => void = () => undefined): void {
     this._savingPicture.set(true);
     this.api.setMyProfilePicture({ body: { profilePicture } }).subscribe({
       next: () => {
@@ -50,6 +50,7 @@ export class ProfileIdentityStore {
       error: (error: HttpErrorResponse) => {
         this._savingPicture.set(false);
         this.snackBar.open(problemText(error, "Couldn't save your profile picture."), 'Close');
+        failed();
       },
     });
   }

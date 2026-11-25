@@ -40,8 +40,8 @@ export class ProfileIdentityComponent {
     this.store.setRegion(value ? Number(value) : null, () => this.changed.emit());
   }
 
-  setProfilePicture(value: string): void {
-    this.store.setProfilePicture(value as ProfilePictureChoice, () => this.changed.emit());
+  setProfilePicture(select: HTMLSelectElement): void {
+    this.store.setProfilePicture(select.value as ProfilePictureChoice, () => this.changed.emit(), () => (select.value = this.profilePicture()));
   }
 
   readonly gamertag = signal('');
