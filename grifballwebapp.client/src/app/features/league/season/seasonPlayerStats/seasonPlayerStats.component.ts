@@ -50,6 +50,8 @@ export class SeasonPlayerStatsComponent {
   readonly phase = signal<StatPhase>('all');
   /** The phase column, for one phase's rows: All adds the phases together. */
   readonly showPhase = computed(() => this.phase() !== 'all');
+  /** Once per load: a keystroke in the filter does not regroup the rows. */
+  private readonly combined = computed(() => combinePhases(this.stats()));
   readonly query = signal('');
   /** null: the server's order. */
   readonly sort = signal<{ column: StatSortColumn, direction: SortDirection } | null>(null);
@@ -63,7 +65,7 @@ export class SeasonPlayerStatsComponent {
   readonly shown = computed(() => {
     const phase = this.phase();
     const query = this.query().trim().toLowerCase();
-    const inPhase = phase === 'all' ? combinePhases(this.stats()) : this.stats().filter(p => p.isPlayoffs === (phase === 'playoffs'));
+    const inPhase = phase === 'all' ? this.combined() : this.stats().filter(p => p.isPlayoffs === (phase === 'playoffs'));
     const rows = inPhase.filter(p =>
       !query || p.gamertag.toLowerCase().includes(query) || (p.teamName?.toLowerCase().includes(query) ?? false));
     const sort = this.sort();

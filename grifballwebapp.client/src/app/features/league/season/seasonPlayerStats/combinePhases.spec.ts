@@ -52,6 +52,23 @@ describe('combinePhases', () => {
     expect(lines.map(l => l.gamertag)).toEqual(['Max', 'Amy', 'Zed']);
   });
 
+  it("rounds halves to even, as the server's decimal does", () => {
+    const [line] = combinePhases([
+      stat({ gamesPlayed: 8, wins: 3, losses: 5, kills: 4, deaths: 4 }),
+      stat({ isPlayoffs: true, gamesPlayed: 8, wins: 2, losses: 6, kills: 5, deaths: 4 }),
+    ]);
+    // 9 / 8 = 1.125 -> 1.12; 5 / 16 = 31.25 % -> 31.2
+    expect(line).toEqual(jasmine.objectContaining({ kdRatio: 1.12, winPercent: 31.2 }));
+    // 3 / 8 = 0.375 -> 0.38 (the odd half goes up)
+    const [odd] = combinePhases([stat({ kills: 1, deaths: 4 }), stat({ isPlayoffs: true, kills: 2, deaths: 4 })]);
+    expect(odd.kdRatio).toBe(0.38);
+  });
+
+  it('orders gamertags by code point, not by locale', () => {
+    const lines = combinePhases([stat({ userID: 1, gamertag: 'amy' }), stat({ userID: 2, gamertag: 'Zed' })]);
+    expect(lines.map(l => l.gamertag)).toEqual(['Zed', 'amy']);
+  });
+
   it('keeps a traded player apart by team, most goals first', () => {
     const lines = combinePhases([
       stat({ teamID: 40, goals: 2 }),

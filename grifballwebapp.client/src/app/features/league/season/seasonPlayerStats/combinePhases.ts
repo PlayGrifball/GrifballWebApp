@@ -1,6 +1,15 @@
 import type { SeasonPlayerStatDto } from '@api/models';
 
-const round = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places;
+/** num / den to the given places, halves to even as the server's decimal Math.Round does (exact, on integers). */
+function ratio(num: number, den: number, places: number): number {
+  const scale = 10 ** places;
+  const scaled = num * scale;
+  let whole = Math.floor(scaled / den);
+  const twiceRest = 2 * (scaled - whole * den);
+  if (twiceRest > den || (twiceRest === den && whole % 2 === 1))
+    whole++;
+  return whole / scale;
+}
 
 /** Null when no row records it, else the total of the rows that do. */
 function sumRecorded(rows: SeasonPlayerStatDto[], pick: (p: SeasonPlayerStatDto) => number | null): number | null {
@@ -30,10 +39,10 @@ function combine(rows: SeasonPlayerStatDto[]): SeasonPlayerStatDto {
     wins,
     losses: sum(rows, p => p.losses),
     // As the server's StatMath counts them
-    winPercent: gamesPlayed > 0 ? round(100 * wins / gamesPlayed, 1) : null,
+    winPercent: gamesPlayed > 0 ? ratio(100 * wins, gamesPlayed, 1) : null,
     kills,
     deaths,
-    kdRatio: deaths > 0 ? round(kills / deaths, 2) : null,
+    kdRatio: deaths > 0 ? ratio(kills, deaths, 2) : null,
     kdSpread: kills - deaths,
     goals: sum(rows, p => p.goals),
     assists: sum(rows, p => p.assists),
@@ -51,6 +60,9 @@ function combine(rows: SeasonPlayerStatDto[]): SeasonPlayerStatDto {
   };
 }
 
+/** Ordinal, as the server's ThenBy on the gamertag: the browser's locale does not change the order. */
+const compareOrdinal = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
 /**
  * A player's regular season and playoffs as one line per team they played for, most goals first (then kills, then
  * gamertag), as the server orders a phase.
@@ -66,5 +78,5 @@ export function combinePhases(rows: SeasonPlayerStatDto[]): SeasonPlayerStatDto[
       groups.set(key, [p]);
   }
   return [...groups.values()].map(combine)
-    .sort((a, b) => b.goals - a.goals || b.kills - a.kills || a.gamertag.localeCompare(b.gamertag));
+    .sort((a, b) => b.goals - a.goals || b.kills - a.kills || compareOrdinal(a.gamertag, b.gamertag));
 }
