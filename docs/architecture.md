@@ -9,9 +9,9 @@ fails a PR that breaks a rule, naming the type that crosses and what it reaches.
 Dependencies point inwards only: **Domain ← Application ← Infrastructure ← Historical ← Server**.
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph outside["Outside the layers"]
-        direction LR
+        direction TB
         Migrations["Migrations<br/>SqlServer · Postgres · Sqlite"]
         Seeder["Seeder"]
         Convert["Convert"]
