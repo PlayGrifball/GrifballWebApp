@@ -12,12 +12,21 @@ export class ExcelStore {
   /** The default sheets; none until they arrive. */
   private readonly _defaults = signal<SheetDto[]>([]);
   readonly defaults = this._defaults.asReadonly();
+  /** The default sheets have arrived (or failed to): the page shows a skeleton until then. */
+  private readonly _loaded = signal(false);
+  readonly loaded = this._loaded.asReadonly();
 
   /** Loads the default sheets; a failure is logged, and leaves none. */
   loadDefaults(): void {
     this.excel.defaultSheetInfo().subscribe({
-      next: sheets => this._defaults.set(sheets),
-      error: error => this.log.error('Excel: failed to load the default sheets', error),
+      next: sheets => {
+        this._defaults.set(sheets);
+        this._loaded.set(true);
+      },
+      error: error => {
+        this._loaded.set(true);
+        this.log.error('Excel: failed to load the default sheets', error);
+      },
     });
   }
 }

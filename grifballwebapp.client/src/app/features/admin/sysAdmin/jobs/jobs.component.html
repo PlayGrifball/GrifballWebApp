@@ -87,6 +87,8 @@
     </div>
   } @else if (failed()) {
     <p class="hud-empty hud-empty--error" role="alert">The jobs couldn't be loaded.</p>
+  } @else {
+    <app-skeleton label="the jobs" shape="table" [count]="8" [columns]="6" />
   }
 
   @if (selected(); as job) {

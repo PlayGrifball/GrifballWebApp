@@ -33,7 +33,9 @@ describe('EditUserStore', () => {
   it('loads the user, their lockout end read and kept as sent', () => {
     store.userID.use(signal(5));
     TestBed.tick();
+    expect(store.pending()).toBeTrue();
     http.expectOne('/api/users/5').flush(user(5, '9999-12-31T23:59:59.9999999+00:00'));
+    expect(store.pending()).toBeFalse();
     expect(store.loaded()!.user.userID).toBe(5);
     expect(store.loaded()!.user.lockoutEnd).not.toBeNull();
     expect(store.loaded()!.rawLockoutEnd).toBe('9999-12-31T23:59:59.9999999+00:00');
@@ -54,6 +56,15 @@ describe('EditUserStore', () => {
     userID.set(7);
     TestBed.tick();
     http.expectOne('/api/users/7').flush('x', { status: 500, statusText: 'Server Error' });
+    expect(store.loaded()).toBeNull();
+  });
+
+  it('is no longer pending when the user fails to load', () => {
+    spyOn(console, 'error');
+    store.userID.use(signal(5));
+    TestBed.tick();
+    http.expectOne('/api/users/5').flush(null, { status: 500, statusText: 'Server Error' });
+    expect(store.pending()).toBeFalse();
     expect(store.loaded()).toBeNull();
   });
 

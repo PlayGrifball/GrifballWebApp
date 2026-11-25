@@ -47,6 +47,14 @@ describe('MergesComponent', () => {
     fixture.detectChanges();
   }
 
+  it('holds the list with a skeleton while a page loads', async () => {
+    expect(el().querySelector('app-skeleton')!.textContent).toContain('Loading merges');
+    listRequest(1).flush({ totalCount: 1, results: [merge(1)] });
+    await settle();
+    expect(el().querySelector('app-skeleton')).toBeNull();
+    expect(rows()).toHaveSize(1);
+  });
+
   it('lists the merges, newest first, with why and what they changed', async () => {
     listRequest(1).flush({ totalCount: 2, results: [merge(2, { trigger: 'Manual', reason: null, triggeredByUserName: null, triggeredByUserID: null }), merge(1, { trigger: 'Unknown' })] });
     await settle();

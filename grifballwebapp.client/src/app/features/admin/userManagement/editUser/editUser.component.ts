@@ -13,6 +13,7 @@ import { LinkedAccountsComponent } from '@shared/linkedAccounts/linkedAccounts.c
 import { provideDatePickers } from '@shared/datePickers';
 import { REGIONS } from '@shared/regions';
 import { EditUserStore } from './editUser.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 @Component({
     selector: 'app-edit-user',
@@ -25,7 +26,8 @@ import { EditUserStore } from './editUser.store';
         ErrorMessageComponent,
         MtxDatetimepickerModule,
         MatCheckboxModule,
-        LinkedAccountsComponent
+        LinkedAccountsComponent,
+        SkeletonComponent,
     ],
     templateUrl: './editUser.component.html',
     styleUrl: './editUser.component.scss',
@@ -34,6 +36,8 @@ import { EditUserStore } from './editUser.store';
 })
 export class EditUserComponent {
   private readonly store = inject(EditUserStore);
+  /** The user is on the way: the form is a skeleton. */
+  readonly pending = this.store.pending;
 
   /** The :userID of the route. Angular keeps this page when only it changes, so a new one resets the form to that user. */
   readonly userID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });

@@ -129,6 +129,8 @@
       <p class="hud-empty hud-empty--error" role="alert">The jobs couldn't be loaded.</p>
     } @else if (jobsLoaded() && !jobRows().length) {
       <p class="hud-empty">No jobs yet.</p>
+    } @else if (!jobsLoaded()) {
+      <app-skeleton label="jobs" shape="table" [count]="5" [columns]="7" />
     } @else {
       <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Jobs"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
         <table class="hi-table">

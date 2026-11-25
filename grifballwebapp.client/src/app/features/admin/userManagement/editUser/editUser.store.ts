@@ -24,6 +24,9 @@ export class EditUserStore {
   /** The user as loaded; null while loading, for no user, or when there is no such user. */
   private readonly _loaded = signal<LoadedUser | null>(null);
   readonly loaded = this._loaded.asReadonly();
+  /** The user is on the way: the form is a skeleton until they arrive (or fail to). */
+  private readonly _pending = signal(false);
+  readonly pending = this._pending.asReadonly();
 
   constructor() {
     effect(() => {
@@ -48,15 +51,20 @@ export class EditUserStore {
       this.log.warn('Edit user: no user ID in the route');
       return;
     }
+    this._pending.set(true);
     this.userManagement.getUser({ userID })
       .pipe(whileCurrent(userID, this.userID.value))
       .subscribe({
         next: raw => {
+          this._pending.set(false);
           const user = parseUser(raw);
           if (user)
             this._loaded.set({ user, rawLockoutEnd: raw.lockoutEnd ?? null });
         },
-        error: error => this.log.error('Failed to load the user', error),
+        error: error => {
+          this._pending.set(false);
+          this.log.error('Failed to load the user', error);
+        },
       });
   }
 }
