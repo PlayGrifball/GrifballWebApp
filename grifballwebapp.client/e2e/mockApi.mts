@@ -228,6 +228,7 @@ const profileStats = (userID: number, gamertag: string | null): ProfileStatsDto 
   isDummyUser: false,
   regionID: 2,
   regionName: 'Central North America',
+  profilePicture: 'Emblem',
   pastGamertags: [],
   championships: [
     {
