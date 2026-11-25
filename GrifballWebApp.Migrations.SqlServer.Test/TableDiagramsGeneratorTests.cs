@@ -20,7 +20,7 @@ public class TableDiagramsGeneratorTests
     private sealed class BlobRow { public byte[] Id { get; set; } = []; }
     private sealed class Address { public string Street { get; set; } = ""; }
     private sealed class Owner { public int Id { get; set; } public Address Home { get; set; } = new(); }
-    private sealed class Animal { public int Id { get; set; } }
+    private class Animal { public int Id { get; set; } }
     private sealed class Dog : Animal { public string Name { get; set; } = ""; }
 
     private sealed class ModelContext(DbContextOptions<ModelContext> options, Action<ModelBuilder> build) : DbContext(options)
