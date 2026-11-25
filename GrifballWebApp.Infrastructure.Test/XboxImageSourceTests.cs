@@ -356,6 +356,24 @@ public class XboxImageSourceTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task Emblems_AnItemWithNoCommonData_OrNoMedia_IsNotFound()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/bare.json");
+        GivenEmblem(2, "/Inventory/Spartan/Emblems/nomedia.json");
+        _halo.GameCmsGetItem("Inventory/Spartan/Emblems/bare.json", string.Empty).Returns(Ok(new InGameItem { CommonData = null! }));
+        _halo.GameCmsGetItem("Inventory/Spartan/Emblems/nomedia.json", string.Empty).Returns(Ok(new InGameItem
+        {
+            CommonData = new CommonItemData { DisplayPath = new DisplayPath { Media = new Media { MediaUrl = null! } } },
+        }));
+
+        var report = await Source().RunEmblemsAsync();
+
+        Assert.That((report.NotFound, report.Failed), Is.EqualTo((2, 0)));
+    }
+
+    [Test]
     public async Task Emblems_AnItemHalo404s_IsNotFound_AndOneItemCallFailing_IsFailed()
     {
         await AddAccountsAsync(1, 2);

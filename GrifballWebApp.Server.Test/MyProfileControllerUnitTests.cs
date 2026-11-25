@@ -91,6 +91,14 @@ public class MyProfileControllerUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task SetProfilePicture_RepliesNotFound_ForASignedInUserWhoIsGone()
+    {
+        var result = await Controller().WithUser("987654").SetProfilePicture(new SetProfilePictureRequest { ProfilePicture = ProfilePictureChoice.GamerPicture }, CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status404NotFound, "There is no such user");
+    }
+
+    [Test]
     public async Task PreviewClaim_RepliesUnauthorized_ForAnUnknownCaller()
     {
         var controller = Controller().WithAnonymousUser();
