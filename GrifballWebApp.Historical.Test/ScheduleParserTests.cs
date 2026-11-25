@@ -151,13 +151,16 @@ public class ScheduleParserTests
 
         var matches = Parse(new ScheduleTab { Sheet = "Schedule", Year = 2023 }, sheet);
 
-        Assert.That(matches.Select(m => (m.PlayedAt, m.First, m.Second)), Is.EqualTo(new[]
+        using (Assert.EnterMultipleScope())
         {
-            (new DateTime(2023, 3, 27, 23, 0, 0, DateTimeKind.Utc), "Dhlyn", "ActiveHate"),
-            (new DateTime(2023, 3, 27, 0, 0, 0, DateTimeKind.Utc), "ActiveHate", "Dhlyn"),
-            (new DateTime(2023, 4, 2, 2, 0, 0, DateTimeKind.Utc), "Mavbrid", "oDhmon"),
-        }), "Monday the 27th, Saturday April 1st; the legend right of Saturday is no day's");
-        Assert.That(matches[^1].Day, Is.EqualTo(new DateTime(2023, 4, 1)), "Its calendar day, though 10 pm is the next day in UTC");
+            Assert.That(matches.Select(m => (m.PlayedAt, m.First, m.Second)), Is.EqualTo(new[]
+            {
+                (new DateTime(2023, 3, 27, 23, 0, 0, DateTimeKind.Utc), "Dhlyn", "ActiveHate"),
+                (new DateTime(2023, 3, 27, 0, 0, 0, DateTimeKind.Utc), "ActiveHate", "Dhlyn"),
+                (new DateTime(2023, 4, 2, 2, 0, 0, DateTimeKind.Utc), "Mavbrid", "oDhmon"),
+            }), "Monday the 27th, Saturday April 1st; the legend right of Saturday is no day's");
+            Assert.That(matches[^1].Day, Is.EqualTo(new DateTime(2023, 4, 1)), "Its calendar day, though 10 pm is the next day in UTC");
+        }
     }
 
     [Test]
