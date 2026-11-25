@@ -100,7 +100,7 @@ public static partial class RosterParser
                 : [row[column]];
             foreach (var part in parts)
             {
-                if (columns[column] is null && captains && ArchiveCells.Gamertag(part).Gamertag is { Length: > 0 } captain)
+                if (columns[column] is null && captains && DraftParser.Player(part) is { Length: > 0 } captain)
                     columns[column] = teams.NamedPlayer(captain);
                 teams.Add(part, columns[column]);
             }
@@ -147,7 +147,7 @@ public static partial class RosterParser
 
         public void Add(string? gamertag, string? team)
         {
-            var (clean, _, _) = ArchiveCells.Gamertag(gamertag);
+            var clean = DraftParser.Player(gamertag);
             if (clean.Length == 0 || string.IsNullOrWhiteSpace(team))
                 return;
             clean = NamedPlayer(clean);

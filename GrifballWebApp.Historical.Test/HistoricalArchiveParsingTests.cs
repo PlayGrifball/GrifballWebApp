@@ -197,6 +197,7 @@ public class HistoricalArchiveParsingTests
     [TestCase("x", "Time", null)]
     [TestCase("12", "Time (m)", 720)]
     [TestCase("2:05", "Minutes", 125)]
+    [TestCase("2,899.00", "Time Played (Seconds)", 2899)]
     [TestCase(null, "Time", null)]
     [TestCase("x", "Minutes", null)]
     public void DurationSeconds(string? text, string header, int? seconds)
@@ -976,7 +977,8 @@ public class HistoricalArchiveParsingTests
         var sheet = Read(Workbook(("Pro Team Chart", [
             Row("Team Name:", "The Menz Fan Club (MFC)"),
             Row("Captain", "Hells/Scullen"),
-            Row("1st Round:", "Solace")]))).Sheet("Pro Team Chart")!;
+            Row("1st Round:", "Solace"),
+            Row("2nd Round:", "Kuanic (zahils)")]))).Sheet("Pro Team Chart")!;
         var names = new Dictionary<string, string> { ["Hells"] = "Hells Angel cx", ["Scullen"] = "Scullen cx", ["Solace"] = "Solace VIII" };
 
         var teams = RosterParser.Parse(sheet, null, names);
@@ -986,6 +988,7 @@ public class HistoricalArchiveParsingTests
             [HistoricalKeys.Normalize("Hells Angel cx")] = "The Menz Fan Club (MFC)",
             [HistoricalKeys.Normalize("Scullen cx")] = "The Menz Fan Club (MFC)",
             [HistoricalKeys.Normalize("Solace VIII")] = "The Menz Fan Club (MFC)",
+            [HistoricalKeys.Normalize("Kuanic")] = "The Menz Fan Club (MFC)",
         }));
     }
 

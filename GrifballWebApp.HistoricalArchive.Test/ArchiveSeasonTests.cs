@@ -372,6 +372,8 @@ public class ArchiveSeasonTests
                 Teams = s.Teams.Count,
                 Ranked = s.Teams.Count(t => t.ArchivedRank != null),
                 Stats = context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID),
+                MinGames = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => (int?)p.GamesPlayed),
+                MinSeconds = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => p.TotalSecondsPlayed),
             })
             .SingleOrDefaultAsync();
         if (season is null)
@@ -381,6 +383,8 @@ public class ArchiveSeasonTests
         {
             Assert.That(season.SeasonName, Is.EqualTo("Summer League 2026 (Minor)"));
             Assert.That((season.Teams, season.Ranked, season.Stats), Is.EqualTo((6, 6, 24)));
+            Assert.That(season.MinGames, Is.GreaterThan(0));
+            Assert.That(season.MinSeconds, Is.GreaterThan(60m));
         }
     }
 
@@ -399,6 +403,9 @@ public class ArchiveSeasonTests
                 Ranked = s.Teams.Count(t => t.ArchivedRank != null),
                 Picks = s.Teams.SelectMany(t => t.TeamPlayers).Count(p => p.DraftRound != null),
                 Stats = context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID),
+                MinGames = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => (int?)p.GamesPlayed),
+                MinDeaths = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => (int?)p.Deaths),
+                MinSeconds = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => p.TotalSecondsPlayed),
             })
             .SingleOrDefaultAsync();
         if (season is null)
@@ -410,6 +417,9 @@ public class ArchiveSeasonTests
             Assert.That((season.Teams, season.Captains, season.Ranked), Is.EqualTo((expectedTeams, expectedTeams, expectedTeams)));
             Assert.That(season.Picks, Is.GreaterThanOrEqualTo(minPicks));
             Assert.That(season.Stats, Is.GreaterThan(0));
+            Assert.That(season.MinGames, Is.GreaterThan(0));
+            Assert.That(season.MinDeaths, Is.GreaterThan(0));
+            Assert.That(season.MinSeconds, Is.GreaterThan(60m));
         }
     }
 }
