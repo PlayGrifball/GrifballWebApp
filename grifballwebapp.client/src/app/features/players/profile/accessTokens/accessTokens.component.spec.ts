@@ -78,6 +78,13 @@ describe('AccessTokensComponent', () => {
     expect(fixture.componentInstance.scopeLabel('Unknown' as never)).toBe('Unknown');
   });
 
+  it('shows a skeleton until the tokens arrive', async () => {
+    expect(el().querySelector('app-skeleton')!.textContent).toContain('Loading your tokens');
+    http.expectOne(listUrl).flush([]);
+    await settle();
+    expect(el().querySelector('app-skeleton')).toBeNull();
+  });
+
   it('says when there are none', async () => {
     http.expectOne(listUrl).flush([]);
     await settle();

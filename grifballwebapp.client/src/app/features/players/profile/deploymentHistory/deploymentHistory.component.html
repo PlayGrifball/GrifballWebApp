@@ -9,6 +9,14 @@
       <button type="button" class="hud-btn" (click)="reload()">Retry</button>
     </div>
   </section>
+} @else if (firstLoad()) {
+  <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="deployment-heading">
+    <div class="section-header">
+      <span class="hud-kicker">&gt; Service deployments</span>
+      <h2 id="deployment-heading" class="hud-h2">Deployment History</h2>
+    </div>
+    <app-skeleton label="the deployment history" shape="cards" [count]="4" height="72px" cardWidth="100%" />
+  </section>
 } @else if (history().length) {
   <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="deployment-heading">
     <div class="section-header">

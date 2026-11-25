@@ -49,6 +49,8 @@
     <p class="hud-empty hud-empty--error" role="alert">Your tokens couldn't be loaded.</p>
   } @else if (loaded() && rows().length === 0) {
     <p class="hud-muted">None yet.</p>
+  } @else if (!loaded()) {
+    <app-skeleton label="your tokens" [count]="3" />
   } @else {
     <ul class="at-tokens">
       @for (t of rows(); track t.id) {

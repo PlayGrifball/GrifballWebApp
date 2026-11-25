@@ -1,5 +1,5 @@
 @let match = seasonMatch();
-<div class="hud-page" [class.hud-waiting]="!store.ready()">
+<div class="hud-page">
 
   <div class="lobby-head">
     <div class="hud-page-head">
@@ -35,12 +35,16 @@
           <span>{{match?.homeTeamName}}</span><span class="hud-label">Red</span>
         </a>
       }
+      @if (!store.ready()) {
+        <app-skeleton label="the red roster" [count]="5" />
+      } @else {
       @for (player of store.homeRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           <app-profile-picture [userID]="player.userID" [name]="player.gamertag" />
           <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag || 'Unknown Spartan'}}</a></span>
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
         </div>
+      }
       }
     </div>
 
@@ -73,12 +77,16 @@
           <span class="hud-label">Blue</span><span>{{match?.awayTeamName}}</span>
         </a>
       }
+      @if (!store.ready()) {
+        <app-skeleton label="the blue roster" [count]="5" />
+      } @else {
       @for (player of store.awayRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
           <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag || 'Unknown Spartan'}}</a></span>
           <app-profile-picture [userID]="player.userID" [name]="player.gamertag" />
         </div>
+      }
       }
     </div>
   </section>
@@ -105,7 +113,9 @@
         }
       </div>
 
-      @if (!match?.reportedGames?.length) {
+      @if (!store.pageLoaded()) {
+        <app-skeleton label="games played" shape="table" [count]="6" [columns]="6" />
+      } @else if (!match?.reportedGames?.length) {
         <p class="hud-empty">There are no reported games for this season match</p>
       } @else if (activeScoreboard(); as board) {
         <div class="lobby-scoreboard">
@@ -269,7 +279,7 @@
     </div>
     @switch (store.possibleMatchesState()) {
     @case ('loading') {
-    <p class="hud-muted" role="status">Looking for games…</p>
+    <app-skeleton label="games for these teams" shape="cards" [count]="2" height="200px" cardWidth="320px" />
     }
     @case ('error') {
     <p class="hud-muted" role="alert">Could not look for games right now.</p>

@@ -598,19 +598,19 @@ describe('SeasonMatchComponent reporting', () => {
     expect(button('SUBMIT')).toBeUndefined();
   });
 
-  it('says it is looking for games until the search answers, then lists them', () => {
+  it('holds the games found with a skeleton until the search answers, then lists them', () => {
     httpMock.expectOne('/api/season-matches/7').flush(page());
     fixture.detectChanges();
     httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
     fixture.detectChanges();
     const section = () => (fixture.nativeElement as HTMLElement).querySelector('.lobby-possibles')!;
-    expect(section().textContent).toContain('Looking for games…');
+    expect(section().textContent).toContain('Loading games for these teams…');
     expect(section().getAttribute('aria-busy')).toBe('true');
 
     httpMock.expectOne('/api/season-matches/7/possible-matches').flush([possible]);
     httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
-    expect(section().textContent).not.toContain('Looking for games…');
+    expect(section().textContent).not.toContain('Loading games for these teams…');
     expect(section().textContent).toContain('abc-123: 50 - 49');
     expect(section().getAttribute('aria-busy')).toBe('false');
   });
@@ -1349,17 +1349,22 @@ describe('SeasonMatchComponent lobby', () => {
     expect(el().querySelector('.lobby-possibles')!.textContent).toContain('No games found for these teams yet.');
   });
 
-  it('keeps the page hidden until the match and both rosters are in', () => {
-    const pageEl = () => el().querySelector('.hud-page')!;
-    expect(pageEl().classList).toContain('hud-waiting');
+  it('holds the rosters and the games with skeletons until the match and both rosters are in', () => {
+    fixture.detectChanges();
+    const skeletons = () => Array.from(el().querySelectorAll('app-skeleton')).map(s => s.textContent!.trim());
+    expect(skeletons()).toContain('Loading games played…');
     load(page());
     expect(fixture.componentInstance.store.ready()).toBeFalse();
+    expect(skeletons()).not.toContain('Loading games played…');
     httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
     fixture.detectChanges();
-    expect(pageEl().classList).toContain('hud-waiting');
+    expect(skeletons()).toContain('Loading the red roster…');
+    expect(skeletons()).toContain('Loading the blue roster…');
     httpMock.expectOne('/api/teams/20').flush(team('Away', 'Tucker', 'Caboose'));
     fixture.detectChanges();
-    expect(pageEl().classList).not.toContain('hud-waiting');
+    expect(skeletons()).not.toContain('Loading the red roster…');
+    expect(skeletons()).not.toContain('Loading the blue roster…');
+    expect(roster('home').length).toBeGreaterThan(0);
   });
 
   it('shows the page for a match that does not exist, or that could not be loaded', () => {

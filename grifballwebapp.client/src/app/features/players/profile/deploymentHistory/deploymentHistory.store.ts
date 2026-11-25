@@ -23,6 +23,8 @@ export class DeploymentHistoryStore {
   readonly deployments = this.resource.value;
   /** The last load failed, also while a retry is on its way: the error and its Retry stay up until it answers. */
   readonly failed = computed(() => this.resource.error() !== undefined);
+  /** The history is on its way: the panel is a skeleton (most players have one, so it doesn't appear from nothing). */
+  readonly firstLoad = this.resource.firstLoad;
 
   /** Loads the history again (after it failed to). */
   reload(): void {

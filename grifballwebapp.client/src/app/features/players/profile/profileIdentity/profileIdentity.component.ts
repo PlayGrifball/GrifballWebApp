@@ -4,6 +4,7 @@ import type { ProfilePictureChoice } from '@api/models';
 import { REGIONS } from '@shared/regions';
 import { SeasonLinksComponent } from '@shared/seasonLinks/seasonLinks.component';
 import { ProfileIdentityStore } from './profileIdentity.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /** A date input's "yyyy-MM-dd" as the API takes it (midnight UTC), or null when empty. */
 function apiDay(value: string): string | null {
@@ -16,7 +17,7 @@ function apiDay(value: string): string | null {
  */
 @Component({
   selector: 'app-profile-identity',
-  imports: [DatePipe, SeasonLinksComponent],
+  imports: [DatePipe, SeasonLinksComponent, SkeletonComponent],
   templateUrl: './profileIdentity.component.html',
   styleUrl: './profileIdentity.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

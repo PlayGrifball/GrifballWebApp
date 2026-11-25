@@ -5,6 +5,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import type { AccessTokenDto, AccessTokenScope } from '@api/models';
 import { AccessTokensStore } from './accessTokens.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /** How long a new token may last, in days: the server allows 1 to 365. */
 export const TOKEN_LIFETIMES = [30, 90, 365] as const;
@@ -23,7 +24,7 @@ export const TOKEN_SCOPES: ReadonlyArray<{ value: AccessTokenScope; label: strin
  */
 @Component({
   selector: 'app-access-tokens',
-  imports: [DatePipe, MatCheckboxModule, ReactiveFormsModule],
+  imports: [DatePipe, MatCheckboxModule, ReactiveFormsModule, SkeletonComponent],
   templateUrl: './accessTokens.component.html',
   styleUrl: './accessTokens.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -48,6 +48,14 @@ describe('ProfileIdentityComponent', () => {
     fixture.detectChanges();
   }
 
+  it('holds your claims with a skeleton until they arrive', async () => {
+    expect(el().querySelector('app-skeleton')!.textContent).toContain('Loading your claims');
+    http.expectOne(claimsUrl).flush([]);
+    await settle();
+    expect(el().querySelector('app-skeleton')).toBeNull();
+    expect(el().textContent).toContain('None yet.');
+  });
+
   it('shows the region, labelled, and saves a new one', async () => {
     http.expectOne(claimsUrl).flush([]);
     await settle();

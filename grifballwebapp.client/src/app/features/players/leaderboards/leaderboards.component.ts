@@ -9,6 +9,7 @@ import type { Board } from './board';
 import { ALL_FORMATS, LeaderboardsStore } from './leaderboards.store';
 import { PlayerSearchComponent } from './playerSearch/playerSearch.component';
 import { PlayerSpotlightComponent } from './playerSpotlight/playerSpotlight.component';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 type MetricBoard = Exclude<Board, 'rings' | 'dynasties'>;
 
@@ -24,7 +25,7 @@ const isMetric = (board: Board): board is MetricBoard => board in METRICS;
 /** The all-time leaderboards over every season: titles, dynasties and career totals, and a player's standing on each. */
 @Component({
   selector: 'app-leaderboards',
-  imports: [MatFormFieldModule, MatSelectModule, RouterLink, PlayerSearchComponent, PlayerSpotlightComponent],
+  imports: [MatFormFieldModule, MatSelectModule, RouterLink, PlayerSearchComponent, PlayerSpotlightComponent, SkeletonComponent],
   templateUrl: './leaderboards.component.html',
   styleUrl: './leaderboards.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

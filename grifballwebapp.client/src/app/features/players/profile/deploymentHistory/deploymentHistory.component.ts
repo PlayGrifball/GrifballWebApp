@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { deploymentFinishLabel } from '../../api/deploymentFinish';
 import type { DeploymentHistoryDto } from '@api/models';
 import { DeploymentHistoryStore } from './deploymentHistory.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /**
  * A profile's deployment history: each season the player played, newest first, with their team, whether they
@@ -11,7 +12,7 @@ import { DeploymentHistoryStore } from './deploymentHistory.store';
  */
 @Component({
   selector: 'app-deployment-history',
-  imports: [RouterLink],
+  imports: [RouterLink, SkeletonComponent],
   templateUrl: './deploymentHistory.component.html',
   styleUrl: './deploymentHistory.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +26,7 @@ export class DeploymentHistoryComponent {
   readonly game = input<string>('all');
 
   readonly failed = this.store.failed;
+  readonly firstLoad = this.store.firstLoad;
   readonly history = computed<DeploymentHistoryDto[]>(() => {
     const lines = this.store.deployments();
     const game = this.game();

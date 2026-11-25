@@ -4,7 +4,7 @@
 </div>
 
 @if (loading()) {
-  <p class="hud-muted empty-state">Loading commendations&hellip;</p>
+  <app-skeleton label="commendations" shape="cards" [count]="6" height="110px" cardWidth="200px" />
 } @else if (failed()) {
   <p class="hud-muted empty-state">Couldn't load commendations.</p>
 } @else if (data()?.commendations?.length) {
