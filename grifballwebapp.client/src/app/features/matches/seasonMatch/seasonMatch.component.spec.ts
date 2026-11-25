@@ -160,7 +160,12 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     fixture.detectChanges();
   });
 
-  const load = (dto: SeasonMatchPageDto): void => loadPage(httpMock, fixture, dto);
+  const load = (dto: SeasonMatchPageDto): void => {
+    loadPage(httpMock, fixture, dto);
+    // The rosters are not under test here: the lobby shows once they answer
+    httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
+    fixture.detectChanges();
+  };
 
   it('drops the previous match, and its title, while another loads', () => {
     load(page({ homeTeamName: 'Old Home' }));
@@ -199,10 +204,11 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     expect(vods.id()).toBe(7);
   });
 
-  it('shows the regular season text, no bracket links and no date before the page loads', () => {
+  it('shows the regular season text, no bracket links and no time before the page loads: the lobby is a skeleton, guessing none', () => {
     expect(text()).toContain('Regular Season Match');
     expect(links()).toEqual([]);
-    expect(text()).toContain('Not scheduled');
+    expect(text()).toContain('Loading the match…');
+    expect(text()).not.toContain('Not scheduled');
     expect(text()).not.toContain('Starts');
   });
 
@@ -1409,6 +1415,7 @@ describe('SeasonMatchComponent lobby', () => {
   it('is a lobby until a result is in, then a match report with the score', () => {
     load(page());
     httpMock.match(() => true).filter(r => !r.cancelled).forEach(r => r.flush(null));
+    fixture.detectChanges();
     expect(el().querySelector('h1')!.textContent).toBe('Pre-game lobby');
     expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('-:-');
 
