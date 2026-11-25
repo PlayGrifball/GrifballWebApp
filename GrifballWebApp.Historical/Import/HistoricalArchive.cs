@@ -266,7 +266,8 @@ public class RecordedGameInput
     public required string SourceKey { get; init; }
     /// <summary>A GameVersion slug: halo3, reach, reach-dash, halo4, halo5, infinite.</summary>
     public required string GameVersion { get; set; }
-    public DateTime? PlayedAt { get; init; }
+    /// <summary>When it was played; a result list's game has the day its season's schedule gives it, if any.</summary>
+    public DateTime? PlayedAt { get; set; }
     public string? Map { get; init; }
     public string? Gametype { get; init; }
     public bool IsPlayoffs { get; init; }

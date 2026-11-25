@@ -53,6 +53,8 @@ public sealed partial class HistoricalArchiveBuilder
     private readonly List<LadderRead> _ladders = [];
     /// <summary>Each result list's games, put under their season once every season is known.</summary>
     private readonly List<(string SourceId, int? Year, SeasonDefaults? Defaults, ResultsTab Tab, List<RecordedGameInput>? Games)> _results = [];
+    /// <summary>Each schedule tab's matches, which date their season's series once every result list's games are in.</summary>
+    private readonly List<(string SourceId, ScheduleTab Tab, List<CalendarMatch>? Matches)> _schedules = [];
     /// <summary>Each bracket tab's series, put on their season's regular season once every season (and its standings) is known.</summary>
     private readonly List<(string SourceId, BracketTab Tab, ArchiveBracket? Bracket)> _brackets = [];
     /// <summary>Each normalized bracket table's series, keyed by season source ID.</summary>
@@ -134,11 +136,13 @@ public sealed partial class HistoricalArchiveBuilder
             _brackets.Add((id, tab, BracketParser.Parse(id, tab, workbook, _warnings)));
     }
 
-    /// <summary>The result lists of a source (<see cref="AddResults"/> puts their games under their seasons).</summary>
+    /// <summary>The result lists and schedules of a source (<see cref="AddResults"/> puts their games under their seasons, <see cref="AddSchedules"/> dates them).</summary>
     private void AddResultLists(string id, int? year, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
         foreach (var tab in config.Results)
             _results.Add((id, year, config.Season, tab, workbook.Sheet(tab.Sheet) is { } resultsSheet ? GameResultsParser.Parse(id, tab, resultsSheet, _warnings) : null));
+        foreach (var tab in config.Schedules)
+            _schedules.Add((id, tab, workbook.Sheet(tab.Sheet) is { } scheduleSheet ? ScheduleParser.Parse(id, tab, scheduleSheet, _warnings) : null));
     }
 
     /// <summary>The snapshot's workbook, the sheets its config reads; null (a warning said why) when it can't be read.</summary>
@@ -291,6 +295,7 @@ public sealed partial class HistoricalArchiveBuilder
         AddDrafts();
         AddResults();
         NameGameSides();
+        AddSchedules();
         AddBrackets();
         AddAwards();
 

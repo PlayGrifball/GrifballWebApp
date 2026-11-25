@@ -403,4 +403,30 @@ public class ArchiveSeasonTests
                 Has.Some.EqualTo("Koi No Yokan").IgnoreCase, "The Finals tab is the grand final");
         }
     }
+
+    /// <summary>
+    /// Seasons whose matches are dated by their schedule (#603): most of their matches have the day the calendar gives them
+    /// (a match the calendar doesn't list, or names a team of no rule finds, stays undated).
+    /// </summary>
+    [TestCase("Spring League 2019", 70)]
+    [TestCase("Spring League 2017 (Pro)", 35)]
+    [TestCase("Spring League 2017 (Amateur)", 75)]
+    [TestCase("Fall League 2020 (PC)", 35)]
+    [TestCase("Winter League 2021 (Legacy)", 30)]
+    [TestCase("Winter League 2021 (Rookie)", 18)]
+    [TestCase("Spring League 2020 (Halo 5 Console)", 20)]
+    [TestCase("Spring League 2020 (Reach Console)", 9)]
+    [TestCase("Summer League 2020", 1)]
+    public async Task AScheduledSeason_HasItsMatchesDays(string seasonName, int dated)
+    {
+        await using var context = Archive.NewContext();
+        var matches = await context.SeasonMatches.AsNoTracking()
+            .Where(m => m.Season.HistoricalSourceID != null && m.Season.SeasonName == seasonName && m.BracketMatch == null)
+            .Select(m => m.ScheduledTime)
+            .ToListAsync();
+        if (matches.Count == 0)
+            Assert.Ignore($"{seasonName} isn't in this copy of the archive, or has no matches");
+
+        Assert.That(matches.Count(m => m != null), Is.GreaterThanOrEqualTo(dated), $"{matches.Count} matches");
+    }
 }
