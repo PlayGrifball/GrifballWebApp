@@ -1,6 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import type { TeamDto, TeamLiveDto, TeamPageMatchDto } from '@api/models';
+import type { TeamLiveDto, TeamPageMatchDto } from '@api/models';
 import { TeamService } from '@api/services/team.service';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { fromApiDate } from '@shared/apiDates';

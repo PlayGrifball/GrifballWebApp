@@ -194,8 +194,9 @@ describe('EditUserComponent', () => {
     http.expectOne('/api/users/16/external-logins').flush({ hasPassword: true, logins: [] });
   });
 
-  it('fills the form once the user arrives, without a manual detectChanges', async () => {
-    await fixture.whenStable();
+  it('fills the form once the user arrives, without a manual detectChanges after it', async () => {
+    // Not whenStable before the answer: a resource still loading keeps the app unstable
+    fixture.detectChanges();
     http.expectOne('/api/users/15').flush(structuredClone(user));
     await fixture.whenStable();
 
@@ -265,11 +266,12 @@ describe('EditUserComponent', () => {
     expect(http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).request.body.lockoutEnd).toBeNull();
   });
 
-  it('keeps the empty form for a user that does not exist (204)', async () => {
+  it('says there is no such user (204), with no form to save one', async () => {
     fixture.detectChanges();
     http.expectOne('/api/users/15').flush(null, { status: 204, statusText: 'No Content' });
     await fixture.whenStable();
-    expect(el().querySelector<HTMLInputElement>('input[name="userName"]')!.value).toBe('');
+    expect(el().textContent).toContain('No such user.');
+    expect(el().querySelector('form')).toBeNull();
   });
 
   it("edits the region, which the import then keeps", async () => {
