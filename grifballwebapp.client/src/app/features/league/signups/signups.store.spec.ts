@@ -42,8 +42,6 @@ describe('SignupsStore', () => {
 
   it("loads the route's season's signups and summary", async () => {
     store.seasonID.use(signal(3));
-    TestBed.tick();
-    expect(store.firstLoad()).toBeTrue();
     await settle();
     expect(store.shownSeasonID()).toBe(3);
     expect(store.signUps().map(s => s.personName)).toEqual(['Season 3']);

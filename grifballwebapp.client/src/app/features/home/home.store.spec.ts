@@ -170,6 +170,8 @@ describe('HomeStore', () => {
       jasmine.clock().tick(LIVE_RELOAD_MS);
       TestBed.tick();
       http.expectOne('/api/events').flush(pushed.events);
+      await Promise.resolve();
+      expect(store.events()).toEqual(pushed.events);
     });
   });
 });

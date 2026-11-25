@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, linkedSignal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import type { SeasonListItemDto, SeasonsLiveDto } from '@api/models';
 import { HomeService } from '@api/services/home.service';
@@ -9,6 +9,7 @@ import { resourceView } from '@shared/resourceView';
 import { StoreInput } from '@shared/storeInput';
 import { liveData } from '@core/live/liveReload';
 import { LiveTopics } from '@core/live/liveTopics';
+import { tap } from 'rxjs';
 
 /** Which page of past seasons the table shows, and how they are sorted (none: the server's order). */
 export interface PastSeasonsPage {
@@ -31,6 +32,9 @@ export class HomeStore {
   /** The events are on their way: the hero and the objectives are skeletons. A failure shows none. */
   readonly eventsFirstLoad = this.loadedEvents.firstLoad;
 
+  /** The page shown: the last one answered, kept while the next loads, and when it fails (the table pages on). */
+  private readonly shown = signal<PaginationResult<SeasonListItemDto> | null>(null);
+
   /** The page of past seasons the table asks for: the component's paginator and sort. */
   readonly page = new StoreInput<PastSeasonsPage>();
 
@@ -45,14 +49,9 @@ export class HomeStore {
         pageSize: params.pageSize,
         sortDirection: sorted ? apiSortDirection(params.sortDirection) : undefined,
         sortColumn: sorted ? params.sortColumn : undefined,
-      });
+      }).pipe(tap(page => this.shown.set(page)));
     },
   }), null);
-  /** The page shown: the last one answered, kept while the next loads, and when it fails (the table pages on). */
-  private readonly shown = linkedSignal<PaginationResult<SeasonListItemDto> | null, PaginationResult<SeasonListItemDto> | null>({
-    source: () => this.pages.value(),
-    computation: (page, previous) => page ?? previous?.value ?? null,
-  });
   readonly pastSeasons = computed(() => this.shown()?.results ?? []);
   readonly total = computed(() => this.shown()?.totalCount ?? 0);
   /** No page shown yet and one on its way: the table's rows are a skeleton. */
