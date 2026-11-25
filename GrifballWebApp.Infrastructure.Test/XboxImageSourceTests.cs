@@ -909,7 +909,7 @@ public class XboxImageSourceTests : SqliteContextFixture
             Context.XboxUserImages.Add(new XboxUserImage { XboxUserID = xuid, Kind = kind, Status = XboxUserImageStatus.Found, Content = Png, ContentType = "image/png", CheckedAt = now });
         var chose = GrifballWebApp.Domain.Players.User.Seed(userName: "chose", xboxUser: Context.XboxUsers.Local.First(x => x.XboxUserID == 4));
         var user = GrifballWebApp.Domain.Players.User.Seed(userName: "user", xboxUser: Context.XboxUsers.Local.First(x => x.XboxUserID == 1));
-        user.ChooseProfilePicture(GrifballWebApp.Domain.Shared.ProfilePictureChoice.GamerPicture);
+        user.ChooseProfilePicture(ProfilePictureChoice.GamerPicture);
         Context.Users.AddRange(chose, user);
         await Context.SaveChangesAsync();
         var service = new XboxImageService(Context);
@@ -917,7 +917,7 @@ public class XboxImageSourceTests : SqliteContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await service.GetShownKindAsync(1), Is.EqualTo(XboxUserImageKind.GamerPicture), "their user chose it");
-            Assert.That(await service.GetShownKindAsync(1, GrifballWebApp.Domain.Shared.ProfilePictureChoice.Emblem), Is.EqualTo(XboxUserImageKind.HaloEmblem), "a choice given wins");
+            Assert.That(await service.GetShownKindAsync(1, ProfilePictureChoice.Emblem), Is.EqualTo(XboxUserImageKind.HaloEmblem), "a choice given wins");
             Assert.That(await service.GetShownKindAsync(2), Is.EqualTo(XboxUserImageKind.GamerPicture), "no user and no emblem");
             Assert.That(await service.GetShownKindAsync(3), Is.EqualTo(XboxUserImageKind.HaloEmblem), "no user: the emblem");
             Assert.That(await service.GetShownKindAsync(4), Is.Null, "nothing stored");
