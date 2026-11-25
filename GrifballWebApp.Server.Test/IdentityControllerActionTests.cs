@@ -373,6 +373,23 @@ public class IdentityControllerActionTests
         await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
     }
 
+    [Test]
+    public async Task ExternalLoginCallback_UnclaimedNamesakeAddLoginFails_ReturnsErrorWithoutNewAccount()
+    {
+        var info = Info();
+        var namesake = User.Seed(id: 1042, userName: "discordName");
+        _signInManager.GetExternalLoginInfoAsync().Returns(info);
+        _userManager.FindByNameAsync("discordName").Returns(namesake);
+        _userManager.GetLoginsAsync(namesake).Returns(new List<UserLoginInfo>());
+        _userManager.AddLoginAsync(namesake, info).Returns(IdentityResult.Failed());
+
+        var result = await _controller.ExternalLoginCallback(true, CancellationToken.None);
+
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Failed to add the Discord login to your existing account"));
+        await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _signInManager.DidNotReceiveWithAnyArgs().ExternalLoginSignInAsync(default!, default!, default, default);
+    }
+
     private static IEnumerable<TestCaseData> ClaimedNamesakes()
     {
         yield return new TestCaseData(User.Seed(userName: "discordName", isDummyUser: true)).SetName("{m}(placeholder)");
