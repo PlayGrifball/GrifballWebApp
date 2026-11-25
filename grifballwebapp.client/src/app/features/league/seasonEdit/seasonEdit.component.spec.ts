@@ -240,15 +240,16 @@ describe('SeasonEditComponent', () => {
     expect(availability.getAttribute('href')).toBe('/seasonAvailability/7');
   });
 
-  it('empties the form for a new season, and drops the previous season when it arrives late', async () => {
+  it('empties the form for a new season, and drops the previous season when it arrives late', () => {
     const late = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(late);
     fixture.detectChanges();
 
     fixture.componentRef.setInput('seasonID', '0');
-    await render();
+    // Synchronous: right after a cancelled load, whenStable would wait on it
+    fixture.detectChanges();
     late.next(season());
-    await render();
+    fixture.detectChanges();
 
     expect(component.model().seasonID).toBeUndefined();
     expect(component.model().seasonName).toBeUndefined();

@@ -70,13 +70,14 @@ describe('EditUserStore', () => {
     expect(console.error).toHaveBeenCalledWith('Failed to load the user', jasmine.anything());
   });
 
-  it("is not waiting once the route has no user, even with a user's request on its way", async () => {
+  it("is not waiting once the route has no user, even with a user's request on its way", () => {
     const userID = signal(5);
     store.userID.use(userID);
     TestBed.tick();
     const late = http.expectOne('/api/users/5');
     userID.set(0);
-    await settle();
+    // Synchronous: right after a cancelled load, whenStable would wait on it
+    TestBed.tick();
     expect(late.cancelled).toBeTrue();
     expect(store.firstLoad()).toBeFalse();
   });
