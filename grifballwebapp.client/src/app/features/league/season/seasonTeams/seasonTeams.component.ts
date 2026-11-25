@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { AccountService } from '@core/auth/account.service';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent } from '@shared/dataNotice/dataNotice.component';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SeasonTeamsStore } from './seasonTeams.store';
 
 @Component({
@@ -18,6 +19,7 @@ import { SeasonTeamsStore } from './seasonTeams.store';
     FormsModule,
     SeasonTabsComponent,
     BackfilledBannerComponent,
+    SkeletonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [SeasonTeamsStore],

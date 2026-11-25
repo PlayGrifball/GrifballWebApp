@@ -25,6 +25,9 @@ export class SignupsStore {
 
   private readonly _signUps = signal<SignupResponseDto[]>([]);
   readonly signUps = this._signUps.asReadonly();
+  /** The signups of the season shown have arrived (or failed to): the table is a skeleton until then. */
+  private readonly _loaded = signal(false);
+  readonly loaded = this._loaded.asReadonly();
   private readonly _summary = signal<SeasonSummaryDto | null>(null);
   readonly summary = this._summary.asReadonly();
   /** The season shown: the route's, or the current season's ID once known. */
@@ -44,6 +47,7 @@ export class SignupsStore {
 
   private show(routeSeasonID: number): void {
     this._signUps.set([]);
+    this._loaded.set(false);
     this._summary.set(null);
     this._shownSeasonID.set(routeSeasonID);
     if (routeSeasonID !== 0) {
@@ -64,8 +68,14 @@ export class SignupsStore {
     const seasonID = this.shownSeasonID();
     this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({ next: s => this._summary.set(s), error: () => {} });
     this.signups.getSignups({ seasonID }).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({
-      next: result => this._signUps.set(result),
-      error: error => this.log.error('Failed to load the signups', error),
+      next: result => {
+        this._signUps.set(result);
+        this._loaded.set(true);
+      },
+      error: error => {
+        this._loaded.set(true);
+        this.log.error('Failed to load the signups', error);
+      },
     });
   }
 }

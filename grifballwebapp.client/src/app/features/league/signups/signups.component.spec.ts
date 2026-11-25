@@ -71,6 +71,19 @@ describe('SignupsComponent', () => {
     expect(el.querySelector('table')).not.toBeNull();
   });
 
+  it('shows a skeleton in place of the table until the signups arrive', () => {
+    const answer = new Subject<SignupResponseDto[]>();
+    api.getSignups.and.returnValue(answer);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-skeleton')).not.toBeNull();
+    expect(el.querySelector('table')).toBeNull();
+    answer.next([signup('Grif')]);
+    fixture.detectChanges();
+    expect(el.querySelector('app-skeleton')).toBeNull();
+    expect(rows().length).toBe(1);
+  });
+
   it('loads the signups for the season in the route', () => {
     fixture.detectChanges();
     expect(api.getSignups).toHaveBeenCalledWith({ seasonID: 3 });

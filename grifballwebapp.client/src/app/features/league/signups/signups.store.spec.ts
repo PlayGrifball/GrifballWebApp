@@ -73,5 +73,20 @@ describe('SignupsStore', () => {
     TestBed.tick();
     expect(store.signUps()).toEqual([]);
     expect(console.error).toHaveBeenCalled();
+    expect(store.loaded()).toBeTrue();
+  });
+
+  it("is loaded once the signups arrive, and not again until a new season's do", () => {
+    const answer = new Subject<SignupResponseDto[]>();
+    api.getSignups.and.callFake(p => p.seasonID === 4 ? answer : of([signup('Simmons')]));
+    const seasonID = signal(3);
+    store.seasonID.use(seasonID);
+    TestBed.tick();
+    expect(store.loaded()).toBeTrue();
+    seasonID.set(4);
+    TestBed.tick();
+    expect(store.loaded()).toBeFalse();
+    answer.next([]);
+    expect(store.loaded()).toBeTrue();
   });
 });

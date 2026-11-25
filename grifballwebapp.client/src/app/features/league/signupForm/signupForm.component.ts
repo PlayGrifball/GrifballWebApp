@@ -12,6 +12,7 @@ import {MatCheckboxModule} from '@angular/material/checkbox';
 import { AvailabilityTableComponent } from './availabilityTable/availabilityTable.component';
 import { AccountService } from '@core/auth/account.service';
 import { eventTitles, isUnderWay } from '@shared/seasonEvents';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SignupFormStore } from './signupForm.store';
 
 @Component({
@@ -27,6 +28,7 @@ import { SignupFormStore } from './signupForm.store';
         AvailabilityTableComponent,
         RouterLink,
         DatePipe,
+        SkeletonComponent,
     ],
     templateUrl: './signupForm.component.html',
     styleUrl: './signupForm.component.scss',

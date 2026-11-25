@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { missing } from '../season/seasonSummary';
 import { SignupsStore } from './signups.store';
 
@@ -13,6 +14,7 @@ import { SignupsStore } from './signups.store';
         MatTableModule,
         SeasonTabsComponent,
         DataNoticeComponent,
+        SkeletonComponent,
         RouterLink,
         DatePipe,
     ],
@@ -25,6 +27,7 @@ export class SignupsComponent {
   private readonly store = inject(SignupsStore);
 
   readonly signUps = this.store.signUps;
+  readonly loaded = this.store.loaded;
   readonly summary = this.store.summary;
   /** A backfilled or ended season without signups: the page says so instead of an empty table. */
   readonly noSignups = computed(() => missing(this.summary(), s => s.signupCount));

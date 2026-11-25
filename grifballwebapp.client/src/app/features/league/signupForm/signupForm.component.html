@@ -1,4 +1,4 @@
-<div class="hud-page hud-page--narrow enlist" [class.hud-waiting]="!loaded()">
+<div class="hud-page hud-page--narrow enlist">
 
   <form class="enlist-form hud-panel hud-panel--chamfer-lg" #signupForm="ngForm" (ngSubmit)="onSubmit()">
     <div class="hud-page-head">
@@ -6,6 +6,9 @@
       <h1 class="hud-title hud-title--md">Season Signup</h1>
     </div>
 
+    @if (!loaded()) {
+    <app-skeleton label="your signup" shape="block" height="520px" />
+    } @else {
     @if (accountService.displayName(); as name) {
     <div class="enlist-who hud-well">
       <app-profile-picture class="enlist-who__avatar" [userID]="accountService.personID()" [name]="name" [accent]="true" />
@@ -44,6 +47,7 @@
         Submit
       </button>
     </div>
+    }
   </form>
 
   <aside class="enlist-timeline hud-section" aria-labelledby="enlist-timeline">

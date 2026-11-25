@@ -157,22 +157,22 @@ describe('SeasonsComponent', () => {
   it('labels every filter control', () => {
     for (const control of Array.from(el().querySelectorAll('select, input')))
       expect(control.closest('label')!.querySelector('.hud-label')!.textContent!.trim()).not.toBe('');
-    expect(el().querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
+    expect(el().querySelector('app-skeleton')).toBeNull();
   });
 });
 
 describe('SeasonsComponent failing', () => {
-  it('fades the page in once the first list is in', () => {
+  it('shows a skeleton in place of the list until the first one is in', () => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])] });
     const http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(SeasonsComponent);
     fixture.detectChanges();
-    const page = () => (fixture.nativeElement as HTMLElement).querySelector('.hud-page')!;
-    expect(page().classList).toContain('hud-waiting');
+    const skeleton = () => (fixture.nativeElement as HTMLElement).querySelector('app-skeleton');
+    expect(skeleton()).not.toBeNull();
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No seasons match.');
     http.expectOne(r => r.url === '/api/seasons').flush({ totalCount: 0, results: [] });
     fixture.detectChanges();
-    expect(page().classList).not.toContain('hud-waiting');
+    expect(skeleton()).toBeNull();
   });
 
   it('shows the page, empty, when the list cannot be loaded', () => {

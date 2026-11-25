@@ -8,6 +8,8 @@
 
 @if (noSignups()) {
 <app-data-notice message="Signups weren't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
+} @else if (!loaded()) {
+<app-skeleton label="signups" shape="table" [count]="10" [columns]="5" />
 } @else {
 <span class="hud-label">{{signUps().length}} signed up</span>
 
