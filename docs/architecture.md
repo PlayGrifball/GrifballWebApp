@@ -28,6 +28,8 @@ flowchart LR
     Infrastructure --> DiscordInterfaces
     Server --> DiscordInterfaces
     Server --> Migrations
+    Seeder --> Migrations
+    Convert --> Migrations
     outside --> Infrastructure
 
     classDef core fill:#fde7c8,stroke:#d97706,color:#000

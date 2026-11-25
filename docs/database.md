@@ -253,11 +253,11 @@ erDiagram
         int SeasonID FK
         int SeasonMatchID FK
     }
-    Games {
-        external Recorded
-    }
     GameVersions {
         external Other
+    }
+    Games {
+        external Recorded
     }
     Matches {
         external Infinite
@@ -422,11 +422,11 @@ erDiagram
     Ranks {
         int Id PK
     }
-    Games {
-        external Recorded
-    }
     GameVersions {
         external Other
+    }
+    Games {
+        external Recorded
     }
     Matches {
         external Infinite

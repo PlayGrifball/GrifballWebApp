@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 namespace GrifballWebApp.Migrations.SqlServer.Test;
 
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class TableDiagramsTests
 {
     [Test]
@@ -18,16 +19,21 @@ public class TableDiagramsTests
         var generated = TableDiagrams.Generate(context.GetService<IDesignTimeModel>().Model);
 
         var path = Path.Combine(RepositoryRoot(), "docs", "database.md");
-        var doc = File.ReadAllText(path).ReplaceLineEndings("\n");
+        var original = File.ReadAllText(path);
+        var newline = original.Contains("\r\n") ? "\r\n" : "\n";
+        var doc = original.ReplaceLineEndings("\n");
         var begin = doc.IndexOf(TableDiagrams.Begin, StringComparison.Ordinal);
         var end = doc.IndexOf(TableDiagrams.End, StringComparison.Ordinal);
         Assert.That(begin >= 0 && end > begin, $"docs/database.md has no {TableDiagrams.Begin} ... {TableDiagrams.End} section");
 
         var committed = doc[(begin + TableDiagrams.Begin.Length)..end].Trim('\n') + "\n\n";
-        if (Environment.GetEnvironmentVariable("GRIF_UPDATE_DOCS") == "1" && committed != generated)
+        // Never rewrite in CI: drift there must fail, not fix itself in the runner's checkout and pass
+        var inCi = Environment.GetEnvironmentVariable("CI") is not null || Environment.GetEnvironmentVariable("GITHUB_ACTIONS") is not null;
+        if (Environment.GetEnvironmentVariable("GRIF_UPDATE_DOCS") == "1" && !inCi && committed != generated)
         {
-            File.WriteAllText(path, doc[..begin] + TableDiagrams.Begin + "\n\n" + generated + doc[end..]);
-            committed = generated;
+            var updated = doc[..begin] + TableDiagrams.Begin + "\n\n" + generated + doc[end..];
+            File.WriteAllText(path, updated.ReplaceLineEndings(newline));
+            Assert.Fail("docs/database.md's table diagrams were out of date and are rewritten: review and commit the change, then run again");
         }
 
         Assert.That(committed, Is.EqualTo(generated),

@@ -31,8 +31,9 @@ public static class TableDiagrams
     /// <summary>The generated part of the section, between <see cref="Begin"/> and <see cref="End"/>, with "\n" line ends.</summary>
     public static string Generate(IModel model)
     {
+        // Owned types that share their owner's table fall into its group; ones with a table of their own get their own
         var tables = model.GetEntityTypes()
-            .Where(t => t.GetTableName() is not null && !t.IsOwned())
+            .Where(t => t.GetTableName() is not null)
             .GroupBy(t => (Schema: t.GetSchema() ?? "dbo", Name: t.GetTableName()!))
             .Select(g => new Table(g.Key.Schema, g.Key.Name, [.. g]))
             .ToDictionary(t => (t.Schema, t.Name));
@@ -41,16 +42,24 @@ public static class TableDiagrams
         var text = new StringBuilder();
         foreach (var schema in tables.Values.Select(t => t.Schema).Distinct().Order(StringComparer.Ordinal))
         {
+            if (!Descriptions.TryGetValue(schema, out var description))
+                throw new InvalidOperationException($"Schema {schema} has no entry in TableDiagrams.Descriptions: describe it");
+
             var mine = tables.Values.Where(t => t.Schema == schema).OrderBy(t => t.Name, StringComparer.Ordinal).ToList();
-            var external = new SortedSet<(string Name, string Schema)>();
-            var relationships = new SortedSet<string>(StringComparer.Ordinal);
-            var lines = new List<string> { "erDiagram" };
+            var external = new SortedSet<Table>(Comparer<Table>.Create((a, b) =>
+            {
+                var byName = string.CompareOrdinal(a.Name, b.Name);
+                return byName != 0 ? byName : string.CompareOrdinal(a.Schema, b.Schema);
+            }));
+            var relationships = new List<(Table Principal, Table Dependent, string Left, string Right, string Label)>();
+            var entities = new List<(Table Table, List<string> Columns)>();
 
             foreach (var table in mine)
             {
                 var foreignKeys = table.Types.SelectMany(t => t.GetDeclaredForeignKeys())
                     .Where(fk => fk.PrincipalEntityType.GetTableName() is not null)
                     .Where(fk => !fk.Properties.All(p => AuditColumns.Contains(p.GetColumnName())))
+                    .Where(fk => !(fk.IsOwnership && Of(fk.PrincipalEntityType) == table))
                     .ToList();
                 var foreignColumns = foreignKeys.SelectMany(fk => fk.Properties).Select(p => p.GetColumnName()).ToHashSet();
 
@@ -58,32 +67,46 @@ public static class TableDiagrams
                 {
                     var principal = Of(fk.PrincipalEntityType);
                     if (principal.Schema != schema)
-                        external.Add((principal.Name, principal.Schema));
+                        external.Add(principal);
                     // Required as the database has it: columns that can't be null
                     var left = fk.IsRequired || fk.Properties.All(p => !p.IsNullable) ? "||" : "|o";
                     var right = fk.IsUnique ? "o|" : "o{";
                     var label = string.Join(", ", fk.Properties.Select(p => p.GetColumnName()));
-                    relationships.Add($"    {principal.Name} {left}--{right} {table.Name} : \"{label}\"");
+                    relationships.Add((principal, table, left, right, label));
                 }
 
-                var primary = table.Types.Select(t => t.FindPrimaryKey()).First(k => k is not null)!.Properties;
+                // Keyless entities have no key to show; a derived type's columns may be declared on its base
+                var primary = table.Types.Select(t => t.FindPrimaryKey()).FirstOrDefault(k => k is not null)?.Properties ?? [];
                 var primaryColumns = primary.Select(p => p.GetColumnName()).ToList();
-                var properties = table.Types.SelectMany(t => t.GetDeclaredProperties()).GroupBy(p => p.GetColumnName())
+                var properties = table.Types.SelectMany(t => t.GetProperties()).GroupBy(p => p.GetColumnName())
                     .ToDictionary(g => g.Key, g => g.First());
 
-                lines.Add($"    {table.Name} {{");
+                var columns = new List<string>();
                 foreach (var column in primaryColumns)
-                    lines.Add($"        {TypeName(properties[column])} {column} PK{(foreignColumns.Contains(column) ? ", FK" : "")}");
+                    columns.Add($"{TypeName(properties[column])} {column} PK{(foreignColumns.Contains(column) ? ", FK" : "")}");
                 foreach (var column in foreignColumns.Except(primaryColumns).Order(StringComparer.Ordinal))
-                    lines.Add($"        {TypeName(properties[column])} {column} FK");
+                    columns.Add($"{TypeName(properties[column])} {column} FK");
+                entities.Add((table, columns));
+            }
+
+            // Tables of the same name in different schemas would merge into one entity: qualify those with the schema
+            var clashing = mine.Concat(external).GroupBy(t => t.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+            string Id(Table t) => clashing.Contains(t.Name) ? $"{t.Schema}_{t.Name}" : t.Name;
+
+            var lines = new List<string> { "erDiagram" };
+            foreach (var (table, columns) in entities)
+            {
+                lines.Add($"    {Id(table)} {{");
+                lines.AddRange(columns.Select(c => $"        {c}"));
                 lines.Add("    }");
             }
-            foreach (var (name, otherSchema) in external)
-                lines.AddRange([$"    {name} {{", $"        external {otherSchema}", "    }"]);
-            lines.AddRange(relationships);
+            foreach (var other in external)
+                lines.AddRange([$"    {Id(other)} {{", $"        external {other.Schema}", "    }"]);
+            lines.AddRange(relationships
+                .Select(r => $"    {Id(r.Principal)} {r.Left}--{r.Right} {Id(r.Dependent)} : \"{r.Label}\"")
+                .Distinct().Order(StringComparer.Ordinal));
 
-            var description = Descriptions.TryGetValue(schema, out var d) ? d + " " : "";
-            text.Append($"### {schema}\n\n{description}({mine.Count} tables).\n\n```mermaid\n");
+            text.Append($"### {schema}\n\n{description} ({mine.Count} tables).\n\n```mermaid\n");
             text.Append(string.Join("\n", lines)).Append("\n```\n\n");
         }
         return text.ToString();
@@ -92,6 +115,10 @@ public static class TableDiagrams
     private static string TypeName(IProperty property)
     {
         var type = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
+        if (type.IsEnum)
+            type = Enum.GetUnderlyingType(type);
+        if (type == typeof(byte[]))
+            return "byte[]";
         return Type.GetTypeCode(type) switch
         {
             TypeCode.Int32 => "int",
@@ -101,7 +128,7 @@ public static class TableDiagrams
             TypeCode.Boolean => "bool",
             TypeCode.String => "string",
             TypeCode.Decimal => "decimal",
-            _ => type.IsEnum ? "int" : type.Name,
+            _ => type.Name,
         };
     }
 }
