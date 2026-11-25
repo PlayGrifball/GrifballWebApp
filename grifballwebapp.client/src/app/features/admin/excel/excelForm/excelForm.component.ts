@@ -9,6 +9,7 @@ import { RegexMatchValidValidatorDirective } from '@shared/validation/directives
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import type { SheetDto } from '@api/models';
 import { ExcelFormStore } from './excelForm.store';
+import { GUID_ERROR_MESSAGE, GUID_PATTERN } from '@shared/validation/guid';
 
 @Component({
   selector: 'app-excel-form',
@@ -42,8 +43,8 @@ export class ExcelFormComponent implements OnInit {
   matchID: string = "";
   spreadsheetID: string = "";
   sheetName: string = "";
-  regex: string = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$`;
-  regexErrorMessage: string = "Must be a valid GUID";
+  regex: string = GUID_PATTERN;
+  regexErrorMessage: string = GUID_ERROR_MESSAGE;
 
   readonly isSubmittingMatch = this.store.submittingMatch;
 

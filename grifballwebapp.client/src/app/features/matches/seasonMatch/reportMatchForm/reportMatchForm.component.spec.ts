@@ -33,6 +33,14 @@ describe('ReportMatchFormComponent', () => {
     expect(fixture.componentInstance.matchID()).toBe('0f8fad5b-d9cb-469f-a165-70867728950e');
   });
 
+  it("rejects a GUID whose braces don't balance", async () => {
+    await type('{0f8fad5b-d9cb-469f-a165-70867728950e');
+    expect(submit().disabled).toBeTrue();
+
+    await type('0f8fad5b-d9cb-469f-a165-70867728950e}');
+    expect(submit().disabled).toBeTrue();
+  });
+
   it('reports the match id typed in, and nothing while the page is busy', async () => {
     await type('{0f8fad5b-d9cb-469f-a165-70867728950e}');
     submit().click();

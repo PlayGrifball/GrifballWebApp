@@ -5,9 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
 import { RegexMatchValidValidatorDirective } from '@shared/validation/directives/regexMatchValidValidatorDirective.directive';
-
-/** A Waypoint match ID: a GUID, with or without braces. */
-const MATCH_ID = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$`;
+import { GUID_ERROR_MESSAGE, GUID_PATTERN } from '@shared/validation/guid';
 
 /**
  * A commissioner reports a game of the match by its Waypoint match ID. Its own component, so its code (a form field,
@@ -20,7 +18,7 @@ const MATCH_ID = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{
     <form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="submitted.emit(matchID())">
       <mat-form-field appearance="outline" class="app-full-width">
         <mat-label>Match ID</mat-label>
-        <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" errorMessage="Must be a valid GUID">
+        <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="guidErrorMessage">
         <app-error-message [control]="reportMatchForm.controls['MatchID']" />
       </mat-form-field>
       <button mat-flat-button [disabled]="!reportMatchForm.form.valid || busy()">
@@ -38,5 +36,6 @@ export class ReportMatchFormComponent {
   /** Report this match ID (a GUID). */
   readonly submitted = output<string>();
 
-  protected readonly regex = MATCH_ID;
+  protected readonly regex = GUID_PATTERN;
+  protected readonly guidErrorMessage = GUID_ERROR_MESSAGE;
 }
