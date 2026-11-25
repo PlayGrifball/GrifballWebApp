@@ -8,6 +8,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Location } from '@angular/common';
 import type { RescheduleRequestDto, TimeSuggestion } from '@api/models';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { RescheduleRequestStore } from './rescheduleRequest.store';
 
 @Component({
@@ -20,7 +21,8 @@ import { RescheduleRequestStore } from './rescheduleRequest.store';
     MatButtonModule,
     MatDatepickerModule,
     MatNativeDateModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    SkeletonComponent,
   ],
   templateUrl: './rescheduleRequest.component.html',
   styleUrls: ['./rescheduleRequest.component.scss'],

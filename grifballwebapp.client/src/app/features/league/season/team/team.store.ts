@@ -39,6 +39,9 @@ export class TeamStore {
 
   private readonly _team = signal<TeamDto | null>(null);
   readonly team = this._team.asReadonly();
+  /** The team has arrived (or there is no such team, or it failed): the roster is a skeleton until then. */
+  private readonly _teamLoaded = signal(false);
+  readonly teamLoaded = this._teamLoaded.asReadonly();
   private readonly _matches = signal<MatchDto[]>([]);
   readonly matches = this._matches.asReadonly();
   /** The matches have loaded: a backfilled or ended season without any says so. */
@@ -60,16 +63,22 @@ export class TeamStore {
       if (shown !== `${teamID}:${seasonID}`) {
         shown = `${teamID}:${seasonID}`;
         this._team.set(null);
+        this._teamLoaded.set(false);
         this._matchesLoaded.set(false);
       }
       const team = this.api.team({ teamID }).pipe(nullWhenNotFound()).subscribe({
-        next: v => this._team.set(v),
+        next: v => {
+          this._team.set(v);
+          this._teamLoaded.set(true);
+        },
+        error: () => this._teamLoaded.set(true),
       });
       const matches = this.api.matches({ teamID }).pipe(map(m => m.map(parseTeamMatch))).subscribe({
         next: v => {
           this._matches.set(v);
           this._matchesLoaded.set(true);
         },
+        error: () => this._matchesLoaded.set(true),
       });
       onCleanup(() => {
         team.unsubscribe();
@@ -83,6 +92,7 @@ export class TeamStore {
     }, team => {
       if (team.teamID === this.teamID.value()) {
         this._team.set(team.team ?? null);
+        this._teamLoaded.set(true);
         this._matches.set(team.matches.map(parseTeamMatch));
         this._matchesLoaded.set(true);
       }

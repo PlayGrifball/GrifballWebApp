@@ -11,6 +11,9 @@ export class SchedulingRulesStore {
   private readonly _rules = signal<SeasonSchedulingRulesDto | null>(null);
   /** The season's rules (the league's defaults until changed); null until loaded. */
   readonly rules = this._rules.asReadonly();
+  /** The rules have arrived, or could not be read: a skeleton holds their place until then. */
+  private readonly _loaded = signal(false);
+  readonly loaded = this._loaded.asReadonly();
   private readonly _saving = signal(false);
   readonly saving = this._saving.asReadonly();
   /** The last save went through. */
@@ -21,7 +24,17 @@ export class SchedulingRulesStore {
   readonly error = this._error.asReadonly();
 
   load(seasonID: number): void {
-    this.api.getSchedulingRules({ seasonID }).subscribe({ next: rules => this._rules.set(rules), error: () => this._rules.set(null) });
+    this._loaded.set(false);
+    this.api.getSchedulingRules({ seasonID }).subscribe({
+      next: rules => {
+        this._rules.set(rules);
+        this._loaded.set(true);
+      },
+      error: () => {
+        this._rules.set(null);
+        this._loaded.set(true);
+      },
+    });
   }
 
   save(seasonID: number, rules: SeasonSchedulingRulesDto): void {

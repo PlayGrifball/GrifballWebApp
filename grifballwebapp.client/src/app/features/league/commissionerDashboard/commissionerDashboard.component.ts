@@ -11,6 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ProcessRescheduleDialogComponent } from './processRescheduleDialog/processRescheduleDialog.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { CommissionerDashboardDto, RescheduleDto } from '@api/models';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { CommissionerDashboardStore } from './commissionerDashboard.store';
 
 export type { CommissionerDashboardDto, RescheduleDto };
@@ -28,6 +29,7 @@ export type { CommissionerDashboardDto, RescheduleDto };
     MatDialogModule,
     MatTooltipModule,
     TitleCasePipe,
+    SkeletonComponent,
   ],
   templateUrl: './commissionerDashboard.component.html',
   styleUrls: ['./commissionerDashboard.component.scss'],

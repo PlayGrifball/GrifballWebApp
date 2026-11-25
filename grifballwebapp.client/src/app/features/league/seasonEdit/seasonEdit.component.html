@@ -4,6 +4,9 @@
     <h1 class="hud-title hud-title--md">{{model().seasonID > 0 ? 'Edit season' : 'New season'}}</h1>
   </div>
 
+  @if (!loaded()) {
+  <app-skeleton label="the season" shape="block" height="640px" />
+  } @else {
   <form class="hud-form" #seasonForm="ngForm" (ngSubmit)="onSubmit()">
     <section class="hud-panel hud-form-group" aria-labelledby="season-details">
       <h2 id="season-details" class="hud-kicker">Details</h2>
@@ -149,4 +152,5 @@
       }
     </div>
   </form>
+  }
 </div>

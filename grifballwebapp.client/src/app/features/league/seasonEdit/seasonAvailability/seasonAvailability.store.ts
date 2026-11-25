@@ -12,11 +12,20 @@ export class SeasonAvailabilityStore {
   /** The timeslots as loaded; none until they are, or when they could not be. */
   private readonly _timeslots = signal<AvailabilityTimeslotDto[]>([]);
   readonly timeslots = this._timeslots.asReadonly();
+  /** The timeslots have arrived, or could not be read: the list is a skeleton until then. */
+  private readonly _loaded = signal(false);
+  readonly loaded = this._loaded.asReadonly();
 
   load(seasonID: number): void {
     this.availability.getSeasonAvailability({ seasonID }).subscribe({
-      next: timeslots => this._timeslots.set(timeslots),
-      error: () => this.snackbar.open('Failed to get season availability'),
+      next: timeslots => {
+        this._timeslots.set(timeslots);
+        this._loaded.set(true);
+      },
+      error: () => {
+        this._loaded.set(true);
+        this.snackbar.open('Failed to get season availability');
+      },
     });
   }
 

@@ -39,5 +39,7 @@
   @if (error(); as message) {
   <p class="hud-empty hud-empty--error" role="alert">{{ message }}</p>
   }
+  } @else if (!loaded()) {
+  <app-skeleton label="the scheduling rules" shape="block" height="220px" />
   }
 </form>

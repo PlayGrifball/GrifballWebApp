@@ -23,6 +23,9 @@ export class SeasonEditStore {
   /** The season as it was loaded; null for a new one, while it loads, or when there is no such season. */
   private readonly _season = signal<SeasonSettings | null>(null);
   readonly season = this._season.asReadonly();
+  /** The season to edit has arrived (or failed to, or it is a new one): the form is a skeleton until then. */
+  private readonly _loaded = signal(false);
+  readonly loaded = this._loaded.asReadonly();
 
   /** The games and leagues a season can have (empty if they fail to load). */
   private readonly _gameVersions = signal<GameVersionOptionDto[]>([]);
@@ -67,10 +70,20 @@ export class SeasonEditStore {
 
   private load(seasonID: number): void {
     this._season.set(null);
+    this._loaded.set(seasonID <= 0);
     if (seasonID > 0) {
       this.api.getSeason(seasonID)
         .pipe(whileCurrent(seasonID, this.seasonID.value))
-        .subscribe({ next: season => this._season.set(season) });
+        .subscribe({
+          next: season => {
+            this._season.set(season);
+            this._loaded.set(true);
+          },
+          error: error => {
+            this._loaded.set(true);
+            this.log.error('Failed to load the season', error);
+          },
+        });
     }
   }
 }

@@ -11,6 +11,7 @@ import { RouterLink } from '@angular/router';
 import type { DayOfWeek } from '@api/models';
 import { SeasonAvailabilityStore } from './seasonAvailability.store';
 import { SchedulingRulesComponent } from '../schedulingRules/schedulingRules.component';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 
 /** A row of the editor: a timeslot, its day empty until one is picked. */
@@ -31,6 +32,7 @@ export class AvailabilityOption {
         MatSelectModule,
         RouterLink,
         SchedulingRulesComponent,
+        SkeletonComponent,
     ],
     templateUrl: './seasonAvailability.component.html',
     styleUrl: './seasonAvailability.component.scss',
@@ -45,6 +47,8 @@ export class SeasonAvailabilityComponent implements OnInit {
   }
 
   readonly seasonID = input.required<number>();
+  /** The timeslots are in: the list is a skeleton until then. */
+  readonly loaded = this.store.loaded;
 
   minutes: number = 30;
 

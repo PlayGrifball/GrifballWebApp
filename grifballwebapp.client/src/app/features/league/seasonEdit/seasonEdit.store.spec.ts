@@ -34,6 +34,8 @@ describe('SeasonEditStore', () => {
     TestBed.tick();
     expect(api.getSeason).not.toHaveBeenCalled();
     expect(store.season()).toBeNull();
+    // A new season: nothing to wait for
+    expect(store.loaded()).toBeTrue();
   });
 
   it('loads the season, drops it for another, and drops a late answer for the last one', () => {
@@ -42,9 +44,11 @@ describe('SeasonEditStore', () => {
     const seasonID = signal(4);
     store.seasonID.use(seasonID);
     TestBed.tick();
+    expect(store.loaded()).toBeFalse();
     seasonID.set(5);
     TestBed.tick();
     expect(store.season()!.seasonID).toBe(5);
+    expect(store.loaded()).toBeTrue();
     late.next(season(4));
     expect(store.season()!.seasonID).toBe(5);
 

@@ -13,6 +13,7 @@ import { VodListComponent } from '@shared/vodList/vodList.component';
 import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
 import type { TeamDto } from '@api/models';
 import { describePage, PageDescription } from '@shared/pageMeta';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { TeamStore } from './team.store';
 import { AccountService } from '@core/auth/account.service';
 import { TeamAvailabilityComponent } from './teamAvailability/teamAvailability.component';
@@ -49,6 +50,7 @@ export function describeTeam(team: TeamDto): PageDescription {
         DatePipe,
         TeamAvailabilityComponent,
         CalendarSubscribeComponent,
+        SkeletonComponent,
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',
@@ -65,6 +67,7 @@ export class TeamComponent {
   readonly calendarPath = computed(() => `teams/${this.teamID()}/calendar.ics`);
 
   readonly team = this.store.team;
+  readonly teamLoaded = this.store.teamLoaded;
   readonly matches = this.store.matches;
   /** The matches have loaded: a backfilled or ended season without any says so. */
   readonly matchesLoaded = this.store.matchesLoaded;

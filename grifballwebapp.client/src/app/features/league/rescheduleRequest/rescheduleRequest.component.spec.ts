@@ -170,6 +170,17 @@ describe('RescheduleRequestComponent', () => {
     expect(picks()[1].textContent).toContain('Reds can\'t play then.');
   });
 
+  it("holds the suggestions' place with a skeleton while another match's load", () => {
+    fixture.componentRef.setInput('seasonMatchID', 32);
+    fixture.detectChanges();
+    const skeleton = () => (fixture.nativeElement as HTMLElement).querySelector('app-skeleton');
+    expect(skeleton()!.textContent).toContain('Loading suggested times');
+    http.expectOne(suggestionsOf(32)).flush(suggestions);
+    fixture.detectChanges();
+    expect(skeleton()).toBeNull();
+    expect(picks()).toHaveSize(2);
+  });
+
   it('fills in the date and time from a suggested one, sent as that time', () => {
     picks()[0].click();
     component.reason = 'x';

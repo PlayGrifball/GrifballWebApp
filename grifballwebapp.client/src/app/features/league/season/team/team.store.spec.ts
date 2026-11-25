@@ -65,6 +65,19 @@ describe('TeamStore', () => {
     http.expectOne('/api/teams/7').flush(null, { status: 404, statusText: 'Not Found' });
     http.expectOne('/api/teams/7/matches').flush([]);
     expect(store.team()).toBeNull();
+    expect(store.teamLoaded()).toBeTrue();
+  });
+
+  it('is loaded once the team and its matches answer, failures too', () => {
+    store.teamID.use(signal(7));
+    store.seasonID.use(signal(2));
+    TestBed.tick();
+    expect(store.teamLoaded()).toBeFalse();
+    expect(store.matchesLoaded()).toBeFalse();
+    http.expectOne('/api/teams/7').flush(null, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/teams/7/matches').flush(null, { status: 500, statusText: 'Server Error' });
+    expect(store.teamLoaded()).toBeTrue();
+    expect(store.matchesLoaded()).toBeTrue();
   });
 
   it('drops the last team for another, cancelling its requests, and loads again for another season', () => {

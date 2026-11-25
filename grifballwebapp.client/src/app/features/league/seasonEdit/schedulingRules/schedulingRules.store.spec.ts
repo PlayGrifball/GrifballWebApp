@@ -23,6 +23,14 @@ describe('SchedulingRulesStore', () => {
     expect(store.rules()).toEqual(rules);
   });
 
+  it('is loaded once the rules answer, a failure too', () => {
+    store.load(3);
+    expect(store.loaded()).toBeFalse();
+    http.expectOne('/api/seasons/3/scheduling-rules').flush(null, { status: 500, statusText: 'Server Error' });
+    expect(store.loaded()).toBeTrue();
+    expect(store.rules()).toBeNull();
+  });
+
   it('saves them, and says so', () => {
     store.save(3, { ...rules, minPlayersAvailable: 3 });
     expect(store.saving()).toBeTrue();

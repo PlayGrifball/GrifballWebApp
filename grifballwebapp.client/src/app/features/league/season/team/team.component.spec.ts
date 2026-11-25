@@ -156,11 +156,14 @@ describe('TeamComponent', () => {
     expect(link.injector.get(RouterLink).urlTree!.toString()).toBe('/history/team/7');
   });
 
-  it('has no history link before the team has loaded', () => {
+  it('has no history link before the team has loaded, and skeletons for its roster and matches', () => {
     fixture.detectChanges();
     expect(el().querySelector('a.team-history-link')).toBeNull();
+    expect(Array.from(el().querySelectorAll('app-skeleton')).map(s => s.textContent!.trim())).toEqual(['Loading the roster…', 'Loading matches…']);
     http.expectOne('/api/teams/7').flush(null);
     http.expectOne('/api/teams/7/matches').flush([]);
+    fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')).toBeNull();
   });
 
   it("lists the team's VODs", () => {

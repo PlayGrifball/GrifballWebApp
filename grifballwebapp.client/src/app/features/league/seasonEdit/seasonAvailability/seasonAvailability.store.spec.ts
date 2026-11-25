@@ -22,12 +22,14 @@ describe('SeasonAvailabilityStore', () => {
 
   it("loads the season's timeslots, and says when it cannot", () => {
     store.load(14);
+    expect(store.loaded()).toBeFalse();
     http.expectOne({ method: 'GET', url: '/api/seasons/14/availability' }).flush([{ dayOfWeek: 'Monday', time: '19:00:00' }]);
     expect(store.timeslots()).toEqual([{ dayOfWeek: 'Monday', time: '19:00:00' }]);
 
     store.load(14);
     http.expectOne('/api/seasons/14/availability').flush('x', { status: 500, statusText: 'Server Error' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed to get season availability');
+    expect(store.loaded()).toBeTrue();
   });
 
   it('saves the timeslots, and says how it went', () => {

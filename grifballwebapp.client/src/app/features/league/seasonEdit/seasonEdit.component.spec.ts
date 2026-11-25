@@ -138,11 +138,13 @@ describe('SeasonEditComponent', () => {
     api.getSeason.and.returnValue(loaded);
     await fixture.whenStable();
     expect(el().textContent).not.toContain('Edit Availability');
+    expect(el().querySelector('app-skeleton')).withContext('the form held by a skeleton').not.toBeNull();
 
     loaded.next(season({ seasonName: 'Arrived Later' }));
     await fixture.whenStable();
 
     expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')?.value).toBe('Arrived Later');
+    expect(el().querySelector('app-skeleton')).toBeNull();
     expect(el().textContent).toContain('Edit Availability');
   });
 
