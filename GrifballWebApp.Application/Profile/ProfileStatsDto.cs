@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Application.Profile;
