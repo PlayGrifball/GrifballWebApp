@@ -150,7 +150,7 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
     {
         var config = new HistoricalSourceConfig { Tabs = [new StatsTab { Name = "Stats", GamesSheet = "history/Season Match History" }] };
 
-        Assert.That(config.SheetNames(), Is.EquivalentTo(new[] { "Stats" }));
+        Assert.That(config.SheetNames(), Is.EqualTo(new HashSet<string> { "Stats" }));
     }
 
     [TestCase("2026-wl26-pro-stats")]
