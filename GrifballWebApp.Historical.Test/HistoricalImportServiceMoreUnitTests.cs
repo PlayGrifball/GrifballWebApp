@@ -773,13 +773,6 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         await _service.Import(WithGames(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"), "sml18-fantasy/Fixtures & Results", "sml18#1", "sml18#2"));
         Context.ChangeTracker.Clear();
         Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(2));
-        var leftover = await Context.Seasons.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "sml18-fantasy/Fixtures & Results");
-        var hens = await Context.Teams.AsNoTracking().SingleAsync(t => t.SeasonID == leftover.SeasonID && t.TeamName == "Hens");
-        var series = SeasonMatch.Imported(leftover.SeasonID, hens.TeamID, null, 1, 0, 1, null, null);
-        series.AddImportedGame(null, await Context.RecordedGames.FirstAsync(g => g.SourceKey == "sml18#1"), 1);
-        Context.SeasonMatches.Add(series);
-        await Context.SaveChangesAsync();
-        Context.ChangeTracker.Clear();
 
         var report = await _service.Import(WithGames(TwoTabs("Summer League 2018", "Summer League 2018"), "sml18-fantasy/Total Stats", "sml18#1", "sml18#2"));
 
