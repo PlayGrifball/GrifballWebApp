@@ -8,6 +8,59 @@ fails a PR that breaks a rule, naming the type that crosses and what it reaches.
 
 Dependencies point inwards only: **Domain ← Application ← Infrastructure ← Historical ← Server**.
 
+```mermaid
+flowchart LR
+    subgraph outside["Outside the layers"]
+        direction TB
+        Migrations["Migrations<br/>SqlServer · Postgres · Sqlite"]
+        Seeder["Seeder"]
+        Convert["Convert"]
+    end
+
+    Server["<b>Server</b><br/>controllers, SignalR hubs, Discord commands,<br/>MCP server, Program.cs"]
+    Historical["<b>Historical</b><br/>historical archive import"]
+    Infrastructure["<b>Infrastructure</b><br/>GrifballContext, database plumbing,<br/>adapters: Halo, Redis, outbox, Discord, jobs"]
+    Application["<b>Application</b><br/>use cases by feature, DTOs,<br/>ports (IApplicationDbContext, IOutbox, ...)"]
+    Domain["<b>Domain</b><br/>aggregates by bounded context,<br/>their rules and EF configurations"]
+    DiscordInterfaces["DiscordInterfaces"]
+
+    Server --> Historical --> Infrastructure --> Application --> Domain
+    Infrastructure --> DiscordInterfaces
+    Server --> DiscordInterfaces
+    Server --> Migrations
+    Seeder --> Migrations
+    Convert --> Migrations
+    outside --> Infrastructure
+
+    classDef core fill:#fde7c8,stroke:#d97706,color:#000
+    classDef layer fill:#dbeafe,stroke:#2563eb,color:#000
+    class Domain,Application core
+    class Infrastructure,Historical,Server layer
+```
+
+An arrow is a project reference: the project at its tail may use the one at its head. Server may also use every layer
+below it directly; those arrows are left out for clarity.
+
+The Application owns the interfaces for whatever lies outside the process, and Infrastructure implements them, so the
+use cases never reference Infrastructure:
+
+```mermaid
+flowchart LR
+    subgraph app["Application"]
+        Service["feature service"]
+        Ports["IApplicationDbContext<br/>IOutbox<br/>IDatabaseLocks"]
+        Service --> Ports
+    end
+    subgraph infra["Infrastructure"]
+        Adapters["GrifballContext<br/>ContextOutbox<br/>ContextDatabaseLocks"]
+    end
+    subgraph domain["Domain"]
+        Aggregate["aggregate root"]
+    end
+    Adapters -. implements .-> Ports
+    Service --> Aggregate
+```
+
 | Layer | Project | What's in it | May use |
 | --- | --- | --- | --- |
 | Domain | `GrifballWebApp.Domain` | The model, by bounded context: aggregates, their rules, and their EF configurations | none of the solution's projects (EF Core, a package, is allowed) |

@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/grifball-logo.webp" alt="Grifball logo" width="320"></p>
+
 # Grifball Web App
 
 Plan and run Grifball leagues and tournaments: seasons, signups, availability, drafts, schedules, brackets, Late League
