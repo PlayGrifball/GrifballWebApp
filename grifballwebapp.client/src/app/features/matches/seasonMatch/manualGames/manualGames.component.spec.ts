@@ -5,6 +5,7 @@ import { ManualGamesComponent } from './manualGames.component';
 import { INFINITE_GAME_VERSION_ID, toLocalInput } from './manualGameForm';
 import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
 import type { TeamPagePlayerDto } from '@api/models';
+import { renderDeferBlocks } from '@shared/testing/renderDeferBlocks';
 
 describe('ManualGamesComponent', () => {
   let fixture: ComponentFixture<ManualGamesComponent>;
@@ -64,11 +65,9 @@ describe('ManualGamesComponent', () => {
   }
 
   /** The form is a @defer block (its code loads when a commissioner opens it): drawn as the browser draws it then. */
-  async function opened(): Promise<void> {
+  async function opened(state: DeferBlockState = DeferBlockState.Complete): Promise<void> {
     fixture.detectChanges();
-    for (const block of await fixture.getDeferBlocks())
-      await block.render(DeferBlockState.Complete);
-    fixture.detectChanges();
+    await renderDeferBlocks(fixture, state);
   }
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
@@ -159,6 +158,36 @@ describe('ManualGamesComponent', () => {
     await opened();
     expect(text()).not.toContain('Loading the game form');
     expect(button('Save game')).toBeDefined();
+  });
+
+  it('shows a notice in place of the form, not nothing, with a Cancel that still works, if its chunk fails to load', async () => {
+    createAsCommissioner();
+    component.startAdd();
+    fixture.detectChanges();
+    await opened(DeferBlockState.Error);
+    expect(text()).toContain("The game form couldn't load.");
+    expect(component.editing()).not.toBeNull();
+
+    button('Cancel')!.click();
+    fixture.detectChanges();
+    expect(component.editing()).toBeNull();
+  });
+
+  it("submits the rendered editor's own form to save the game, not component.save() called directly", async () => {
+    createAsCommissioner();
+    button('Enter a game by hand')!.click();
+    await opened();
+    component.form.homeTeamScore = 5;
+    component.form.awayTeamScore = 0;
+    fixture.detectChanges();
+
+    button('Save game')!.click();
+    const request = httpMock.expectOne('/api/season-matches/7/manual-games');
+    expect(request.request.method).toBe('POST');
+    request.flush(12);
+    fixture.detectChanges();
+    expect(changed).toBe(1);
+    expect(component.editing()).toBeNull();
   });
 
   it('will not save equal scores, and says why', async () => {

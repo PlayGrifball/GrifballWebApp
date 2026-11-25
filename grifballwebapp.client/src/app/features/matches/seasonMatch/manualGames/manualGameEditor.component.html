@@ -1,4 +1,4 @@
-<form class="app-form manual-games__form hud-panel hud-panel--soft" #gameForm="ngForm" (ngSubmit)="submit()" aria-label="Manual game entry">
+<form class="app-form manual-games__form hud-panel hud-panel--soft" (ngSubmit)="submit()" aria-label="Manual game entry">
   <h3 class="hud-label">{{editing() === 'new' ? 'Enter a game by hand' : 'Edit game'}}</h3>
   @if (editing() === 'new' && match()?.reportedGames?.length) {
   <!-- Never picked for them: a game that corrects one already reported replaces it -->
