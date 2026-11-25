@@ -145,9 +145,11 @@ describe('SeasonPlayerStatsComponent', () => {
       const req = http.expectOne(url(13));
       expect(players()).withContext('nothing stale while the next season loads').toEqual([]);
       expect(fixture.componentInstance.loaded()).toBeFalse();
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-skeleton')).withContext('rows held by a skeleton').not.toBeNull();
       req.flush([stat(4, 'Charlie')]);
       await fixture.whenStable();
       fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-skeleton')).toBeNull();
       expect(players()).toEqual(['Charlie']);
     });
   });

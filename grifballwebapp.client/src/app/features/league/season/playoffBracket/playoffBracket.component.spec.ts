@@ -105,6 +105,7 @@ describe('PlayoffBracketComponent behaviour', () => {
   it('renders the bracket with the custom locale when there are participants', async () => {
     fixture.detectChanges();
     expect(text()).not.toContain('No bracket created'); // not known yet
+    expect(text()).toContain('Loading the bracket');
     const data = viewerData([{ id: 1, name: 'Alpha' }]);
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush(data);
     await fixture.whenStable();
@@ -118,6 +119,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(viewer.render).toHaveBeenCalledWith(data, jasmine.objectContaining({ clear: true }));
     expect(component.drawn()).toBeTrue();
     expect(text()).toContain('BYE = auto-advance');
+    expect(text()).not.toContain('Loading the bracket');
   });
 
   it("loads the new season's bracket when the season changes, showing none of the previous one meanwhile", async () => {
@@ -373,7 +375,11 @@ describe('PlayoffBracketComponent without the viewer library', () => {
         { provide: AccountService, useValue: { isEventOrganizer: signal(false) } },
       ]
     }).overrideProvider(MatSnackBar, { useValue: snackBar }).compileComponents();
-    const component = TestBed.createComponent(PlayoffBracketComponent).componentInstance;
+    const fixture = TestBed.createComponent(PlayoffBracketComponent);
+    // No season: nothing to load, so only the viewer could keep a skeleton up
+    fixture.componentRef.setInput('seasonID', 0);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
 
     const rendering = component.render({ stages: [], matches: [], matchGames: [], participants: [{ id: 1 }] } as unknown as ViewerData);
     const script = document.head.querySelector<HTMLScriptElement>('script[src="brackets-viewer.js"]')!;
@@ -381,6 +387,8 @@ describe('PlayoffBracketComponent without the viewer library', () => {
     await rendering;
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to load the bracket viewer', 'Close');
+    // No skeleton waiting for a bracket that will not be drawn
+    expect(component.waiting()).toBeFalse();
     (window as TestWindow).bracketsViewer = original;
   });
 });

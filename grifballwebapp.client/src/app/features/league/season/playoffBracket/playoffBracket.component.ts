@@ -11,6 +11,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '@core/auth/account.service';
 import { Locale } from 'brackets-viewer/dist/lang';
 import { loadBracketsViewer } from '@shared/loadBracketsViewer';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import type { SeasonChampionDto } from '@api/models';
 import { PlayoffBracketStore } from './playoffBracket.store';
 
@@ -20,7 +21,8 @@ import { PlayoffBracketStore } from './playoffBracket.store';
         MatButtonModule,
         MatDialogModule,
         MatSnackBarModule,
-        RouterLink
+        RouterLink,
+        SkeletonComponent,
     ],
     templateUrl: './playoffBracket.component.html',
     styleUrl: './playoffBracket.component.scss',
@@ -54,10 +56,14 @@ export class PlayoffBracketComponent {
   });
 
   hasBracket = signal(false);
-  /** The bracket (or that there is none) is known: until then the page shows neither. */
+  /** The bracket (or that there is none) is known. */
   readonly loaded = this.store.loaded;
   /** The viewer has drawn the bracket: the legend goes below it then, not before. */
   drawn = signal(false);
+  /** The viewer could not be loaded: the bracket is not drawn, and no skeleton waits for it. */
+  private readonly viewerFailed = signal(false);
+  /** A skeleton holds the bracket's place until it is known and drawn (on the server too, where the viewer never draws). */
+  readonly waiting = computed(() => !this.loaded() || (this.hasBracket() && !this.drawn() && !this.viewerFailed()));
 
   constructor() {
     this.store.seasonID.use(this.seasonID);
@@ -92,6 +98,7 @@ export class PlayoffBracketComponent {
     try {
       await loadBracketsViewer();
     } catch {
+      this.viewerFailed.set(true);
       this.snackBar.open('Failed to load the bracket viewer', 'Close');
       return;
     }

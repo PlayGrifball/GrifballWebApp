@@ -88,7 +88,10 @@
 </section>
 }
 
-<div class="sched-lists" [class.hud-waiting]="!loaded()">
+@if (!loaded()) {
+<app-skeleton label="the schedule" shape="cards" [count]="4" height="180px" cardWidth="400px" />
+} @else {
+<div class="sched-lists">
 <div class="sched-weeks">
   @for (week of scheduledMatches(); track week.weekNumber) {
   <section class="sched-week" [attr.aria-label]="'Week ' + week.weekNumber">
@@ -144,3 +147,4 @@
   }
 </section>
 </div>
+}
