@@ -405,6 +405,20 @@ public class GameResultsParserTests
         }), "Each game at its time, Eastern (summer time), in UTC");
     }
 
+    [Test]
+    public void Calendar_AGameWithNoTimeBeforeIt_IsItsDay_AndWithNoMonthNoGameIsDated()
+    {
+        var sheet = Sheet(["", "1", "2", "3"], ["", "Impulse (5) vs. High Voltage (1)", "Alpha (5) vs. TBD (0)"]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Parse(new ResultsTab { Sheet = "Schedule", Layout = ResultsLayout.Calendar, Year = 2020, Month = 4 }, sheet).Select(g => g.PlayedAt),
+                Is.EqualTo(new DateTime?[] { new DateTime(2020, 4, 1, 0, 0, 0, DateTimeKind.Utc) }), "Midnight UTC; a game naming TBD is none");
+            Assert.That(Parse(new ResultsTab { Sheet = "Schedule", Layout = ResultsLayout.Calendar, Year = 2020 }, sheet).Select(g => g.PlayedAt),
+                Is.EqualTo(new DateTime?[] { null }));
+        }
+    }
+
     [TestCase("G&tC", "Galvin & the Chipmunks", true)]
     [TestCase("A&tS", "A and the Spences", true)]
     [TestCase("MAB", "Mediocre At Best", true)]

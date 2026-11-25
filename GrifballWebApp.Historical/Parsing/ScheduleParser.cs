@@ -94,7 +94,7 @@ public static partial class ScheduleParser
             rows[r] = (days, width);
         }
         needsMonth = calendar.NeedsMonth;
-        return (r, c) => r < rows.Length && rows[r].Days is { } d ? DayOf(d, rows[r].Width, c) : null;
+        return (r, c) => rows[r].Days is { } d ? DayOf(d, rows[r].Width, c) : null;
     }
 
     /// <summary>A day at the time a text gives ("9:30pm"), Eastern, in UTC; midnight UTC when it gives none.</summary>
@@ -154,7 +154,10 @@ public static partial class ScheduleParser
         /// any other row.</summary>
         private List<(int Column, DateTime Day)>? WeekRow(string[] row)
         {
-            if (row.Length == 0 || _weekdays.Count == 0 || year is null || WeekRange().Match(row[0].Trim()) is not { Success: true } week)
+            if (_weekdays.Count == 0 || year is null)
+                return null;
+            var week = WeekRange().Match(row[0].Trim());
+            if (!week.Success)
                 return null;
             var m = MonthOf(week.Groups["month"].Value);
             if (m == 0 || Day(week.Groups["day"].Value) is not int day || day > DateTime.DaysInMonth(YearOf(m), m))
@@ -277,7 +280,8 @@ public static partial class ScheduleParser
     {
         var text = Spaces().Replace(cell, " ").Trim();
         // "0 MM vs. DBAGS 2": each side's wins around the names; "2-0 G over Z": the series' before them
-        text = Counted().Match(text) is { Success: true } counted ? counted.Groups["rest"].Value : LeadingScore().Replace(text, "");
+        var counted = Counted().Match(text);
+        text = counted.Success ? counted.Groups["rest"].Value : LeadingScore().Replace(text, "");
         var match = Over().Match(text);
         if (!match.Success)
             match = Versus().Match(text);

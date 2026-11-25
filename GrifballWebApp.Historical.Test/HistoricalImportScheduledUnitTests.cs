@@ -91,13 +91,33 @@ internal sealed class HistoricalImportScheduledUnitTests : ApplicationDbContextT
     {
         var other = new ArchiveScheduledMatchInput { SeasonSourceId = "nothing/Stats", SourceKey = "x@1", Home = "Red Team", Away = "Blue Team", PlayedAt = DateTime.UnixEpoch };
 
-        var report = await _service.Import(Input(Scheduled(5, "Red Team", "Nobody"), other));
+        var report = await _service.Import(Input(Scheduled(5, "Red Team", "Nobody"), Scheduled(6, "Nobody", "Red Team"), Scheduled(7, "Red Team", "Red Team"), other));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await Context.SeasonMatches.CountAsync(), Is.Zero);
-            Assert.That(report.Warnings, Does.Contain($"{SeasonKey}: 1 scheduled match(es) naming a team that is none of the season's, left out: wl20-reach/Full Schedule@2020-01-05"));
+            Assert.That(report.Warnings, Does.Contain($"{SeasonKey}: 3 scheduled match(es) naming a team that is none of the season's, left out: " +
+                "wl20-reach/Full Schedule@2020-01-05, wl20-reach/Full Schedule@2020-01-06, wl20-reach/Full Schedule@2020-01-07"), "A team playing itself too");
             Assert.That(report.Skipped, Does.Contain("Scheduled match x@1: no season with the key nothing/Stats in the archive"));
+        }
+    }
+
+    [Test]
+    public async Task Import_AMatchMovedToAnotherDay_OrHomeAndAwaySwapped_IsMadeAgain_TheOldOneGone()
+    {
+        await _service.Import(Input(Scheduled(5, "Red Team", "Blue Team")));
+        Context.ChangeTracker.Clear();
+
+        var again = await _service.Import(Input(Scheduled(6, "Red Team", "Blue Team"), Scheduled(5, "Blue Team", "Red Team")));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((again.SeasonMatchesCreated, again.SeasonMatchesRemoved), Is.EqualTo((2, 1)));
+            Assert.That((await Matches()).Select(m => (m.Home, m.Away, m.At)), Is.EquivalentTo(new[]
+            {
+                ((string?)"Red Team", (string?)"Blue Team", (DateTime?)new DateTime(2020, 1, 6, 1, 0, 0, DateTimeKind.Utc)),
+                ("Blue Team", "Red Team", new DateTime(2020, 1, 5, 1, 0, 0, DateTimeKind.Utc)),
+            }));
         }
     }
 }

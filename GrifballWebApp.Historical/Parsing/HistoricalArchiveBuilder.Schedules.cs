@@ -97,19 +97,20 @@ public sealed partial class HistoricalArchiveBuilder
         return dated;
     }
 
-    /// <summary>A game's side's team: its name, or (a per-game tab's side, unnamed) the team most of its players are on.</summary>
-    private static string? SideTeam(RecordedGameInput game, int index, Dictionary<string, string> teamOf)
+    /// <summary>A game's side's team: its name, or (a per-game tab's side, unnamed) the team most of its players are on; ""
+    /// when its players are on no team.</summary>
+    private static string SideTeam(RecordedGameInput game, int index, Dictionary<string, string> teamOf)
     {
         var side = game.Teams[index];
         return side.Name ?? game.Players.Where(p => p.Side == side.Side)
             .Select(p => teamOf.GetValueOrDefault(HistoricalKeys.Normalize(p.Gamertag)))
-            .OfType<string>().GroupBy(t => t, StringComparer.OrdinalIgnoreCase).OrderByDescending(t => t.Count()).Select(t => t.Key).FirstOrDefault();
+            .OfType<string>().GroupBy(t => t, StringComparer.OrdinalIgnoreCase).OrderByDescending(t => t.Count()).Select(t => t.Key).FirstOrDefault() ?? "";
     }
 
     /// <summary>Two teams in either order, as one key.</summary>
-    private static (string, string) Pair(string? a, string? b)
+    private static (string, string) Pair(string a, string b)
     {
-        var (x, y) = ((a ?? "").Trim().ToUpperInvariant(), (b ?? "").Trim().ToUpperInvariant());
+        var (x, y) = (a.Trim().ToUpperInvariant(), b.Trim().ToUpperInvariant());
         return string.CompareOrdinal(x, y) <= 0 ? (x, y) : (y, x);
     }
 

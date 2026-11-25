@@ -171,4 +171,18 @@ public class HistoricalArchiveDraftsTests
         Assert.That((team.TeamName, team.Captain, team.Picks.Select(p => p.Gamertag).Single()), Is.EqualTo(("Bravo", "NecessaryEvil10", "OREOTHECAT#5618")),
             "The captain's team is theirs; a nickname any case");
     }
+
+    [Test]
+    public void ADraftWithNicknames_LeavesATeamWithNoCaptainUncaptained()
+    {
+        var build = HistoricalArchiveBuilder.Build(Season((new DraftTab { Sheet = "Draft Sheet", Season = "stats", Names = new() { ["Oreo"] = "OREOTHECAT#5618" } },
+        [
+            Row("Team Name:", "Alpha", "Charlie"),
+            Row("Captain:", "Ace", ""),
+            Row("1st Round:", "Dee", "Oreo"),
+        ])), new HashSet<string> { "schedule" });
+
+        var charlie = Regular(build).Teams.Single(t => t.TeamName == "Charlie" && t.Picks.Count > 0);
+        Assert.That((charlie.Captain, charlie.Picks.Single().Gamertag), Is.EqualTo(((string?)null, "OREOTHECAT#5618")));
+    }
 }

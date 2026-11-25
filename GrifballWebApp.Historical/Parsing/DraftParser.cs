@@ -98,8 +98,13 @@ public static partial class DraftParser
         var blocks = new List<(string Captain, List<(int Round, string Gamertag)> Picks)>();
         for (var r = 0; r < sheet.Rows.Count; r++)
             for (var c = 0; c < sheet.Rows[r].Length; c++)
-                if (BlockCaptain(sheet, r, c) is { } captain && BlockPicks(sheet, r, c, captain) is { Count: > 0 } picks)
+            {
+                if (BlockCaptain(sheet, r, c) is not { } captain)
+                    continue;
+                var picks = BlockPicks(sheet, r, c, captain);
+                if (picks.Count > 0)
                     blocks.Add((captain, picks));
+            }
         return [.. blocks.Select((block, i) => new ArchiveTeam
         {
             TeamName = "",

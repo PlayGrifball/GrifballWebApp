@@ -167,12 +167,14 @@ public class HistoricalArchiveSchedulesTests
                 ("HR_MatchH", [CarnageHeader,
                     Carnage("Ace", 0, true, 600), Carnage("Bee", 1, false, 600),
                     Carnage("Bee", 0, true, 700), Carnage("Ace", 1, false, 700),
-                    Carnage("Cee", 0, true, 800), Carnage("Ace", 1, false, 800)]),
+                    Carnage("Cee", 0, true, 800), Carnage("Ace", 1, false, 800),
+                    Carnage("Zed", 0, true, 900), Carnage("Yan", 1, false, 900)]),
                 ("Schedule", [Row("Date", "6/1/2020", "6/8/2020"), Row(null, "Ace @ Bee", "Cee @ Ace")])));
 
         var build = HistoricalArchiveBuilder.Build([source]);
 
-        Assert.That(build.Input.RecordedGames!.Select(g => g.PlayedAt), Is.EqualTo(new DateTime?[] { June1, June1, June8 }));
+        Assert.That(build.Input.RecordedGames!.Select(g => g.PlayedAt), Is.EqualTo(new DateTime?[] { June1, June1, June8, null }),
+            "A game of players on no team is no meeting's");
     }
 
     [Test]
@@ -184,5 +186,58 @@ public class HistoricalArchiveSchedulesTests
         var build = HistoricalArchiveBuilder.Build([source]);
 
         Assert.That(build.Warnings, Does.Contain("lost: schedule 'Schedule' not read (no season from nothing)"));
+    }
+
+    [Test]
+    public void AScheduledTeamWithItsCaptainInBrackets_IsTheTeam_OrElseTheCaptains()
+    {
+        // FL20's Full Schedule: "ASP (Dhmon) vs. FB (Saintz)"
+        var source = Source("fl20", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Fall League 2020 (PC)", Game = "reach" },
+                Tabs = [new() { Name = "Stats" }],
+                Results = [new() { Sheet = "Game Results" }],
+                Schedules = [new() { Sheet = "Full Schedule" }],
+            },
+            Workbook(("Stats", [StatsHeader, Row("Ace", "Alpha", 4, 1), Row("Bee", "Bravo", 4, 1)]),
+                ("Game Results", [Row("Winner", null, "Loser"), Row("Alpha", "5-3", "Bravo")]),
+                ("Full Schedule", [Row("Date", "6/1/2020", "6/8/2020"), Row(null, "Alpha (Ace) vs. Zed (Bee)", "Zed (Nobody) vs. Alpha (Ace)")])));
+
+        var build = HistoricalArchiveBuilder.Build([source]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Input.RecordedGames!.Single().PlayedAt, Is.EqualTo(June1), "Zed is no team: Bee's, Bravo");
+            Assert.That(build.Warnings, Does.Contain("fl20/Full Schedule: 1 of 2 scheduled meetings date no game"));
+        }
+    }
+
+    [Test]
+    public void AScheduleOfAStatsTab_IsThatSeasons_AndItsChangeAffectsIt()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("s", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Winter League 2021", Game = "halo3" },
+                    Tabs = [new() { Name = "Playoff Stats", IsPlayoffs = true }, new() { Name = "Stats" }],
+                    Results = [new() { Sheet = "Game Results", Tab = "Stats" }],
+                },
+                Workbook(("Stats", [StatsHeader, Row("Ace", "Alpha", 4, 1), Row("Bee", "Bravo", 4, 1)]),
+                    ("Playoff Stats", [StatsHeader, Row("Ace", "Alpha", 1, 1)]),
+                    ("Game Results", [Row("Winner", null, "Loser"), Row("Alpha", "5-3", "Bravo")]))),
+            Source("sch", new HistoricalSourceConfig { Schedules = [new() { Sheet = "Schedule", Season = "s", Tab = "Stats" }] },
+                Workbook(("Schedule", [Row("Date", "6/1/2020"), Row(null, "Bravo vs Alpha")]))),
+        ];
+
+        var changed = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "sch" });
+        var unchanged = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "s" });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(changed.Input.RecordedGames!.Single().PlayedAt, Is.EqualTo(June1));
+            Assert.That(changed.Seasons, Does.Contain("s/Stats"), "The schedule changed: its season is the build's");
+            Assert.That(unchanged.Input.RecordedGames!.Single().PlayedAt, Is.EqualTo(June1));
+        }
     }
 }

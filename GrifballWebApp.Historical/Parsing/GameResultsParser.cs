@@ -457,7 +457,7 @@ public static partial class GameResultsParser
                 continue;
             var (sa, sb) = (int.Parse(game.Groups["sa"].Value, CultureInfo.InvariantCulture), int.Parse(game.Groups["sb"].Value, CultureInfo.InvariantCulture));
             var key = parse.Key($"{r}:{c}/{e}");
-            var time = e > 0 && e - 1 < times.Count ? times[e - 1].Value.TrimEnd(':') : null;
+            var time = e > 0 ? times[e - 1].Value.TrimEnd(':') : null;
             Add(parse, key, key, new GameResult(a, b, Outcome(sa, sb), sa, sb) { PlayedAt = day is { } d ? ScheduleParser.At(d, time) : null });
         }
     }

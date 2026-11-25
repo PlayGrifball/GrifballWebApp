@@ -385,4 +385,47 @@ public class DraftParserTests
 
         Assert.That(Captains(Board(sheet)), Is.EqualTo(new (string, string?, int?)[] { ("", "Cee", 1) }));
     }
+
+    [Test]
+    public void CaptainBoards_SideBySide_EachReadsItsOwnColumns_AndOneWithNoRoundIsNone()
+    {
+        var sheet = Sheet(
+            ["Captain 1", "Ace", "", "Captain 1", "Bee"],
+            ["1st Round", "Dee", "", "1st Round", "Eee"]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Captains(Board(sheet)), Is.EqualTo(new (string, string?, int?)[] { ("", "Ace", 1), ("", "Bee", 1) }));
+            Assert.That(DraftParser.Parse(Sheet(["Captain", "Ace"], ["Player 1", "Dee"]), new DraftTab { Sheet = "Draft" }), Is.Null, "No round below it");
+        }
+    }
+
+    [TestCase(DraftOrder.Linear)]
+    [TestCase(DraftOrder.None)]
+    public void Blocks_NumberTheirPicksByTheOrder_SkippingNotes_AndACaptainStackedOnAnothersIsTheirOwn(DraftOrder order)
+    {
+        var sheet = Sheet(
+            ["Captain", "Ace"],
+            ["Notes", "x"],
+            ["Round One", "Dee"],
+            ["Captain", "Bee"],
+            ["Round One", "Eee"],
+            ["Round Two", "Fee"],
+            ["Captain", "Cee"],
+            ["Captain", "Gee"],
+            ["Round One", "Hee"]);
+
+        var teams = DraftParser.Parse(sheet, new DraftTab { Sheet = "Sheet1", Layout = DraftLayout.Blocks, Order = order })!;
+
+        var linear = order == DraftOrder.Linear;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("", "Ace", linear ? 1 : null), ("", "Bee", linear ? 2 : null), ("", "Gee", linear ? 3 : null) }),
+                "Cee's block ends at Gee's Captain cell before any round");
+            Assert.That(Picks(teams), Is.EqualTo(new (string, string, int, int?)[]
+            {
+                ("", "Dee", 1, linear ? 1 : null), ("", "Eee", 1, linear ? 2 : null), ("", "Fee", 2, linear ? 5 : null), ("", "Hee", 1, linear ? 3 : null),
+            }));
+        }
+    }
 }
