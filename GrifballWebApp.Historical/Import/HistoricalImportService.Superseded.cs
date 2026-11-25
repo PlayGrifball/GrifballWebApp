@@ -105,9 +105,11 @@ public partial class HistoricalImportService
     /// import makes them again in the merged season, so they need not keep the leftover.</summary>
     private async Task<bool> RecordedGamesComeBack(int seasonID, SeasonGroup merged, CancellationToken ct)
     {
-        var games = await _context.RecordedGames.AsNoTracking().Where(g => g.SeasonID == seasonID).Select(g => new { g.SourceKey, g.Origin }).ToListAsync(ct);
+        // A game entered by hand has no key to come back by (null), so it keeps the leftover
+        var games = await _context.RecordedGames.AsNoTracking().Where(g => g.SeasonID == seasonID)
+            .Select(g => g.Origin == RecordedGameOrigin.Manual ? null : g.SourceKey).ToListAsync(ct);
         var coming = (merged.RecordedGames ?? []).Select(g => g.SourceKey.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return games.Count > 0 && games.TrueForAll(g => g.Origin != RecordedGameOrigin.Manual && coming.Contains(g.SourceKey));
+        return games.Count > 0 && games.TrueForAll(key => coming.Contains(key!));
     }
 
     /// <summary>Its games go with the season, out of their series as a game the archive dropped does (a matched match is a matchmaking season's, never a leftover's).</summary>
