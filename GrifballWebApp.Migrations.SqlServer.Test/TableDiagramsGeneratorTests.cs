@@ -15,6 +15,7 @@ public class TableDiagramsGeneratorTests
     private sealed class Report { public string Name { get; set; } = ""; }
     private sealed class OneItem { public int Id { get; set; } }
     private sealed class TwoItem { public int Id { get; set; } }
+    private sealed class ItemChild { public int Id { get; set; } public int OneItemId { get; set; } }
     private enum Kind : byte { A }
     private sealed class KindRow { public Kind Id { get; set; } }
     private sealed class BlobRow { public byte[] Id { get; set; } = []; }
@@ -75,19 +76,25 @@ public class TableDiagramsGeneratorTests
     }
 
     [Test]
-    public void TablesOfOneNameInTwoSchemas_AreDrawnWithTheirSchemas()
+    public void ATableAndAnotherSchemasOfOneName_AreDrawnWithTheirSchemas()
     {
         var text = Diagram(b =>
         {
             b.Entity<OneItem>().ToTable("Items", "Auth");
             b.Entity<TwoItem>().ToTable("Items", "Event");
+            b.Entity<ItemChild>(c =>
+            {
+                c.ToTable("ItemChildren", "Event");
+                c.HasOne<OneItem>().WithMany().HasForeignKey(x => x.OneItemId);
+            });
         });
 
+        var event_ = text[text.IndexOf("### Event", StringComparison.Ordinal)..];
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(text, Does.Contain("    Auth_Items {"));
-            Assert.That(text, Does.Contain("    Event_Items {"));
-            Assert.That(text, Does.Not.Contain("    Items {"));
+            Assert.That(event_, Does.Contain("    Event_Items {"));
+            Assert.That(event_, Does.Contain("    Auth_Items {"));
+            Assert.That(event_, Does.Not.Contain("    Items {"));
         }
     }
 
