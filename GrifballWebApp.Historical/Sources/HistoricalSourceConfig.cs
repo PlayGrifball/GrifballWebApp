@@ -496,6 +496,9 @@ public class ResultsTab
     public string? Game { get; init; }
     /// <summary>Every game is a playoff game (a playoffs-only list).</summary>
     public bool IsPlayoffs { get; init; }
+    /// <summary>A <see cref="ResultsLayout.Series"/> tab whose playoffs are a column of its cells under a label ("Playoffs: Round 1")
+    /// among the weeks: the cell starting with this text, and the series cells below it in its column, are playoff games.</summary>
+    public string? PlayoffsFrom { get; init; }
     /// <summary>A <see cref="ResultsLayout.Calendar"/>'s year and month of its first row of days of the month (SL20 Console's
     /// "1 | 2 | 3 | 4"): each game is dated by its day, at its time. Unset: its games are undated.</summary>
     public int? Year { get; init; }

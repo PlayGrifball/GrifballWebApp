@@ -191,6 +191,23 @@ public class GameResultsParserTests
     }
 
     [Test]
+    public void Series_PlayoffsFrom_MakesTheCellsBelowItsAnchorInItsColumnPlayoffGames()
+    {
+        var sheet = Sheet(
+            ["Overall Standings", "", "Week 1 Results", "", "Playoffs: Round 1"],
+            ["Team", "", "Alpha over Bravo 5-3", "", "Aftershock vs Legendary"],
+            ["Aftershock", "", "Charlie over Delta 5-1", "", "Aftershock over Legendary 5-2"],
+            ["Underrated", "", "Alpha over Charlie 5-4", "", "Underrated over Oblivion 5-3"]);
+
+        var games = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series, PlayoffsFrom = "Playoffs: Round 1" }, sheet);
+
+        Assert.That(games.Select(g => (g.Teams[0].Name, g.IsPlayoffs)), Is.EqualTo(new[]
+        {
+            ((string?)"Alpha", false), ("Charlie", false), ("Aftershock", true), ("Alpha", false), ("Underrated", true),
+        }), "Only the anchor's column from its row down is the playoffs; the weeks beside it stay regular season");
+    }
+
+    [Test]
     public void Series_GameScoresThatDoNotAddUpToTheSeriesScore_AreTakenAsWrittenWinnerFirst()
     {
         var games = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series }, Sheet(["A over B 2-1 (5-1, 5-4, 5-3)"]));

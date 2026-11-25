@@ -405,17 +405,32 @@ public static partial class GameResultsParser
         Add(parse, parse.Key(where), parse.SeriesOf(winner, loser, where), result);
     }
 
+    /// <summary>The cell the tab's <see cref="ResultsTab.PlayoffsFrom"/> names (its row and column), the first that starts with it.</summary>
+    private static (int Row, int Column)? PlayoffsAnchor(ResultsParse parse)
+    {
+        if (string.IsNullOrWhiteSpace(parse.Tab.PlayoffsFrom))
+            return null;
+        for (var r = 0; r < parse.Sheet.Rows.Count; r++)
+            for (var c = 0; c < parse.Sheet.Rows[r].Length; c++)
+                if (parse.Sheet.Rows[r][c].Trim().StartsWith(parse.Tab.PlayoffsFrom.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return (r, c);
+        return null;
+    }
+
     private static void SeriesCells(ResultsParse parse)
     {
+        var anchor = PlayoffsAnchor(parse);
         for (var r = 0; r < parse.Sheet.Rows.Count; r++)
         {
             var row = parse.Sheet.Rows[r];
             var first = row.Select(c => c.Trim()).FirstOrDefault(c => c.Length > 0, "");
             parse.Phase(first);
+            var rowPlayoffs = parse.Playoffs;
             for (var c = 0; c < row.Length; c++)
             {
                 if (SeriesEntry.Of(row[c].Trim()) is not { } entry)
                     continue;
+                parse.Playoffs = rowPlayoffs || (anchor is { } a && r >= a.Row && c == a.Column);
                 // The game scores after it, in the cells beside it (until a cell that is none)
                 var scores = entry.Games;
                 if (scores.Count == 0)
@@ -431,6 +446,7 @@ public static partial class GameResultsParser
                 else
                     parse.Unread.Add(row[c].Trim());
             }
+            parse.Playoffs = rowPlayoffs;
         }
     }
 
