@@ -15,6 +15,8 @@ public class GameResultsParserTests
     private static readonly string[] ZedNotRead = ["fl20/Game History: results not read: Alpha v Charlie: FF Zed Win, no winner"];
     private static readonly int[] SixFiveOne = [6, 5, 1];
     private static readonly bool[] RegularThenPlayoffs = [false, true, true];
+    private static readonly bool[] OneRegularGame = [false];
+    private static readonly bool[] RegularThenPlayoffGame = [false, true];
     private static readonly string[] TableSeries = ["fl20/Game Results#2", "fl20/Game Results#2", "fl20/Game Results#5", "fl20/Game Results#8"];
     private static readonly string[] TableKeys = ["fl20/Game Results#2", "fl20/Game Results#3", "fl20/Game Results#5", "fl20/Game Results#8"];
     private static readonly bool[] ThirdIsForfeit = [false, false, true, false];
@@ -212,11 +214,11 @@ public class GameResultsParserTests
     {
         var missing = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series, PlayoffsFrom = "Playoffs: Round 1" },
             Sheet(["Week 1", "Alpha over Bravo 5-3"]));
-        Assert.That(missing.Select(g => g.IsPlayoffs), Is.EqualTo(new[] { false }));
+        Assert.That(missing.Select(g => g.IsPlayoffs), Is.EqualTo(OneRegularGame));
 
         var rowPhase = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series, PlayoffsFrom = "Playoffs: Round 1" },
             Sheet(["Week 1", "Alpha over Bravo 5-3"], ["Playoffs", "Charlie over Delta 5-1"]));
-        Assert.That(rowPhase.Select(g => g.IsPlayoffs), Is.EqualTo(new[] { false, true }), "A phase row still decides when the anchor is absent");
+        Assert.That(rowPhase.Select(g => g.IsPlayoffs), Is.EqualTo(RegularThenPlayoffGame), "A phase row still decides when the anchor is absent");
     }
 
     [Test]
