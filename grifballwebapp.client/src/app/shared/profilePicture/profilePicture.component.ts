@@ -12,6 +12,7 @@ export type ProfilePictureKind = 'gamerPicture' | 'haloEmblem';
   templateUrl: './profilePicture.component.html',
   styleUrl: './profilePicture.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { 'aria-hidden': 'true' },
 })
 export class ProfilePictureComponent {
   /** The site user whose image to show; none shows only the initial. */

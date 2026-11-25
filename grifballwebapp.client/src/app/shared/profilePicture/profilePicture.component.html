@@ -1,4 +1,4 @@
-<span class="hud-avatar profile-picture" [class.hud-avatar--accent]="accent()" [class.profile-picture--emblem]="kind() === 'haloEmblem'" aria-hidden="true">
+<span class="hud-avatar profile-picture" [class.hud-avatar--accent]="accent()" [class.profile-picture--emblem]="kind() === 'haloEmblem'">
   <span class="profile-picture__initial" [class.profile-picture__initial--hidden]="state() === 'loaded'">{{ initial() }}</span>
   @if (src(); as url) {
     @if (state() !== 'failed') {
