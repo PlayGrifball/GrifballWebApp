@@ -31,6 +31,6 @@ export class ProfilePictureComponent {
     return userID == null ? null : `/api/users/${userID}/profile-picture`;
   });
 
-  /** Whether the image is still coming, is in, or answered 404 (the initial stays). A new user gets a fresh try. */
+  /** Whether the image is still coming, is in, or there is none (the API answers 204: the initial stays). A new user gets a fresh try. */
   protected readonly state = linkedSignal<string | null, 'pending' | 'loaded' | 'failed'>({ source: this.src, computation: () => 'pending' });
 }

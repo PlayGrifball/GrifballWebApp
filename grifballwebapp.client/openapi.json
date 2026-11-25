@@ -9786,7 +9786,7 @@
         "tags": [
           "XboxAccounts"
         ],
-        "summary": "The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.",
+        "summary": "The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 204 when neither is.",
         "operationId": "GetXboxAccountProfilePicture",
         "parameters": [
           {
@@ -9823,15 +9823,8 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -9841,7 +9834,7 @@
         "tags": [
           "XboxAccounts"
         ],
-        "summary": "The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.",
+        "summary": "The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 204 when the user has no account or neither is stored.",
         "operationId": "GetUserProfilePicture",
         "parameters": [
           {
@@ -9878,15 +9871,8 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
+          "204": {
+            "description": "No Content"
           }
         }
       }

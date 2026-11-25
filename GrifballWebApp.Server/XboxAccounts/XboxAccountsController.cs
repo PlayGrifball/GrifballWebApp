@@ -86,27 +86,28 @@ public class XboxAccountsController : ControllerBase
     public Task<IActionResult> GetUserHaloEmblem([FromRoute] int userID, [FromServices] XboxImageService images, CancellationToken ct)
         => ImageOfUser(images, userID, XboxUserImageKind.HaloEmblem, ct);
 
-    /// <summary>The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.</summary>
+    /// <summary>The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 204 when neither is.</summary>
     [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [AllowAnonymous]
     [HttpGet("xbox-accounts/{xboxUserID:long}/profile-picture", Name = "GetXboxAccountProfilePicture")]
     public Task<IActionResult> GetProfilePicture([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
         => ShownImage(images, xboxUserID, null, UserImageMaxAge, ct);
 
-    /// <summary>The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.</summary>
+    /// <summary>The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 204 when the user has no account or neither is stored.</summary>
     [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [AllowAnonymous]
     [HttpGet("users/{userID:int}/profile-picture", Name = "GetUserProfilePicture")]
     public async Task<IActionResult> GetUserProfilePicture([FromRoute] int userID, [FromServices] XboxImageService images, CancellationToken ct)
         => await images.GetAccountAndChoiceOfAsync(userID, ct) is var (xboxUserID, choice)
             ? await ShownImage(images, xboxUserID, choice, UserImageMaxAge, ct)
-            : NotFoundBriefly();
+            : NoPictureBriefly();
 
-    // The choice can change, so the answer is not kept for a day even for an account
+    // The choice can change, so the answer is not kept for a day even for an account. An <img> asks for this (a roster a
+    // player at a time): no picture is 204, not 404, which a browser logs as an error in its console for every player
     private async Task<IActionResult> ShownImage(XboxImageService images, long xboxUserID, ProfilePictureChoice? choice, int maxAge, CancellationToken ct)
-        => await images.GetShownKindAsync(xboxUserID, choice, ct) is { } kind ? await Image(images, xboxUserID, kind, ct, maxAge) : NotFoundBriefly();
+        => await images.GetShownKindAsync(xboxUserID, choice, ct) is { } kind ? await Image(images, xboxUserID, kind, ct, maxAge, NoPictureBriefly) : NoPictureBriefly();
 
     private async Task<IActionResult> ImageOfUser(XboxImageService images, int userID, XboxUserImageKind kind, CancellationToken ct)
         => await images.GetXboxUserIdOfAsync(userID, ct) is { } xboxUserID ? await Image(images, xboxUserID, kind, ct, UserImageMaxAge) : NotFoundBriefly();
@@ -122,13 +123,19 @@ public class XboxAccountsController : ControllerBase
         return NotFound();
     }
 
+    private NoContentResult NoPictureBriefly()
+    {
+        Response.Headers.CacheControl = "public, max-age=300";
+        return NoContent();
+    }
+
     private static Microsoft.Net.Http.Headers.EntityTagHeaderValue ETagOf(DateTime checkedAt)
         => new($"\"{DateTime.SpecifyKind(checkedAt, DateTimeKind.Utc).Ticks}\"");
 
-    private async Task<IActionResult> Image(XboxImageService images, long xboxUserID, XboxUserImageKind kind, CancellationToken ct, int maxAge = AccountImageMaxAge)
+    private async Task<IActionResult> Image(XboxImageService images, long xboxUserID, XboxUserImageKind kind, CancellationToken ct, int maxAge = AccountImageMaxAge, Func<IActionResult>? missing = null)
     {
         if (await images.GetCheckedAtAsync(xboxUserID, kind, ct) is not { } version)
-            return NotFoundBriefly();
+            return missing?.Invoke() ?? NotFoundBriefly();
         // A picture or an emblem changes rarely, and the job checks again every couple of weeks
         Response.Headers.CacheControl = $"public, max-age={maxAge}";
         var request = Request.GetTypedHeaders();

@@ -267,19 +267,28 @@ public class XboxImageEndpointsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task TheProfilePictureEndpoints_AreNotFound_ForNoAccountOrNoImage()
+    public async Task TheProfilePictureEndpoints_AreNoContent_AndBrieflyCached_ForNoAccountOrNoImage()
     {
+        // An <img> asks for these, a roster a player at a time: no picture is 204, which a browser doesn't log as an error
         var user = User.Seed(userName: "nobody");
         Db.Users.Add(user);
+        Db.XboxUsers.Add(XboxUser.FromXbox(6, "No Images"));
         await Db.SaveChangesAsync();
+        var forUser = Controller();
+        var forAccount = Controller();
+        var forUnknown = Controller();
 
-        var noAccount = await Controller().GetUserProfilePicture(user.Id, new XboxImageService(Db), CancellationToken.None);
-        var noImage = await Controller().GetProfilePicture(404, new XboxImageService(Db), CancellationToken.None);
+        var noAccount = await forUser.GetUserProfilePicture(user.Id, new XboxImageService(Db), CancellationToken.None);
+        var noImage = await forAccount.GetProfilePicture(6, new XboxImageService(Db), CancellationToken.None);
+        var unknown = await forUnknown.GetProfilePicture(404, new XboxImageService(Db), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(noAccount, Is.TypeOf<NotFoundResult>());
-            Assert.That(noImage, Is.TypeOf<NotFoundResult>());
+            Assert.That(noAccount, Is.TypeOf<NoContentResult>());
+            Assert.That(noImage, Is.TypeOf<NoContentResult>());
+            Assert.That(unknown, Is.TypeOf<NoContentResult>());
+            foreach (var controller in new[] { forUser, forAccount, forUnknown })
+                Assert.That(controller.Response.Headers.CacheControl.ToString(), Is.EqualTo("public, max-age=300"));
         }
     }
 

@@ -1020,6 +1020,9 @@ const vodReview = [
     matchNote: 'No season or teams recognised' },
 ];
 
+/** A player's or an Xbox account's picture, as an <img> asks for it. */
+const NO_PICTURE = /^\/api\/(users|xbox-accounts)\/\d+\/profile-picture$/;
+
 /**
  * How to answer one request: status, content type and body; undefined for an unknown path (404). `query`: the request's
  * query string ("?status=Approved"); an endpoint mocked for that exact query answers it, any other query its path's.
@@ -1027,6 +1030,9 @@ const vodReview = [
 export function mockResponse(role: Role, path: string, query = ''): { status: number, contentType: string, body: string } | undefined {
   const routes = mockRoutes(role);
   const key = query && path + query in routes ? path + query : path;
+  // No player here has a stored picture: the API answers that 204 (an <img> gets none, and no error is logged)
+  if (!(key in routes) && NO_PICTURE.test(path))
+    return { status: 204, contentType: 'image/png', body: '' };
   if (!(key in routes))
     return undefined;
   const { body } = routes[key];

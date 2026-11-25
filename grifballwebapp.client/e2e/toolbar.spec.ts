@@ -101,3 +101,17 @@ test('the toolbar lays out its links again on signing in, at every screen size',
   }
   expect(problems).toEqual([]);
 });
+
+// Every page loads the header's logo first (fetchpriority high), the boot shell's too: a big one holds back every page's
+// largest paint on a phone (a 460 kB SVG wrapping a PNG took mobile LCP from 2.7 s to 4.5 s everywhere).
+test('the header logo is a small image, the same in the boot shell', async ({ page, request }) => {
+  await mockBackend(page, 'anon');
+  await page.goto(SITE + '/');
+  const header = await page.locator('.hud-brand__mark').getAttribute('src');
+  expect(header).toBe('/assets/grifLogo.webp');
+  const logo = await request.get(SITE + header);
+  expect(logo.ok()).toBeTruthy();
+  expect((await logo.body()).length).toBeLessThan(20 * 1024);
+  const html = await (await request.get(SITE + '/')).text();
+  expect(html).toContain('class="boot-shell__mark" src="/assets/grifLogo.webp"');
+});
