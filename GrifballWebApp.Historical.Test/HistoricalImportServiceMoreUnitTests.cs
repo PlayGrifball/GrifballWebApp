@@ -760,8 +760,11 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
 
     private static HistoricalArchiveInput WithGames(HistoricalArchiveInput input, string seasonKey, params string[] gameKeys)
     {
-        input.RecordedGames = [.. gameKeys.Select(k => Game(k, [("Silva", 1), ("Hen", 2)], "halo5", seasonKey: seasonKey))];
-        return input;
+        return new HistoricalArchiveInput
+        {
+            Seasons = input.Seasons, Championships = input.Championships,
+            RecordedGames = [.. gameKeys.Select(k => Game(k, [("Silva", 1), ("Hen", 2)], "halo5", seasonKey: seasonKey))],
+        };
     }
 
     [Test]
@@ -800,6 +803,8 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         }
     }
 
+    private static readonly string[] OnlyThePro = ["sml18-fantasy/Stats#sPro"];
+
     private static HistoricalArchiveInput OneSeason(string name, string key)
     {
         var tab = Tab(name, "Stats", Player("Silva", team: "Cabs"));
@@ -824,7 +829,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.SeasonsRetired, Is.EqualTo(1));
-            Assert.That(await Context.Seasons.Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(new[] { "sml18-fantasy/Stats#sPro" }));
+            Assert.That(await Context.Seasons.Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(OnlyThePro));
             Assert.That(await Context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1), "Only the new season's stats are left");
         }
     }
