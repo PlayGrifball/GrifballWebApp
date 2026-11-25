@@ -35,6 +35,23 @@ describe('combinePhases', () => {
     expect(lines.find(l => l.userID === 101)).toEqual(jasmine.objectContaining({ grabs: 13, battingAverage: null, scoringAverage: null, combinedAverage: null }));
   });
 
+  it('keeps the role note, and leaves the ratios empty when no game or death is recorded', () => {
+    const [line] = combinePhases([
+      stat({ gamesPlayed: 0, wins: 0, losses: 0, kills: 0, deaths: 0, roleNote: 'Sub' }),
+      stat({ isPlayoffs: true, gamesPlayed: 0, wins: 0, losses: 0, kills: 0, deaths: 0 }),
+    ]);
+    expect(line).toEqual(jasmine.objectContaining({ roleNote: 'Sub', tradeNote: null, winPercent: null, kdRatio: null, kdSpread: 0 }));
+  });
+
+  it('orders equal goals by kills, then gamertag', () => {
+    const lines = combinePhases([
+      stat({ userID: 1, gamertag: 'Zed', goals: 2, kills: 5 }),
+      stat({ userID: 2, gamertag: 'Amy', goals: 2, kills: 5 }),
+      stat({ userID: 3, gamertag: 'Max', goals: 2, kills: 9 }),
+    ]);
+    expect(lines.map(l => l.gamertag)).toEqual(['Max', 'Amy', 'Zed']);
+  });
+
   it('keeps a traded player apart by team, most goals first', () => {
     const lines = combinePhases([
       stat({ teamID: 40, goals: 2 }),
