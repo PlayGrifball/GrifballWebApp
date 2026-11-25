@@ -607,5 +607,25 @@ public class SeasonStatsParserTests
         }
     }
 
-    private static readonly string[] ExpectedStatsSeasonKey = ["stats/Regular Season Stats Sheet"];
+    [Test]
+    public void CrossSourceGameRecordSheet_NoSourceHasIt_IsWarnedAbout()
+    {
+        var statsContent = Workbook(("Regular Season Stats Sheet",
+        [
+            Row("Gamertag", "Kills", "Deaths"),
+            Row("Ace", 20, 10),
+        ]));
+        var statsSource = new HistoricalSourceContent(HistoricalTestData.Source("stats", "https://example.org/stats",
+            new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Winter League 2026 (Pro)", League = "AGLA", Game = "infinite", Division = "Pro" },
+                Tabs = [new() { Name = "Regular Season Stats Sheet", GamesSheet = "history/Season Match History" }],
+            }.ToJson()), 1, statsContent);
+
+        var build = HistoricalArchiveBuilder.Build([statsSource]);
+
+        Assert.That(build.Warnings, Has.Some.Contains("no game records source 'history/Season Match History'"));
+    }
+
+    private static readonly string[] ExpectedStatsSeasonKey =["stats/Regular Season Stats Sheet"];
 }

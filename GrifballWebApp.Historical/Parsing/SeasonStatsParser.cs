@@ -31,7 +31,7 @@ public static partial class SeasonStatsParser
         ["bomb stops"] = "carrierKills", ["bombstops"] = "carrierKills", ["plate stops"] = "carrierKills",
         ["avg life"] = "averageLifeSeconds", ["averagelife"] = "averageLifeSeconds", ["average life"] = "averageLifeSeconds",
         ["avg life duration"] = "averageLifeSeconds", ["average life duration"] = "averageLifeSeconds", ["average life (seconds)"] = "averageLifeSeconds",
-        ["avg life (seconds)"] = "averageLifeSeconds", ["average life (seconds)"] = "averageLifeSeconds",
+        ["avg life (seconds)"] = "averageLifeSeconds",
         ["avg life (s)"] = "averageLifeSeconds", ["average life (s)"] = "averageLifeSeconds",
         ["time"] = "totalSecondsPlayed", ["minutes"] = "totalSecondsPlayed", ["minutes played"] = "totalSecondsPlayed", ["seconds played"] = "totalSecondsPlayed",
         ["time played (seconds)"] = "totalSecondsPlayed", ["time played (minutes)"] = "totalSecondsPlayed", ["time (m)"] = "totalSecondsPlayed", ["game time"] = "totalSecondsPlayed", ["gametime"] = "totalSecondsPlayed", ["timealive"] = "totalSecondsPlayed", ["playingtime"] = "totalSecondsPlayed",

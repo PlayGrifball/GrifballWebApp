@@ -172,8 +172,8 @@ public static partial class DraftParser
             if (pickColumn >= 0)
                 team.Take(namedPlayer(Player(sheet.Cell(r, playerColumn))), sheet.Cell(r, pickColumn).Trim());
         }
-        return [.. teams.Where(t => t.Order is not null || t.Captain is not null || t.Picks.Count > 0)
-            .Select(t => new ArchiveTeam { TeamName = t.TeamName, DraftOrder = t.Order, Captain = t.Captain, Picks = t.Picks })];
+        return [.. teams.Where(t => t.Order is not null || t.CaptainTag is not null || t.Picks.Count > 0)
+            .Select(t => new ArchiveTeam { TeamName = t.TeamName, DraftOrder = t.Order, Captain = t.CaptainTag, Picks = t.Picks })];
     }
 
     /// <summary>A team of a draft table, as its rows are read.</summary>
@@ -181,7 +181,7 @@ public static partial class DraftParser
     {
         public string TeamName { get; } = name;
         public int? Order { get; set; }
-        public string? Captain { get; private set; }
+        public string? CaptainTag { get; private set; }
         public List<ArchiveDraftPick> Picks { get; } = [];
 
         /// <summary>A player's Draft Pick code: "C3" makes them the captain, 3rd in the order; "R2P3" a pick of round 2.</summary>
@@ -193,7 +193,7 @@ public static partial class DraftParser
             var pick = PickCode().Match(code);
             if (captain.Success)
             {
-                Captain ??= gamertag;
+                CaptainTag ??= gamertag;
                 Order ??= Number(captain.Groups[1].Value);
             }
             else if (pick.Success && Number(pick.Groups[1].Value) is int round)
