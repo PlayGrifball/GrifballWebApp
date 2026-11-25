@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
@@ -123,13 +123,15 @@ describe('SeasonComponent', () => {
     expect(vods.id()).toBe(12);
   });
 
-  it('gives the schedule and bracket the season too', () => {
+  it('gives the schedule and bracket the season too', async () => {
     fixture.componentRef.setInput('tab', 'schedule');
     fixture.detectChanges();
+    await renderDeferred();
     expect((fixture.debugElement.query(By.directive(StubScheduleList)).componentInstance as StubScheduleList).seasonID()).toBe(5);
     fixture.componentRef.setInput('tab', 'bracket');
     fixture.componentRef.setInput('seasonID', '12');
     fixture.detectChanges();
+    await renderDeferred();
     expect((fixture.debugElement.query(By.directive(StubPlayoffBracket)).componentInstance as StubPlayoffBracket).seasonID()).toBe(12);
   });
 
@@ -189,6 +191,13 @@ describe('SeasonComponent', () => {
     expect(heading()).toBe('Late Season');
   });
 
+  /** The schedule and the bracket are @defer blocks: drawn as the browser draws them once their code is in. */
+  async function renderDeferred(): Promise<void> {
+    for (const block of await fixture.getDeferBlocks())
+      await block.render(DeferBlockState.Complete);
+    fixture.detectChanges();
+  }
+
   const shown = () => ['app-team-standings', 'app-season-this-week', 'app-schedule-list', 'app-playoff-bracket']
     .filter(tag => (fixture.nativeElement as HTMLElement).querySelector(tag) !== null);
 
@@ -199,38 +208,42 @@ describe('SeasonComponent', () => {
   });
 
   for (const [tab, tag, kicker] of [['schedule', 'app-schedule-list', 'Regular season'], ['bracket', 'app-playoff-bracket', 'Playoffs']]) {
-    it(`shows only the ${tab} for ?tab=${tab}`, () => {
+    it(`shows only the ${tab} for ?tab=${tab}`, async () => {
       fixture.componentRef.setInput('tab', tab);
       fixture.detectChanges();
+      await renderDeferred();
       expect(shown()).toEqual([tag]);
       expect(fixture.componentInstance.kicker()).toBe(kicker);
       expect((fixture.nativeElement as HTMLElement).querySelector('[aria-current="page"]')!.textContent!.trim().toLowerCase()).toBe(tab);
     });
   }
 
-  it('gives the bracket tab\'s bracket the season\'s champions for its champion slot', () => {
+  it('gives the bracket tab\'s bracket the season\'s champions for its champion slot', async () => {
     const champions: SeasonChampionDto[] = [{ tier: 'Open', teamID: 41, teamName: 'Relentless', roster: [] }];
     summaries.get.and.callFake((id: number) => of(seasonSummary(id, { champions })));
     fixture.componentRef.setInput('tab', 'bracket');
     fixture.detectChanges();
+    await renderDeferred();
 
     const bracket = fixture.debugElement.query(By.directive(StubPlayoffBracket)).componentInstance as StubPlayoffBracket;
     expect(bracket.champions()).toEqual(champions);
     expect(bracket.hasEnded()).toBeFalse();
   });
 
-  it('tells the bracket tab\'s bracket that the season has ended', () => {
+  it('tells the bracket tab\'s bracket that the season has ended', async () => {
     summaries.get.and.callFake((id: number) => of(seasonSummary(id, { hasEnded: true })));
     fixture.componentRef.setInput('tab', 'bracket');
     fixture.detectChanges();
+    await renderDeferred();
 
     const bracket = fixture.debugElement.query(By.directive(StubPlayoffBracket)).componentInstance as StubPlayoffBracket;
     expect(bracket.hasEnded()).toBeTrue();
   });
 
-  it('fetches the season\'s champions again once the bracket is created again or reseeded', () => {
+  it('fetches the season\'s champions again once the bracket is created again or reseeded', async () => {
     fixture.componentRef.setInput('tab', 'bracket');
     fixture.detectChanges();
+    await renderDeferred();
     expect(summaries.get).toHaveBeenCalledTimes(1);
     const champions: SeasonChampionDto[] = [{ tier: 'Open', teamID: 41, teamName: 'Relentless', roster: [] }];
     summaries.get.and.callFake((id: number) => of(seasonSummary(id, { champions })));
@@ -384,20 +397,22 @@ describe('SeasonComponent', () => {
       expect(el().querySelector('app-data-notice a')).toBeNull();
     });
 
-    it('shows an ended season what it has as usual', () => {
+    it('shows an ended season what it has as usual', async () => {
       summaries.get.and.callFake((id: number) => of(seasonSummary(id, { hasEnded: true, bracketMatchCount: 0 })));
       fixture.detectChanges();
       expect(shown()).toEqual(['app-team-standings', 'app-season-this-week']);
       fixture.componentRef.setInput('tab', 'schedule');
       fixture.detectChanges();
+      await renderDeferred();
       expect(shown()).toEqual(['app-schedule-list']);
     });
 
-    it('shows the empty sections of a season still going, as there is more to come', () => {
+    it('shows the empty sections of a season still going, as there is more to come', async () => {
       summaries.get.and.callFake((id: number) => of(seasonSummary(id, { hasEnded: false, matchCount: 0, bracketMatchCount: 0 })));
       fixture.componentRef.setInput('tab', 'bracket');
       fixture.detectChanges();
       expect(notices()).toEqual([]);
+      await renderDeferred();
       expect(shown()).toEqual(['app-playoff-bracket']);
     });
   });
