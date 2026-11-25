@@ -28,13 +28,13 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 table: "Users",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: 1);
+                defaultValue: 0);
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_Auth_Users_KnownProfilePicture",
                 schema: "Auth",
                 table: "Users",
-                sql: "ProfilePicture IN (1, 2)");
+                sql: "ProfilePicture IN (0, 1)");
 
             migrationBuilder.Sql("""
                 CREATE TRIGGER "Users_History_Update" AFTER UPDATE ON "Users" FOR EACH ROW BEGIN

@@ -16,13 +16,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 table: "Users",
                 type: "int",
                 nullable: false,
-                defaultValue: 1);
+                defaultValue: 0);
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_Auth_Users_KnownProfilePicture",
                 schema: "Auth",
                 table: "Users",
-                sql: "ProfilePicture IN (1, 2)");
+                sql: "ProfilePicture IN (0, 1)");
         }
 
         /// <inheritdoc />

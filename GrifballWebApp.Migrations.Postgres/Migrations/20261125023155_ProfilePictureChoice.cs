@@ -23,7 +23,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Users",
                 type: "integer",
                 nullable: false,
-                defaultValue: 1);
+                defaultValue: 0);
 
             migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Auth\".\"Users\"');");
 
@@ -31,7 +31,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 name: "CK_Auth_Users_KnownProfilePicture",
                 schema: "Auth",
                 table: "Users",
-                sql: "\"ProfilePicture\" IN (1, 2)");
+                sql: "\"ProfilePicture\" IN (0, 1)");
         }
 
         /// <inheritdoc />

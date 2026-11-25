@@ -45,6 +45,6 @@ public enum RegionSource
 public enum ProfilePictureChoice
 {
     /// <summary>The Halo emblem (the default).</summary>
-    Emblem = 1,
-    GamerPicture = 2,
+    Emblem = 0,
+    GamerPicture = 1,
 }

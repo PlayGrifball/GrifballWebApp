@@ -6930,7 +6930,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int>("ProfilePicture")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(1);
+                        .HasDefaultValue(0);
 
                     b.Property<int?>("RegionID")
                         .HasColumnType("INTEGER");
@@ -6982,7 +6982,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Users_History_Update");
 
-                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "ProfilePicture IN (1, 2)");
+                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "ProfilePicture IN (0, 1)");
 
                             t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "RegionSource IS NULL OR RegionSource IN (1, 2, 3)");
 
