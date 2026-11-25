@@ -50,6 +50,33 @@ public class DraftParserTests
     }
 
     [Test]
+    public void Board_ATabsNames_RenameThePlayersTheyMatch_AndLeaveTheRest()
+    {
+        var sheet = Sheet(
+            ["Team Name", "Alpha", "Bravo"],
+            ["Captain", "Ace", "Bee"],
+            ["First Round", "Dee", "Eee"]);
+        var tab = new DraftTab { Sheet = "Draft", Order = DraftOrder.None, Names = new() { ["ace"] = "Ace Renamed" } };
+
+        var teams = DraftParser.Parse(sheet, tab)!;
+
+        Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("Alpha", "Ace Renamed", null), ("Bravo", "Bee", null) }));
+    }
+
+    [Test]
+    public void Board_ACaptainCellOfOnlySlashes_HasNoCaptain()
+    {
+        var sheet = Sheet(
+            ["Team Name", "Alpha", "Bravo"],
+            ["Captain", "/", "Bee / Cee"],
+            ["First Round", "Dee", "Eee"]);
+
+        var teams = Board(sheet, DraftOrder.None);
+
+        Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("Alpha", null, null), ("Bravo", "Bee", null) }));
+    }
+
+    [Test]
     public void Board_ATeamThePlaceholderNames_TakesTheConfigsName_WithItsCaptainAndPicks()
     {
         // H3 Action 2022's Teams tab: RDG NHL's team was never named, its column says "Team Name"

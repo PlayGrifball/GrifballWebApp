@@ -150,7 +150,8 @@ public class ArchiveImportTests
     [Test]
     public async Task EveryTeam_HasACaptain()
     {
-        Assert.That((await Seasons()).Where(s => s.Captains < s.Teams && !IsGrifballHub(s.SourceID))
+        // SML26's dashboard workbook has no captain column and is not yet in AGLA Champions.
+        Assert.That((await Seasons()).Where(s => s.Captains < s.Teams && !IsGrifballHub(s.SourceID) && !string.Equals(s.SourceID, "2026-sml26-minor-stats/Player Stats Total", StringComparison.OrdinalIgnoreCase))
             .Select(s => $"{s.Name}: {s.Captains} of {s.Teams}"), Is.Empty);
     }
 
@@ -206,10 +207,18 @@ public class ArchiveImportTests
         Assert.That((await Seasons()).Where(s => s.Ranked > 0 && s.Ranked < s.Teams).Select(s => $"{s.Name}: {s.Ranked} of {s.Teams}"), Is.Empty);
     }
 
+    /// <summary>Ongoing or unrecorded 2026 seasons not yet listed in AGLA Champions.</summary>
+    private static readonly HashSet<string> UncrownedSeasons2026 = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "2026-sml26-minor-stats/Player Stats Total",
+        "2026-wl26-pro-stats/Regular Season Stats Sheet",
+        "2026-wl26-ammy-stats/Regular Season Stats Sheet",
+    };
+
     [Test]
     public async Task EverySeason_HasAChampion()
     {
-        Assert.That((await Seasons()).Where(s => s.Titles == 0 && !GrifballHubSeasonsWithoutTitles.Contains(s.SourceID)).Select(s => s.Name), Is.Empty);
+        Assert.That((await Seasons()).Where(s => s.Titles == 0 && !GrifballHubSeasonsWithoutTitles.Contains(s.SourceID) && !UncrownedSeasons2026.Contains(s.SourceID)).Select(s => s.Name), Is.Empty);
     }
 
     /// <summary>Seasons whose archive supplies a bracket or playoff recorded games (not Waypoint seasons, nor sheets with playoff stat totals only).</summary>

@@ -104,6 +104,7 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Drafts = [new DraftTab { Sheet = " Draft Board " }],
             ChampionsSheet = "Champions",
             PlayersSheet = "Players",
+            GameRecordSheets = ["Season Match History"],
             Brackets = [new BracketTab { Sheet = "Playoffs", RecordsSheet = "Teams" }, new BracketTab { Rounds = [new BracketRoundTab { Sheet = "Round 1" }] }],
         };
 
@@ -111,7 +112,8 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names, Has.Count.EqualTo(16));
+            Assert.That(names, Has.Count.EqualTo(17));
+            Assert.That(names, Does.Contain("Season Match History"));
             Assert.That(names, Does.Contain("Playoffs"));
             Assert.That(names, Does.Contain("Teams"), "A bracket's records tab");
             Assert.That(names, Does.Contain("Round 1"));
@@ -141,6 +143,23 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
     public void BracketLayouts_TakeEachSeriesLengthFromItsSheetsHeader()
     {
         Assert.That(HistoricalBracketLayouts.GwlSpring2023().Select(s => s.BestOf), Is.EqualTo(GwlSeriesLengths), "Quarter- and semi-finals Bo5, the championship Bo7");
+    }
+
+    [Test]
+    public void SheetNames_LeavesOutAGamesSheetOfAnotherSource()
+    {
+        var config = new HistoricalSourceConfig { Tabs = [new StatsTab { Name = "Stats", GamesSheet = "history/Season Match History" }] };
+
+        Assert.That(config.SheetNames(), Is.EqualTo(new HashSet<string> { "Stats" }));
+    }
+
+    [TestCase("2026-wl26-pro-stats")]
+    [TestCase("2026-wl26-ammy-stats")]
+    public void Wl26StatsSources_FallBackToTheTabTheirUrlNames(string sourceId)
+    {
+        var entry = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == sourceId);
+
+        Assert.That(entry.Url, Does.Contain($"gid={entry.Gid}"));
     }
 
     [Test]
@@ -191,5 +210,14 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
     public void SpringLeague2026_TakesTheRecordsQuarterSeasonTitle(string sourceId, string titles)
     {
         Assert.That(Config(sourceId).Season!.Titles, Is.EqualTo(titles));
+    }
+
+    [TestCase("2026-sml26-minor-stats", "Summer League 2026 (Minor)")]
+    [TestCase("2026-wl26-pro-stats", "Winter League 2026 (Pro)")]
+    [TestCase("2026-wl26-ammy-stats", "Winter League 2026 (Amateur)")]
+    public void Season2026_CatalogEntries_AreConfigured(string sourceId, string seasonName)
+    {
+        var entry = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == sourceId);
+        Assert.That(entry.Config!.Season!.Name, Is.EqualTo(seasonName));
     }
 }

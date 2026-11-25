@@ -67,6 +67,10 @@ public sealed partial class HistoricalArchiveBuilder
     private readonly List<(string SourceId, DraftTab Tab, List<ArchiveTeam>? Teams)> _drafts = [];
     /// <summary>Each awards tab's awards, put on their season's regular season once every season is known.</summary>
     private readonly List<(string SourceId, AwardsTab Tab, List<AwardsParser.ParsedAward>? Awards)> _awards = [];
+    /// <summary>Per-game record counts from CSV-only GameRecordSheets, keyed by "{sourceId}/{sheet}".</summary>
+    private readonly Dictionary<string, (SeasonStatsParser.GameRecordsResult? Records, bool Changed)> _gameRecords = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Stats tabs whose <see cref="StatsTab.GamesSheet"/> points to another source ("{sourceId}/{sheet}").</summary>
+    private readonly List<(string SourceId, StatsTab Tab, ArchiveSeason Season, Dictionary<int, (string Key, string Header)> Columns)> _pendingGameCounts = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
     private bool _everySeason;
     private bool _playersChanged;
@@ -100,11 +104,16 @@ public sealed partial class HistoricalArchiveBuilder
         if (ReadWorkbook(content, config) is not { } workbook)
             return;
 
-        var entries = SeasonStatsParser.Parse(id, config, workbook, _warnings);
+        var pendingGames = new List<(StatsTab Tab, ArchiveSeason Season, Dictionary<int, (string Key, string Header)> Columns)>();
+        var entries = SeasonStatsParser.Parse(id, config, workbook, _warnings, pendingGames);
+        foreach (var (tab, season, columns) in pendingGames)
+            _pendingGameCounts.Add((id, tab, season, columns));
         entries.AddRange(StatsTableParser.Parse(id, config, workbook, _warnings));
         foreach (var entry in entries)
             entry.SourceYear ??= source.Year;
         _seasons.AddRange(entries);
+        foreach (var sheetName in config.GameRecordSheets)
+            _gameRecords[$"{id}/{sheetName.Trim()}"] = (SeasonStatsParser.GameRecords(id, workbook, sheetName, _warnings), changed);
         if (config.ChampionsSheet is not null)
             AddChampions(id, source.Url, config, workbook, changed);
         if (config.ChampionsTable is { } championsTable)
@@ -129,7 +138,7 @@ public sealed partial class HistoricalArchiveBuilder
     private void AddSeasonTabs(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
         foreach (var tab in config.Rosters)
-            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet, config) : null));
+            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet, config, tab.Names) : null));
         foreach (var tab in config.Standings)
             _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? Named(StandingsParser.Parse(standingsSheet, tab), config) : null));
         foreach (var tab in config.Drafts)
@@ -219,7 +228,7 @@ public sealed partial class HistoricalArchiveBuilder
         if (workbook.Sheet(tab.Sheet) is { } sheet)
         {
             var unparsed = new List<string>();
-            var (regular, playoffs, schedule) = WaypointMatchParser.Parse(sheet, unparsed);
+            var (regular, playoffs, schedule) = WaypointMatchParser.Parse(sheet, unparsed, tab.BareIds);
             _waypoint.Add((id, tab, (regular, playoffs, schedule, unparsed)));
         }
         else
@@ -292,6 +301,7 @@ public sealed partial class HistoricalArchiveBuilder
 
     public HistoricalArchiveBuild Finish()
     {
+        ApplyCrossSourceGameCounts();
         var waypoint = WaypointBySeason();
         FillTeamsFromRosters();
         AddStandings();
@@ -320,6 +330,26 @@ public sealed partial class HistoricalArchiveBuilder
             Players = _playersChanged && _players.Count > 0 ? _players : null,
         };
         return new HistoricalArchiveBuild { Input = input, Warnings = _warnings, Seasons = _everySeason ? null : _affected };
+    }
+
+    private void ApplyCrossSourceGameCounts()
+    {
+        foreach (var (sourceId, tab, season, columns) in _pendingGameCounts)
+        {
+            var key = string.Join('/', tab.GamesSheet!.Split('/', 2).Select(p => p.Trim()));
+            if (!_gameRecords.TryGetValue(key, out var found))
+            {
+                _warnings.Add($"{sourceId}: no game records source '{key}'");
+                continue;
+            }
+            if (found.Records is null)
+                continue;
+            SeasonStatsParser.ApplyGameRecords(sourceId, key, found.Records, columns, season.Players, _warnings);
+            season.FirstPlayedAt ??= found.Records.FirstPlayedAt;
+            season.LastPlayedAt ??= found.Records.LastPlayedAt;
+            if (found.Changed)
+                _affected.Add(HistoricalKeys.SeasonSourceId(season.SourceWorkbook!, season.SourceSheet!));
+        }
     }
 
     /// <summary>The Waypoint games, by the key of their season's regular season.</summary>

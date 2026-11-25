@@ -360,6 +360,69 @@ public class ArchiveSeasonTests
         Assert.That(shadowed, Is.Empty, "A titles-only season whose name begins another's (Fall League 2015 / Fall League 2015 Halo 3) is the same season twice");
     }
 
+    [Test]
+    public async Task SummerLeague2026_HasTeamsStatsAndStandings()
+    {
+        await using var context = Archive.NewContext();
+        var season = await context.Seasons.AsNoTracking()
+            .Where(s => s.HistoricalSourceID == "2026-sml26-minor-stats/Player Stats Total")
+            .Select(s => new
+            {
+                s.SeasonName,
+                Teams = s.Teams.Count,
+                Ranked = s.Teams.Count(t => t.ArchivedRank != null),
+                Stats = context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID),
+                MinGames = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => (int?)p.GamesPlayed),
+                MinSeconds = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => p.TotalSecondsPlayed),
+            })
+            .SingleOrDefaultAsync();
+        if (season is null)
+            Assert.Ignore("Summer League 2026 is not in this copy of the archive");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.SeasonName, Is.EqualTo("Summer League 2026 (Minor)"));
+            Assert.That((season.Teams, season.Ranked, season.Stats), Is.EqualTo((6, 6, 24)));
+            Assert.That(season.MinGames, Is.GreaterThan(0));
+            Assert.That(season.MinSeconds, Is.GreaterThan(60m));
+        }
+    }
+
+    [TestCase("2026-wl26-pro-stats/Regular Season Stats Sheet", "Winter League 2026 (Pro)", 4, 8)]
+    [TestCase("2026-wl26-ammy-stats/Regular Season Stats Sheet", "Winter League 2026 (Amateur)", 6, 14)]
+    public async Task WinterLeague2026_HasTeamsCaptainsDraftPicksAndStandings(string sourceId, string expectedName, int expectedTeams, int minPicks)
+    {
+        await using var context = Archive.NewContext();
+        var season = await context.Seasons.AsNoTracking()
+            .Where(s => s.HistoricalSourceID == sourceId)
+            .Select(s => new
+            {
+                s.SeasonName,
+                Teams = s.Teams.Count,
+                Captains = s.Teams.Count(t => t.CaptainID != null),
+                Ranked = s.Teams.Count(t => t.ArchivedRank != null),
+                Picks = s.Teams.SelectMany(t => t.TeamPlayers).Count(p => p.DraftRound != null),
+                Stats = context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID),
+                MinGames = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => (int?)p.GamesPlayed),
+                MinDeaths = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => (int?)p.Deaths),
+                MinSeconds = context.PlayerSeasonStats.Where(p => p.SeasonID == s.SeasonID).Min(p => p.TotalSecondsPlayed),
+            })
+            .SingleOrDefaultAsync();
+        if (season is null)
+            Assert.Ignore($"{expectedName} is not in this copy of the archive");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.SeasonName, Is.EqualTo(expectedName));
+            Assert.That((season.Teams, season.Captains, season.Ranked), Is.EqualTo((expectedTeams, expectedTeams, expectedTeams)));
+            Assert.That(season.Picks, Is.GreaterThanOrEqualTo(minPicks));
+            Assert.That(season.Stats, Is.GreaterThan(0));
+            Assert.That(season.MinGames, Is.GreaterThan(0));
+            Assert.That(season.MinDeaths, Is.GreaterThan(0));
+            Assert.That(season.MinSeconds, Is.GreaterThan(60m));
+        }
+    }
+
     /// <summary>
     /// Seasons whose draft is in a workbook of its own (#604): SML21 Ammy's board (two captains per team, no Team Name row)
     /// and SML20 Reach PC's blocks ("Captain", then "Round One" ... "Round Five").

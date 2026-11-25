@@ -15,11 +15,11 @@ public static partial class ArchiveCells
         return decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : null;
     }
 
-    /// <summary>The number a cell starts with ("42.21" of "42.21 min"), like JavaScript's parseFloat.</summary>
+    /// <summary>The number a cell starts with ("42.21" of "42.21 min", or "2,899.00"), like JavaScript's parseFloat.</summary>
     public static decimal? LeadingNumber(string? value)
     {
         var match = LeadingNumberPattern().Match(value?.Trim() ?? "");
-        return match.Success && decimal.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : null;
+        return match.Success && decimal.TryParse(match.Value.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : null;
     }
 
     /// <summary>Seconds from "h:mm:ss", "m:ss", a number of seconds, or a number of minutes when the header says minutes.</summary>
@@ -89,7 +89,7 @@ public static partial class ArchiveCells
     /// <summary>A header compared loosely: lower case, without spaces ("Games Played" is "gamesplayed").</summary>
     public static string HeaderKey(string header) => new(header.Trim().ToLowerInvariant().Where(c => !char.IsWhiteSpace(c)).ToArray());
 
-    [GeneratedRegex(@"^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?")]
+    [GeneratedRegex(@"^[-+]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?")]
     private static partial Regex LeadingNumberPattern();
 
     [GeneratedRegex(@"\((?:to|from)\s+[^)]+\)", RegexOptions.IgnoreCase)]

@@ -152,6 +152,34 @@ public class HistoricalArchiveDraftsTests
     }
 
     [Test]
+    public void Board_WithDuoCaptainsAndPlayerNames_ResolvesFirstCaptainAndPicks()
+    {
+        var sheet = new GrifballWebApp.Infrastructure.Excel.SheetTable
+        {
+            Name = "Pro Team Chart",
+            Rows =
+            [
+                ["Team Name:", "The Menz Fan Club (MFC)"],
+                ["Captain", "Hells/Scullen"],
+                ["1st Round:", "Solace"],
+            ],
+        };
+        var tab = new DraftTab
+        {
+            Sheet = "Pro Team Chart",
+            Names = new() { ["Hells"] = "Hells Angel cx", ["Scullen"] = "Scullen cx", ["Solace"] = "Solace VIII" },
+        };
+
+        var team = DraftParser.Parse(sheet, tab)!.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.Captain, Is.EqualTo("Hells Angel cx"));
+            Assert.That(team.Picks, Is.EqualTo(new[] { new ArchiveDraftPick("Solace VIII", 1) }));
+        }
+    }
+
+    [Test]
     public void ADraftsNicknames_AreTheirPlayers_AsTheTabsNamesSay()
     {
         // SML20 Reach PC's draft: "Captain Sam", "Round One: Galvan", each the player's nickname

@@ -567,4 +567,125 @@ public class SeasonStatsParserTests
         var players = SeasonStatsParser.Parse("sml16", config, workbook, []).Single().Players;
         Assert.That(players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("iGalvanator", "Impulse"), ("KID TONGA 1", "Impulse") }));
     }
+
+    [Test]
+    public void Sml26Columns_AndCrossSourceGameRecordSheets_AreParsed()
+    {
+        var statsContent = Workbook(("Regular Season Stats Sheet",
+        [
+            Row("Gamertag", "Time Played (Minutes)", "Avg Life (Seconds)", "Rounds Won", "Rounds Lost", "Kills", "Deaths"),
+            Row("Ace", 10, 12.5, 5, 2, 20, 10),
+        ]));
+        var historyContent = Workbook(("Season Match History",
+        [
+            Row("FirstJoinedTime", "PlayerId", "Outcome"),
+            Row("2026-11-17T01:36:12.827Z", "Ace", 2),
+            Row("2026-11-19T01:37:35.479Z", "Ace", 3),
+        ]));
+
+        var statsSource = new HistoricalSourceContent(HistoricalTestData.Source("stats", "https://example.org/stats",
+            new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Winter League 2026 (Pro)", League = "AGLA", Game = "infinite", Division = "Pro" },
+                Tabs = [new() { Name = "Regular Season Stats Sheet", GamesSheet = "history/Season Match History" }],
+            }.ToJson()), 1, statsContent);
+        var historySource = new HistoricalSourceContent(HistoricalTestData.Source("history", "https://example.org/history",
+            new HistoricalSourceConfig { GameRecordSheets = ["Season Match History"] }.ToJson()), 2, historyContent);
+
+        var build = HistoricalArchiveBuilder.Build([statsSource, historySource], new HashSet<string> { "history" });
+        var season = build.Input.Seasons.Seasons.Single();
+        var player = season.Players.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Is.Empty);
+            Assert.That(build.Seasons, Is.EquivalentTo(ExpectedStatsSeasonKey));
+            Assert.That((player.GamesPlayed, player.Wins, player.Losses, player.TotalSecondsPlayed, player.AverageLifeSeconds),
+                Is.EqualTo(((int?)2, (int?)1, (int?)1, (decimal?)600m, (decimal?)12.5m)));
+            Assert.That((season.FirstPlayedAt?.Date, season.LastPlayedAt?.Date),
+                Is.EqualTo(((DateTime?)new DateTime(2026, 11, 17, 0, 0, 0, DateTimeKind.Utc), (DateTime?)new DateTime(2026, 11, 19, 0, 0, 0, DateTimeKind.Utc))));
+        }
+    }
+
+    [Test]
+    public void CrossSourceGameRecordSheet_WithSpacesAroundItsParts_IsFound()
+    {
+        var statsContent = Workbook(("Stats", [Row("Gamertag", "Kills"), Row("Ace", 20)]));
+        var historyContent = Workbook(("Matches", [Row("FirstJoinedTime", "PlayerId", "Outcome"), Row("2026-11-17T01:36:12.827Z", "Ace", 2)]));
+        var statsSource = new HistoricalSourceContent(HistoricalTestData.Source("stats", "https://example.org/stats",
+            new HistoricalSourceConfig { Tabs = [new() { Name = "Stats", GamesSheet = "history/ Matches " }] }.ToJson()), 1, statsContent);
+        var historySource = new HistoricalSourceContent(HistoricalTestData.Source("history", "https://example.org/history",
+            new HistoricalSourceConfig { GameRecordSheets = ["Matches"] }.ToJson()), 2, historyContent);
+
+        var build = HistoricalArchiveBuilder.Build([statsSource, historySource]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Is.Empty);
+            Assert.That(build.Input.Seasons.Seasons.Single().Players.Single().GamesPlayed, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public void CrossSourceGameRecordSheet_NoSourceHasIt_IsWarnedAbout()
+    {
+        var statsContent = Workbook(("Regular Season Stats Sheet",
+        [
+            Row("Gamertag", "Kills", "Deaths"),
+            Row("Ace", 20, 10),
+        ]));
+        var statsSource = new HistoricalSourceContent(HistoricalTestData.Source("stats", "https://example.org/stats",
+            new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Winter League 2026 (Pro)", League = "AGLA", Game = "infinite", Division = "Pro" },
+                Tabs = [new() { Name = "Regular Season Stats Sheet", GamesSheet = "history/Season Match History" }],
+            }.ToJson()), 1, statsContent);
+
+        var build = HistoricalArchiveBuilder.Build([statsSource]);
+
+        Assert.That(build.Warnings, Has.Some.Contains("no game records source 'history/Season Match History'"));
+    }
+
+    [Test]
+    public void ATabWithNoSeasonDefaults_IsNamedForItsSource_AndAGamesSheetOfAnotherSource_NeedsNoPendingList()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Stats", [Row("Player", "Kills"), Row("A", 6)])))!;
+        var config = new HistoricalSourceConfig { Tabs = [new() { Name = "Stats", GamesSheet = "history/Matches" }] };
+
+        var season = SeasonStatsParser.Parse("src", config, workbook, []).Single();
+
+        Assert.That((season.SeasonName, season.GameVersion, season.League, season.Division, season.Titles), Is.EqualTo(("src", "", "AGLA", "Open", (string?)null)));
+    }
+
+    [Test]
+    public void ATabWithItsOwnSeason_DoesNotTakeTheDefaultsTitles()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Stats", [Row("Player", "Kills"), Row("A", 6)])))!;
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Default", Game = "infinite", Titles = "Champions" },
+            Tabs = [new() { Name = "Stats", CustomSeason = "Other" }],
+        };
+
+        var season = SeasonStatsParser.Parse("src", config, workbook, []).Single();
+
+        Assert.That((season.SeasonName, season.Titles), Is.EqualTo(("Other", (string?)null)));
+    }
+
+    [Test]
+    public void CommaFormattedSecondsPlayed_IsNotTruncatedAtTheComma()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Regular Season Stats Sheet",
+        [
+            Row("Gamertag", "Time Played (Seconds)", "Kills", "Deaths"),
+            Row("Cosmos5024", "2,437.95", 193, 123),
+        ])))!;
+        var config = new HistoricalSourceConfig { Tabs = [new() { Name = "Regular Season Stats Sheet" }] };
+
+        var player = SeasonStatsParser.Parse("2026-wl26-pro-stats", config, workbook, []).Single().Players.Single();
+
+        Assert.That(player.TotalSecondsPlayed, Is.EqualTo(2438m));
+    }
+
+    private static readonly string[] ExpectedStatsSeasonKey = ["stats/Regular Season Stats Sheet"];
 }
