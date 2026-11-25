@@ -4,13 +4,14 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import type { StatFlagDto } from '@api/models';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { StatFlagsStore } from './statFlags.store';
 
 export type { StatFlagDto };
 
 @Component({
   selector: 'app-stat-flags',
-  imports: [RouterLink, MatTableModule, MatButtonModule, MatIconModule],
+  imports: [RouterLink, MatTableModule, MatButtonModule, MatIconModule, SkeletonComponent],
   templateUrl: './statFlags.component.html',
   styleUrls: ['./statFlags.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

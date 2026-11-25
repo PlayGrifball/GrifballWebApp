@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import type { AddGamertagHistoryRequest, PastGamertagDto } from '@api/models';
 import { SearchBoxComponent } from '@shared/searchBox/searchBox.component';
 import { PastGamertagsQuery, PastGamertagsStore } from './pastGamertags.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /**
  * Sysadmins: an Xbox account's current gamertag and the gamertags it is known to have gone by, by its XUID or
@@ -12,7 +13,7 @@ import { PastGamertagsQuery, PastGamertagsStore } from './pastGamertags.store';
  */
 @Component({
   selector: 'app-past-gamertags',
-  imports: [RouterLink, DatePipe, SearchBoxComponent],
+  imports: [RouterLink, DatePipe, SearchBoxComponent, SkeletonComponent],
   templateUrl: './pastGamertags.component.html',
   styleUrl: './pastGamertags.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -6,6 +6,9 @@
   <p class="hud-lede">Writes a match's stats into a sheet of a Google spreadsheet.</p>
 
   <div class="hud-grid">
+    @if (waiting()) {
+      <app-skeleton label="the sheets" shape="cards" [count]="2" height="320px" />
+    } @else {
     @for (sheet of sheetInfo(); track sheet) {
       <app-excel-form class="hud-panel"
       [inputSpreadsheetId]="sheet.spreadsheetID"
@@ -13,6 +16,7 @@
       [inputName]="sheet.name" />
     } @empty {
       <p class="hud-empty">No sheets are set up to export to.</p>
+    }
     }
   </div>
 </div>

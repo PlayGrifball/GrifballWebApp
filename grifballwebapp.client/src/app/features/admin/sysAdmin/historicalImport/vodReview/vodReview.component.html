@@ -5,6 +5,8 @@
     <p class="hud-empty hud-empty--error" role="alert">The VODs couldn't be loaded.</p>
   } @else if (loaded() && !rows().length) {
     <p class="hud-empty">Nothing to review.</p>
+  } @else if (!loaded()) {
+    <app-skeleton label="VODs to review" shape="cards" [count]="3" height="120px" cardWidth="100%" />
   } @else {
     <ul class="vr-list">
       @for (vod of rows(); track vod.vodID) {

@@ -160,7 +160,12 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     fixture.detectChanges();
   });
 
-  const load = (dto: SeasonMatchPageDto): void => loadPage(httpMock, fixture, dto);
+  const load = (dto: SeasonMatchPageDto): void => {
+    loadPage(httpMock, fixture, dto);
+    // The rosters are not under test here: the lobby shows once they answer
+    httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
+    fixture.detectChanges();
+  };
 
   it('drops the previous match, and its title, while another loads', () => {
     load(page({ homeTeamName: 'Old Home' }));
@@ -170,6 +175,11 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.seasonMatch()).toBeNull();
     expect(document.title).not.toContain('Old Home');
+    // Waiting again: the lobby and the games are skeletons, not "no games" for a match not read yet
+    const skeletons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('app-skeleton')).map(s => s.textContent!.trim());
+    expect(skeletons).toContain('Loading the match…');
+    expect(skeletons).toContain('Loading games played…');
+    expect(text()).not.toContain('There are no reported games');
   });
 
   it('cancels the previous match\'s request when the match changes before it answers', () => {
@@ -194,10 +204,11 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     expect(vods.id()).toBe(7);
   });
 
-  it('shows the regular season text, no bracket links and no date before the page loads', () => {
+  it('shows the regular season text, no bracket links and no time before the page loads: the lobby is a skeleton, guessing none', () => {
     expect(text()).toContain('Regular Season Match');
     expect(links()).toEqual([]);
-    expect(text()).toContain('Not scheduled');
+    expect(text()).toContain('Loading the match…');
+    expect(text()).not.toContain('Not scheduled');
     expect(text()).not.toContain('Starts');
   });
 
@@ -598,19 +609,19 @@ describe('SeasonMatchComponent reporting', () => {
     expect(button('SUBMIT')).toBeUndefined();
   });
 
-  it('says it is looking for games until the search answers, then lists them', () => {
+  it('holds the games found with a skeleton until the search answers, then lists them', () => {
     httpMock.expectOne('/api/season-matches/7').flush(page());
     fixture.detectChanges();
     httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
     fixture.detectChanges();
     const section = () => (fixture.nativeElement as HTMLElement).querySelector('.lobby-possibles')!;
-    expect(section().textContent).toContain('Looking for games…');
+    expect(section().textContent).toContain('Loading games for these teams…');
     expect(section().getAttribute('aria-busy')).toBe('true');
 
     httpMock.expectOne('/api/season-matches/7/possible-matches').flush([possible]);
     httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
-    expect(section().textContent).not.toContain('Looking for games…');
+    expect(section().textContent).not.toContain('Loading games for these teams…');
     expect(section().textContent).toContain('abc-123: 50 - 49');
     expect(section().getAttribute('aria-busy')).toBe('false');
   });
@@ -1349,17 +1360,38 @@ describe('SeasonMatchComponent lobby', () => {
     expect(el().querySelector('.lobby-possibles')!.textContent).toContain('No games found for these teams yet.');
   });
 
-  it('keeps the page hidden until the match and both rosters are in', () => {
-    const pageEl = () => el().querySelector('.hud-page')!;
-    expect(pageEl().classList).toContain('hud-waiting');
+  it('holds the lobby and the games with skeletons until the match and both rosters are in, guessing nothing', () => {
+    fixture.detectChanges();
+    const skeletons = () => Array.from(el().querySelectorAll('app-skeleton')).map(s => s.textContent!.trim());
+    expect(skeletons()).toContain('Loading the match…');
+    expect(skeletons()).toContain('Loading games played…');
     load(page());
     expect(fixture.componentInstance.store.ready()).toBeFalse();
+    expect(skeletons()).not.toContain('Loading games played…');
     httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
     fixture.detectChanges();
-    expect(pageEl().classList).toContain('hud-waiting');
+    // No title, kicker or score yet: nothing that would change once the rest is in
+    expect(skeletons()).toContain('Loading the match…');
+    expect(el().querySelector('h1')).toBeNull();
+    expect(el().querySelector('.lobby')).toBeNull();
     httpMock.expectOne('/api/teams/20').flush(team('Away', 'Tucker', 'Caboose'));
     fixture.detectChanges();
-    expect(pageEl().classList).not.toContain('hud-waiting');
+    expect(skeletons()).not.toContain('Loading the match…');
+    expect(el().querySelector('h1')).not.toBeNull();
+    expect(roster('home')).not.toHaveSize(0);
+  });
+
+  it('keeps the lobby shown when a reload brings another team, its roster filling in after', () => {
+    load(page());
+    httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
+    httpMock.expectOne('/api/teams/20').flush(team('Away', 'Tucker', 'Caboose'));
+    fixture.detectChanges();
+    // A playoff slot filled (a live change): the away team is another
+    reloadPage(httpMock, fixture, page({ awayTeamID: 21, awayTeamName: 'Blues' }));
+    fixture.detectChanges();
+    expect(el().querySelector('h1')).not.toBeNull();
+    expect(el().textContent).not.toContain('Loading the match');
+    httpMock.expectOne('/api/teams/21').flush(team('Blues', 'Church', 'Tex'));
   });
 
   it('shows the page for a match that does not exist, or that could not be loaded', () => {
@@ -1396,6 +1428,7 @@ describe('SeasonMatchComponent lobby', () => {
   it('is a lobby until a result is in, then a match report with the score', () => {
     load(page());
     httpMock.match(() => true).filter(r => !r.cancelled).forEach(r => r.flush(null));
+    fixture.detectChanges();
     expect(el().querySelector('h1')!.textContent).toBe('Pre-game lobby');
     expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('-:-');
 

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { DateTime } from 'luxon';
 import { ScheduledMatchDto } from '../scheduleList/scheduledMatchDto';
 import { ToDatePipe } from '@shared/toDate.pipe';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SeasonThisWeekStore } from './seasonThisWeek.store';
 
 export type WeekMatchStatus = 'final' | 'upcoming' | 'awaiting';
@@ -40,8 +41,11 @@ function weekStatus(match: ScheduledMatchDto, now: DateTime): WeekMatchStatus {
 /** A few cards for the season overview: what is being played this week. */
 @Component({
   selector: 'app-season-this-week',
-  imports: [RouterLink, DatePipe, ToDatePipe],
+  imports: [RouterLink, DatePipe, ToDatePipe, SkeletonComponent],
   template: `
+    @if (firstLoad()) {
+      <app-skeleton label="this week's matches" shape="cards" [count]="3" height="76px" cardWidth="100%" />
+    } @else {
     @for (item of thisWeek(); track item.match.seasonMatchID) {
       <a class="week-card" [class.week-card--final]="item.status === 'final'" [routerLink]="['/seasonmatch', item.match.seasonMatchID]">
         @switch (item.status) {
@@ -53,6 +57,7 @@ function weekStatus(match: ScheduledMatchDto, now: DateTime): WeekMatchStatus {
       </a>
     } @empty {
       <p class="hud-empty">No matches scheduled yet.</p>
+    }
     }
     <a class="hud-more" [routerLink]="['/season', seasonID()]" [queryParams]="{ tab: 'schedule' }">Full schedule &gt;</a>
   `,
@@ -81,6 +86,7 @@ export class SeasonThisWeekComponent {
   readonly now = signal<DateTime>(DateTime.now());
   /** The season's scheduled matches (none for 0, or when they can't be read). */
   readonly matches = this.store.matches;
+  readonly firstLoad = this.store.firstLoad;
   readonly thisWeek = computed(() => pickThisWeek(this.matches(), this.now()));
 
   constructor() {

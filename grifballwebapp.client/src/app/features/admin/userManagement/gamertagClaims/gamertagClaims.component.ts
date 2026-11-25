@@ -7,6 +7,7 @@ import type { GamertagClaimKind } from '../../api/gamertagClaims';
 import { problemText } from '@shared/errorText';
 import { SeasonLinksComponent } from '@shared/seasonLinks/seasonLinks.component';
 import { GamertagClaimsStore, pairKey } from './gamertagClaims.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 // Re-exported for this page's own spec, which imports it from here (kept, to not churn an unrelated import).
 export { problemText };
@@ -26,7 +27,7 @@ const KIND_LABELS: Readonly<Record<string, string>> = {
  */
 @Component({
   selector: 'app-gamertag-claims',
-  imports: [RouterLink, DatePipe, SeasonLinksComponent],
+  imports: [RouterLink, DatePipe, SeasonLinksComponent, SkeletonComponent],
   templateUrl: './gamertagClaims.component.html',
   styleUrl: './gamertagClaims.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

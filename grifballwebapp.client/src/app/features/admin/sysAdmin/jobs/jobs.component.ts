@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import type { JobDto } from '@api/models';
 import { JobKey, JobState } from '../../api/jobs';
 import { intervalText, JobsStore } from './jobs.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 export type IntervalUnit = 'seconds' | 'minutes' | 'hours' | 'days';
 
@@ -37,7 +38,7 @@ const STATE_LABELS: Readonly<Record<string, string>> = { Scheduled: 'Scheduled',
  */
 @Component({
   selector: 'app-jobs',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, SkeletonComponent],
   templateUrl: './jobs.component.html',
   styleUrl: './jobs.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,7 +55,8 @@ export class JobsComponent {
   readonly jobs = this.store.jobs;
   readonly nodes = this.store.nodes;
   readonly loaded = this.store.loaded;
-  readonly failed = this.store.failed;
+  readonly unreachable = this.store.unreachable;
+  readonly firstLoad = this.store.firstLoad;
 
   /** The job whose runs and schedule are shown. */
   readonly selectedKey = signal<JobKey | null>(null);

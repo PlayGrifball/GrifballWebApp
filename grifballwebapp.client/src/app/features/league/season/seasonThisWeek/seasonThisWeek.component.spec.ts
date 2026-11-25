@@ -76,9 +76,11 @@ describe('SeasonThisWeekComponent', () => {
     expect(hrefs).toEqual(['/seasonmatch/31', '/season/4?tab=schedule']);
   });
 
-  it('says so when nothing is scheduled, also when the request fails', async () => {
+  it('says so when nothing is scheduled, also when the request fails, after a skeleton while it loads', async () => {
     fixture.componentRef.setInput('seasonID', 4);
     fixture.detectChanges();
+    expect(text()).toContain("Loading this week's matches");
+    expect(text()).not.toContain('No matches scheduled yet.');
     http.expectOne('/api/seasons/4/matches/scheduled').flush('x', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
     expect(text()).toContain('No matches scheduled yet.');

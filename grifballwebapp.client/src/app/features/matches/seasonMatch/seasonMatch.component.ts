@@ -26,6 +26,7 @@ import { ManualGamesComponent } from './manualGames/manualGames.component';
 import { GameSlot, slotChoices } from './manualGames/manualGameForm';
 import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
 import { StatFlagsNoticeComponent } from './statFlagsNotice/statFlagsNotice.component';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 export const actionPrompts: Record<MatchAction, string> = {
   HomeForfeit: 'The home team forfeits and the away team wins.',
@@ -127,6 +128,7 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
         DatePipe,
         NgTemplateOutlet,
         StatFlagsNoticeComponent,
+        SkeletonComponent,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',

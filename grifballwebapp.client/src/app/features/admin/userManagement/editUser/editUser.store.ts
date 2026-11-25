@@ -1,8 +1,10 @@
-import { effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import type { UserResponseDto as ApiUserResponseDto } from '@api/models';
 import { UserManagementService } from '@api/services/user-management.service';
 import { StoreInput } from '@shared/storeInput';
-import { whileCurrent } from '@shared/whileCurrent';
+import { resourceView } from '@shared/resourceView';
+import { map, tap } from 'rxjs';
 import { parseUser, UserResponseDto } from '../userResponseDto';
 import { AppLog } from '@core/telemetry/appLog';
 
@@ -21,17 +23,23 @@ export class EditUserStore {
   /** The route's user (0: none): the component's input. */
   readonly userID = new StoreInput<number>();
 
-  /** The user as loaded; null while loading, for no user, or when there is no such user. */
-  private readonly _loaded = signal<LoadedUser | null>(null);
-  readonly loaded = this._loaded.asReadonly();
-
-  constructor() {
-    effect(() => {
-      const userID = this.userID.value();
-      if (userID !== undefined)
-        untracked(() => this.load(userID));
-    });
-  }
+  /** The user, loaded again for each user of the route (none for 0): another drops the request still on its way. */
+  private readonly user = resourceView(rxResource({
+    params: () => this.userID.value() || undefined,
+    stream: ({ params: userID }) => this.userManagement.getUser({ userID }).pipe(
+      map((raw): LoadedUser | null => {
+        const user = parseUser(raw);
+        return user ? { user, rawLockoutEnd: raw.lockoutEnd ?? null } : null;
+      }),
+      tap({ error: e => this.log.error('Failed to load the user', e) }),
+    ),
+  }), null);
+  /** The user as loaded; null while loading, for no user, when there is no such user, or when it failed. */
+  readonly loaded = this.user.value;
+  /** The user is on the way: the form is a skeleton. */
+  readonly firstLoad = this.user.firstLoad;
+  /** The user could not be loaded: the page says so, rather than offering an empty form that would save over them. */
+  readonly failed = this.user.failed;
 
   /** Saves the user; the answer, or the failure, is logged. */
   save(userID: number, body: ApiUserResponseDto): void {
@@ -39,24 +47,5 @@ export class EditUserStore {
       next: () => this.log.info('Updated user ' + userID),
       error: result => this.log.error('Failed to update the user', result),
     });
-  }
-
-  private load(userID: number): void {
-    // Nothing of the previous user stays
-    this._loaded.set(null);
-    if (userID === 0) {
-      this.log.warn('Edit user: no user ID in the route');
-      return;
-    }
-    this.userManagement.getUser({ userID })
-      .pipe(whileCurrent(userID, this.userID.value))
-      .subscribe({
-        next: raw => {
-          const user = parseUser(raw);
-          if (user)
-            this._loaded.set({ user, rawLockoutEnd: raw.lockoutEnd ?? null });
-        },
-        error: error => this.log.error('Failed to load the user', error),
-      });
   }
 }

@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SchedulingRulesStore } from './schedulingRules.store';
 
 /** A rule of at least 1: required, unless an empty one means none (the cap on matches at once). */
@@ -15,7 +16,7 @@ const atLeastOne = (required: boolean) => new FormControl<number | null>(null, r
  */
 @Component({
   selector: 'app-scheduling-rules',
-  imports: [ReactiveFormsModule, MatButtonModule, MatInputModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatInputModule, SkeletonComponent],
   templateUrl: './schedulingRules.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [SchedulingRulesStore],
@@ -26,6 +27,8 @@ export class SchedulingRulesComponent {
   readonly seasonID = input.required<number>();
 
   readonly rules = this.store.rules;
+  readonly firstLoad = this.store.firstLoad;
+  readonly failed = this.store.failed;
   readonly saving = this.store.saving;
   readonly saved = this.store.saved;
   readonly error = this.store.error;
@@ -39,10 +42,7 @@ export class SchedulingRulesComponent {
   readonly status = toSignal(this.form.statusChanges, { initialValue: this.form.status });
 
   constructor() {
-    effect(() => {
-      const seasonID = this.seasonID();
-      untracked(() => this.store.load(seasonID));
-    });
+    this.store.seasonID.use(this.seasonID);
     // The season's rules, once they arrive, are what is edited
     effect(() => {
       const rules = this.rules();

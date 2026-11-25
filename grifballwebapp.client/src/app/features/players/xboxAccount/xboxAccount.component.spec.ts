@@ -45,6 +45,14 @@ describe('XboxAccountComponent', () => {
   const request = (page = 1) => http.expectOne(r => r.url === `/api/xbox-accounts/${XUID}` && r.params.get('page') === String(page));
   const pullStatus = () => http.expectOne(r => r.method === 'GET' && r.url === `/api/xbox-accounts/${XUID}/pull`);
 
+  it('holds the account with a skeleton until it arrives', () => {
+    expect(el().querySelector('app-skeleton')!.textContent).toContain('Loading the account');
+    pullStatus().flush(idle);
+    request().flush(account({ games: [], gameCount: 0 }));
+    fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')).toBeNull();
+  });
+
   it('shows the gamertag and its games, each linking to its game page, and says no account was created', () => {
     pullStatus().flush(idle);
     request().flush(account({ games: [game('m-1'), game('m-2', { outcome: 'Lost', score: 2, otherScore: 5, startTime: null })], gameCount: 2 }));

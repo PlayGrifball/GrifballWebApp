@@ -1,13 +1,15 @@
-<div class="hud-page" [class.hud-waiting]="!loaded()">
+<div class="hud-page">
 
     <div class="hud-page-head">
         <span class="hud-kicker">&gt; Franchise history@if (history(); as h) { · {{h.leagueName}}}</span>
         <h1 class="hud-title">{{history()?.teamName ?? 'Team history'}}</h1>
     </div>
 
-    @if (failed()) {
+    @if (!loaded()) {
+        <app-skeleton label="the team's history" shape="cards" [count]="8" height="88px" cardWidth="150px" />
+    } @else if (failed()) {
         <p class="hud-empty hud-empty--error" role="alert">Could not load the team's history. Refresh the page to try again.</p>
-    } @else if (loaded() && !history()) {
+    } @else if (!history()) {
         <p class="hud-empty">No such team has played a season.</p>
     }
 

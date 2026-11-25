@@ -90,6 +90,9 @@
       }
     </tbody>
   </table>
+  @if (!loaded()) {
+    <app-skeleton label="player stats" shape="table" [header]="false" [count]="10" [columns]="6" />
+  }
   @if (loaded() && shown().length === 0) {
     <p class="hud-muted stats-empty">No players match.</p>
   }

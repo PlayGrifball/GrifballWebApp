@@ -2,12 +2,14 @@ import { Component, ChangeDetectionStrategy, computed, inject, input } from '@an
 import { Router, RouterModule } from '@angular/router';
 import { TeamStandingsStore } from './teamStandings.store';
 import { MatTableModule } from '@angular/material/table';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 @Component({
     selector: 'app-team-standings',
     imports: [
         MatTableModule,
-        RouterModule
+        RouterModule,
+        SkeletonComponent,
     ],
     templateUrl: './teamStandings.component.html',
     styleUrl: './teamStandings.component.scss',

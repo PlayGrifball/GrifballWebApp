@@ -13,7 +13,7 @@
   @if (!hasQuery()) {
     <p class="hud-empty">Enter an XUID or a user ID above, or follow a link from the gamertag claims page.</p>
   } @else if (loading()) {
-    <p class="hud-empty">Loading…</p>
+    <app-skeleton label="the account" shape="table" [count]="5" [columns]="4" />
   } @else if (failed()) {
     <p class="hud-empty hud-empty--error" role="alert">That account couldn't be loaded.</p>
   } @else if (notFound()) {

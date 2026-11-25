@@ -83,6 +83,40 @@ store. `profileCommendations` is the smallest example, `xboxAccount` one with pa
   `ApplicationRef.whenStable()` (or the fixture's) before reading it; it waits only after answering, since a resource
   still loading keeps the app unstable.
 
+## Loading states
+
+The server renders every page with its data (it waits for the API before it answers), so a first visit shows no
+loading at all. A page opened from a link in the browser draws at once and loads its data after: what it shows
+meanwhile is what this section is about. Nothing may appear from nothing and push the page down (layout shift), and
+no page hides itself until it is ready.
+
+- **Each load shows a skeleton until its first answer**: `app-skeleton` (`@shared/skeleton`), in the load's own
+  `@if`/`@else`, in the place and about the size of what it stands for: `shape` `lines` (text), `table` (rows under a
+  header; `[header]="false"` under a real table's), `cards` (a grid, `cardWidth` the grid's own minimum) or `block`
+  (one area: a chart, a bracket, a form); `count`, `columns` and `height` to match.
+  `<app-skeleton label="standings" shape="table" [header]="false" [count]="8" [columns]="4" />`.
+  Screen readers hear "Loading standings…"; the shapes are hidden from them.
+- **Only the first answer.** A reload (a live change, a retry) keeps the last answer shown. A load is a `resourceView`,
+  which says it all: `firstLoad` (its first answer for these parameters is on its way: the skeleton), `failed` (the last
+  request failed: an error in the content's place) and `failing` (also while a retry is on its way, so an error stays up
+  rather than flashing a skeleton). A failure is never "loaded": a form filled from a load that failed shows an error,
+  never an empty form that would save over what it failed to read. A load that can't be a resource sets its flag in one
+  `finalize`, never in both its `next` and `error` (one the page starts by hand: the export sheets, linked accounts), or
+  keeps one state signal, `'loading' | 'loaded' | 'failed'`, when its answers have to wait on saves in flight (the
+  draft board).
+- **Not for something usually absent.** A part that shows only sometimes (the stat flags notice, a season's VODs, the
+  chat's model picker) gets no skeleton: holding space for it would make the page jump when it doesn't come.
+- **Text that isn't known yet is a non-breaking space, not a guess**: a heading waits with `&nbsp;` (its line kept),
+  never "Unknown Spartan" for a name still loading.
+- **`@defer` is for code, not data.** It delays loading a component's code (a heavy one below the fold); it doesn't
+  wait for an API. On the server a `@defer` block without a hydrate trigger renders only its `@placeholder`, so one
+  around a page's content would take that content out of the server's HTML (search engines, the first paint). A
+  `@defer` therefore has a `hydrate on …` trigger whenever its content matters to the first render (the server then
+  renders the content and the browser loads its code when the trigger fires), and a `@placeholder` of the content's
+  size for navigations in the browser: an `app-skeleton`, or an empty box of the right height (who's online, in the
+  footer).
+- **Specs** check the skeleton is there before the answer and gone after it (`querySelector('app-skeleton')`).
+
 ## Logging
 
 Log through `AppLog` (`@core/telemetry/appLog`), not `console`: `this.log.error('Failed to save the season', error)`.

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { LateLeagueQueueComponent } from './lateLeagueQueue/lateLeagueQueue.component';
 import type { MatchmakingLadderRankDto, MatchmakingPlayerStatDto } from '@api/models';
 import { LateLeagueStore } from './lateLeague.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /**
  * Late League: the Discord queue's matchmaking, random skill-matched sides every game, so no teams, standings or
@@ -12,7 +13,7 @@ import { LateLeagueStore } from './lateLeague.store';
  */
 @Component({
   selector: 'app-late-league',
-  imports: [RouterLink, DatePipe, NgTemplateOutlet, LateLeagueQueueComponent],
+  imports: [RouterLink, DatePipe, NgTemplateOutlet, LateLeagueQueueComponent, SkeletonComponent],
   templateUrl: './lateLeague.component.html',
   styleUrl: './lateLeague.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

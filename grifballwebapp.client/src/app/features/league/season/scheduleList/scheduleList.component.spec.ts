@@ -143,16 +143,20 @@ describe('ScheduleListComponent behaviour', () => {
     expect(component.scheduledMatches().map(w => w.weekNumber)).toEqual([1, 2, 3]);
   });
 
-  it('shows the lists once both have loaded, also when one fails', () => {
+  it('shows a skeleton until both lists have loaded, also when one fails, then the lists', () => {
     fixture.detectChanges();
-    const lists = () => (fixture.nativeElement as HTMLElement).querySelector('.sched-lists')!;
-    expect(lists().classList).toContain('hud-waiting');
+    const el = fixture.nativeElement as HTMLElement;
+    const lists = () => el.querySelector('.sched-lists');
+    const skeleton = () => el.querySelector('app-skeleton');
+    expect(skeleton()).not.toBeNull();
+    expect(lists()).toBeNull();
     http.expectOne('/api/seasons/4/matches/unscheduled').flush('x', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
-    expect(lists().classList).toContain('hud-waiting');
+    expect(skeleton()).not.toBeNull();
     http.expectOne('/api/seasons/4/matches/scheduled').flush('x', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
-    expect(lists().classList).not.toContain('hud-waiting');
+    expect(skeleton()).toBeNull();
+    expect(lists()).not.toBeNull();
   });
 
   it('renders weeks, matchups and unscheduled matches, striking completed ones', () => {

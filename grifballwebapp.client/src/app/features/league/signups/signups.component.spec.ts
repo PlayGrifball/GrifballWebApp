@@ -46,51 +46,83 @@ describe('SignupsComponent', () => {
   const rows = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row'))
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
 
-  it('says a backfilled season has no signup data, with its spreadsheet, in place of the table', () => {
-    summary = { isHistorical: true, hasEnded: true, signupCount: 0, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x' };
+  /** Drawn, with every answer in (the resources' values come a microtask after them). */
+  async function render(): Promise<void> {
     fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  it('says a backfilled season has no signup data, with its spreadsheet, in place of the table', async () => {
+    summary = { isHistorical: true, hasEnded: true, signupCount: 0, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x' };
+    await render();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-data-notice')!.textContent).toContain("Signups weren't recorded for this season.");
     expect(el.querySelector('app-data-notice a')!.getAttribute('href')).toBe('https://docs.google.com/spreadsheets/d/x');
     expect(el.querySelector('table')).toBeNull();
   });
 
-  it('says an ended season of the app\'s own has no signups, without a spreadsheet', () => {
+  it("says an ended season of the app's own has no signups, without a spreadsheet", async () => {
     summary = { isHistorical: false, hasEnded: true, signupCount: 0, historicalSourceUrl: null };
-    fixture.detectChanges();
+    await render();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-data-notice')!.textContent).toContain("Signups weren't recorded for this season.");
     expect(el.querySelector('app-data-notice a')).toBeNull();
     expect(el.querySelector('table')).toBeNull();
   });
 
-  it("shows the table, empty, for a season of the app's own without signups yet", () => {
-    fixture.detectChanges();
+  it("shows the table, empty, for a season of the app's own without signups yet", async () => {
+    await render();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-data-notice')).toBeNull();
     expect(el.querySelector('table')).not.toBeNull();
+    expect(el.textContent).toContain('0 signed up');
   });
 
-  it('loads the signups for the season in the route', () => {
+  it('shows a skeleton in place of the table until the signups arrive', async () => {
+    const answer = new Subject<SignupResponseDto[]>();
+    api.getSignups.and.returnValue(answer);
     fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-skeleton')).not.toBeNull();
+    expect(el.querySelector('table')).toBeNull();
+    answer.next([signup('Grif')]);
+    answer.complete();
+    await render();
+    expect(el.querySelector('app-skeleton')).toBeNull();
+    expect(rows()).toHaveSize(1);
+  });
+
+  it('says the signups could not be loaded, rather than that none signed up, and logs it', async () => {
+    const err = spyOn(console, 'error');
+    api.getSignups.and.returnValue(throwError(() => 'boom'));
+    await render();
+    expect(err).toHaveBeenCalledWith('Failed to load the signups', 'boom');
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[role="alert"]')!.textContent).toContain("The signups couldn't be loaded.");
+    expect(el.textContent).not.toContain('signed up');
+  });
+
+  it('loads the signups for the season in the route', async () => {
+    await render();
     expect(api.getSignups).toHaveBeenCalledWith({ seasonID: 3 });
     expect(seasons.getCurrentSeasonId).not.toHaveBeenCalled();
   });
 
-  it('falls back to the current season when the route has none', () => {
+  it('falls back to the current season when the route has none', async () => {
     fixture.componentRef.setInput('seasonID', '0');
-    fixture.detectChanges();
+    await render();
     expect(component.shownSeasonID()).toBe(9);
     expect(api.getSignups).toHaveBeenCalledWith({ seasonID: 9 });
   });
 
-  it("replaces the signups with the new season's when the route moves to another season", () => {
+  it("replaces the signups with the new season's when the route moves to another season", async () => {
     api.getSignups.and.callFake(p => of([signup(p.seasonID === 3 ? 'Grif' : 'Simmons')]));
-    fixture.detectChanges();
+    await render();
     expect(rows().map(r => r[0])).toEqual([jasmine.stringContaining('Grif')]);
 
     fixture.componentRef.setInput('seasonID', '4');
-    fixture.detectChanges();
+    await render();
 
     expect(api.getSignups).toHaveBeenCalledWith({ seasonID: 4 });
     expect(component.shownSeasonID()).toBe(4);
@@ -98,20 +130,20 @@ describe('SignupsComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('app-season-tabs a')!.getAttribute('href')).toBe('/season/4');
   });
 
-  it("drops the previous season's signups when they arrive late", () => {
+  it("cancels the previous season's signups when the route moves on before they arrive", async () => {
     const late = new Subject<SignupResponseDto[]>();
     api.getSignups.and.callFake(p => p.seasonID === 3 ? late : of([signup('Simmons')]));
     fixture.detectChanges();
 
     fixture.componentRef.setInput('seasonID', '4');
     fixture.detectChanges();
-    late.next([signup('Grif')]);
-    fixture.detectChanges();
+    expect(late.observed).toBeFalse();
+    await render();
 
     expect(component.signUps().map(s => s.personName)).toEqual(['Simmons']);
   });
 
-  it("drops the current season's ID when the route moves on before it arrives", () => {
+  it("asks for no current season once the route names one", async () => {
     const current = new Subject<number>();
     seasons.getCurrentSeasonId.and.returnValue(current);
     fixture.componentRef.setInput('seasonID', '0');
@@ -120,17 +152,19 @@ describe('SignupsComponent', () => {
     fixture.componentRef.setInput('seasonID', '4');
     fixture.detectChanges();
     current.next(9);
+    current.complete();
+    await render();
 
     expect(api.getSignups).not.toHaveBeenCalledWith({ seasonID: 9 });
     expect(component.shownSeasonID()).toBe(4);
   });
 
-  it('renders a row per signup', () => {
+  it('renders a row per signup', async () => {
     api.getSignups.and.returnValue(of([
       signup('Grif', { willCaptain: true }),
       signup('Simmons', { requiresAssistanceDrafting: true }),
     ]));
-    fixture.detectChanges();
+    await render();
 
     const r = rows();
     expect(r).toHaveSize(2);
@@ -140,29 +174,22 @@ describe('SignupsComponent', () => {
     expect(r[1].slice(3)).toEqual(['false', 'true']);
   });
 
-  it("shows a player's region beside their name", () => {
+  it("shows a player's region beside their name", async () => {
     api.getSignups.and.returnValue(of([signup('Grif', { region: 'Central North America' }), signup('Simmons')]));
-    fixture.detectChanges();
+    await render();
 
     expect(rows()[0][0]).toBe('Grif · Central North America');
     expect(rows()[1][0]).toBe('Simmons');
   });
 
-  it('logs and shows an empty table when loading fails', () => {
-    const err = spyOn(console, 'error');
-    api.getSignups.and.returnValue(throwError(() => 'boom'));
-    fixture.detectChanges();
-
-    expect(err).toHaveBeenCalledWith('Failed to load the signups', 'boom');
-    expect(rows()).toEqual([]);
-  });
-
-  it('renders the signups once they arrive, without a manual detectChanges', async () => {
+  it('renders the signups once they arrive, without a manual detectChanges after them', async () => {
     const signups = new Subject<SignupResponseDto[]>();
     api.getSignups.and.returnValue(signups);
-    await fixture.whenStable();
+    // Not whenStable before the answer: a resource still loading keeps the app unstable
+    fixture.detectChanges();
 
     signups.next([signup('Ana')]);
+    signups.complete();
     await fixture.whenStable();
 
     expect(rows().map(r => r[0])).toEqual(['Ana']);
@@ -170,7 +197,7 @@ describe('SignupsComponent', () => {
 
   it('shows when each player signed up', async () => {
     api.getSignups.and.returnValue(of([signup('Ana')]));
-    await fixture.whenStable();
+    await render();
     expect(rows()[0][1]).toMatch(/^1\/7\/26, \d+:00\s[AP]M$/);
   });
 });

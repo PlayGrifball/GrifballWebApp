@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import type { MergeRequest } from '@api/models';
 import { MergeUserStore } from './mergeUser.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-merge-user',
@@ -15,6 +16,7 @@ import { MergeUserStore } from './mergeUser.store';
     MatSlideToggleModule,
     FormsModule,
     MatButton,
+    SkeletonComponent,
   ],
   templateUrl: './mergeUser.component.html',
   styleUrl: './mergeUser.component.scss',
@@ -35,6 +37,8 @@ export class MergeUserComponent {
   mergeToUser = this.store.toUser;
   /** A lookup failed; no such user (404) is not a failure: it shows as "User not found.". */
   mergeFromFailed = this.store.fromFailed;
+  readonly mergeFromLoading = this.store.fromLoading;
+  readonly mergeToLoading = this.store.toLoading;
   mergeToFailed = this.store.toFailed;
 
   transferDiscord = signal(true);

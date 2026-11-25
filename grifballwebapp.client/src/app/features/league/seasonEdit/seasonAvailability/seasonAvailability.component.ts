@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, input, linkedSignal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, input, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -11,6 +11,7 @@ import { RouterLink } from '@angular/router';
 import type { DayOfWeek } from '@api/models';
 import { SeasonAvailabilityStore } from './seasonAvailability.store';
 import { SchedulingRulesComponent } from '../schedulingRules/schedulingRules.component';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 
 /** A row of the editor: a timeslot, its day empty until one is picked. */
@@ -31,20 +32,23 @@ export class AvailabilityOption {
         MatSelectModule,
         RouterLink,
         SchedulingRulesComponent,
+        SkeletonComponent,
     ],
     templateUrl: './seasonAvailability.component.html',
     styleUrl: './seasonAvailability.component.scss',
     providers: [provideDatePickers(), SeasonAvailabilityStore],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class SeasonAvailabilityComponent implements OnInit {
+export class SeasonAvailabilityComponent {
   private readonly store = inject(SeasonAvailabilityStore);
 
-  ngOnInit(): void {
-    this.store.load(this.seasonID());
+  constructor() {
+    this.store.seasonID.use(this.seasonID);
   }
 
   readonly seasonID = input.required<number>();
+  /** The timeslots are on their way: the list is a skeleton. */
+  readonly firstLoad = this.store.firstLoad;
 
   minutes: number = 30;
 

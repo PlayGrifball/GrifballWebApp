@@ -3,7 +3,7 @@
   <aside class="profile-card hud-panel hud-panel--chamfer" aria-labelledby="profile-name">
     <span class="hud-kicker">&gt; Service record</span>
     <div class="profile-emblem"><app-profile-picture [userID]="userID()" [name]="gamertag() || profileStats()?.displayName" /></div>
-    <h1 id="profile-name" class="profile-name">{{gamertag() || profileStats()?.displayName || 'Unknown Spartan'}}</h1>
+    <h1 id="profile-name" class="profile-name">@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}</h1>
 
     <dl class="profile-facts">
       <div><dt class="hud-label">Gamertag</dt><dd>{{gamertag() ?? 'Not set'}}</dd></div>
@@ -82,7 +82,9 @@
         <h2 id="trophy-heading" class="hud-h2">Trophy Cabinet</h2>
       </div>
 
-      @if (profileStats()?.championships?.length) {
+      @if (statsLoading()) {
+        <app-skeleton label="championships" shape="cards" [count]="3" height="96px" cardWidth="220px" />
+      } @else if (profileStats()?.championships?.length) {
         <div class="trophy-grid">
           @for (title of profileStats()!.championships; track title.playerChampionshipID) {
             <div class="trophy-card hud-panel hud-panel--chamfer">
@@ -142,7 +144,9 @@
         </nav>
       }
 
-      @if (activeCareer(); as career) {
+      @if (statsLoading()) {
+        <app-skeleton label="the career record" shape="cards" [count]="6" height="90px" cardWidth="160px" />
+      } @else if (activeCareer(); as career) {
         <div class="stat-card-grid">
           <div class="stat-card hud-panel">
             <span class="hud-label">Record (W-L)</span>
@@ -220,7 +224,9 @@
         <h2 id="seasons-heading" class="hud-h2">Season History</h2>
       </div>
 
-      @if (filteredSeasons().length > 0) {
+      @if (statsLoading()) {
+        <app-skeleton label="season history" shape="table" [count]="6" [columns]="8" />
+      } @else if (filteredSeasons().length > 0) {
         <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Season by season stats"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
           <table class="season-table" aria-label="Player season records">
             <thead>

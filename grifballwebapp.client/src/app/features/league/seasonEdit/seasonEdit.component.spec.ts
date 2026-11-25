@@ -136,13 +136,17 @@ describe('SeasonEditComponent', () => {
   it('fills the form once the season arrives, without a manual detectChanges', async () => {
     const loaded = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(loaded);
-    await fixture.whenStable();
+    // Not whenStable before the answer: a resource still loading keeps the app unstable
+    fixture.detectChanges();
     expect(el().textContent).not.toContain('Edit Availability');
+    expect(el().querySelector('app-skeleton')).withContext('the form held by a skeleton').not.toBeNull();
 
     loaded.next(season({ seasonName: 'Arrived Later' }));
+    loaded.complete();
     await fixture.whenStable();
 
     expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')?.value).toBe('Arrived Later');
+    expect(el().querySelector('app-skeleton')).toBeNull();
     expect(el().textContent).toContain('Edit Availability');
   });
 
@@ -236,19 +240,28 @@ describe('SeasonEditComponent', () => {
     expect(availability.getAttribute('href')).toBe('/seasonAvailability/7');
   });
 
-  it('empties the form for a new season, and drops the previous season when it arrives late', async () => {
+  it('empties the form for a new season, and drops the previous season when it arrives late', () => {
     const late = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(late);
-    await render();
+    fixture.detectChanges();
 
     fixture.componentRef.setInput('seasonID', '0');
-    await render();
+    // Synchronous: right after a cancelled load, whenStable would wait on it
+    fixture.detectChanges();
     late.next(season());
-    await render();
+    fixture.detectChanges();
 
     expect(component.model().seasonID).toBeUndefined();
     expect(component.model().seasonName).toBeUndefined();
     expect(saveButton().textContent).toContain('Create New Season');
+  });
+
+  it('says a season that fails to load could not be, with no form to save a copy from', async () => {
+    spyOn(console, 'error');
+    api.getSeason.and.returnValue(throwError(() => new Error('down')));
+    await render();
+    expect(el().querySelector('[role="alert"]')!.textContent).toContain("The season couldn't be loaded.");
+    expect(el().querySelector('form')).toBeNull();
   });
 
   it('keeps the empty form for a season that does not exist', async () => {

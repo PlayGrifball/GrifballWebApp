@@ -57,6 +57,8 @@
     <p class="hud-empty hud-empty--error" role="alert">Your claims couldn't be loaded.</p>
   } @else if (claimsLoaded() && claimRows().length === 0) {
     <p class="hud-muted">None yet.</p>
+  } @else if (!claimsLoaded()) {
+    <app-skeleton label="your claims" [count]="3" />
   } @else {
     <ul class="pi-claims">
       @for (c of claimRows(); track c.gamertagClaimID) {

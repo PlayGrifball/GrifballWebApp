@@ -1,6 +1,9 @@
 @let match = seasonMatch();
-<div class="hud-page" [class.hud-waiting]="!store.ready()">
+<div class="hud-page">
 
+  @if (!store.ready()) {
+    <app-skeleton label="the match" shape="block" height="420px" />
+  } @else {
   <div class="lobby-head">
     <div class="hud-page-head">
       <a class="hud-kicker lobby-head__season" [routerLink]="['/season', match?.seasonID]">&gt; {{match?.seasonName ?? 'Season'}} · {{match?.isPlayoff ? 'Playoffs' : 'Regular season'}}</a>
@@ -21,11 +24,13 @@
       <span>There is an active reschedule request for this match. Request ID: {{ match?.activeRescheduleRequestId }}</span>
     </div>
   }
+  }
 
   @if (isStaff()) {
     <app-stat-flags-notice [seasonMatchID]="seasonMatchID()" />
   }
 
+  @if (store.ready()) {
   <section class="lobby" aria-label="Teams and score">
     <div class="lobby-team lobby-team--home">
       @if (match?.homeTeamResult === 'Bye') {
@@ -82,6 +87,7 @@
       }
     </div>
   </section>
+  }
 
   <app-vod-list scope="seasonMatch" [id]="seasonMatchID()" />
 
@@ -105,7 +111,9 @@
         }
       </div>
 
-      @if (!match?.reportedGames?.length) {
+      @if (!store.pageLoaded()) {
+        <app-skeleton label="games played" shape="table" [count]="6" [columns]="6" />
+      } @else if (!match?.reportedGames?.length) {
         <p class="hud-empty">There are no reported games for this season match</p>
       } @else if (activeScoreboard(); as board) {
         <div class="lobby-scoreboard">
@@ -269,7 +277,7 @@
     </div>
     @switch (store.possibleMatchesState()) {
     @case ('loading') {
-    <p class="hud-muted" role="status">Looking for games…</p>
+    <app-skeleton label="games for these teams" shape="cards" [count]="2" height="200px" cardWidth="320px" />
     }
     @case ('error') {
     <p class="hud-muted" role="alert">Could not look for games right now.</p>

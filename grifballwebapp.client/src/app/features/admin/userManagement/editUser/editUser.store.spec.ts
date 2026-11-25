@@ -1,6 +1,6 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { signal } from '@angular/core';
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { UserResponseDto } from '@api/models';
 import { EditUserStore } from './editUser.store';
@@ -21,40 +21,70 @@ describe('EditUserStore', () => {
 
   afterEach(() => http.verify());
 
-  it('asks for nothing until it has the user, and nothing for none', () => {
+  const settle = () => TestBed.inject(ApplicationRef).whenStable();
+
+  it('asks for nothing until it has the user, and nothing for none', async () => {
     TestBed.tick();
     http.expectNone(() => true);
     store.userID.use(signal(0));
-    TestBed.tick();
+    await settle();
     http.expectNone(() => true);
     expect(store.loaded()).toBeNull();
+    expect(store.firstLoad()).toBeFalse();
   });
 
-  it('loads the user, their lockout end read and kept as sent', () => {
+  it('loads the user, their lockout end read and kept as sent', async () => {
     store.userID.use(signal(5));
     TestBed.tick();
+    expect(store.firstLoad()).toBeTrue();
     http.expectOne('/api/users/5').flush(user(5, '9999-12-31T23:59:59.9999999+00:00'));
+    await settle();
+    expect(store.firstLoad()).toBeFalse();
     expect(store.loaded()!.user.userID).toBe(5);
     expect(store.loaded()!.user.lockoutEnd).not.toBeNull();
     expect(store.loaded()!.rawLockoutEnd).toBe('9999-12-31T23:59:59.9999999+00:00');
   });
 
-  it('drops the last user for another, and the late answer for them, and keeps none for no such user', () => {
+  it('drops the last user for another, cancelling their request, and keeps none for no such user', async () => {
     const userID = signal(5);
     store.userID.use(userID);
     TestBed.tick();
     const late = http.expectOne('/api/users/5');
     userID.set(6);
     TestBed.tick();
-    late.flush(user(5));
-    expect(store.loaded()).toBeNull();
+    expect(late.cancelled).toBeTrue();
     http.expectOne('/api/users/6').flush(null);
+    await settle();
     expect(store.loaded()).toBeNull();
+    expect(store.failed()).toBeFalse();
+  });
 
-    userID.set(7);
+  it('fails, rather than giving an empty user to edit, when the user cannot be loaded, and logs it', async () => {
+    store.userID.use(signal(5));
     TestBed.tick();
-    http.expectOne('/api/users/7').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/users/5').flush(null, { status: 500, statusText: 'Server Error' });
+    await settle();
+    expect(store.firstLoad()).toBeFalse();
+    expect(store.failed()).toBeTrue();
     expect(store.loaded()).toBeNull();
+    expect(console.error).toHaveBeenCalledWith('Failed to load the user', jasmine.anything());
+  });
+
+  it("is not waiting once the route has no user, even with a user's request on its way", () => {
+    const userID = signal(5);
+    store.userID.use(userID);
+    TestBed.tick();
+    const late = http.expectOne('/api/users/5');
+    userID.set(0);
+    // Synchronous: right after a cancelled load, whenStable would wait on it
+    TestBed.tick();
+    expect(store.firstLoad()).toBeFalse();
+    // Its answer, if it still comes, is not the page's
+    if (!late.cancelled)
+      late.flush(user(5));
+    TestBed.tick();
+    expect(store.loaded()).toBeNull();
+    expect(store.firstLoad()).toBeFalse();
   });
 
   it('saves the user, logging how it went', () => {

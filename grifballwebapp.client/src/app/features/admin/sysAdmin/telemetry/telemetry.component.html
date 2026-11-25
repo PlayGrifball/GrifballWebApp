@@ -78,7 +78,7 @@
             <p class="hud-empty">No requests in this range.</p>
           }
         } @else {
-          <p class="hud-empty" role="status">Loading…</p>
+          <app-skeleton label="metrics" shape="cards" [count]="4" height="220px" cardWidth="320px" />
         }
       }
 
@@ -152,7 +152,7 @@
               <p class="hud-empty">No log lines match in this range.</p>
             }
           } @else {
-            <p class="hud-empty" role="status">Loading…</p>
+            <app-skeleton label="log lines" [count]="12" />
           }
         }
       }
@@ -227,7 +227,7 @@
                   }
                 </ol>
               } @else {
-                <p class="hud-empty" role="status">Loading…</p>
+                <app-skeleton label="the trace" [count]="6" />
               }
             </section>
           }
@@ -264,12 +264,12 @@
               <p class="hud-empty">No traces match in this range.</p>
             }
           } @else {
-            <p class="hud-empty" role="status">Loading…</p>
+            <app-skeleton label="traces" shape="table" [count]="10" [columns]="5" />
           }
         }
       }
     }
   } @else {
-    <p class="hud-empty" role="status">Loading…</p>
+    <app-skeleton label="telemetry" shape="block" height="480px" />
   }
 </div>

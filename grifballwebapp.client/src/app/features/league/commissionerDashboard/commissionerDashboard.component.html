@@ -5,7 +5,7 @@
   </div>
 
   @if (loading()) {
-  <p class="hud-empty" role="status">Loading dashboard data...</p>
+  <app-skeleton label="dashboard data" shape="cards" [count]="4" height="96px" cardWidth="200px" />
   }
 
   @if (error()) {

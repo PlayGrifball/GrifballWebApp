@@ -114,6 +114,8 @@ describe('TeamBuilderComponent', () => {
     const helper = () => fixture.debugElement.query(By.directive(StubDraftHelper))?.componentInstance as StubDraftHelper | undefined;
     // Not before the draft is in: it would load once for nothing
     expect(helper()).toBeUndefined();
+    const skeletons = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('app-skeleton')).map(s => s.textContent!.trim());
+    expect(skeletons()).toEqual(['Loading the teams…', 'Loading the draft pool…']);
 
     const captain = (personID: number, order: number): CaptainDto => ({ name: `C${personID}`, order, personID, region: null });
     const player = (personID: number): TeamsPlayerDto => ({ name: `P${personID}`, personID, pick: null, round: null, region: null });
@@ -121,6 +123,7 @@ describe('TeamBuilderComponent', () => {
     teams.complete();
     fixture.detectChanges();
     expect(helper()!.seasonID()).toBe(5);
+    expect(skeletons()).toEqual([]);
     const loaded = helper()!.draftKey();
 
     // A move from A to B: the pool is the same, the team on deck is not

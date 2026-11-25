@@ -65,6 +65,6 @@
       </div>
     }
   } @else {
-    <p class="hud-empty" role="status">Loading seasons…</p>
+    <app-skeleton label="seasons" shape="table" [count]="8" [columns]="8" />
   }
 </div>

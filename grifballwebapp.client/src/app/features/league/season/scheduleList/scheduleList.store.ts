@@ -85,8 +85,9 @@ export class ScheduleListStore {
     this.recommendationWatch?.unsubscribe();
     this._unscheduledMatches.set([]);
     this._scheduledMatches.set([]);
-    this.unscheduledLoaded.set(false);
-    this.scheduledLoaded.set(false);
+    // No season: nothing to wait for
+    this.unscheduledLoaded.set(seasonID === 0);
+    this.scheduledLoaded.set(seasonID === 0);
     this._recommendation.set(null);
     this._recommendationError.set(null);
     if (seasonID !== 0)

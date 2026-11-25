@@ -8,10 +8,12 @@
 
   @if (failed()) {
     <p class="hud-empty hud-empty--error" role="alert">The merges couldn't be loaded.</p>
+  } @else if (loading()) {
+    <app-skeleton label="merges" shape="table" [count]="10" [columns]="6" />
   } @else if (empty()) {
     <p class="hud-empty">No merges yet.</p>
   } @else {
-    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Merges" [class.hud-waiting]="loading()"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Merges"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
       <table class="merges-table">
         <thead>
           <tr>

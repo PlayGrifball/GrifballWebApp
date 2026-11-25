@@ -11,6 +11,7 @@ import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
 import { provideDatePickers } from '@shared/datePickers';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SeasonEditStore } from './seasonEdit.store';
 
 /** A new season: in the main league, its game still to choose. */
@@ -28,6 +29,7 @@ const newSeason = (): SeasonSettings => ({ leagueID: 1, gameVersionID: null, div
         RouterModule,
         MatCheckboxModule,
         MatSelectModule,
+        SkeletonComponent,
     ],
     templateUrl: './seasonEdit.component.html',
     styleUrl: './seasonEdit.component.scss',
@@ -58,6 +60,10 @@ export class SeasonEditComponent implements OnInit {
 
   /** Every season, for "Copy from" (chosen by its ID). */
   private readonly seasons = this.store.seasons;
+  /** The season to edit is on its way: the form is a skeleton. */
+  readonly firstLoad = this.store.firstLoad;
+  /** It could not be loaded: an error in place of the form, never a new season's form that would save a copy. */
+  readonly failed = this.store.failed;
   /** The seasons this one can copy from: all but itself. */
   readonly copyableSeasons = computed(() => this.seasons().filter(season => season.seasonID !== this.model().seasonID));
   /**

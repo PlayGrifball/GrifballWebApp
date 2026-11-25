@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { AccountService } from '@core/auth/account.service';
 import { describePage } from '@shared/pageMeta';
 import { XboxAccountStore } from './xboxAccount.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /**
  * An Xbox account's own page: its gamertag and the Halo games the site saved that it played in, newest first, each linking to
@@ -14,7 +15,7 @@ import { XboxAccountStore } from './xboxAccount.store';
  */
 @Component({
   selector: 'app-xbox-account',
-  imports: [ProfilePictureComponent, RouterModule, DatePipe],
+  imports: [ProfilePictureComponent, RouterModule, DatePipe, SkeletonComponent],
   templateUrl: './xboxAccount.component.html',
   styleUrl: './xboxAccount.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

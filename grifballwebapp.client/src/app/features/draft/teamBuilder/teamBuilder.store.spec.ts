@@ -6,7 +6,7 @@ import { SeasonService } from '@api/services/season.service';
 import { TeamsService } from '@api/services/teams.service';
 import { LiveService, type LiveMessage } from '@core/live/live.service';
 import { LIVE_RELOAD_MS, LIVE_SPREAD_MS } from '@core/live/liveReload';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { TeamBuilderStore } from './teamBuilder.store';
 
 const player = (personID: number, name: string): TeamsPlayerDto => ({ name, personID, pick: null, round: null, region: null });
@@ -114,6 +114,25 @@ describe('TeamBuilderStore', () => {
     expect(store.teams()).toEqual([]);
     expect(store.captainLocked()).toBeFalse();
     expect(snackBar.open).toHaveBeenCalledWith('Failed to load the draft', 'Close');
+    // Answered, if not loaded: the page leaves its skeletons
+    expect(store.loaded()).toBeFalse();
+    expect(store.settled()).toBeTrue();
+  });
+
+  it('keeps a loaded draft shown, and loaded, when a later read of it fails', () => {
+    store.show(5);
+    expect(store.loaded()).toBeTrue();
+    const teams = store.teams();
+    api.getTeams.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+    store.load();
+    expect(store.loaded()).toBeTrue();
+    expect(store.teams()).toEqual(teams);
+  });
+
+  it('is settled when the current season cannot be found, so its skeletons go', () => {
+    seasons.getCurrentSeasonId.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+    store.show(0);
+    expect(store.settled()).toBeTrue();
   });
 
   it('applies a new captain at once, then the team name the server gave it', () => {

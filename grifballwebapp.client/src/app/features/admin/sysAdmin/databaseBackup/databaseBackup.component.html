@@ -19,6 +19,8 @@
       </dl>
     } @else if (infoFailed()) {
       <p class="hud-muted db-note">Couldn't read the database's details.</p>
+    } @else {
+      <app-skeleton label="the database's details" [count]="2" />
     }
     <p class="db-note">
       Any format, whichever server the site is on: a script builds the database on that server, schema and rows. Make

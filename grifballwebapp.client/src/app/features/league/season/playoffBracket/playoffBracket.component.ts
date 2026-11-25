@@ -11,6 +11,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '@core/auth/account.service';
 import { Locale } from 'brackets-viewer/dist/lang';
 import { loadBracketsViewer } from '@shared/loadBracketsViewer';
+import { AppLog } from '@core/telemetry/appLog';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import type { SeasonChampionDto } from '@api/models';
 import { PlayoffBracketStore } from './playoffBracket.store';
 
@@ -20,7 +22,8 @@ import { PlayoffBracketStore } from './playoffBracket.store';
         MatButtonModule,
         MatDialogModule,
         MatSnackBarModule,
-        RouterLink
+        RouterLink,
+        SkeletonComponent,
     ],
     templateUrl: './playoffBracket.component.html',
     styleUrl: './playoffBracket.component.scss',
@@ -33,6 +36,7 @@ export class PlayoffBracketComponent {
   private dialog = inject(MatDialog);
   private destroyRef = inject(DestroyRef);
   private snackBar = inject(MatSnackBar);
+  private readonly log = inject(AppLog);
   accountService = inject(AccountService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -54,10 +58,14 @@ export class PlayoffBracketComponent {
   });
 
   hasBracket = signal(false);
-  /** The bracket (or that there is none) is known: until then the page shows neither. */
+  /** The bracket (or that there is none) is known. */
   readonly loaded = this.store.loaded;
   /** The viewer has drawn the bracket: the legend goes below it then, not before. */
   drawn = signal(false);
+  /** The viewer could not be loaded, or failed to draw: the bracket is not drawn, and no skeleton waits for it. */
+  private readonly viewerFailed = signal(false);
+  /** A skeleton holds the bracket's place until it is known and drawn (on the server too, where the viewer never draws). */
+  readonly waiting = computed(() => !this.loaded() || (this.hasBracket() && !this.drawn() && !this.viewerFailed()));
 
   constructor() {
     this.store.seasonID.use(this.seasonID);
@@ -86,12 +94,15 @@ export class PlayoffBracketComponent {
     } else {
       this.hasBracket.set(true);
     }
+    // A draw that failed before doesn't stop this one's skeleton
+    this.viewerFailed.set(false);
     // The viewer draws into the page in the browser; on the server the box is left for it.
     if (!this.isBrowser)
       return;
     try {
       await loadBracketsViewer();
     } catch {
+      this.viewerFailed.set(true);
       this.snackBar.open('Failed to load the bracket viewer', 'Close');
       return;
     }
@@ -115,7 +126,15 @@ export class PlayoffBracketComponent {
       },
     };
 
-    await window.bracketsViewer.render(viewerData, config);
+    try {
+      await window.bracketsViewer.render(viewerData, config);
+    } catch (error: unknown) {
+      // Not drawn: no skeleton waits for it
+      this.viewerFailed.set(true);
+      this.log.error('Failed to draw the bracket', error);
+      this.snackBar.open('Failed to draw the bracket', 'Close');
+      return;
+    }
     this.drawn.set(true);
   }
 

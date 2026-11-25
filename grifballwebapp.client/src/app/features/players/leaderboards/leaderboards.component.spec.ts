@@ -170,6 +170,14 @@ describe('LeaderboardsComponent', () => {
     expect(rows()[0][3]).withContext('No figure per game on this board').toBe('30');
   });
 
+  it('holds the board with a skeleton until the boards arrive', () => {
+    fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')!.textContent!.trim()).toBe('Loading the leaderboards…');
+    expectBoards().flush(boards);
+    fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')).toBeNull();
+  });
+
   it('says when the leaderboards cannot be loaded', () => {
     expectBoards().flush('', { status: 500, statusText: 'down' });
     fixture.detectChanges();
@@ -202,7 +210,7 @@ describe('LeaderboardsComponent', () => {
     showBoards();
     search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
     fixture.detectChanges();
-    expect(message()).toBe('Searching all-time records...');
+    expect(el().querySelector('app-skeleton')!.textContent!.trim()).toBe('Loading all-time records…');
 
     ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
     fixture.detectChanges();

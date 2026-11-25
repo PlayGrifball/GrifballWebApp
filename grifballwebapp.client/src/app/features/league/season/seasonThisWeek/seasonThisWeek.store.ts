@@ -24,6 +24,8 @@ export class SeasonThisWeekStore {
   }), []);
   /** The season's scheduled matches; none for 0, or when they can't be read. */
   readonly matches = this.schedule.value;
+  /** The first answer for the season is on its way: the cards are a skeleton. */
+  readonly firstLoad = this.schedule.firstLoad;
 
   constructor() {
     // A match of the season scheduled, played or changed: its scheduled matches as they are now come with it

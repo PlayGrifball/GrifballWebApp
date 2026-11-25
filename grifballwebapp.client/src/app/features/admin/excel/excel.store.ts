@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import type { SheetDto } from '@api/models';
 import { ExcelService } from '@api/services/excel.service';
 import { AppLog } from '@core/telemetry/appLog';
+import { finalize } from 'rxjs';
 
 /** The sheets the Excel page writes to by default. One per page (the component provides it). */
 @Injectable()
@@ -12,10 +13,13 @@ export class ExcelStore {
   /** The default sheets; none until they arrive. */
   private readonly _defaults = signal<SheetDto[]>([]);
   readonly defaults = this._defaults.asReadonly();
+  /** The default sheets have arrived (or failed to): the page shows a skeleton until then. */
+  private readonly _loaded = signal(false);
+  readonly loaded = this._loaded.asReadonly();
 
   /** Loads the default sheets; a failure is logged, and leaves none. */
   loadDefaults(): void {
-    this.excel.defaultSheetInfo().subscribe({
+    this.excel.defaultSheetInfo().pipe(finalize(() => this._loaded.set(true))).subscribe({
       next: sheets => this._defaults.set(sheets),
       error: error => this.log.error('Excel: failed to load the default sheets', error),
     });

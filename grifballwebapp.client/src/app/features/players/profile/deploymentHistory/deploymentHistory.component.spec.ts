@@ -58,6 +58,15 @@ describe('DeploymentHistoryComponent', () => {
     fixture.detectChanges();
   }
 
+  it('holds the panel with a skeleton while the history loads', async () => {
+    fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')!.textContent).toContain('Loading the deployment history');
+    http.expectOne('/api/users/21/deployment-history').flush([]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')).toBeNull();
+  });
+
   it('shows nothing for a player on no team', async () => {
     await load([]);
     expect(el().querySelector('section')).toBeNull();

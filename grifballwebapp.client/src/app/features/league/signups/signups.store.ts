@@ -1,9 +1,10 @@
-import { effect, inject, Injectable, signal, untracked } from '@angular/core';
-import type { SeasonSummaryDto, SignupResponseDto } from '@api/models';
+import { computed, inject, Injectable } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { SeasonService } from '@api/services/season.service';
 import { SignupsService } from '@api/services/signups.service';
+import { resourceView } from '@shared/resourceView';
 import { StoreInput } from '@shared/storeInput';
-import { whileCurrent } from '@shared/whileCurrent';
+import { tap } from 'rxjs';
 import { SeasonSummaryService } from '../season/seasonSummary';
 import { AppLog } from '@core/telemetry/appLog';
 import { liveReload } from '@core/live/liveReload';
@@ -11,7 +12,7 @@ import { LiveTopics } from '@core/live/liveTopics';
 
 /**
  * A season's signups and summary: the route's season, or the current one when it names none (0). A new season drops
- * what was shown, and any answer still on its way for the last one. One per page (the component provides it).
+ * what was shown, and cancels any request still on its way for the last one. One per page (the component provides it).
  */
 @Injectable()
 export class SignupsStore {
@@ -23,49 +24,34 @@ export class SignupsStore {
   /** The route's season (0: the current season): the component's input. */
   readonly seasonID = new StoreInput<number>();
 
-  private readonly _signUps = signal<SignupResponseDto[]>([]);
-  readonly signUps = this._signUps.asReadonly();
-  private readonly _summary = signal<SeasonSummaryDto | null>(null);
-  readonly summary = this._summary.asReadonly();
-  /** The season shown: the route's, or the current season's ID once known. */
-  private readonly _shownSeasonID = signal(0);
-  readonly shownSeasonID = this._shownSeasonID.asReadonly();
+  /** The current season's ID, asked for only while the route names none. */
+  private readonly current = resourceView(rxResource({
+    params: () => this.seasonID.value() === 0 ? true : undefined,
+    stream: () => this.seasons.getCurrentSeasonId(),
+  }), null);
+  /** The season shown: the route's, or the current season's ID once known (0 until then). */
+  readonly shownSeasonID = computed(() => this.seasonID.value() || this.current.value() || 0);
+
+  private readonly list = resourceView(rxResource({
+    params: () => this.shownSeasonID() || undefined,
+    stream: ({ params: seasonID }) => this.signups.getSignups({ seasonID })
+      .pipe(tap({ error: e => this.log.error('Failed to load the signups', e) })),
+  }), []);
+  readonly signUps = this.list.value;
+  /** The signups are on their way (the current season's ID first, when the route names none): a skeleton. */
+  readonly firstLoad = computed(() => this.current.firstLoad() || this.list.firstLoad());
+  /** The signups could not be read: the page says so, never "0 signed up". */
+  readonly failed = this.list.failed;
+
+  /** The season's summary (a backfilled season says it has no signups); none while it loads, or if it can't be read. */
+  private readonly loadedSummary = resourceView(rxResource({
+    params: () => this.shownSeasonID() || undefined,
+    stream: ({ params: seasonID }) => this.summaries.get(seasonID),
+  }), null);
+  readonly summary = this.loadedSummary.value;
 
   constructor() {
-    effect(() => {
-      const routeSeasonID = this.seasonID.value();
-      if (routeSeasonID === undefined)
-        return;
-      untracked(() => this.show(routeSeasonID));
-    });
     // A signup made, changed or withdrawn: the list again, in place
-    liveReload(() => this.shownSeasonID() ? [LiveTopics.signups(this.shownSeasonID())] : [], () => this.load());
-  }
-
-  private show(routeSeasonID: number): void {
-    this._signUps.set([]);
-    this._summary.set(null);
-    this._shownSeasonID.set(routeSeasonID);
-    if (routeSeasonID !== 0) {
-      this.load();
-      return;
-    }
-    this.seasons.getCurrentSeasonId()
-      .pipe(whileCurrent(routeSeasonID, this.seasonID.value))
-      .subscribe({
-        next: seasonID => {
-          this._shownSeasonID.set(seasonID);
-          this.load();
-        },
-      });
-  }
-
-  private load(): void {
-    const seasonID = this.shownSeasonID();
-    this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({ next: s => this._summary.set(s), error: () => {} });
-    this.signups.getSignups({ seasonID }).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({
-      next: result => this._signUps.set(result),
-      error: error => this.log.error('Failed to load the signups', error),
-    });
+    liveReload(() => this.shownSeasonID() ? [LiveTopics.signups(this.shownSeasonID())] : [], () => this.list.reload());
   }
 }

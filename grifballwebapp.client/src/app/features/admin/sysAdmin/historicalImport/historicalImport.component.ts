@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import type { HistoricalSeasonReviewDto, HistoricalSourceDto } from '@api/models';
 import { VodReviewComponent } from './vodReview/vodReview.component';
 import { HistoricalImportStore } from './historicalImport.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /** A snapshot's size, "1.2 MB". */
 export function size(bytes: number | null): string {
@@ -41,7 +42,7 @@ const REVIEW_LABELS: Record<string, string> = { Preview: 'Would remove', NeedsRe
  */
 @Component({
   selector: 'app-historical-import',
-  imports: [RouterLink, DatePipe, VodReviewComponent],
+  imports: [RouterLink, DatePipe, VodReviewComponent, SkeletonComponent],
   templateUrl: './historicalImport.component.html',
   styleUrl: './historicalImport.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

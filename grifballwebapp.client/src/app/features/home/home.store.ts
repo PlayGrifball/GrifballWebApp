@@ -1,13 +1,23 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import type { SeasonListItemDto, SeasonsLiveDto } from '@api/models';
 import { HomeService } from '@api/services/home.service';
 import { SeasonService } from '@api/services/season.service';
 import { apiSortDirection } from '@shared/apiSort';
 import { PaginationResult } from '@shared/paginationResult';
-import { SeasonEvent } from '@shared/seasonEvents';
-import { catchError, EMPTY, Observable, tap } from 'rxjs';
+import { resourceView } from '@shared/resourceView';
+import { StoreInput } from '@shared/storeInput';
 import { liveData } from '@core/live/liveReload';
 import { LiveTopics } from '@core/live/liveTopics';
+import { tap } from 'rxjs';
+
+/** Which page of past seasons the table shows, and how they are sorted (none: the server's order). */
+export interface PastSeasonsPage {
+  pageSize: number;
+  pageNumber: number;
+  sortDirection?: string;
+  sortColumn?: string;
+}
 
 /** The home page's data: the current and coming season events, and the past seasons a page at a time. One per page (the component provides it). */
 @Injectable()
@@ -15,60 +25,49 @@ export class HomeStore {
   private readonly home = inject(HomeService);
   private readonly seasonService = inject(SeasonService);
 
-  private readonly _events = signal<SeasonEvent[]>([]);
-  readonly events = this._events.asReadonly();
-  /** The events have loaded (or failed to). */
-  private readonly _eventsLoaded = signal(false);
-  readonly eventsLoaded = this._eventsLoaded.asReadonly();
+  private readonly loadedEvents = resourceView(rxResource({
+    stream: () => this.home.currentAndFutureEvents(),
+  }), []);
+  readonly events = this.loadedEvents.value;
+  /** The events are on their way: the hero and the objectives are skeletons. A failure shows none. */
+  readonly eventsFirstLoad = this.loadedEvents.firstLoad;
 
-  /** The past seasons' page shown, and how many there are in all. */
-  private readonly _pastSeasons = signal<SeasonListItemDto[]>([]);
-  readonly pastSeasons = this._pastSeasons.asReadonly();
-  private readonly _total = signal(0);
-  readonly total = this._total.asReadonly();
+  /** The page shown: the last one answered, kept while the next loads, and when it fails (the table pages on). */
+  private readonly shown = signal<PaginationResult<SeasonListItemDto> | null>(null);
+
+  /** The page of past seasons the table asks for: the component's paginator and sort. */
+  readonly page = new StoreInput<PastSeasonsPage>();
+
+  /** A page of the seasons that have ended (index.html fetches the first page early, with these parameters in this order). */
+  private readonly pages = resourceView(rxResource({
+    params: () => this.page.value(),
+    stream: ({ params }) => {
+      const sorted = !!(params.sortColumn && params.sortDirection);
+      return this.seasonService.getSeasonList({
+        ended: true,
+        pageNumber: params.pageNumber,
+        pageSize: params.pageSize,
+        sortDirection: sorted ? apiSortDirection(params.sortDirection) : undefined,
+        sortColumn: sorted ? params.sortColumn : undefined,
+      }).pipe(tap(page => this.shown.set(page)));
+    },
+  }), null);
+  readonly pastSeasons = computed(() => this.shown()?.results ?? []);
+  readonly total = computed(() => this.shown()?.totalCount ?? 0);
+  /** No page shown yet and one on its way: the table's rows are a skeleton. */
+  readonly pastSeasonsFirstLoad = computed(() => this.shown() === null && this.pages.firstLoad());
+  /** No page shown and the last one failed: the table says so. */
+  readonly pastSeasonsFailed = computed(() => this.shown() === null && this.pages.failed());
 
   constructor() {
     // A season or a match of one changed: the events as they are now come with it, as this viewer may see them (the
     // past seasons are past)
     liveData<SeasonsLiveDto>(() => [LiveTopics.seasons], seasons => {
-      this._events.set(seasons.events);
-      this._eventsLoaded.set(true);
+      this.loadedEvents.set(seasons.events);
       return true;
     }, () => {
-      if (this.eventsLoaded())
-        this.loadEvents();
+      if (this.loadedEvents.hasValue())
+        this.loadedEvents.reload();
     });
-  }
-
-  loadEvents(): void {
-    this.home.currentAndFutureEvents().subscribe({
-      next: events => {
-        this._events.set(events);
-        this._eventsLoaded.set(true);
-      },
-      error: () => this._eventsLoaded.set(true),
-    });
-  }
-
-  /**
-   * A page of the seasons that have ended (index.html fetches the first page early, with these parameters in this
-   * order), shown once it arrives. An observable, so the page's paginator stream can drop a page it moved past; it never
-   * fails (that would end the stream, and the table would page no more): a page that can't be read leaves the last shown.
-   */
-  loadPastSeasons(pageSize: number, pageNumber: number, sortDirection: string | undefined, sortColumn: string | undefined): Observable<PaginationResult<SeasonListItemDto>> {
-    const sorted = !!(sortColumn && sortDirection);
-    return this.seasonService.getSeasonList({
-      ended: true,
-      pageNumber,
-      pageSize,
-      sortDirection: sorted ? apiSortDirection(sortDirection) : undefined,
-      sortColumn: sorted ? sortColumn : undefined,
-    }).pipe(
-      tap(result => {
-        this._total.set(result.totalCount);
-        this._pastSeasons.set(result.results);
-      }),
-      catchError(() => EMPTY),
-    );
   }
 }

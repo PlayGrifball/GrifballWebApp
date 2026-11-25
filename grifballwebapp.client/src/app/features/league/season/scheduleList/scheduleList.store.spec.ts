@@ -67,10 +67,11 @@ describe('ScheduleListStore', () => {
     expect(store.scheduledMatches()).toEqual([]);
   });
 
-  it('asks for nothing without a season', () => {
+  it('asks for nothing without a season, and has nothing to wait for', () => {
     store.show(0);
     http.expectNone(() => true);
-    expect(store.loaded()).toBeFalse();
+    // No season (none current): empty lists, not a skeleton forever
+    expect(store.loaded()).toBeTrue();
   });
 
   it('sets a match\'s time, or none, and loads the schedule again whatever the answer', () => {

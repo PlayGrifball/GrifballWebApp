@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { GameVersionOptionDto, LeagueOptionDto } from '@api/models';
 import { EventOrganizerService } from '@api/services/event-organizer.service';
@@ -27,30 +27,48 @@ describe('SeasonEditStore', () => {
     store = TestBed.inject(SeasonEditStore);
   });
 
-  it('loads nothing until it has the season, and nothing for a new one', () => {
+  const settle = () => TestBed.inject(ApplicationRef).whenStable();
+
+  it('loads nothing until it has the season, and nothing for a new one', async () => {
     TestBed.tick();
     expect(api.getSeason).not.toHaveBeenCalled();
     store.seasonID.use(signal(0));
-    TestBed.tick();
+    await settle();
     expect(api.getSeason).not.toHaveBeenCalled();
     expect(store.season()).toBeNull();
+    // A new season: nothing to wait for
+    expect(store.firstLoad()).toBeFalse();
+    expect(store.failed()).toBeFalse();
   });
 
-  it('loads the season, drops it for another, and drops a late answer for the last one', () => {
+  it('loads the season, drops it for another, and drops a late answer for the last one', async () => {
     const late = new Subject<SeasonSettings | null>();
     api.getSeason.and.callFake(id => id === 4 ? late : of(season(id)));
     const seasonID = signal(4);
     store.seasonID.use(seasonID);
     TestBed.tick();
+    expect(store.firstLoad()).toBeTrue();
     seasonID.set(5);
-    TestBed.tick();
+    await settle();
     expect(store.season()!.seasonID).toBe(5);
+    expect(store.firstLoad()).toBeFalse();
     late.next(season(4));
     expect(store.season()!.seasonID).toBe(5);
 
     seasonID.set(0);
-    TestBed.tick();
+    await settle();
     expect(store.season()).toBeNull();
+  });
+
+  it('fails, rather than showing a new season, when the season cannot be loaded, and logs it', async () => {
+    const log = spyOn(console, 'error');
+    api.getSeason.and.returnValue(throwError(() => new Error('down')));
+    store.seasonID.use(signal(4));
+    await settle();
+    expect(store.firstLoad()).toBeFalse();
+    expect(store.failed()).toBeTrue();
+    expect(store.season()).toBeNull();
+    expect(log).toHaveBeenCalled();
   });
 
   it("loads the selects' options, and logs those that fail", () => {

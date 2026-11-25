@@ -3,12 +3,13 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import type { SeasonListItemDto } from '@api/models';
 import { seasonFormatLabel, seasonFormats } from '@shared/seasonFormats';
 import type { SeasonFormat } from '@api/models';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SeasonsStore } from './seasons.store';
 
 /** Every season so far, the current ones included, filterable by league, game, format and year. */
 @Component({
   selector: 'app-seasons',
-  imports: [RouterLink],
+  imports: [RouterLink, SkeletonComponent],
   templateUrl: './seasons.component.html',
   styleUrl: './seasons.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,7 +27,7 @@ export class SeasonsComponent {
 
   readonly seasons = this.store.seasons;
   readonly loaded = this.store.loaded;
-  /** Nothing to show yet: the page fades in once the first list is in. */
+  /** Nothing to show yet: the list is a skeleton until the first one is in. */
   readonly waiting = computed(() => !this.loaded() && this.seasons().length === 0);
   /** The leagues, games and years there are seasons of (from the unfiltered list); the latest year first. */
   readonly leagues = this.store.leagues;

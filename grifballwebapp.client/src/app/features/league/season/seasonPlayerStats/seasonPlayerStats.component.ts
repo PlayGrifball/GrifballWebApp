@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SeasonPlayerStatsStore } from './seasonPlayerStats.store';
 import { combinePhases } from './combinePhases';
 
@@ -21,7 +22,7 @@ const UNSORTED = { ariaSort: 'none', arrow: '' };
  */
 @Component({
   selector: 'app-season-player-stats',
-  imports: [RouterLink],
+  imports: [RouterLink, SkeletonComponent],
   templateUrl: './seasonPlayerStats.component.html',
   styleUrl: './seasonPlayerStats.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

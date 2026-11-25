@@ -61,11 +61,11 @@ describe('SeasonManagerComponent', () => {
     const seasons = new Subject<SeasonSettings[]>();
     api.getSeasons.and.returnValue(seasons);
     await fixture.whenStable();
-    expect(el().querySelector('[role="status"]')!.textContent).toContain('Loading seasons');
+    expect(el().querySelector('app-skeleton')!.textContent).toContain('Loading seasons');
 
     seasons.next([]);
     await fixture.whenStable();
-    expect(el().querySelector('[role="status"]')).toBeNull();
+    expect(el().querySelector('app-skeleton')).toBeNull();
     expect(el().textContent).toContain('No seasons yet');
     expect(el().querySelector('table')).toBeNull();
   });

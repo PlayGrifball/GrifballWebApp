@@ -53,6 +53,9 @@
       </div>
     </div>
 
+    @if (firstLoad()) {
+    <app-skeleton label="timeslots" [count]="6" />
+    } @else {
     @for (option of options(); track $index) {
     <div class="avail-slot">
       <mat-form-field appearance="outline">
@@ -75,6 +78,7 @@
     </div>
     } @empty {
       <p class="hud-empty">No timeslots. Add one, or fill them in with Bulk Modify.</p>
+    }
     }
   </form>
 
