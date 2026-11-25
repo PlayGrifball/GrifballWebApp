@@ -82,6 +82,17 @@ describe('ProfileIdentityComponent', () => {
     expect(changed).toBe(1);
   });
 
+  it('puts the picture select back to what is saved when saving fails', async () => {
+    fixture.componentRef.setInput('profilePicture', 'GamerPicture');
+    http.expectOne(claimsUrl).flush([]);
+    await settle();
+    const select = el().querySelector<HTMLSelectElement>('#pi-picture')!;
+    select.value = 'Emblem';
+    select.dispatchEvent(new Event('change'));
+    http.expectOne('/api/me/profile-picture').flush({ title: 'No.' }, { status: 400, statusText: 'Bad Request' });
+    expect(select.value).toBe('GamerPicture');
+  });
+
   it('clears the region, and says when it cannot be saved', async () => {
     http.expectOne(claimsUrl).flush([]);
     await settle();

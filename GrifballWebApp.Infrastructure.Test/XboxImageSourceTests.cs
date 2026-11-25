@@ -325,6 +325,39 @@ public class XboxImageSourceTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task Emblems_TheItemCall_WaitsItsTurnLikeTheOtherCalls()
+    {
+        await AddAccountsAsync(1);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/3627007-SpartanEmblem.json");
+        GivenItem("Inventory/Spartan/Emblems/3627007-SpartanEmblem.json", "progression/Inventory/Emblems/3627007-SpartanEmblem-SM.png");
+        _halo.GameCmsGetImage(Arg.Any<string>()).Returns(Ok(Png));
+
+        await Source().RunEmblemsAsync();
+
+        Assert.That(_waits, Is.EqualTo(new[] { TimeSpan.FromSeconds(1) }), "a wait between the account's customization call and its item call");
+    }
+
+    [Test]
+    public async Task Emblems_AMappedImageAndAnItemImageAtTheSamePath_AreNotMixedUp()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenMapping();
+        GivenEmblem(1, "/inventory/armor/emblems/013-001-aaaa.json");
+        GivenEmblem(2, "/Inventory/Spartan/Emblems/3627007-SpartanEmblem.json");
+        GivenItem("Inventory/Spartan/Emblems/3627007-SpartanEmblem.json", "images/emblems/a7.png");
+        byte[] other = [0x89, 0x50, 0x4E, 0x47, 0x99];
+        _halo.GameCmsWaypointGetImage("images/emblems/a7.png").Returns(Ok(Png));
+        _halo.GameCmsGetImage("images/emblems/a7.png").Returns(Ok(other));
+
+        await Source().RunEmblemsAsync();
+
+        var mapped = await RowAsync(1, XboxUserImageKind.HaloEmblem);
+        var item = await RowAsync(2, XboxUserImageKind.HaloEmblem);
+        Assert.That((mapped.Content, item.Content), Is.EqualTo((Png, other)));
+    }
+
+    [Test]
     public async Task Emblems_TwoAccountsWithTheSameUnmappedEmblem_AskForItsItemAndImageOnce()
     {
         await AddAccountsAsync(1, 2);
