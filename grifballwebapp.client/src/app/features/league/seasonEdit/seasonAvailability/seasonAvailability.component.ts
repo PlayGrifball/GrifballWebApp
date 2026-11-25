@@ -6,7 +6,7 @@ import { MatFormField, MatInputModule } from '@angular/material/input';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { DateTime } from 'luxon';
 import { MatSelectModule } from '@angular/material/select';
-import { DatePickersDirective } from '@shared/datePickers';
+import { provideDatePickers } from '@shared/datePickers';
 import { RouterLink } from '@angular/router';
 import type { DayOfWeek } from '@api/models';
 import { SeasonAvailabilityStore } from './seasonAvailability.store';
@@ -25,7 +25,6 @@ export class AvailabilityOption {
     imports: [
         MatCheckboxModule,
         MtxDatetimepickerModule,
-        DatePickersDirective,
         MatInputModule,
         FormsModule,
         MatFormField,
@@ -37,7 +36,7 @@ export class AvailabilityOption {
     ],
     templateUrl: './seasonAvailability.component.html',
     styleUrl: './seasonAvailability.component.scss',
-    providers: [SeasonAvailabilityStore],
+    providers: [provideDatePickers(), SeasonAvailabilityStore],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonAvailabilityComponent {

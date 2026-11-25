@@ -1,4 +1,4 @@
-import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -53,10 +53,6 @@ describe('SeasonAvailabilityComponent', () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/14/availability').flush(options);
     await fixture.whenStable();
-    fixture.detectChanges();
-    // The form is a @defer block (its pickers load when it is first used): drawn as it is once their code is in
-    for (const block of await fixture.getDeferBlocks())
-      await block.render(DeferBlockState.Complete);
     fixture.detectChanges();
   }
 
@@ -142,16 +138,11 @@ describe('SeasonAvailabilityComponent', () => {
     expect(snackBar.open).toHaveBeenCalledWith('Failed to save');
   });
 
-  it('holds the forms with a skeleton until their code is in, then renders the loaded timeslots', async () => {
+  it('renders the loaded timeslots, without a manual detectChanges after them', async () => {
     // Not whenStable before the answer: a resource still loading keeps the app unstable
     fixture.detectChanges();
-    // The forms' code (the time pickers) is not in yet: a skeleton holds their place
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Loading the timeslots');
     http.expectOne('/api/seasons/14/availability').flush([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
     await fixture.whenStable();
-    for (const block of await fixture.getDeferBlocks())
-      await block.render(DeferBlockState.Complete);
-    fixture.detectChanges();
 
     const deleteButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
       .filter(b => b.textContent!.trim() === 'Delete');

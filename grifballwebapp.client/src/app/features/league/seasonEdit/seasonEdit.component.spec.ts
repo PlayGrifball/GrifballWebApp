@@ -1,4 +1,4 @@
-import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { DateTime } from 'luxon';
@@ -47,10 +47,6 @@ describe('SeasonEditComponent', () => {
   async function render(): Promise<void> {
     fixture.detectChanges();
     await fixture.whenStable();
-    fixture.detectChanges();
-    // The form is a @defer block (its pickers load when it is first used): drawn as it is once their code is in
-    for (const block of await fixture.getDeferBlocks())
-      await block.render(DeferBlockState.Complete);
     fixture.detectChanges();
   }
 
@@ -148,9 +144,6 @@ describe('SeasonEditComponent', () => {
     loaded.next(season({ seasonName: 'Arrived Later' }));
     loaded.complete();
     await fixture.whenStable();
-    for (const block of await fixture.getDeferBlocks())
-      await block.render(DeferBlockState.Complete);
-    fixture.detectChanges();
 
     expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')?.value).toBe('Arrived Later');
     expect(el().querySelector('app-skeleton')).toBeNull();
@@ -247,7 +240,7 @@ describe('SeasonEditComponent', () => {
     expect(availability.getAttribute('href')).toBe('/seasonAvailability/7');
   });
 
-  it('empties the form for a new season, and drops the previous season when it arrives late', async () => {
+  it('empties the form for a new season, and drops the previous season when it arrives late', () => {
     const late = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(late);
     fixture.detectChanges();
@@ -256,9 +249,6 @@ describe('SeasonEditComponent', () => {
     // Synchronous: right after a cancelled load, whenStable would wait on it
     fixture.detectChanges();
     late.next(season());
-    fixture.detectChanges();
-    for (const block of await fixture.getDeferBlocks())
-      await block.render(DeferBlockState.Complete);
     fixture.detectChanges();
 
     expect(component.model().seasonID).toBeUndefined();

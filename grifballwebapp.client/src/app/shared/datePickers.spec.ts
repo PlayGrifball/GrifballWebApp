@@ -1,9 +1,8 @@
-import { Component, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { DatetimeAdapter, MTX_DATETIME_FORMATS } from '@ng-matero/extensions/core';
 import { LuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { DateTime } from 'luxon';
-import { DatePickersDirective, provideDatePickers } from './datePickers';
+import { provideDatePickers } from './datePickers';
 
 describe('provideDatePickers', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: provideDatePickers() }));
@@ -20,20 +19,5 @@ describe('provideDatePickers', () => {
     const adapter = TestBed.inject(DatetimeAdapter<DateTime>);
     const date = adapter.parse('2026-10-29 18:30', formats.parse.datetimeInput)!;
     expect(adapter.format(date, formats.display.datetimeInput)).toBe('2026-10-29 18:30');
-  });
-});
-
-describe('DatePickersDirective', () => {
-  @Component({ selector: 'app-picker-user', template: '' })
-  class PickerUser { readonly adapter = inject(DatetimeAdapter); }
-
-  @Component({ imports: [DatePickersDirective, PickerUser], template: '<div appDatePickers><app-picker-user /></div>' })
-  class Host {}
-
-  it("provides the pickers' Luxon adapter to the fields inside it, so a page can load it with them", () => {
-    const fixture = TestBed.createComponent(Host);
-    fixture.detectChanges();
-    const user = fixture.debugElement.children[0].children[0].componentInstance as PickerUser;
-    expect(user.adapter).toBeInstanceOf(LuxonDatetimeAdapter);
   });
 });

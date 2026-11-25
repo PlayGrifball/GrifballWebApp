@@ -10,7 +10,7 @@ import { ErrorMessageComponent } from '@shared/validation/errorMessage.component
 import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
-import { DatePickersDirective } from '@shared/datePickers';
+import { provideDatePickers } from '@shared/datePickers';
 import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SeasonEditStore } from './seasonEdit.store';
 
@@ -26,7 +26,6 @@ const newSeason = (): SeasonSettings => ({ leagueID: 1, gameVersionID: null, div
         MatButtonModule,
         ErrorMessageComponent,
         MtxDatetimepickerModule,
-        DatePickersDirective,
         RouterModule,
         MatCheckboxModule,
         MatSelectModule,
@@ -34,7 +33,7 @@ const newSeason = (): SeasonSettings => ({ leagueID: 1, gameVersionID: null, div
     ],
     templateUrl: './seasonEdit.component.html',
     styleUrl: './seasonEdit.component.scss',
-    providers: [SeasonEditStore],
+    providers: [provideDatePickers(), SeasonEditStore],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonEditComponent implements OnInit {
