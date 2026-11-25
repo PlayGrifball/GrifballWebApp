@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, DestroyRef, effect, inject, Injectable, linkedSignal, PLATFORM_ID, signal, WritableSignal } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, PLATFORM_ID, signal, WritableSignal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { map, Observable, Subscription, switchMap, takeWhile, timer } from 'rxjs';
 import type { OnDemandJobStatusDto, PossibleMatchDto, TeamPagePlayerDto } from '@api/models';
@@ -53,10 +53,8 @@ export class SeasonMatchStore {
     && isLoaded(this.homeLoaded(), this.homeTeamID()) && isLoaded(this.awayLoaded(), this.awayTeamID()));
   /** Shown once in, it stays: a reload that brings another team (a playoff slot filled) fills its roster in place
    * rather than swapping the lobby for a skeleton. Another match starts over. */
-  readonly ready = linkedSignal<{ match: number, rostersIn: boolean }, boolean>({
-    source: () => ({ match: this.shownID(), rostersIn: this.rostersIn() }),
-    computation: (now, previous) => now.rostersIn || (!!previous && previous.source.match === now.match && previous.value),
-  });
+  private readonly lobbyShown = signal(false);
+  readonly ready = computed(() => this.lobbyShown() || this.rostersIn());
 
   private readonly _possibleMatches = signal<PossibleMatchDto[]>([]);
   readonly possibleMatches = this._possibleMatches.asReadonly();
@@ -90,6 +88,7 @@ export class SeasonMatchStore {
     this.shownID.set(seasonMatchID);
     this._seasonMatch.set(null);
     this._pageLoaded.set(false);
+    this.lobbyShown.set(false);
     const page = this.reload();
     this.getPossibleMatches();
     this.getPullStatus();
@@ -104,20 +103,38 @@ export class SeasonMatchStore {
         next: result => {
           this._seasonMatch.set(result);
           this._pageLoaded.set(true);
+          this.noteIfIn();
         },
-        error: () => this._pageLoaded.set(true),
+        error: () => {
+          this._pageLoaded.set(true);
+          this.noteIfIn();
+        },
       });
   }
 
   private loadRoster(teamID: number | null, roster: WritableSignal<Roster>): void {
     roster.set({ teamID, players: teamID === null ? [] : null });
-    if (teamID === null)
+    if (teamID === null) {
+      this.noteIfIn();
       return;
+    }
     this.teamService.team({ teamID }).pipe(nullWhenNotFound())
       .subscribe({
-        next: team => roster.set({ teamID, players: team?.players ?? [] }),
-        error: () => roster.set({ teamID, players: [] }),
+        next: team => {
+          roster.set({ teamID, players: team?.players ?? [] });
+          this.noteIfIn();
+        },
+        error: () => {
+          roster.set({ teamID, players: [] });
+          this.noteIfIn();
+        },
       });
+  }
+
+  /** The match and its rosters are in: the lobby is shown, and stays shown for this match (see ready). */
+  private noteIfIn(): void {
+    if (this.rostersIn())
+      this.lobbyShown.set(true);
   }
 
   private getPossibleMatches(): void {
