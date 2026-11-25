@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import { DatePipe } from '@angular/common';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 import { describeSeasonMatch, SeasonMatchComponent } from './seasonMatch.component';
 import { PULL_POLL_MS } from './seasonMatch.store';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -1174,9 +1174,13 @@ describe('SeasonMatchComponent reporting', () => {
     httpMock.expectNone(r => r.method === 'POST');
   });
 
-  it('only accepts a GUID as a match id', async () => {
+  it("reports a game by its match id, only a GUID, once the form's code is in", async () => {
     load(page());
     await fixture.whenStable();
+    // The form is a @defer block: drawn as the browser draws it once its code is in
+    for (const block of await fixture.getDeferBlocks())
+      await block.render(DeferBlockState.Complete);
+    fixture.detectChanges();
     const input = (fixture.nativeElement as HTMLElement).querySelector('input[name="MatchID"]') as HTMLInputElement;
     const submit = button('Submit')!;
 

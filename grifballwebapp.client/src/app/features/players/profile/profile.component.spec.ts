@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 import { input, output, signal, WritableSignal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -36,6 +36,14 @@ class ProfileIdentityStubComponent {
 // And the access tokens section (accessTokens.component.spec.ts).
 @Component({ selector: 'app-access-tokens', template: '<p>access tokens</p>' })
 class AccessTokensStubComponent {}
+
+
+/** The owner's settings are a @defer block: drawn as the browser draws them once their code is in. */
+async function renderDeferred(fixture: ComponentFixture<unknown>): Promise<void> {
+  for (const block of await fixture.getDeferBlocks())
+    await block.render(DeferBlockState.Complete);
+  fixture.detectChanges();
+}
 
 describe('ProfileComponent', () => {
   let fixture: ComponentFixture<ProfileComponent>;
@@ -621,9 +629,11 @@ describe('ProfileComponent linked accounts', () => {
     expect(el.querySelector('app-service-record')).toBeNull();
   });
 
-  it('shows the linked accounts on your own profile', () => {
+  it('shows the linked accounts on your own profile', async () => {
     personID.set(21);
-    expect(render().querySelector('app-linked-accounts')).not.toBeNull();
+    const page = render();
+    await renderDeferred(fixture);
+    expect(page.querySelector('app-linked-accounts')).not.toBeNull();
   });
 
   it("hides them on someone else's profile", () => {
@@ -687,9 +697,10 @@ describe('ProfileComponent: region and identity', () => {
     expect(render(null).querySelector('.profile-region')).toBeNull();
   });
 
-  it('shows the region and past gamertag claims on your own profile, and reloads when they change', () => {
+  it('shows the region and past gamertag claims on your own profile, and reloads when they change', async () => {
     personID.set(21);
     const page = render('Central North America');
+    await renderDeferred(fixture);
     const identity = fixture.debugElement.query(d => d.componentInstance instanceof ProfileIdentityStubComponent);
     expect(page.querySelector('app-profile-identity')).not.toBeNull();
     expect((identity.componentInstance as ProfileIdentityStubComponent).regionID()).toBe(2);

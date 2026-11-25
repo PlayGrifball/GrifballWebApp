@@ -102,6 +102,13 @@ export function formLines(game: ReportedGameDto | null, homeRoster: TeamPagePlay
   return lines;
 }
 
+/** The scores are in and differ (the side with the higher one won); a new game's place in the series is picked. */
+export function isFormValid(form: ManualGameForm, editing: GameSlot | null): boolean {
+  const { homeTeamScore: home, awayTeamScore: away } = form;
+  return home != null && away != null && home >= 0 && away >= 0 && home !== away
+    && (editing !== 'new' || form.slot !== null);
+}
+
 /** A form with nothing entered. */
 export function emptyForm(): ManualGameForm {
   return { gameVersionID: INFINITE_GAME_VERSION_ID, map: '', gametype: '', playedAt: '', homeTeamScore: null, awayTeamScore: null, players: [], slot: null };

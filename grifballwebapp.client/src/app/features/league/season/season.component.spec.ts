@@ -423,9 +423,10 @@ describe('SeasonComponent', () => {
     const pills = () => Array.from(el().querySelectorAll('.season-meta__pill')).map(p => p.textContent!.trim());
     const champions = [{ tier: 'Open', teamID: 1, teamName: 'Winners', roster: [] }];
 
-    it('shows a tournament its bracket in place of the standings and this week, and no schedule', () => {
+    it('shows a tournament its bracket in place of the standings and this week, and no schedule', async () => {
       summaries.get.and.callFake((id: number) => of(seasonSummary(id, { format: 'Tournament', champions })));
       fixture.detectChanges();
+      await renderDeferred();
       expect(pills()).toContain('Tournament');
       expect(notices()).toEqual(['A tournament: a bracket only, with no regular season schedule or standings.']);
       expect(el().querySelector('app-playoff-bracket')).not.toBeNull();

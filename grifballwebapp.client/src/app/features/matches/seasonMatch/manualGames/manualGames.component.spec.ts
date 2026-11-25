@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ManualGamesComponent } from './manualGames.component';
@@ -63,6 +63,14 @@ describe('ManualGamesComponent', () => {
     fixture.detectChanges();
   }
 
+  /** The form is a @defer block (its code loads when a commissioner opens it): drawn as the browser draws it then. */
+  async function opened(): Promise<void> {
+    fixture.detectChanges();
+    for (const block of await fixture.getDeferBlocks())
+      await block.render(DeferBlockState.Complete);
+    fixture.detectChanges();
+  }
+
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
   const button = (label: string) => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
     .find(b => b.textContent!.trim() === label) as HTMLButtonElement | undefined;
@@ -112,11 +120,11 @@ describe('ManualGamesComponent', () => {
     expect(component.slots().map(choice => choice.slot)).toEqual([51, 52]);
   });
 
-  it('enters a game: the ticked players only, with their goals, then tells the page', () => {
+  it('enters a game: the ticked players only, with their goals, then tells the page', async () => {
     createAsCommissioner();
 
     button('Enter a game by hand')!.click();
-    fixture.detectChanges();
+    await opened();
     expect(component.form.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
     expect(component.form.players.map(p => [p.userID, p.gamertag, p.isHomeTeam, p.played, p.goals]))
       .toEqual([[1, 'Grif', true, false, 0], [2, 'Unknown Spartan', true, false, 0], [3, 'Tucker', false, false, 0]]);
@@ -142,12 +150,23 @@ describe('ManualGamesComponent', () => {
     expect(component.editing()).toBeNull();
   });
 
-  it('will not save equal scores, and says why', () => {
+  it("holds the form's place with a skeleton until its code is in", async () => {
+    createAsCommissioner();
+    component.startAdd();
+    fixture.detectChanges();
+    const [form] = await fixture.getDeferBlocks();
+    await form.render(DeferBlockState.Placeholder);
+    expect(text()).toContain('Loading the game form');
+    await form.render(DeferBlockState.Complete);
+    expect(button('Save game')).toBeDefined();
+  });
+
+  it('will not save equal scores, and says why', async () => {
     createAsCommissioner();
     component.startAdd();
     component.form.homeTeamScore = 4;
     component.form.awayTeamScore = 4;
-    fixture.detectChanges();
+    await opened();
 
     expect(component.formValid()).toBeFalse();
     expect(text()).toContain("the two scores can't be equal");
@@ -155,11 +174,11 @@ describe('ManualGamesComponent', () => {
     httpMock.expectNone('/api/season-matches/7/manual-games');
   });
 
-  it('cancels an entry', () => {
+  it('cancels an entry', async () => {
     createAsCommissioner();
     component.startAdd();
     expect(component.idle()).toBeFalse();
-    fixture.detectChanges();
+    await opened();
     button('Cancel')!.click();
     fixture.detectChanges();
     expect(component.editing()).toBeNull();
@@ -167,11 +186,11 @@ describe('ManualGamesComponent', () => {
     expect(button('Enter a game by hand')).toBeDefined();
   });
 
-  it('edits a game from the box score, filled in from it (its subs and goals too)', () => {
+  it('edits a game from the box score, filled in from it (its subs and goals too)', async () => {
     createAsCommissioner(page({ reportedGames: [game({ playedAt: '2026-01-10T20:30:00Z' })] }));
 
     component.startEdit(game({ playedAt: '2026-01-10T20:30:00Z' }));
-    fixture.detectChanges();
+    await opened();
     expect(component.editing()).toBe(41);
     expect(text()).toContain('Edit game');
     expect([component.form.gameVersionID, component.form.map, component.form.gametype, component.form.homeTeamScore, component.form.awayTeamScore])
@@ -338,12 +357,12 @@ describe('ManualGamesComponent', () => {
     expect(started).toBe(3);
   });
 
-  it('while saving, shows what is sent, starts and cancels nothing, and goes back to it when the server refuses', () => {
+  it('while saving, shows what is sent, starts and cancels nothing, and goes back to it when the server refuses', async () => {
     createAsCommissioner(page({ reportedGames: [game()] }));
     component.startEdit(game());
     component.save();
     const request = httpMock.expectOne('/api/season-matches/7/manual-games/41');
-    fixture.detectChanges();
+    await opened();
     expect(component.mode()).toEqual({ kind: 'saving', from: { kind: 'entering', target: 41 } });
     expect([component.saving(), component.idle(), component.editing()]).toEqual([true, false, 41]);
     expect(button('Save game')!.disabled).toBeTrue();
