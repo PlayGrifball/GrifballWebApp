@@ -69,6 +69,11 @@ describe('combinePhases', () => {
     expect(lines.map(l => l.gamertag)).toEqual(['Zed', 'amy']);
   });
 
+  it('keeps one player on two teams with equal stats in the order given', () => {
+    const lines = combinePhases([stat({ teamID: 40, teamName: 'A' }), stat({ teamID: 41, teamName: 'B' })]);
+    expect(lines.map(l => l.teamID)).toEqual([40, 41]);
+  });
+
   it('keeps a traded player apart by team, most goals first', () => {
     const lines = combinePhases([
       stat({ teamID: 40, goals: 2 }),
