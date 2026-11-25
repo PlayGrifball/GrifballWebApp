@@ -208,6 +208,18 @@ public class GameResultsParserTests
     }
 
     [Test]
+    public void Series_PlayoffsFrom_NotInTheSheet_LeavesEverythingRegularSeason_AndAPlayoffsRowStaysPlayoffs()
+    {
+        var missing = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series, PlayoffsFrom = "Playoffs: Round 1" },
+            Sheet(["Week 1", "Alpha over Bravo 5-3"]));
+        Assert.That(missing.Select(g => g.IsPlayoffs), Is.EqualTo(new[] { false }));
+
+        var rowPhase = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series, PlayoffsFrom = "Playoffs: Round 1" },
+            Sheet(["Week 1", "Alpha over Bravo 5-3"], ["Playoffs", "Charlie over Delta 5-1"]));
+        Assert.That(rowPhase.Select(g => g.IsPlayoffs), Is.EqualTo(new[] { false, true }), "A phase row still decides when the anchor is absent");
+    }
+
+    [Test]
     public void Series_GameScoresThatDoNotAddUpToTheSeriesScore_AreTakenAsWrittenWinnerFirst()
     {
         var games = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series }, Sheet(["A over B 2-1 (5-1, 5-4, 5-3)"]));
