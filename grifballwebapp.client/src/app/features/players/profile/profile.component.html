@@ -62,17 +62,22 @@
       </section>
       }
 
-      <section class="hud-section hud-panel hud-panel--soft">
-        <app-linked-accounts />
-      </section>
+      <!-- The owner's own settings: their code loads after the page's, so other visitors never download it; the server still renders them -->
+      @defer (on immediate; hydrate on immediate) {
+        <section class="hud-section hud-panel hud-panel--soft">
+          <app-linked-accounts />
+        </section>
 
-      <section class="hud-section hud-panel hud-panel--soft">
-        <app-profile-identity [regionID]="profileStats()?.regionID ?? null" [profilePicture]="profileStats()?.profilePicture ?? 'Emblem'" (changed)="store.loadStats()" />
-      </section>
+        <section class="hud-section hud-panel hud-panel--soft">
+          <app-profile-identity [regionID]="profileStats()?.regionID ?? null" [profilePicture]="profileStats()?.profilePicture ?? 'Emblem'" (changed)="store.loadStats()" />
+        </section>
 
-      <section class="hud-section hud-panel hud-panel--soft">
-        <app-access-tokens />
-      </section>
+        <section class="hud-section hud-panel hud-panel--soft">
+          <app-access-tokens />
+        </section>
+      } @placeholder {
+        <app-skeleton label="your settings" shape="block" height="640px" />
+      }
     }
 
     <!-- Trophy Room / Rings -->

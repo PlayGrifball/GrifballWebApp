@@ -61,7 +61,12 @@
         } @else if (noMatches()) {
           <app-data-notice message="The match schedule wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
-          <app-schedule-list [seasonID]="shownSeasonID()" [feedPublic]="summary()?.isPublic ?? false" />
+          <!-- Its code (and the organizers' date-time pickers) loads after the page's; the server still renders it -->
+          @defer (on immediate; hydrate on immediate) {
+            <app-schedule-list [seasonID]="shownSeasonID()" [feedPublic]="summary()?.isPublic ?? false" />
+          } @placeholder {
+            <app-skeleton label="the schedule" shape="cards" [count]="4" height="180px" cardWidth="400px" />
+          }
         }
       </section>
     }
@@ -71,7 +76,12 @@
         @if (noBracket()) {
           <app-data-notice message="The playoff bracket wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
-          <app-playoff-bracket [seasonID]="shownSeasonID()" [champions]="summary()?.champions" [hasEnded]="!!summary()?.hasEnded" (bracketChanged)="getSummary()" />
+          <!-- Its code (and the organizers' dialogs) loads after the page's; the server still renders it -->
+          @defer (on immediate; hydrate on immediate) {
+            <app-playoff-bracket [seasonID]="shownSeasonID()" [champions]="summary()?.champions" [hasEnded]="!!summary()?.hasEnded" (bracketChanged)="getSummary()" />
+          } @placeholder {
+            <app-skeleton label="the bracket" shape="block" height="360px" />
+          }
         }
       </section>
     }
@@ -85,7 +95,11 @@
           @if (noBracket()) {
             <app-data-notice message="The bracket wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
           } @else {
-            <app-playoff-bracket [seasonID]="shownSeasonID()" />
+            @defer (on immediate; hydrate on immediate) {
+              <app-playoff-bracket [seasonID]="shownSeasonID()" />
+            } @placeholder {
+              <app-skeleton label="the bracket" shape="block" height="360px" />
+            }
           }
         </section>
       } @else {
