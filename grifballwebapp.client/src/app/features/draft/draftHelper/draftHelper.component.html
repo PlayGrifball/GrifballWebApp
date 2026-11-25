@@ -5,7 +5,7 @@
     can play (35%), and sharing the captain's region (15%).
   </p>
 
-  @if (!loaded()) {
+  @if (firstLoad()) {
   <app-skeleton label="suggested picks" [count]="6" />
   }
 

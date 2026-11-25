@@ -119,6 +119,16 @@ describe('TeamBuilderStore', () => {
     expect(store.settled()).toBeTrue();
   });
 
+  it('keeps a loaded draft shown, and loaded, when a later read of it fails', () => {
+    store.show(5);
+    expect(store.loaded()).toBeTrue();
+    const teams = store.teams();
+    api.getTeams.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+    store.load();
+    expect(store.loaded()).toBeTrue();
+    expect(store.teams()).toEqual(teams);
+  });
+
   it('is settled when the current season cannot be found, so its skeletons go', () => {
     seasons.getCurrentSeasonId.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
     store.show(0);

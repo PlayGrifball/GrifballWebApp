@@ -28,6 +28,7 @@ describe('DraftHelperComponent', () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/5/draft/pool-details').flush(pool);
     http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
+    await fixture.whenStable();
     fixture.detectChanges();
   });
 
@@ -53,11 +54,14 @@ describe('DraftHelperComponent', () => {
     expect(rows[1]).toContain('No recorded games');
   });
 
-  it('loads again when the pool changes (a pick made)', () => {
+  it('loads again when the pool changes (a pick made), keeping the last shown meanwhile', async () => {
     fixture.componentRef.setInput('draftKey', '8');
     fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')).toBeNull();
+    expect(el().querySelectorAll('.dh-pool tbody tr')).toHaveSize(2);
     http.expectOne('/api/seasons/5/draft/pool-details').flush([pool[1]]);
     http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(el().querySelectorAll('.dh-pool tbody tr')).toHaveSize(1);

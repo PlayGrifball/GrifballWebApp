@@ -1,37 +1,49 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, linkedSignal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import type { DraftPoolPlayer, DraftSuggestions } from '@api/models';
 import { TeamsService } from '@api/services/teams.service';
+import { resourceView } from '@shared/resourceView';
+import { StoreInput } from '@shared/storeInput';
 import { catchError, forkJoin, of } from 'rxjs';
+
+/** What the helper shows: the pool in detail, and the picks suggested for the team on deck (none without one). */
+interface DraftHelp {
+  pool: DraftPoolPlayer[];
+  suggestions: DraftSuggestions | null;
+}
 
 /** The draft helper's data: the pool in detail and the picks suggested for the team on deck. One per helper (the component provides it). */
 @Injectable()
 export class DraftHelperStore {
   private readonly api = inject(TeamsService);
 
-  private readonly _pool = signal<DraftPoolPlayer[]>([]);
-  /** The players still to be drafted, with their careers, timeslots and region. */
-  readonly pool = this._pool.asReadonly();
-  private readonly _suggestions = signal<DraftSuggestions | null>(null);
-  /** The picks suggested for the team on deck; null without one (no captains yet). */
-  readonly suggestions = this._suggestions.asReadonly();
-  /** The first answer is in: a skeleton until then. A reload (a pick made) keeps the last shown. */
-  private readonly _loaded = signal(false);
-  readonly loaded = this._loaded.asReadonly();
-  private loads = 0;
+  /** The season: the component's input. */
+  readonly seasonID = new StoreInput<number>();
+  /** The draft's state as the page has it: the component's input. A change (a pick made) reads the helper again. */
+  readonly draftKey = new StoreInput<string>();
 
-  /** Loads the season's pool and suggestions; an earlier load answered late is dropped. */
-  load(seasonID: number): void {
-    const load = ++this.loads;
-    forkJoin({
+  /** Read again for each season and draft state: a newer one cancels the request still on its way. */
+  private readonly help = resourceView(rxResource({
+    params: () => {
+      const seasonID = this.seasonID.value();
+      return seasonID === undefined ? undefined : { seasonID, draftKey: this.draftKey.value() };
+    },
+    stream: ({ params: { seasonID } }) => forkJoin({
+      // Each part on its own: no pool is an empty one; no team to suggest picks for is a 404, the pool all the same
       pool: this.api.getDraftPoolDetails({ seasonID }).pipe(catchError(() => of([] as DraftPoolPlayer[]))),
-      // No team to suggest picks for is a 404: no suggestions, the pool all the same
       suggestions: this.api.getDraftSuggestions({ seasonID }).pipe(catchError(() => of(null))),
-    }).subscribe(({ pool, suggestions }) => {
-      if (load !== this.loads)
-        return;
-      this._pool.set(pool);
-      this._suggestions.set(suggestions);
-      this._loaded.set(true);
-    });
-  }
+    }),
+  }), null);
+  /** What is shown: the last answer for this season, kept while the next one (a pick made) loads. */
+  private readonly shown = linkedSignal<{ seasonID: number | undefined, help: DraftHelp | null }, DraftHelp | null>({
+    source: () => ({ seasonID: this.seasonID.value(), help: this.help.value() }),
+    computation: (now, previous) => now.help ?? (previous && previous.source.seasonID === now.seasonID ? previous.value : null),
+  });
+
+  /** The players still to be drafted, with their careers, timeslots and region. */
+  readonly pool = computed(() => this.shown()?.pool ?? []);
+  /** The picks suggested for the team on deck; null without one (no captains yet). */
+  readonly suggestions = computed(() => this.shown()?.suggestions ?? null);
+  /** Nothing to show yet, and the first answer on its way: a skeleton. */
+  readonly firstLoad = computed(() => this.shown() === null && this.help.isLoading());
 }

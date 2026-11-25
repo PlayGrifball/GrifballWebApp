@@ -1,5 +1,6 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { DraftPoolPlayer, DraftSuggestions } from '@api/models';
 import { DraftHelperStore } from './draftHelper.store';
@@ -18,45 +19,70 @@ describe('DraftHelperStore', () => {
 
   afterEach(() => http.verify());
 
-  it("loads the season's pool in detail and the suggested picks", () => {
-    store.load(5);
-    expect(store.loaded()).toBeFalse();
-    http.expectOne('/api/seasons/5/draft/pool-details').flush(pool);
-    http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
+  const settle = () => TestBed.inject(ApplicationRef).whenStable();
+  const answer = (seasonID: number, p: DraftPoolPlayer[] | null, s: DraftSuggestions | null) => {
+    const poolReq = http.expectOne(`/api/seasons/${seasonID}/draft/pool-details`);
+    if (p) poolReq.flush(p); else poolReq.flush('boom', { status: 500, statusText: 'Server Error' });
+    const suggestionsReq = http.expectOne(`/api/seasons/${seasonID}/draft/suggestions`);
+    if (s) suggestionsReq.flush(s); else suggestionsReq.flush({ title: 'Not Found', status: 404 }, { status: 404, statusText: 'Not Found' });
+  };
 
+  it("loads the season's pool in detail and the suggested picks, a skeleton meanwhile", async () => {
+    store.seasonID.use(signal(5));
+    store.draftKey.use(signal('7'));
+    TestBed.tick();
+    expect(store.firstLoad()).toBeTrue();
+    answer(5, pool, suggestions);
+    await settle();
+    expect(store.firstLoad()).toBeFalse();
     expect(store.pool()).toEqual(pool);
     expect(store.suggestions()).toEqual(suggestions);
   });
 
-  it('stays loaded while it loads again, keeping the last answer shown', () => {
-    store.load(5);
-    http.expectOne('/api/seasons/5/draft/pool-details').flush(pool);
-    http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
-    store.load(5);
-    expect(store.loaded()).toBeTrue();
+  it('reads it again when the draft changes, keeping the last answer shown meanwhile', async () => {
+    const draftKey = signal('7');
+    store.seasonID.use(signal(5));
+    store.draftKey.use(draftKey);
+    TestBed.tick();
+    answer(5, pool, suggestions);
+    await settle();
+
+    draftKey.set('');
+    TestBed.tick();
+    expect(store.firstLoad()).toBeFalse();
     expect(store.pool()).toEqual(pool);
-    http.expectOne('/api/seasons/5/draft/pool-details').flush(pool);
-    http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
+    answer(5, [], null);
+    await settle();
+    expect(store.pool()).toEqual([]);
+    expect(store.suggestions()).toBeNull();
   });
 
-  it('has no suggestions without a team to make them for, the pool all the same; a later season replaces an earlier', () => {
-    store.load(5);
-    store.load(6);
-    http.expectOne('/api/seasons/6/draft/pool-details').flush(pool);
-    http.expectOne('/api/seasons/6/draft/suggestions').flush({ title: 'Not Found', status: 404 }, { status: 404, statusText: 'Not Found' });
-    http.expectOne('/api/seasons/5/draft/pool-details').flush([]);
-    http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
+  it('starts over for another season', async () => {
+    const seasonID = signal(5);
+    store.seasonID.use(seasonID);
+    store.draftKey.use(signal(''));
+    TestBed.tick();
+    answer(5, pool, suggestions);
+    await settle();
 
+    seasonID.set(6);
+    TestBed.tick();
+    expect(store.pool()).toEqual([]);
+    expect(store.firstLoad()).toBeTrue();
+    answer(6, pool, null);
+    await settle();
     expect(store.pool()).toEqual(pool);
     expect(store.suggestions()).toBeNull();
   });
 
-  it('shows an empty pool when the pool fails to load, the suggestions all the same', () => {
-    store.load(5);
-    http.expectOne('/api/seasons/5/draft/pool-details').flush('boom', { status: 500, statusText: 'Server Error' });
-    http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
-
+  it('shows an empty pool when the pool fails to load, the suggestions all the same', async () => {
+    store.seasonID.use(signal(5));
+    store.draftKey.use(signal(''));
+    TestBed.tick();
+    answer(5, null, suggestions);
+    await settle();
     expect(store.pool()).toEqual([]);
     expect(store.suggestions()).toEqual(suggestions);
+    expect(store.firstLoad()).toBeFalse();
   });
 });

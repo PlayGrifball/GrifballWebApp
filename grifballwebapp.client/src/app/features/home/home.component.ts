@@ -5,7 +5,7 @@ import { MatPaginator } from '@angular/material/paginator';
 import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
 import { MatHeaderRow, MatRow, MatTable, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
-import { combineLatest, of, switchMap, tap } from 'rxjs';
+import { of, switchMap, tap } from 'rxjs';
 import { eventTitles, isUnderWay, SeasonEvent, seasonPhaseSteps } from '@shared/seasonEvents';
 import { pageNow } from '@shared/pageNow';
 import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
@@ -48,8 +48,8 @@ export class HomeComponent implements OnInit {
    * pageNow): decides which events are under way, and so whether Sign up is offered. */
   readonly now = pageNow();
   readonly currentAndFutureEvents = this.store.events;
-  /** The events have loaded (or failed to): the hero panel is a skeleton until then. */
-  readonly eventsLoaded = this.store.eventsLoaded;
+  /** The events are on their way: the hero panel and the objectives are skeletons. */
+  readonly eventsFirstLoad = this.store.eventsFirstLoad;
   /** The event the hero panel is about, with its status line and sentence; null without events. */
   readonly hero = computed(() => {
     const event = pickFeatured(this.currentAndFutureEvents(), this.now());
@@ -62,21 +62,25 @@ export class HomeComponent implements OnInit {
   });
   readonly total = this.store.total;
   readonly pastSeasons = this.store.pastSeasons;
-  readonly pastSeasonsLoaded = this.store.pastSeasonsLoaded;
+  readonly pastSeasonsFirstLoad = this.store.pastSeasonsFirstLoad;
+  readonly pastSeasonsFailed = this.store.pastSeasonsFailed;
   paginator = viewChild(MatPaginator);
   paginator$ = toObservable(this.paginator);
   pageSize: WritableSignal<number> = signal(10);
   pageNumber: WritableSignal<number> = signal(1);
-  pageSize$ = toObservable(this.pageSize);
-  pageNumber$ = toObservable(this.pageNumber);
   sort = viewChild(MatSort);
   sort$ = toObservable(this.sort);
   s: WritableSignal<Sort | undefined> = signal(undefined);
-  s$ = toObservable(this.s);
+
+  constructor() {
+    // The page and sort the paginator and headers ask for: the store reads each, dropping the one still on its way
+    this.store.page.use(computed(() => {
+      const sort = this.s();
+      return { pageSize: this.pageSize(), pageNumber: this.pageNumber(), sortDirection: sort?.direction, sortColumn: sort?.active };
+    }));
+  }
 
   ngOnInit(): void {
-    this.store.loadEvents();
-
     this.paginator$
       .pipe(
         switchMap((x) => x?.page ?? of(undefined)),
@@ -95,15 +99,6 @@ export class HomeComponent implements OnInit {
         }),
       )
       .subscribe();
-
-    combineLatest({pageSize: this.pageSize$,
-                   pageNumber: this.pageNumber$,
-                   sort: this.s$,
-                  })
-      .pipe(
-        switchMap((x) => this.store.loadPastSeasons(x.pageSize, x.pageNumber, x.sort?.direction, x.sort?.active))
-      )
-      .subscribe()
   }
 
   isActive(event: Event): boolean {

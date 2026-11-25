@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { DecimalPipe, PercentPipe } from '@angular/common';
 import type { DraftTimeslot } from '@api/models';
 import { DraftHelperStore } from './draftHelper.store';
@@ -25,14 +25,11 @@ export class DraftHelperComponent {
 
   readonly pool = this.store.pool;
   readonly suggestions = this.store.suggestions;
-  readonly loaded = this.store.loaded;
+  readonly firstLoad = this.store.firstLoad;
 
   constructor() {
-    effect(() => {
-      const seasonID = this.seasonID();
-      this.draftKey();
-      untracked(() => this.store.load(seasonID));
-    });
+    this.store.seasonID.use(this.seasonID);
+    this.store.draftKey.use(this.draftKey);
   }
 
   /** "Mon 20:00, Tue 21:30": the timeslots in league time, as the season offers them. */

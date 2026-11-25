@@ -27,7 +27,8 @@ export class SignupsComponent {
   private readonly store = inject(SignupsStore);
 
   readonly signUps = this.store.signUps;
-  readonly loaded = this.store.loaded;
+  readonly firstLoad = this.store.firstLoad;
+  readonly failed = this.store.failed;
   readonly summary = this.store.summary;
   /** A backfilled or ended season without signups: the page says so instead of an empty table. */
   readonly noSignups = computed(() => missing(this.summary(), s => s.signupCount));
