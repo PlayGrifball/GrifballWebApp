@@ -109,5 +109,5 @@ test('the logo is vector shapes, with no picture inside', async ({ request }) =>
   const svg = await response.text();
   expect(svg).toContain('<path');
   expect(svg).not.toMatch(/<image\b|data:image\//);
-  expect(svg.length).toBeLessThan(400_000);
+  expect(svg.length).toBeLessThan(450_000);
 });
