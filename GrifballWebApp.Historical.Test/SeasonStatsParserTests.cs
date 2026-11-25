@@ -672,5 +672,20 @@ public class SeasonStatsParserTests
         Assert.That((season.SeasonName, season.Titles), Is.EqualTo(("Other", (string?)null)));
     }
 
+    [Test]
+    public void CommaFormattedSecondsPlayed_IsNotTruncatedAtTheComma()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Regular Season Stats Sheet",
+        [
+            Row("Gamertag", "Time Played (Seconds)", "Kills", "Deaths"),
+            Row("Cosmos5024", "2,437.95", 193, 123),
+        ])))!;
+        var config = new HistoricalSourceConfig { Tabs = [new() { Name = "Regular Season Stats Sheet" }] };
+
+        var player = SeasonStatsParser.Parse("2026-wl26-pro-stats", config, workbook, []).Single().Players.Single();
+
+        Assert.That(player.TotalSecondsPlayed, Is.EqualTo(2438m));
+    }
+
     private static readonly string[] ExpectedStatsSeasonKey = ["stats/Regular Season Stats Sheet"];
 }

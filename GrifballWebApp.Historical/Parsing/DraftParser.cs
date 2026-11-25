@@ -312,8 +312,8 @@ public static partial class DraftParser
 
     private static string Name(string cell) => SpacesRegex().Replace(cell.Trim(), " ");
 
-    /// <summary>A board's player cell: the gamertag without its notes in brackets.</summary>
-    private static string Player(string cell)
+    /// <summary>A player cell's gamertag without its trade, role, or trailing bracketed notes.</summary>
+    internal static string Player(string? cell)
     {
         var text = ArchiveCells.Gamertag(cell).Gamertag;
         for (var bare = StandingsParser.WithoutNote(text); bare != text; bare = StandingsParser.WithoutNote(text))

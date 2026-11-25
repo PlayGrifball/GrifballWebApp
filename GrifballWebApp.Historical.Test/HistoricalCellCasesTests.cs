@@ -140,6 +140,10 @@ public class HistoricalCellCasesTests
     [TestCase("007", 7)]
     [TestCase("3E+2", 300)]
     [TestCase("-0", 0)]
+    [TestCase("2,899.00", 2899)]
+    [TestCase("1,234,567 min", 1234567)]
+    [TestCase("-1,500.5", -1500.5)]
+    [TestCase("1, 2", 1)]
     public void LeadingNumber_IsTheNumberTheCellStartsWith(string cell, double expected)
         => Assert.That(ArchiveCells.LeadingNumber(cell), Is.EqualTo((decimal)expected));
 
