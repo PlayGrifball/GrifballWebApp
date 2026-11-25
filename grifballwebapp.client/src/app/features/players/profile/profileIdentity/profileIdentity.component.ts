@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import type { ProfilePictureChoice } from '@api/models';
 import { REGIONS } from '@shared/regions';
 import { SeasonLinksComponent } from '@shared/seasonLinks/seasonLinks.component';
 import { ProfileIdentityStore } from './profileIdentity.store';
@@ -10,7 +11,7 @@ function apiDay(value: string): string | null {
 }
 
 /**
- * The signed-in user's own identity settings on their profile: their region, and claims of past gamertags (the
+ * The signed-in user's own identity settings on their profile: their region, the picture that shows for them, and claims of past gamertags (the
  * placeholder of a gamertag they played under, which a sysadmin approves), with each claim's status.
  */
 @Component({
@@ -26,14 +27,21 @@ export class ProfileIdentityComponent {
 
   /** The user's region now (from their profile). */
   readonly regionID = input<number | null>(null);
-  /** Something on the profile changed (the region): the page reloads it. */
+  /** The image shown for the user now (from their profile). */
+  readonly profilePicture = input<ProfilePictureChoice>('Emblem');
+  /** Something on the profile changed (the region or picture): the page reloads it. */
   readonly changed = output<void>();
 
   readonly regions = REGIONS;
   readonly savingRegion = this.store.savingRegion;
+  readonly savingPicture = this.store.savingPicture;
 
   setRegion(value: string): void {
     this.store.setRegion(value ? Number(value) : null, () => this.changed.emit());
+  }
+
+  setProfilePicture(value: string): void {
+    this.store.setProfilePicture(value as ProfilePictureChoice, () => this.changed.emit());
   }
 
   readonly gamertag = signal('');

@@ -60,6 +60,23 @@ describe('ProfileIdentityStore', () => {
     expect(snackBar.open).toHaveBeenCalledWith('No.', 'Close');
   });
 
+  it('saves the profile picture the user chose, and says why it could not', () => {
+    const saved = jasmine.createSpy('saved');
+    store.setProfilePicture('GamerPicture', saved);
+    expect(store.savingPicture()).toBeTrue();
+    const save = http.expectOne({ method: 'POST', url: '/api/me/profile-picture' });
+    expect(save.request.body).toEqual({ profilePicture: 'GamerPicture' });
+    save.flush(null);
+    expect(store.savingPicture()).toBeFalse();
+    expect(saved).toHaveBeenCalledTimes(1);
+    expect(snackBar.open).toHaveBeenCalledWith('Profile picture saved.', 'Close');
+
+    store.setProfilePicture('Emblem', saved);
+    http.expectOne('/api/me/profile-picture').flush(...refused);
+    expect(saved).toHaveBeenCalledTimes(1);
+    expect(snackBar.open).toHaveBeenCalledWith('No.', 'Close');
+  });
+
   it('looks a gamertag up, and says why it could not', () => {
     store.previewClaim('Old Me');
     expect(store.previewing()).toBeTrue();

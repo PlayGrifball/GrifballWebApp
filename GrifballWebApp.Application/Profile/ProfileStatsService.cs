@@ -88,6 +88,7 @@ public class ProfileStatsService
             IsDummyUser = user.IsDummyUser,
             RegionID = user.RegionID,
             RegionName = user.Region?.RegionName,
+            ProfilePicture = user.ProfilePicture,
             PastGamertags = pastGamertags,
             Championships = titles.Select(c => new PlayerChampionshipDto
             {

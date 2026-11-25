@@ -40,3 +40,11 @@ public enum RegionSource
     /// <summary>The historical import, from the archive's player lists; only ever set on a user with no region.</summary>
     Import = 3,
 }
+
+/// <summary>Which of a user's Xbox images stands for them on the site; the other is the fallback when the account has none of it.</summary>
+public enum ProfilePictureChoice
+{
+    /// <summary>The Halo emblem (the default).</summary>
+    Emblem = 1,
+    GamerPicture = 2,
+}

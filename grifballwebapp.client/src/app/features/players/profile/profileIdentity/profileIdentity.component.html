@@ -9,6 +9,16 @@
   </select>
 </section>
 
+<section class="pi-block" aria-labelledby="pi-picture-heading">
+  <h2 id="pi-picture-heading" class="hud-h2">Profile picture</h2>
+  <label class="pi-label" for="pi-picture">What shows next to your name</label>
+  <select id="pi-picture" class="pi-input" [disabled]="savingPicture()" (change)="setProfilePicture($any($event.target).value)">
+    <option value="Emblem" [selected]="profilePicture() === 'Emblem'">My Halo emblem</option>
+    <option value="GamerPicture" [selected]="profilePicture() === 'GamerPicture'">My gamer picture</option>
+  </select>
+  <p class="hud-muted">If the one you pick is missing, the other shows.</p>
+</section>
+
 <section class="pi-block" aria-labelledby="pi-claim-heading">
   <h2 id="pi-claim-heading" class="hud-h2">Claim a past gamertag</h2>
   <p class="hud-muted">Played in the archive's seasons under another gamertag? Claim it: a sysadmin checks, and its records join yours.</p>

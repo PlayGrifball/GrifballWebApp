@@ -26,12 +26,12 @@ describe('ProfilePictureComponent', () => {
     expect(initial()).toBe('?');
   });
 
-  it('asks for the user\'s gamer picture, under the initial until it loads', () => {
+  it('asks for the picture the site shows for the user, under the initial until it loads', () => {
     fixture.componentRef.setInput('userID', 12);
     fixture.componentRef.setInput('name', 'Grif');
     fixture.detectChanges();
 
-    expect(image()?.getAttribute('src')).toBe('/api/users/12/gamer-picture');
+    expect(image()?.getAttribute('src')).toBe('/api/users/12/profile-picture');
     expect(image()?.classList).not.toContain('profile-picture__image--shown');
     expect(el().querySelector('.profile-picture__initial')?.classList).not.toContain('profile-picture__initial--hidden');
 
@@ -45,74 +45,9 @@ describe('ProfilePictureComponent', () => {
   it('asks for an Xbox account\'s picture directly, ahead of the user', () => {
     fixture.componentRef.setInput('userID', 12);
     fixture.componentRef.setInput('xboxUserID', '2533274791234');
-    fixture.componentRef.setInput('kind', 'haloEmblem');
     fixture.detectChanges();
 
-    expect(image()?.getAttribute('src')).toBe('/api/xbox-accounts/2533274791234/halo-emblem');
-  });
-
-  it('asks for the Halo emblem when that is the kind', () => {
-    fixture.componentRef.setInput('userID', 12);
-    fixture.componentRef.setInput('kind', 'haloEmblem');
-    fixture.detectChanges();
-
-    expect(image()?.getAttribute('src')).toBe('/api/users/12/halo-emblem');
-    expect(el().querySelector('.profile-picture--emblem')).not.toBeNull();
-  });
-
-  it('shows the gamer picture when an emblem is missing and the fallback is on', () => {
-    fixture.componentRef.setInput('userID', 12);
-    fixture.componentRef.setInput('kind', 'haloEmblem');
-    fixture.componentRef.setInput('fallbackToGamerPicture', true);
-    fixture.detectChanges();
-
-    image()?.dispatchEvent(new Event('error'));
-    fixture.detectChanges();
-
-    expect(image()?.getAttribute('src')).toBe('/api/users/12/gamer-picture');
-    expect(el().querySelector('.profile-picture--emblem')).toBeNull();
-  });
-
-  it('keeps the initial when the gamer picture is missing too', () => {
-    fixture.componentRef.setInput('userID', 12);
-    fixture.componentRef.setInput('name', 'Grif');
-    fixture.componentRef.setInput('kind', 'haloEmblem');
-    fixture.componentRef.setInput('fallbackToGamerPicture', true);
-    fixture.detectChanges();
-    image()?.dispatchEvent(new Event('error'));
-    fixture.detectChanges();
-
-    image()?.dispatchEvent(new Event('error'));
-    fixture.detectChanges();
-
-    expect(image()).toBeNull();
-    expect(initial()).toBe('G');
-  });
-
-  it('does not fall back to the gamer picture unless asked', () => {
-    fixture.componentRef.setInput('userID', 12);
-    fixture.componentRef.setInput('name', 'Grif');
-    fixture.componentRef.setInput('kind', 'haloEmblem');
-    fixture.detectChanges();
-
-    image()?.dispatchEvent(new Event('error'));
-    fixture.detectChanges();
-
-    expect(image()).toBeNull();
-  });
-
-  it('starts again with the emblem for another user after falling back', () => {
-    fixture.componentRef.setInput('userID', 12);
-    fixture.componentRef.setInput('kind', 'haloEmblem');
-    fixture.componentRef.setInput('fallbackToGamerPicture', true);
-    fixture.detectChanges();
-    image()?.dispatchEvent(new Event('error'));
-    fixture.detectChanges();
-
-    fixture.componentRef.setInput('userID', 13);
-    fixture.detectChanges();
-
-    expect(image()?.getAttribute('src')).toBe('/api/users/13/halo-emblem');
+    expect(image()?.getAttribute('src')).toBe('/api/xbox-accounts/2533274791234/profile-picture');
   });
 
   it('keeps the initial when the picture is not there', () => {
@@ -136,7 +71,7 @@ describe('ProfilePictureComponent', () => {
     fixture.componentRef.setInput('userID', 13);
     fixture.detectChanges();
 
-    expect(image()?.getAttribute('src')).toBe('/api/users/13/gamer-picture');
+    expect(image()?.getAttribute('src')).toBe('/api/users/13/profile-picture');
   });
 
   it('gives the signed-in user\'s square the accent border', () => {

@@ -2,13 +2,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { SubmitGamertagClaimRequest, ClaimPreviewDto } from '@api/models';
+import type { SubmitGamertagClaimRequest, ClaimPreviewDto, ProfilePictureChoice } from '@api/models';
 import { MyProfileService } from '@api/services/my-profile.service';
 import { problemText } from '@shared/errorText';
 import { resourceView } from '@shared/resourceView';
 
 /**
- * The signed-in user's identity settings: saving their region, and their gamertag claims (looking a gamertag up,
+ * The signed-in user's identity settings: saving their region and the picture that shows for them, and their gamertag claims (looking a gamertag up,
  * claiming it, and the list of claims). One per panel (the component provides it).
  */
 @Injectable()
@@ -31,6 +31,25 @@ export class ProfileIdentityStore {
       error: (error: HttpErrorResponse) => {
         this._savingRegion.set(false);
         this.snackBar.open(problemText(error, "Couldn't save your region."), 'Close');
+      },
+    });
+  }
+
+  private readonly _savingPicture = signal(false);
+  readonly savingPicture = this._savingPicture.asReadonly();
+
+  /** Saves which of the user's Xbox images shows for them; `saved` runs once it is. */
+  setProfilePicture(profilePicture: ProfilePictureChoice, saved: () => void): void {
+    this._savingPicture.set(true);
+    this.api.setMyProfilePicture({ body: { profilePicture } }).subscribe({
+      next: () => {
+        this._savingPicture.set(false);
+        this.snackBar.open('Profile picture saved.', 'Close');
+        saved();
+      },
+      error: (error: HttpErrorResponse) => {
+        this._savingPicture.set(false);
+        this.snackBar.open(problemText(error, "Couldn't save your profile picture."), 'Close');
       },
     });
   }

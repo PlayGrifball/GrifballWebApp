@@ -900,6 +900,30 @@ public class XboxImageSourceTests : SqliteContextFixture
             Assert.That(await service.GetAsync(3, XboxUserImageKind.GamerPicture), Is.Null, "no such account");
         }
     }
+    [Test]
+    public async Task XboxImageService_ShowsTheEmblemUnlessTheUserChoseTheGamerPicture_AndFallsBackToTheOther()
+    {
+        await AddAccountsAsync(1, 2, 3, 4);
+        var now = _time.GetUtcNow().UtcDateTime;
+        foreach (var (xuid, kind) in new[] { (1L, XboxUserImageKind.GamerPicture), (1L, XboxUserImageKind.HaloEmblem), (2L, XboxUserImageKind.GamerPicture), (3L, XboxUserImageKind.HaloEmblem) })
+            Context.XboxUserImages.Add(new XboxUserImage { XboxUserID = xuid, Kind = kind, Status = XboxUserImageStatus.Found, Content = Png, ContentType = "image/png", CheckedAt = now });
+        var chose = GrifballWebApp.Domain.Players.User.Seed(userName: "chose", xboxUser: Context.XboxUsers.Local.First(x => x.XboxUserID == 4));
+        var user = GrifballWebApp.Domain.Players.User.Seed(userName: "user", xboxUser: Context.XboxUsers.Local.First(x => x.XboxUserID == 1));
+        user.ChooseProfilePicture(GrifballWebApp.Domain.Shared.ProfilePictureChoice.GamerPicture);
+        Context.Users.AddRange(chose, user);
+        await Context.SaveChangesAsync();
+        var service = new XboxImageService(Context);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await service.GetShownKindAsync(1), Is.EqualTo(XboxUserImageKind.GamerPicture), "their user chose it");
+            Assert.That(await service.GetShownKindAsync(1, GrifballWebApp.Domain.Shared.ProfilePictureChoice.Emblem), Is.EqualTo(XboxUserImageKind.HaloEmblem), "a choice given wins");
+            Assert.That(await service.GetShownKindAsync(2), Is.EqualTo(XboxUserImageKind.GamerPicture), "no user and no emblem");
+            Assert.That(await service.GetShownKindAsync(3), Is.EqualTo(XboxUserImageKind.HaloEmblem), "no user: the emblem");
+            Assert.That(await service.GetShownKindAsync(4), Is.Null, "nothing stored");
+        }
+    }
+
 }
 
 [TestFixture]

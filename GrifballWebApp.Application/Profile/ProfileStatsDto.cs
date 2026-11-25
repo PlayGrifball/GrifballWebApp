@@ -1,3 +1,5 @@
+using GrifballWebApp.Domain.Shared;
+
 namespace GrifballWebApp.Application.Profile;
 
 public class ProfileStatsDto
@@ -8,6 +10,8 @@ public class ProfileStatsDto
     public bool IsDummyUser { get; set; }
     public int? RegionID { get; set; }
     public string? RegionName { get; set; }
+    /// <summary>Which Xbox image the user chose to show for them.</summary>
+    public ProfilePictureChoice ProfilePicture { get; set; }
     /// <summary>Gamertags the user's Xbox account had before (its renames), latest first.</summary>
     public List<string> PastGamertags { get; set; } = [];
     public List<PlayerChampionshipDto> Championships { get; set; } = [];

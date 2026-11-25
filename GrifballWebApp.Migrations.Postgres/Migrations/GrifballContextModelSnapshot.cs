@@ -6702,6 +6702,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("ProfilePicture")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.Property<int?>("RegionID")
                         .HasColumnType("integer");
 
@@ -6748,6 +6753,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.ToTable("Users", "Auth", t =>
                         {
+                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "\"ProfilePicture\" IN (1, 2)");
+
                             t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "\"RegionSource\" IS NULL OR \"RegionSource\" IN (1, 2, 3)");
 
                             t.HasCheckConstraint("CK_Auth_Users_LateLeagueRecord", "\"MMR\" >= 0 AND \"Wins\" >= 0 AND \"Losses\" >= 0 AND \"WinStreak\" >= 0 AND \"LossStreak\" >= 0 AND (\"WinStreak\" = 0 OR \"LossStreak\" = 0) AND \"WinStreak\" <= \"Wins\" AND \"LossStreak\" <= \"Losses\"");
@@ -6863,6 +6870,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<bool?>("PhoneNumberConfirmed")
                         .HasColumnType("boolean")
                         .HasColumnName("PhoneNumberConfirmed");
+
+                    b.Property<int?>("ProfilePicture")
+                        .HasColumnType("integer")
+                        .HasColumnName("ProfilePicture");
 
                     b.Property<int?>("RegionID")
                         .HasColumnType("integer")

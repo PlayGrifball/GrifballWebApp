@@ -185,6 +185,21 @@ public class UserAggregateTests
     }
 
     [Test]
+    public void ChooseProfilePicture_StartsAsTheEmblem_AndTakesTheOneChosen()
+    {
+        var user = User.Register("alice");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(user.ProfilePicture, Is.EqualTo(ProfilePictureChoice.Emblem));
+            Assert.That(user.ChooseProfilePicture(ProfilePictureChoice.Emblem), Is.False, "Already so");
+            Assert.That(user.ChooseProfilePicture(ProfilePictureChoice.GamerPicture), Is.True);
+            Assert.That(user.ProfilePicture, Is.EqualTo(ProfilePictureChoice.GamerPicture));
+            Assert.Throws<ArgumentOutOfRangeException>(() => user.ChooseProfilePicture((ProfilePictureChoice)9));
+        }
+    }
+
+    [Test]
     public void ChooseRegion_ByTheImport_FillsOnlyWhatNoOneChose()
     {
         var empty = User.Register("empty");
