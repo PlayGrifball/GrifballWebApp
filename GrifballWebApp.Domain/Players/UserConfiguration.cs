@@ -13,10 +13,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
     /// <summary>Who chose a region is one the model knows.</summary>
     public static readonly string KnownRegionSource = $"RegionSource IS NULL OR RegionSource IN ({ByUser}, {BySysadmin}, {ByImport})";
 
-    /// <summary>A region is set with who chose it, and only then (User.ChooseRegion).</summary>
     /// <summary>Which Xbox image shows for a user is one the model knows.</summary>
     public static readonly string KnownProfilePicture = $"ProfilePicture IN ({(int)ProfilePictureChoice.Emblem}, {(int)ProfilePictureChoice.GamerPicture})";
 
+    /// <summary>A region is set with who chose it, and only then (User.ChooseRegion).</summary>
     public const string RegionHasSource = "(RegionID IS NULL AND RegionSource IS NULL) OR (RegionID IS NOT NULL AND RegionSource IS NOT NULL)";
 
     /// <summary>
