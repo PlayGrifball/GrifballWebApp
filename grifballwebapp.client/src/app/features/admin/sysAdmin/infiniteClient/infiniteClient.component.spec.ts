@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HaloStatus, InfiniteClientComponent } from './infiniteClient.component';
 
@@ -20,6 +20,7 @@ describe('InfiniteClientComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => codeParam } } } },
       ]
     })
@@ -66,6 +67,11 @@ describe('InfiniteClientComponent', () => {
       init('Good');
       expect(component.mode()).toBe('Direct');
       expect(el().querySelector('.ic-mode')!.textContent).toContain('Direct');
+    });
+
+    it('links back to the SysAdmin page', () => {
+      init('Good');
+      expect(el().querySelector('a.hud-kicker')!.getAttribute('href')).toBe('/sysadmin');
     });
 
     it('shows a plain status message', () => {

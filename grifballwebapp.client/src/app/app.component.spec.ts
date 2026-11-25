@@ -284,17 +284,18 @@ describe('AppComponent behaviour', () => {
     expect(show('Home')).toBeTrue();
     expect(show('Season Manager')).toBeFalse();
     expect(show('User Management')).toBeFalse();
+    expect(show('SysAdmin')).toBeFalse();
 
     account.isEventOrganizer.set(true);
     expect(show('Season Manager')).toBeTrue();
     expect(show('Commissioner Dashboard')).toBeTrue();
     expect(show('Excel Exporter')).toBeTrue();
     expect(show('User Management')).toBeFalse();
+    expect(show('SysAdmin')).toBeFalse();
 
     account.isSysAdmin.set(true);
     expect(show('User Management')).toBeTrue();
-    expect(show('Infinite Client')).toBeTrue();
-    expect(show('Database Backup')).toBeTrue();
+    expect(show('SysAdmin')).toBeTrue();
   });
 
   it('fits as many links as the toolbar width allows and overflows the rest', () => {

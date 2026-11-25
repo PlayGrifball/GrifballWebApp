@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { RouterLink } from '@angular/router';
 import { BackupFormat, DatabaseBackupStore, ExportTarget } from './databaseBackup.store';
 
 export type { BackupFormat, DownloadStatus, ExportStatus, ExportTarget } from './databaseBackup.store';
@@ -30,7 +31,7 @@ export const targetConnectionStrings: Record<ExportTarget, string> = {
  */
 @Component({
   selector: 'app-database-backup',
-  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSnackBarModule],
+  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSnackBarModule, RouterLink],
   templateUrl: './databaseBackup.component.html',
   styleUrl: './databaseBackup.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

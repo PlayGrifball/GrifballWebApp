@@ -74,7 +74,7 @@ test('the toolbar lays out its links again on signing in, at every screen size',
     await expect(page.locator('.hud-user')).toBeVisible();
     await expect(page).toHaveURL(/\/$/);
     // The admin links are in, in the menu at least
-    await expect(page.locator('mat-sidenav a', { hasText: 'Database Backup' })).toHaveCount(1);
+    await expect(page.locator('mat-sidenav a', { hasText: 'SysAdmin' })).toHaveCount(1);
     await settled(page);
     await page.screenshot({ path: `screenshots/toolbar-signed-in/${index + 1}-${device}-${width}x${height}.png` });
 
@@ -86,7 +86,7 @@ test('the toolbar lays out its links again on signing in, at every screen size',
     if (await menu.isVisible()) {
       await menu.focus();
       await page.keyboard.press('Enter');
-      await expect(page.locator('mat-sidenav a', { hasText: 'Database Backup' })).toBeInViewport();
+      await expect(page.locator('mat-sidenav a', { hasText: 'SysAdmin' })).toBeInViewport();
       await page.getByRole('button', { name: 'Close menu' }).click();
       await expect(page.locator('mat-sidenav')).toBeHidden();
     }

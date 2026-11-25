@@ -25,7 +25,7 @@ public partial class PresencePages(SeasonVisibility visibility, IApplicationDbCo
 
     /// <summary>The staff's pages (the client's routes), shown as the staff area.</summary>
     private static readonly string[] StaffPrefixes =
-        ["/usermanagement", "/seasonmanager", "/seasonedit", "/commissioner-dashboard", "/databasebackup", "/excel", "/infiniteclient"];
+        ["/usermanagement", "/sysadmin", "/seasonmanager", "/seasonedit", "/commissioner-dashboard", "/excel", "/infiniteclient"];
 
     /// <summary>A season's staff pages.</summary>
     private static readonly string[] StaffSeasonPages = ["playergrades", "signups"];
