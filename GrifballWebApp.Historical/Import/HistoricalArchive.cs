@@ -25,6 +25,11 @@ public class HistoricalArchiveInput
     /// <summary>Season matches decided by a forfeit (no game was played), each naming its season by the season's
     /// <c>HistoricalSourceID</c>. Filled by the spreadsheet parser from the website databases' game tables.</summary>
     public List<ArchiveForfeitInput>? Forfeits { get; init; }
+    /// <summary>Matches a season's schedule has whose results are lost (<see cref="Sources.ScheduleTab.Unplayed"/>).</summary>
+    public List<ArchiveScheduledMatchInput>? ScheduledMatches { get; init; }
+    /// <summary>The seasons (their keys) a schedule covers: their matches with no result are the archive's
+    /// <see cref="ScheduledMatches"/>, none when it lists none, so ones it no longer lists go.</summary>
+    public List<string>? ScheduledSeasons { get; init; }
     /// <summary>Players lists (the Late League master list and the like): a gamertag's Discord ID, region and system.
     /// Filled by the spreadsheet parser, or from late-league-master.json (<see cref="LateLeagueMasterFile"/>).</summary>
     public List<ArchivePlayerInput>? Players { get; init; }
@@ -266,7 +271,8 @@ public class RecordedGameInput
     public required string SourceKey { get; init; }
     /// <summary>A GameVersion slug: halo3, reach, reach-dash, halo4, halo5, infinite.</summary>
     public required string GameVersion { get; set; }
-    public DateTime? PlayedAt { get; init; }
+    /// <summary>When it was played; a result list's game has the day its season's schedule gives it, if any.</summary>
+    public DateTime? PlayedAt { get; set; }
     public string? Map { get; init; }
     public string? Gametype { get; init; }
     public bool IsPlayoffs { get; init; }
@@ -340,6 +346,18 @@ public class ArchiveForfeitInput
     /// <summary>A playoff series' forfeit: the import leaves it out (its bracket is rebuilt from games), and reports it.</summary>
     public bool IsPlayoffs { get; init; }
     public DateTime? PlayedAt { get; init; }
+}
+
+/// <summary>A match of a season's schedule with no result (its season's results are lost): its two teams, on its day.</summary>
+public class ArchiveScheduledMatchInput
+{
+    /// <summary>The season's <c>HistoricalSourceID</c>, as <see cref="RecordedGameInput.SeasonSourceId"/>.</summary>
+    public required string SeasonSourceId { get; init; }
+    /// <summary>Where it comes from (e.g. "{workbook}/{sheet}@{day}"), for the report.</summary>
+    public required string SourceKey { get; init; }
+    public required string Home { get; init; }
+    public required string Away { get; init; }
+    public required DateTime PlayedAt { get; init; }
 }
 
 /// <summary>A player of a players list: who a gamertag is on Discord, where they play from and on what.</summary>

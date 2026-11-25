@@ -150,4 +150,39 @@ public class HistoricalArchiveDraftsTests
     {
         Assert.That(HistoricalArchiveBuilder.SeasonPlayer("Mr Epic Beast", ["Mr_Epic_Beast", "Mr-Epic-Beast"]), Is.Null);
     }
+
+    [Test]
+    public void ADraftsNicknames_AreTheirPlayers_AsTheTabsNamesSay()
+    {
+        // SML20 Reach PC's draft: "Captain Sam", "Round One: Galvan", each the player's nickname
+        var build = HistoricalArchiveBuilder.Build(Season((new DraftTab
+        {
+            Sheet = "Sheet1",
+            Season = "stats",
+            Layout = DraftLayout.Blocks,
+            Names = new() { ["sam"] = "NecessaryEvil10", ["Oreo"] = "OREOTHECAT#5618" },
+        },
+        [
+            Row("Captain", "Sam"),
+            Row("Round One", "Oreo"),
+        ])), new HashSet<string> { "schedule" });
+
+        var team = Regular(build).Teams.Single(t => t.Captain is not null);
+        Assert.That((team.TeamName, team.Captain, team.Picks.Select(p => p.Gamertag).Single()), Is.EqualTo(("Bravo", "NecessaryEvil10", "OREOTHECAT#5618")),
+            "The captain's team is theirs; a nickname any case");
+    }
+
+    [Test]
+    public void ADraftWithNicknames_LeavesATeamWithNoCaptainUncaptained()
+    {
+        var build = HistoricalArchiveBuilder.Build(Season((new DraftTab { Sheet = "Draft Sheet", Season = "stats", Names = new() { ["Oreo"] = "OREOTHECAT#5618" } },
+        [
+            Row("Team Name:", "Alpha", "Charlie"),
+            Row("Captain:", "Ace", ""),
+            Row("1st Round:", "Dee", "Oreo"),
+        ])), new HashSet<string> { "schedule" });
+
+        var charlie = Regular(build).Teams.Single(t => t.TeamName == "Charlie" && t.Picks.Count > 0);
+        Assert.That((charlie.Captain, charlie.Picks.Single().Gamertag), Is.EqualTo(((string?)null, "OREOTHECAT#5618")));
+    }
 }

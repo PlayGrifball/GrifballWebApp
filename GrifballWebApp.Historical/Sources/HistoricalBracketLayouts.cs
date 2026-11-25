@@ -129,7 +129,7 @@ public static class HistoricalBracketLayouts
         Slot(Bracket.GrandFinal, 3, "H25", "H31", "K27", bestOf: 5),
     ];
 
-    /// <summary>The Respawn series' tabs per round: Round 1-3, Semifinals, then Finals (the grand final).</summary>
+    /// <summary>The Respawn series' and GWL Tournament Series #1's tabs per round: Round 1-3, Semifinals, then Finals (the grand final).</summary>
     public static List<BracketRoundTab> RespawnRounds() =>
     [
         new() { Sheet = "Round 1", Round = 1 },

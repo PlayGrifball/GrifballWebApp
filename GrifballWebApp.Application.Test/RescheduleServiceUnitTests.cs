@@ -246,6 +246,20 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task GetOverdueMatchesAsync_AnArchivedSeasonsUnplayedMatch_IsNotOverdue()
+    {
+        // The archive's schedules of seasons whose results are lost: matches with no result, years past
+        Context.Seasons.Add(Season.Seed(seasonName: "Summer League 2020", seasonID: 2, historicalSourceID: "2020-sml20-halo3/Stats"));
+        Context.AddRange(Team.Seed(teamName: "Slytherin", seasonID: 2, teamID: 30), Team.Seed(teamName: "ZAMF", seasonID: 2, teamID: 40));
+        Context.SeasonMatches.Add(SeasonMatch.Between(2, 30, 40, bestOf: 1, scheduledTime: new DateTime(2020, 8, 4, 1, 0, 0, DateTimeKind.Utc)));
+        await Context.SaveChangesAsync();
+
+        var overdue = await _service.GetOverdueMatchesAsync();
+
+        Assert.That(overdue, Is.Empty);
+    }
+
+    [Test]
     public async Task GetOverdueMatchesAsync_NotPastCutoff_ReturnsEmpty()
     {
         await SeedUndecidedMatch();

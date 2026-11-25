@@ -118,6 +118,9 @@ public sealed partial class HistoricalArchiveBuilder
         /// <summary>The season names no team: its result list is all it has.</summary>
         public bool IsEmpty => _known.Count == 0;
 
+        /// <summary>The name is one of the season's teams (any case).</summary>
+        public bool Knows(string team) => _known.Contains(team, StringComparer.OrdinalIgnoreCase);
+
         public static SeasonTeamNames Of(List<ArchiveSeason> season, Dictionary<string, string> aliases)
         {
             var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))

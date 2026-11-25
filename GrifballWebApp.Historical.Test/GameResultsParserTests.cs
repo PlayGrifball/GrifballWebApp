@@ -390,6 +390,35 @@ public class GameResultsParserTests
         }
     }
 
+    [Test]
+    public void Calendar_WithItsYearAndMonth_DatesEachGameByItsDayAndTime()
+    {
+        // SL20 Console's Schedule: April 2020's first days (a Wednesday the 1st), the games below them
+        var games = Parse(new ResultsTab { Sheet = "Schedule", Layout = ResultsLayout.Calendar, Year = 2020, Month = 4 }, Sheet(
+            ["SUN", "MON", "TUES", "WED", "THURS", "FRI"],
+            ["", "", "", "1", "2", "3"],
+            ["", "", "", "9:30pm: Impulse (5) vs. High Voltage (1)\n\n10:00pm: Legacy (3) vs. Impulse (5)", "*8pm: Oblivion (0) @ Endgame (5)"]));
+
+        Assert.That(games.Select(g => g.PlayedAt), Is.EqualTo(new DateTime?[]
+        {
+            new DateTime(2020, 4, 2, 1, 30, 0, DateTimeKind.Utc), new DateTime(2020, 4, 2, 2, 0, 0, DateTimeKind.Utc), new DateTime(2020, 4, 3, 0, 0, 0, DateTimeKind.Utc),
+        }), "Each game at its time, Eastern (summer time), in UTC");
+    }
+
+    [Test]
+    public void Calendar_AGameWithNoTimeBeforeIt_IsItsDay_AndWithNoMonthNoGameIsDated()
+    {
+        var sheet = Sheet(["", "1", "2", "3"], ["", "Impulse (5) vs. High Voltage (1)", "Alpha (5) vs. TBD (0)"]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Parse(new ResultsTab { Sheet = "Schedule", Layout = ResultsLayout.Calendar, Year = 2020, Month = 4 }, sheet).Select(g => g.PlayedAt),
+                Is.EqualTo(new DateTime?[] { new DateTime(2020, 4, 1, 0, 0, 0, DateTimeKind.Utc) }), "Midnight UTC; a game naming TBD is none");
+            Assert.That(Parse(new ResultsTab { Sheet = "Schedule", Layout = ResultsLayout.Calendar, Year = 2020 }, sheet).Select(g => g.PlayedAt),
+                Is.EqualTo(new DateTime?[] { null }));
+        }
+    }
+
     [TestCase("G&tC", "Galvin & the Chipmunks", true)]
     [TestCase("A&tS", "A and the Spences", true)]
     [TestCase("MAB", "Mediocre At Best", true)]

@@ -97,6 +97,7 @@ public static partial class GameResultsParser
         public string? Map { get; init; }
         public string? Vod { get; init; }
         public string? Host { get; init; }
+        public DateTime? PlayedAt { get; init; }
     }
 
     private static void Add(ResultsParse parse, string key, string series, GameResult result)
@@ -118,6 +119,7 @@ public static partial class GameResultsParser
             Map = result.Map,
             Vod = result.Vod,
             Host = result.Host,
+            PlayedAt = result.PlayedAt,
             Teams =
             [
                 new RecordedTeamInput { Side = 1, Name = result.First, Outcome = result.FirstOutcome, Score = result.FirstScore },
@@ -435,21 +437,28 @@ public static partial class GameResultsParser
     /// <summary>A calendar's games: each cell's, split at the times before them, a game each its two scores give.</summary>
     private static void CalendarCells(ResultsParse parse)
     {
+        var dayOf = parse.Tab.Year is not null && parse.Tab.Month is not null ? ScheduleParser.DayOfCell(parse.Sheet, parse.Tab.Year, parse.Tab.Month) : null;
         for (var r = 0; r < parse.Sheet.Rows.Count; r++)
-        {
             for (var c = 0; c < parse.Sheet.Rows[r].Length; c++)
-            {
-                var entries = TimePattern().Split(Whitespace().Replace(parse.Sheet.Rows[r][c], " "));
-                for (var e = 0; e < entries.Length; e++)
-                {
-                    var game = CalendarGamePattern().Match(entries[e].Trim());
-                    if (!game.Success || TeamName(game.Groups["a"].Value) is not { } a || TeamName(game.Groups["b"].Value) is not { } b)
-                        continue;
-                    var (sa, sb) = (int.Parse(game.Groups["sa"].Value, CultureInfo.InvariantCulture), int.Parse(game.Groups["sb"].Value, CultureInfo.InvariantCulture));
-                    var key = parse.Key($"{r}:{c}/{e}");
-                    Add(parse, key, key, new GameResult(a, b, Outcome(sa, sb), sa, sb));
-                }
-            }
+                CalendarCell(parse, r, c, dayOf?.Invoke(r, c));
+    }
+
+    /// <summary>A calendar cell's games, each dated by the cell's day (when the calendar gives one) at the time before it.</summary>
+    private static void CalendarCell(ResultsParse parse, int r, int c, DateTime? day)
+    {
+        var cell = Whitespace().Replace(parse.Sheet.Rows[r][c], " ");
+        var entries = TimePattern().Split(cell);
+        // Each entry after the first follows its time
+        var times = TimePattern().Matches(cell);
+        for (var e = 0; e < entries.Length; e++)
+        {
+            var game = CalendarGamePattern().Match(entries[e].Trim());
+            if (!game.Success || TeamName(game.Groups["a"].Value) is not { } a || TeamName(game.Groups["b"].Value) is not { } b)
+                continue;
+            var (sa, sb) = (int.Parse(game.Groups["sa"].Value, CultureInfo.InvariantCulture), int.Parse(game.Groups["sb"].Value, CultureInfo.InvariantCulture));
+            var key = parse.Key($"{r}:{c}/{e}");
+            var time = e > 0 ? times[e - 1].Value.TrimEnd(':') : null;
+            Add(parse, key, key, new GameResult(a, b, Outcome(sa, sb), sa, sb) { PlayedAt = day is { } d ? ScheduleParser.At(d, time) : null });
         }
     }
 

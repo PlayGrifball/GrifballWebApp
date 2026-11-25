@@ -14,7 +14,12 @@ namespace GrifballWebApp.Historical.Parsing;
 /// its captain's, which the archive's builder finds; a column with neither name nor captain ends it), and below it rows labelled Captain and 1st Round, Round 2, Second
 /// Round, "Duo/1st Round" (each team's pick in its column), up to the next Team Name row. Other rows (grades, records,
 /// a "Player 2" roster) are skipped. A row of numbers just above a round's row numbers that round's picks. A row can
-/// hold more than one board side by side, each starting at its label, when the label's column has a Captain row.</item>
+/// hold more than one board side by side, each starting at its label, when the label's column has a Captain row. A sheet
+/// with no Team Name row has its boards at their first Captain row ("Captain 1", a second captain's row below it), each
+/// team its captain's.</item>
+/// <item>Blocks (<see cref="DraftLayout.Blocks"/>): a block per team, a "Captain" cell with its captain in the next cell,
+/// and below it its rounds' labels ("Round One"), each with its pick in the next cell, up to the next Captain cell; the
+/// blocks in reading order (row by row, left to right), a captain's row repeated below it read once.</item>
 /// <item>A table (<see cref="DraftLayout.Table"/>): a row per player under a header with Team Name and Player Name, the
 /// team's place in the draft order in "Draft Order" or "Seed #" ("Draft Spot 3"), or each player's in "Draft Pick"
 /// ("C3": the team's captain, 3rd in the order; "R2P3": a pick of round 2); a blank team cell is the team above it.</item>
@@ -31,7 +36,12 @@ public static partial class DraftParser
     {
         // A cell's team name, as the workbook's config names it: a placeholder never filled in ("Team Name") is a team's
         string Named(string cell) => config?.TeamName(Name(cell)) ?? Name(cell);
-        var teams = tab.Layout == DraftLayout.Table ? Table(sheet, Named) : Board(sheet, tab.Order, Named);
+        var teams = tab.Layout switch
+        {
+            DraftLayout.Table => Table(sheet, Named),
+            DraftLayout.Blocks => Blocks(sheet, tab.Order),
+            _ => Board(sheet, tab.Order, Named),
+        };
         return teams.Count == 0 ? null : teams;
     }
 
@@ -47,7 +57,65 @@ public static partial class DraftParser
                 teams.AddRange(Block(sheet, r, labels[i], end, order, named));
             }
         }
+        return teams.Count > 0 ? teams : CaptainBoards(sheet, order);
+    }
+
+    /// <summary>A sheet's boards without a Team Name row, each at its first Captain row (not one below another's: a
+    /// team's second captain), when a round's row is below it: its teams are unnamed, each its captain's.</summary>
+    private static List<ArchiveTeam> CaptainBoards(SheetTable sheet, DraftOrder order)
+    {
+        var teams = new List<ArchiveTeam>();
+        for (var r = 0; r < sheet.Rows.Count; r++)
+        {
+            var labels = Enumerable.Range(0, sheet.Rows[r].Length)
+                .Where(c => FirstCaptainRow(sheet, r, c) && HasRoundRow(sheet, r, c))
+                .ToList();
+            for (var i = 0; i < labels.Count; i++)
+            {
+                var end = i + 1 < labels.Count ? labels[i + 1] : sheet.Rows.Max(row => row.Length);
+                teams.AddRange(Block(sheet, r, labels[i], end, order, _ => "", captainRow: r));
+            }
+        }
         return teams;
+    }
+
+    /// <summary>A Captain row that isn't right below another (a team's second captain's): a board's first.</summary>
+    private static bool FirstCaptainRow(SheetTable sheet, int r, int c)
+        => CaptainLabel().IsMatch(sheet.Cell(r, c)) && (r == 0 || !CaptainLabel().IsMatch(sheet.Cell(r - 1, c)));
+
+    /// <summary>A round's row below the Captain row, before the next board's first Captain row.</summary>
+    private static bool HasRoundRow(SheetTable sheet, int captainRow, int column)
+    {
+        for (var r = captainRow + 1; r < sheet.Rows.Count; r++)
+        {
+            if (Round(sheet.Cell(r, column)) is not null)
+                return true;
+            if (FirstCaptainRow(sheet, r, column))
+                return false;
+        }
+        return false;
+    }
+
+    /// <summary>A sheet's draft blocks: each Captain cell with a captain beside it and a pick below it, in reading order.</summary>
+    private static List<ArchiveTeam> Blocks(SheetTable sheet, DraftOrder order)
+    {
+        var blocks = new List<(string Captain, List<(int Round, string Gamertag)> Picks)>();
+        for (var r = 0; r < sheet.Rows.Count; r++)
+            for (var c = 0; c < sheet.Rows[r].Length; c++)
+            {
+                if (BlockCaptain(sheet, r, c) is not { } captain)
+                    continue;
+                var picks = BlockPicks(sheet, r, c, captain);
+                if (picks.Count > 0)
+                    blocks.Add((captain, picks));
+            }
+        return [.. blocks.Select((block, i) => new ArchiveTeam
+        {
+            TeamName = "",
+            Captain = block.Captain,
+            DraftOrder = order == DraftOrder.None ? null : i + 1,
+            Picks = [.. block.Picks.Select(p => new ArchiveDraftPick(p.Gamertag, p.Round, order == DraftOrder.Linear ? (p.Round - 1) * blocks.Count + i + 1 : null))],
+        })];
     }
 
     /// <summary>The label's column has a Captain row below it, before the next board's names: a "Team Name" cell that is
@@ -60,14 +128,42 @@ public static partial class DraftParser
         return false;
     }
 
-    /// <summary>A board's teams: its columns after its label's, each a team with a name or a captain, up to <paramref name="end"/>
-    /// or a column with neither (what is beside the board: a seed list, notes).</summary>
-    private static List<ArchiveTeam> Block(SheetTable sheet, int namesRow, int label, int end, DraftOrder order, Func<string, string> named)
+    /// <summary>The captain of the block a Captain cell starts; null for any other cell, and for a captain's row repeated
+    /// below it (the same block's).</summary>
+    private static string? BlockCaptain(SheetTable sheet, int r, int c)
     {
-        var rows = Enumerable.Range(namesRow + 1, sheet.Rows.Count - namesRow - 1).TakeWhile(r => !TeamNameLabel().IsMatch(sheet.Cell(r, label))).ToList();
-        var captainRow = rows.First(r => CaptainLabel().IsMatch(sheet.Cell(r, label)));
+        var captain = Player(sheet.Cell(r, c + 1));
+        if (!CaptainLabel().IsMatch(sheet.Cell(r, c)) || captain.Length == 0)
+            return null;
+        return r > 0 && CaptainLabel().IsMatch(sheet.Cell(r - 1, c)) && Player(sheet.Cell(r - 1, c + 1)) == captain ? null : captain;
+    }
+
+    /// <summary>A block's picks: each round's label below its Captain cell with the pick beside it, up to another captain's cell.</summary>
+    private static List<(int Round, string Gamertag)> BlockPicks(SheetTable sheet, int r, int c, string captain)
+    {
+        var picks = new List<(int Round, string Gamertag)>();
+        for (var b = r + 1; b < sheet.Rows.Count; b++)
+        {
+            var isCaptain = CaptainLabel().IsMatch(sheet.Cell(b, c));
+            if (isCaptain && Player(sheet.Cell(b, c + 1)) != captain)
+                break;
+            if (!isCaptain && Round(sheet.Cell(b, c)) is int round && Player(sheet.Cell(b, c + 1)) is { Length: > 0 } pick)
+                picks.Add((round, pick));
+        }
+        return picks;
+    }
+
+    /// <summary>A board's teams: its columns after its label's, each a team with a name or a captain, up to <paramref name="end"/>
+    /// or a column with neither (what is beside the board: a seed list, notes). A board with no Team Name row gives its Captain
+    /// row as both the names row and the captain row.</summary>
+    private static List<ArchiveTeam> Block(SheetTable sheet, int namesRow, int label, int end, DraftOrder order, Func<string, string> named, int? captainRow = null)
+    {
+        // Up to the next board's names: its Team Name row, or (a board with none) its first Captain row
+        var rows = Enumerable.Range(namesRow + 1, sheet.Rows.Count - namesRow - 1)
+            .TakeWhile(r => !TeamNameLabel().IsMatch(sheet.Cell(r, label)) && (captainRow is null || !FirstCaptainRow(sheet, r, label))).ToList();
+        var captains = captainRow ?? rows.First(r => CaptainLabel().IsMatch(sheet.Cell(r, label)));
         var columns = Enumerable.Range(label + 1, Math.Max(0, end - label - 1))
-            .TakeWhile(c => Name(sheet.Cell(namesRow, c)).Length > 0 || Player(sheet.Cell(captainRow, c)).Length > 0)
+            .TakeWhile(c => Name(sheet.Cell(namesRow, c)).Length > 0 || Player(sheet.Cell(captains, c)).Length > 0)
             .Where(c => named(sheet.Cell(namesRow, c)) is not { Length: > 0 } name || !HistoricalKeys.IsExcludedTeamName(name))
             .ToList();
         var rounds = Rounds(sheet, rows, label, columns);
@@ -78,7 +174,7 @@ public static partial class DraftParser
                 .Where(p => p.Gamertag.Length > 0)
                 .Select(p => new ArchiveDraftPick(p.Gamertag, p.Round, p.Number ?? (order == DraftOrder.Linear ? (p.Round - 1) * columns.Count + place : (int?)null)))
                 .ToList();
-            var captain = Player(sheet.Cell(captainRow, c));
+            var captain = Player(sheet.Cell(captains, c));
             return new ArchiveTeam
             {
                 TeamName = named(sheet.Cell(namesRow, c)),
@@ -119,10 +215,13 @@ public static partial class DraftParser
             return null;
         if (m.Groups["number"].Success)
             return Number(m.Groups["number"].Value);
+        if (m.Groups["cardinal"].Success)
+            return Array.IndexOf(Cardinals, m.Groups["cardinal"].Value.ToLowerInvariant()) + 1;
         return Array.IndexOf(Ordinals, m.Groups["word"].Value.ToLowerInvariant()) + 1;
     }
 
     private static readonly string[] Ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+    private static readonly string[] Cardinals = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
 
     private static List<ArchiveTeam> Table(SheetTable sheet, Func<string, string> named)
     {
@@ -214,10 +313,11 @@ public static partial class DraftParser
     [GeneratedRegex(@"^\s*team\s*names?\s*:?\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex TeamNameLabel();
 
-    [GeneratedRegex(@"^\s*captains?\s*:?\s*$", RegexOptions.IgnoreCase)]
+    /// <summary>"Captain", "Captain:", "Captains", "Captain 1" (a team's first of two).</summary>
+    [GeneratedRegex(@"^\s*captains?\s*\d?\s*:?\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex CaptainLabel();
 
-    [GeneratedRegex(@"^\s*(?:duo\s*/\s*)?(?:(?<number>\d+)\s*(?:st|nd|rd|th)\s+round|round\s*(?<number>\d+)|(?<word>first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\s+round)\s*:?\s*$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^\s*(?:duo\s*/\s*)?(?:(?<number>\d+)\s*(?:st|nd|rd|th)\s+round|round\s*(?<number>\d+)|round\s+(?<cardinal>one|two|three|four|five|six|seven|eight|nine|ten)|(?<word>first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\s+round)\s*:?\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex RoundLabel();
 
     [GeneratedRegex(@"^\s*C(\d+)\s*$", RegexOptions.IgnoreCase)]
