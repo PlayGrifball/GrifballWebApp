@@ -910,6 +910,17 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     }
 
     [Test]
+    public async Task Run_APartialRun_RetiresAStaleKeySeasonItWasAskedFor()
+    {
+        await _service.Import(OneSeason("Summer League 2018", "sml18-fantasy/Stats#s14"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(OneSeason("Summer League 2018 (Pro)", "sml18-fantasy/Stats#sPro"), new HistoricalImportRunOptions { Seasons = new HashSet<string> { "sml18-fantasy/Stats#sPro", "sml18-fantasy/Stats#s14" } });
+
+        Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+    }
+
+    [Test]
     public async Task Run_ASupersededSeasonWithATitle_StopsForReviewUnderTheGuardrail_AndIsKept()
     {
         await _service.Import(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"));
