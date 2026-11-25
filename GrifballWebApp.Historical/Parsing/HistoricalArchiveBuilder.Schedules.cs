@@ -29,40 +29,11 @@ public sealed partial class HistoricalArchiveBuilder
             }
             var key = HistoricalKeys.SeasonSourceId(regular.SourceWorkbook!, regular.SourceSheet!);
             var names = SeasonTeamNames.Of(SeasonOf(regular), tab.Teams);
-            // A per-game tab's side is its players' team (its rows name no team)
-            var teamOf = SeasonOf(regular).SelectMany(s => s.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName))
-                .GroupBy(p => HistoricalKeys.Normalize(p.Gamertag)).ToDictionary(g => g.Key, g => g.First().TeamName!.Trim());
-            // The season's undated games, a series' as one: what the meetings date, in their lists' order
-            var undated = _games
-                .Where(g => string.Equals(g.SeasonSourceId, key, StringComparison.OrdinalIgnoreCase) && g.Teams.Count == 2)
-                .GroupBy(g => g.Series ?? g.SourceKey, StringComparer.Ordinal)
-                .Where(g => g.All(game => game.PlayedAt is null))
-                .Select(g => (Games: g.ToList(), Pair: Pair(SideTeam(g.First(), 0, teamOf), SideTeam(g.First(), 1, teamOf))))
-                .ToList();
-            var meetings = matches
-                .Select(m => (m.PlayedAt, Home: ScheduledTeam(names, m.First), Away: ScheduledTeam(names, m.Second)))
-                .GroupBy(m => (m.PlayedAt.Date, Pair: Pair(m.Home, m.Away)))
-                .Select(g => (PlayedAt: g.Min(m => m.PlayedAt), g.Key.Pair, g.First().Home, g.First().Away, Count: g.Count()))
-                .OrderBy(m => m.PlayedAt)
-                .ToList();
+            var undated = Undated(key, SeasonOf(regular));
+            var meetings = Meetings(matches, names);
             var left = 0;
-            foreach (var meeting in meetings)
+            foreach (var meeting in meetings.Where(m => !DateGames(m, undated, tab.WholeSeries)))
             {
-                var (entries, dated) = (0, false);
-                while (entries < meeting.Count && undated.FindIndex(u => u.Pair == meeting.Pair) is var index and >= 0)
-                {
-                    // A whole match: its teams' undated games (or one-game series) in a row
-                    var end = index + 1;
-                    while (tab.WholeSeries && end < undated.Count && undated[end].Pair == meeting.Pair)
-                        end++;
-                    foreach (var game in undated.Skip(index).Take(end - index).SelectMany(u => u.Games))
-                        game.PlayedAt = meeting.PlayedAt;
-                    entries += tab.WholeSeries ? 1 : undated[index].Games.Count;
-                    undated.RemoveRange(index, end - index);
-                    dated = true;
-                }
-                if (dated)
-                    continue;
                 if (tab.Unplayed && names.Knows(meeting.Home) && names.Knows(meeting.Away))
                     _scheduled.Add(new ArchiveScheduledMatchInput
                     {
@@ -80,6 +51,50 @@ public sealed partial class HistoricalArchiveBuilder
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.Add(key);
         }
+    }
+
+    /// <summary>A schedule's meeting: its two teams (the season's names, home first) on a day, and how many entries it has.</summary>
+    private sealed record Meeting(DateTime PlayedAt, (string, string) Pair, string Home, string Away, int Count);
+
+    /// <summary>A season's undated games, a series' as one unit, in their lists' order: what the meetings date.</summary>
+    private List<(List<RecordedGameInput> Games, (string, string) Pair)> Undated(string key, List<ArchiveSeason> season)
+    {
+        // A per-game tab's side is its players' team (its rows name no team)
+        var teamOf = season.SelectMany(s => s.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName))
+            .GroupBy(p => HistoricalKeys.Normalize(p.Gamertag)).ToDictionary(g => g.Key, g => g.First().TeamName!.Trim());
+        return [.. _games
+            .Where(g => string.Equals(g.SeasonSourceId, key, StringComparison.OrdinalIgnoreCase) && g.Teams.Count == 2)
+            .GroupBy(g => g.Series ?? g.SourceKey, StringComparer.Ordinal)
+            .Where(g => g.All(game => game.PlayedAt is null))
+            .Select(g => (Games: g.ToList(), Pair: Pair(SideTeam(g.First(), 0, teamOf), SideTeam(g.First(), 1, teamOf))))];
+    }
+
+    /// <summary>The schedule's matches as meetings: the same two teams' on one day are one, in the schedule's order.</summary>
+    private static List<Meeting> Meetings(List<CalendarMatch> matches, SeasonTeamNames names)
+        => [.. matches
+            .Select(m => (m.PlayedAt, Home: ScheduledTeam(names, m.First), Away: ScheduledTeam(names, m.Second)))
+            .GroupBy(m => (m.PlayedAt.Date, Pair: Pair(m.Home, m.Away)))
+            .Select(g => new Meeting(g.Min(m => m.PlayedAt), g.Key.Pair, g.First().Home, g.First().Away, g.Count()))
+            .OrderBy(m => m.PlayedAt)];
+
+    /// <summary>A meeting dates the first undated units of its teams until it has dated as many games as it has entries (a
+    /// whole series' run of units an entry); false when it dated none. What it dates leaves <paramref name="undated"/>.</summary>
+    private static bool DateGames(Meeting meeting, List<(List<RecordedGameInput> Games, (string, string) Pair)> undated, bool wholeSeries)
+    {
+        var (entries, dated) = (0, false);
+        while (entries < meeting.Count && undated.FindIndex(u => u.Pair == meeting.Pair) is var index and >= 0)
+        {
+            // A whole match: its teams' undated games (or one-game series) in a row
+            var end = index + 1;
+            while (wholeSeries && end < undated.Count && undated[end].Pair == meeting.Pair)
+                end++;
+            foreach (var game in undated.Skip(index).Take(end - index).SelectMany(u => u.Games))
+                game.PlayedAt = meeting.PlayedAt;
+            entries += wholeSeries ? 1 : undated[index].Games.Count;
+            undated.RemoveRange(index, end - index);
+            dated = true;
+        }
+        return dated;
     }
 
     /// <summary>A game's side's team: its name, or (a per-game tab's side, unnamed) the team most of its players are on.</summary>

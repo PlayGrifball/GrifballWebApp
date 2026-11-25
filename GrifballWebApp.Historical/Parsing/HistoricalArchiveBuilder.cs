@@ -498,23 +498,24 @@ public sealed partial class HistoricalArchiveBuilder
             var players = PlayersOf(season);
             var teamOf = season.SelectMany(s => s.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName))
                 .GroupBy(p => HistoricalKeys.Normalize(p.Gamertag)).ToDictionary(g => g.Key, g => g.First().TeamName!.Trim());
-            // A nickname the tab names is its player's gamertag
-            string? Named(string? name) => name is null ? null
-                : tab.Names.FirstOrDefault(n => string.Equals(n.Key, name.Trim(), StringComparison.OrdinalIgnoreCase)).Value ?? name;
             foreach (var team in teams)
             {
-                var captain = SeasonPlayer(Named(team.Captain), players);
+                var captain = SeasonPlayer(Nicknamed(tab, team.Captain), players);
                 var name = (team.TeamName.Length > 0 ? Closest(team.TeamName, known) : null)
                     ?? (captain is not null ? teamOf.GetValueOrDefault(HistoricalKeys.Normalize(captain)) : null);
                 if (name is null)
                     continue;
-                var picks = team.Picks.Select(p => SeasonPlayer(Named(p.Gamertag), players) is { } gamertag ? p with { Gamertag = gamertag } : null).OfType<ArchiveDraftPick>().ToList();
+                var picks = team.Picks.Select(p => SeasonPlayer(Nicknamed(tab, p.Gamertag), players) is { } gamertag ? p with { Gamertag = gamertag } : null).OfType<ArchiveDraftPick>().ToList();
                 regular.Teams.Add(team with { TeamName = name, Captain = captain, Picks = picks });
             }
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
         }
     }
+
+    /// <summary>A draft's name for a player: the gamertag its tab's <see cref="DraftTab.Names"/> gives the nickname, else the name.</summary>
+    private static string? Nicknamed(DraftTab tab, string? name)
+        => name is null ? null : tab.Names.FirstOrDefault(n => string.Equals(n.Key, name.Trim(), StringComparison.OrdinalIgnoreCase)).Value ?? name;
 
     /// <summary>Two names' digits don't tell them apart: the same, or only one has any ("NecessaryEvil" and NecessaryEvil10,
     /// never "Reaper3" and Reaper2).</summary>

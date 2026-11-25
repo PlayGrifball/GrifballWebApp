@@ -174,4 +174,15 @@ public class HistoricalArchiveSchedulesTests
 
         Assert.That(build.Input.RecordedGames!.Select(g => g.PlayedAt), Is.EqualTo(new DateTime?[] { June1, June1, June8 }));
     }
+
+    [Test]
+    public void AScheduleOfNoSeason_IsNotRead_AndSaysSo()
+    {
+        var source = Source("lost", new HistoricalSourceConfig { Schedules = [new() { Sheet = "Schedule", Season = "nothing" }] },
+            Workbook(("Schedule", [Row("Date", "6/1/2020"), Row(null, "A vs B")])));
+
+        var build = HistoricalArchiveBuilder.Build([source]);
+
+        Assert.That(build.Warnings, Does.Contain("lost: schedule 'Schedule' not read (no season from nothing)"));
+    }
 }

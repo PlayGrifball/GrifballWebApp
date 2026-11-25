@@ -371,4 +371,18 @@ public class DraftParserTests
             }), "The player pool beside the blocks is no team's");
         }
     }
+
+    [Test]
+    public void ACaptainRowWithNoRoundBelowIt_BeforeTheNextBoardsCaptains_IsNoBoard()
+    {
+        // A roster's "Captain" row then another's: no round between them
+        var sheet = Sheet(
+            ["Captain", "Ace", "Bee"],
+            ["Player 1", "Dee", "Eee"],
+            ["", ""],
+            ["Captain", "Cee"],
+            ["1st Round", "Fee"]);
+
+        Assert.That(Captains(Board(sheet)), Is.EqualTo(new (string, string?, int?)[] { ("", "Cee", 1) }));
+    }
 }

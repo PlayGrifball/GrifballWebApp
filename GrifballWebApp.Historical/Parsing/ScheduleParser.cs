@@ -35,31 +35,38 @@ public static partial class ScheduleParser
         var dayOf = Grid(sheet, tab.Year, tab.Month, out var needsMonth);
         var matches = new List<CalendarMatch>();
         for (var r = 0; r < sheet.Rows.Count; r++)
-        {
-            var row = sheet.Rows[r];
-            for (var c = 0; c < row.Length; c++)
-            {
-                if (dayOf(r, c) is not DateTime day)
-                    continue;
-                // A line each ("9:30pm: Impulse (5) vs. High Voltage (1)", a blank line, the next), or a run of spaces
-                // between them (GWL SL23's "A @ B      8PM EST      C @ D      9PM EST")
-                var pieces = Pieces().Split(row[c]).Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
-                for (var i = 0; i < pieces.Count; i++)
-                {
-                    var timed = LeadingTime().Match(pieces[i]);
-                    if (Teams(timed.Success ? pieces[i][timed.Length..] : pieces[i]) is not { } teams)
-                        continue;
-                    var time = Time(pieces[i])
-                        ?? (i + 1 < pieces.Count && TimeOnly().IsMatch(pieces[i + 1]) ? Time(pieces[i + 1]) : null)
-                        ?? Time(row[0])
-                        ?? (r + 1 < sheet.Rows.Count && TimeOnly().IsMatch(sheet.Cell(r + 1, c).Trim()) ? Time(sheet.Cell(r + 1, c)) : null);
-                    matches.Add(new CalendarMatch(At(day, time), teams.First, teams.Second));
-                }
-            }
-        }
+            for (var c = 0; c < sheet.Rows[r].Length; c++)
+                if (dayOf(r, c) is DateTime day)
+                    matches.AddRange(CellMatches(sheet, r, c, day));
         if (needsMonth)
             warnings.Add($"{sourceId}/{tab.Sheet}: rows of days of the month not read (the tab's Year and Month aren't set)");
         return matches;
+    }
+
+    /// <summary>A day's cell's matches: a line each ("9:30pm: Impulse (5) vs. High Voltage (1)", a blank line, the next), or a
+    /// run of spaces between them (GWL SL23's "A @ B      8PM EST      C @ D      9PM EST").</summary>
+    private static IEnumerable<CalendarMatch> CellMatches(SheetTable sheet, int r, int c, DateTime day)
+    {
+        var pieces = Pieces().Split(sheet.Cell(r, c)).Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
+        for (var i = 0; i < pieces.Count; i++)
+        {
+            var timed = LeadingTime().Match(pieces[i]);
+            if (Teams(timed.Success ? pieces[i][timed.Length..] : pieces[i]) is { } teams)
+                yield return new CalendarMatch(At(day, MatchTime(sheet, r, c, pieces, i)), teams.First, teams.Second);
+        }
+    }
+
+    /// <summary>A match's time: in its piece, the piece after it, the row's first cell, or the cell below it.</summary>
+    private static TimeSpan? MatchTime(SheetTable sheet, int r, int c, List<string> pieces, int i)
+    {
+        if (Time(pieces[i]) is { } own)
+            return own;
+        if (i + 1 < pieces.Count && TimeOnly().IsMatch(pieces[i + 1]))
+            return Time(pieces[i + 1]);
+        if (Time(sheet.Cell(r, 0)) is { } row)
+            return row;
+        var below = sheet.Cell(r + 1, c).Trim();
+        return TimeOnly().IsMatch(below) ? Time(below) : null;
     }
 
     /// <summary>The day of each cell of a calendar (a result list's, <see cref="ResultsLayout.Calendar"/>), as <see cref="Parse"/>
@@ -127,30 +134,42 @@ public static partial class ScheduleParser
         /// row is a week's ("March 5th - 11th" in its first cell, its days the weekday headers' columns), its matches in it.</summary>
         public List<(int Column, DateTime Day)> Days(string[] row, out bool inline)
         {
-            inline = false;
             var weekdays = Enumerable.Range(0, row.Length).Select(c => (Column: c, Day: Array.IndexOf(Weekdays, row[c].Trim().ToLowerInvariant())))
                 .Where(w => w.Day >= 0).ToList();
             if (weekdays.Count >= 5)
                 _weekdays = weekdays.ToDictionary(w => w.Column, w => w.Day);
-            if (row.Length > 0 && _weekdays.Count > 0 && year is not null && WeekRange().Match(row[0].Trim()) is { Success: true } week
-                && MonthOf(week.Groups["month"].Value) is var wm and > 0 && Day(week.Groups["day"].Value) is int wd)
-            {
-                var weekYear = _last is { } lastDay ? lastDay.Year + (wm < lastDay.Month ? 1 : 0) : year.Value;
-                if (wd <= DateTime.DaysInMonth(weekYear, wm))
-                {
-                    var start = new DateTime(weekYear, wm, wd);
-                    inline = true;
-                    return Seen([.. _weekdays.OrderBy(w => w.Key).Select(w => (w.Key, start.AddDays((w.Value - (int)start.DayOfWeek + 7) % 7)))]);
-                }
-            }
+            var week = WeekRow(row);
+            inline = week is not null;
+            if (week is not null)
+                return Seen(week);
             var dates = Enumerable.Range(0, row.Length).Select(c => (Column: c, Day: Date(row[c]))).Where(d => d.Day is not null)
                 .Select(d => (d.Column, Day: d.Day!.Value)).ToList();
             if (dates.Count > 0)
                 return Seen(dates);
             var named = MonthDays(row);
-            if (named.Count > 0)
-                return Seen(named);
-            var run = DayRun(row);
+            return named.Count > 0 ? Seen(named) : DaysOfMonth(DayRun(row));
+        }
+
+        /// <summary>A week's row ("March 5th - 11th" in its first cell): its days in the weekday headers' columns; null for
+        /// any other row.</summary>
+        private List<(int Column, DateTime Day)>? WeekRow(string[] row)
+        {
+            if (row.Length == 0 || _weekdays.Count == 0 || year is null || WeekRange().Match(row[0].Trim()) is not { Success: true } week)
+                return null;
+            var m = MonthOf(week.Groups["month"].Value);
+            if (m == 0 || Day(week.Groups["day"].Value) is not int day || day > DateTime.DaysInMonth(YearOf(m), m))
+                return null;
+            var start = new DateTime(YearOf(m), m, day);
+            return [.. _weekdays.OrderBy(w => w.Key).Select(w => (w.Key, start.AddDays((w.Value - (int)start.DayOfWeek + 7) % 7)))];
+        }
+
+        /// <summary>A month's year: the tab's, or the one after the last day's once the months start again.</summary>
+        private int YearOf(int m) => _last is { } last ? last.Year + (m < last.Month ? 1 : 0) : year!.Value;
+
+        /// <summary>A row's run of three or more days of the month, in the tab's month or the last row's; a day earlier than
+        /// the last is the next month's (a week across its end).</summary>
+        private List<(int Column, DateTime Day)> DaysOfMonth(List<(int Column, int Day)> run)
+        {
             if (run.Count < 3)
                 return [];
             if (year is null || month is null)
@@ -162,12 +181,10 @@ public static partial class ScheduleParser
             var (y, m) = _last is { } last ? (last.Year, last.Month) : (year.Value, month.Value);
             foreach (var (column, day) in run)
             {
-                // A day earlier than the last is the next month's (a week across its end)
                 while (day > DateTime.DaysInMonth(y, m) || (_last is { } before && new DateTime(y, m, day) < before.AddDays(-3)))
                     (y, m) = m == 12 ? (y + 1, 1) : (y, m + 1);
-                var date = new DateTime(y, m, day);
-                days.Add((column, date));
-                _last = date;
+                _last = new DateTime(y, m, day);
+                days.Add((column, _last.Value));
             }
             return days;
         }
@@ -183,20 +200,28 @@ public static partial class ScheduleParser
         private List<(int Column, DateTime Day)> MonthDays(string[] row)
         {
             var days = new List<(int Column, DateTime Day)>();
+            if (year is null)
+                return days;
             for (var c = 0; c < row.Length; c++)
             {
-                var named = MonthAndDay().Match(row[c].Trim());
-                var m = named.Success ? MonthOf(named.Groups["month"].Value) : c + 1 < row.Length ? MonthOf(row[c]) : 0;
-                if (m == 0 || year is null || (named.Success ? Day(named.Groups["day"].Value) : Day(row[c + 1])) is not int day)
+                if (MonthDayAt(row, c) is not { } day)
                     continue;
-                var y = _last is { } last ? last.Year + (m < last.Month ? 1 : 0) : year.Value;
-                if (day > DateTime.DaysInMonth(y, m))
-                    continue;
-                var column = c > 0 && Weekdays.Contains(row[c - 1].Trim().ToLowerInvariant()) ? c - 1 : c;
-                days.Add((column, new DateTime(y, m, day)));
-                _last = days[^1].Day;
+                days.Add(day);
+                _last = day.Day;
             }
             return days;
+        }
+
+        /// <summary>The month and day at a cell ("July 31st", or "March" before "27"); null for none.</summary>
+        private (int Column, DateTime Day)? MonthDayAt(string[] row, int c)
+        {
+            var named = MonthAndDay().Match(row[c].Trim());
+            var next = c + 1 < row.Length ? row[c + 1] : "";
+            var m = named.Success ? MonthOf(named.Groups["month"].Value) : MonthOf(row[c]);
+            if (m == 0 || Day(named.Success ? named.Groups["day"].Value : next) is not int day || day > DateTime.DaysInMonth(YearOf(m), m))
+                return null;
+            var column = c > 0 && Weekdays.Contains(row[c - 1].Trim().ToLowerInvariant()) ? c - 1 : c;
+            return (column, new DateTime(YearOf(m), m, day));
         }
 
         /// <summary>The row's first run of days of the month, left to right, each the day after the one before (or the 1st
@@ -274,20 +299,21 @@ public static partial class ScheduleParser
     /// <summary>A time in the cell ("9:00", "8pm", "10PM EST", "09:00:00"), in the evening when it says neither am nor pm; a
     /// number with neither minutes nor am or pm (a score, a team's) is none.</summary>
     private static TimeSpan? Time(string cell)
+        => TimePattern().Matches(cell).Select(TimeOf).FirstOrDefault(t => t is not null);
+
+    /// <summary>A time pattern's match as a time of day; null for a number that is none.</summary>
+    private static TimeSpan? TimeOf(Match match)
     {
-        foreach (Match match in TimePattern().Matches(cell))
-        {
-            var hours = int.Parse(match.Groups["h"].Value, CultureInfo.InvariantCulture);
-            var minutes = match.Groups["m"].Success ? int.Parse(match.Groups["m"].Value, CultureInfo.InvariantCulture) : 0;
-            var meridiem = match.Groups["ap"].Value.ToLowerInvariant();
-            if ((!match.Groups["m"].Success && meridiem.Length == 0) || minutes > 59)
-                continue;
-            if (hours is >= 13 and <= 23 && meridiem.Length == 0)
-                return new TimeSpan(hours, minutes, 0);
-            if (hours is >= 1 and <= 12)
-                return new TimeSpan(meridiem.StartsWith('a') ? hours % 12 : hours % 12 + 12, minutes, 0);
-        }
-        return null;
+        var hours = int.Parse(match.Groups["h"].Value, CultureInfo.InvariantCulture);
+        var minutes = match.Groups["m"].Success ? int.Parse(match.Groups["m"].Value, CultureInfo.InvariantCulture) : 0;
+        var meridiem = match.Groups["ap"].Value.ToLowerInvariant();
+        if ((!match.Groups["m"].Success && meridiem.Length == 0) || minutes > 59)
+            return null;
+        if (meridiem.Length == 0 && hours is >= 13 and <= 23)
+            return new TimeSpan(hours, minutes, 0);
+        if (hours is < 1 or > 12)
+            return null;
+        return new TimeSpan(meridiem.StartsWith('a') ? hours % 12 : hours % 12 + 12, minutes, 0);
     }
 
     /// <summary>"5/19/2019", "2019-05-19", "May 19, 2019", "Sunday, May 19, 2019".</summary>

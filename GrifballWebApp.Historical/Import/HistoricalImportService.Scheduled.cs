@@ -5,6 +5,16 @@ namespace GrifballWebApp.Historical.Import;
 
 public partial class HistoricalImportService
 {
+    /// <summary>The season's matches with no games: its forfeits and its scheduled matches with no result, each when the
+    /// archive has them for it.</summary>
+    private async Task ImportGamelessMatches(SeasonGroup group, Season season, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
+    {
+        if (group.Forfeits is not null)
+            await ImportForfeits(group, season, teams, counts, ct);
+        if (group.ScheduledMatches is not null)
+            await ImportScheduledMatches(group, season, teams, counts, ct);
+    }
+
     /// <summary>
     /// The season's scheduled matches with no result (<see cref="ArchiveScheduledMatchInput"/>): each a season match between its
     /// two teams on its day, with no games and no result. Reconciled with the season's matches that have no games, no result and

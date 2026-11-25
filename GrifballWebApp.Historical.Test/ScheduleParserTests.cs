@@ -157,4 +157,17 @@ public class ScheduleParserTests
             new CalendarMatch(new DateTime(2023, 4, 2, 2, 0, 0, DateTimeKind.Utc), "Mavbrid", "oDhmon"),
         }), "Monday the 27th, Saturday April 1st; the legend right of Saturday is no day's");
     }
+
+    [Test]
+    public void AWeekOrMonthDayThatIsNoDay_IsNoRowOfDays()
+    {
+        var sheet = Sheet(
+            ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
+            ["February 30th - March 6th", "A @ B"],
+            ["Date", "Feb 30", "Mar 1"],
+            ["", "C @ D", "E @ F"]);
+
+        Assert.That(Parse(new ScheduleTab { Sheet = "Schedule", Year = 2023 }, sheet).Select(m => (m.PlayedAt, m.First)),
+            Is.EqualTo(new[] { (new DateTime(2023, 3, 1, 0, 0, 0, DateTimeKind.Utc), "E") }), "No 30th of February; \"Mar 1\" is March's 1st");
+    }
 }

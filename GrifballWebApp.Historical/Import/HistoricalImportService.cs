@@ -867,10 +867,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (group.RecordedGames is not null)
                 games.AddRange(await ImportRecordedGames(group, season, gameVersions, resolver, teams, games, counts, recordedGamesToCheck, seasonMatchIDsToCheck, ct));
             await LinkSeries(group, season, games, bracket, counts, seasonMatchIDsToCheck, ct);
-            if (group.Forfeits is not null)
-                await ImportForfeits(group, season, teams, counts, ct);
-            if (group.ScheduledMatches is not null)
-                await ImportScheduledMatches(group, season, teams, counts, ct);
+            await ImportGamelessMatches(group, season, teams, counts, ct);
             var tiers = await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
             await RemoveTitlesNoLongerThere(season, tiers, counts, ct);
             await ImportAwards(group, season, resolver, teams, counts, ct);
