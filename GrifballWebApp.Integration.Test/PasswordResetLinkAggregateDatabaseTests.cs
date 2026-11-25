@@ -31,8 +31,9 @@ public class PasswordResetLinkAggregateDatabaseTests
     private async Task<int> SeedUser(string userName = "resetuser")
     {
         var user = User.Seed(userName: userName);
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        await using var older = BeforeSeasonSourceLinksContext.On(_context);
+        older.Users.Add(user);
+        await older.SaveChangesAsync();
         return user.Id;
     }
 

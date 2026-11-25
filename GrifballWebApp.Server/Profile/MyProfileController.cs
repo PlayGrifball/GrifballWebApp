@@ -7,7 +7,7 @@ using GrifballWebApp.Application.Historical;
 namespace GrifballWebApp.Server.Profile;
 
 /// <summary>
-/// What a signed-in user changes about their own account from their profile: their region, and claims of past gamertags
+/// What a signed-in user changes about their own account from their profile: their region, the picture that shows for them, and claims of past gamertags
 /// (a sysadmin decides those on the claims page).
 /// </summary>
 [ApiController]
@@ -16,11 +16,13 @@ namespace GrifballWebApp.Server.Profile;
 public class MyProfileController : ControllerBase
 {
     private readonly RegionService _regions;
+    private readonly ProfilePictureService _pictures;
     private readonly UserGamertagClaimService _claims;
 
-    public MyProfileController(RegionService regions, UserGamertagClaimService claims)
+    public MyProfileController(RegionService regions, ProfilePictureService pictures, UserGamertagClaimService claims)
     {
         _regions = regions;
+        _pictures = pictures;
         _claims = claims;
     }
 
@@ -46,6 +48,20 @@ public class MyProfileController : ControllerBase
             SetRegionResult.NoSuchUser => this.NotFoundProblem(ApiProblems.NoSuchUser),
             _ => NoContent(),
         };
+    }
+
+    /// <summary>Sets which of the signed-in user's Xbox images (Halo emblem or gamer picture) shows for them.</summary>
+    [HttpPost("me/profile-picture", Name = "SetMyProfilePicture")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<IActionResult> SetProfilePicture([FromBody] SetProfilePictureRequest request, CancellationToken ct)
+    {
+        if (GetUserID() is not int userId)
+            return this.UnauthorizedProblem(NotSignedIn);
+        if (!Enum.IsDefined(request.ProfilePicture))
+            return this.BadRequestProblem("There is no such profile picture");
+        return await _pictures.Set(userId, request.ProfilePicture, ct) ? NoContent() : this.NotFoundProblem(ApiProblems.NoSuchUser);
     }
 
     /// <summary>The placeholder claiming a gamertag would merge, its seasons, and why it can't be claimed if it can't.</summary>

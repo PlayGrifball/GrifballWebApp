@@ -395,14 +395,13 @@ describe('UserManagementComponent user table', () => {
     expect(actions.querySelector('a')!.getAttribute('href')).toBe('/usermanagement/edituser/1');
   });
 
-  it('links to creating a user, merging users, the merges, the gamertag claims, past gamertags, the historical import, the jobs and the telemetry', () => {
+  it('links to creating a user, merging users, the merges, the gamertag claims and past gamertags, and not the SysAdmin pages', () => {
     fixture.detectChanges();
     http.expectOne(r => r.url.startsWith('/api/users')).flush({ totalCount: 0, results: [] });
     const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.hud-page-head .hud-actions a'))
       .map(a => [a.textContent!.trim(), a.getAttribute('href')]);
     expect(links).toEqual([
       ['Create New User', '/createuser'], ['Merge Users', '/mergeuser'], ['Merges', '/merges'], ['Gamertag Claims', '/claims'], ['Past Gamertags', '/pastgamertags'],
-      ['Historical Import', '/historicalimport'], ['Jobs', '/jobs'], ['Telemetry', '/telemetry'],
     ]);
   });
 });

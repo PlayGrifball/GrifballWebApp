@@ -120,7 +120,7 @@ public class SeasonSignupAggregateMigrationTests
         // As the old model's public setters could leave them, in SQL: the old schema has a column the model no longer has (Approved)
         async Task<int> Insert(string name, string? teamName, bool willCaptain, bool assistance)
         {
-            var user = await _context.AddUser(name);
+            var user = await seasons.AddUser(name);
             object[] args = teamName is null ? [user.Id, season.SeasonID, at, willCaptain, assistance] : [user.Id, season.SeasonID, at, willCaptain, assistance, teamName];
             // The table's name and the NULL are the test's own text; every value is a parameter
             var insert =

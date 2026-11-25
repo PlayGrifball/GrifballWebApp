@@ -17,7 +17,9 @@
         @if (showTeam()) {
           <th scope="col">Team</th>
         }
-        <th scope="col">Phase</th>
+        @if (showPhase()) {
+          <th scope="col">Phase</th>
+        }
         <th scope="col" class="hud-num" [attr.aria-sort]="headers().gamesPlayed.ariaSort">
           <button type="button" class="hud-cell-btn stats-sort" (click)="sortBy('gamesPlayed')">GP<span class="stats-sort__dir" aria-hidden="true">{{headers().gamesPlayed.arrow}}</span></button>
         </th>
@@ -64,7 +66,9 @@
               }
             </td>
           }
-          <td>{{p.isPlayoffs ? 'Playoffs' : 'Regular'}}</td>
+          @if (showPhase()) {
+            <td>{{p.isPlayoffs ? 'Playoffs' : 'Regular'}}</td>
+          }
           <td class="hud-num">{{p.gamesPlayed}}</td>
           <td class="hud-num">{{p.wins}}-{{p.losses}}</td>
           <td class="hud-num">{{p.goals}}</td>

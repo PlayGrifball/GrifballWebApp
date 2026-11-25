@@ -101,6 +101,7 @@ public static class ApplicationServiceCollectionExtensions
         // The calendar feeds of the matches (iCalendar), of what the public may see
         services.AddTransient<MatchCalendarService>();
         services.AddTransient<RegionService>();
+        services.AddTransient<ProfilePictureService>();
         services.AddTransient<QuickSearchService>();
         services.AddTransient<TeamService>();
         services.AddTransient<IUserManagementService, UserManagementService>();

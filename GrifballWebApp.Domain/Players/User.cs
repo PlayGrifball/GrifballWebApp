@@ -120,6 +120,8 @@ public class User : IdentityUser<int>, IAuditStamp, IHasDomainEvents
     public RegionSource? RegionSource { get; private set; }
     public string? DisplayName { get; private set; }
     public bool IsDummyUser { get; private set; }
+    /// <summary>Which Xbox image shows for the user: the emblem unless they chose their gamer picture (<see cref="ChooseProfilePicture"/>).</summary>
+    public ProfilePictureChoice ProfilePicture { get; private set; } = ProfilePictureChoice.Emblem;
 
     /// <summary>The prefix of an import placeholder's user name: a dummy user the historical import stands in for a
     /// gamertag with ("historical:Name"), until it is claimed or tied to the Xbox account that holds the gamertag now.
@@ -337,6 +339,18 @@ public class User : IdentityUser<int>, IAuditStamp, IHasDomainEvents
         RegionSource = source;
         Changed();
         return RegionChoice.Set;
+    }
+
+    /// <summary>The Xbox image that stands for the user on the site. Returns false when it was that already.</summary>
+    public bool ChooseProfilePicture(ProfilePictureChoice choice)
+    {
+        if (!Enum.IsDefined(choice))
+            throw new ArgumentOutOfRangeException(nameof(choice), choice, "Not a profile picture");
+        if (ProfilePicture == choice)
+            return false;
+        ProfilePicture = choice;
+        Changed();
+        return true;
     }
 
     /// <summary>

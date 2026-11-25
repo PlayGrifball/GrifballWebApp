@@ -29,6 +29,7 @@ class LinkedAccountsStubComponent {}
 @Component({ selector: 'app-profile-identity', template: '<p>identity</p>' })
 class ProfileIdentityStubComponent {
   readonly regionID = input<number | null>(null);
+  readonly profilePicture = input<string>('Emblem');
   readonly changed = output<void>();
 }
 
@@ -446,7 +447,7 @@ describe('ProfileComponent', () => {
           exterminations: 2, damageDealt: null, damageTaken: null, punches: null, roleNote: null, score: null, swordKills: null, tradeNote: null,
           grabs: null, battingAverage: null, scoringAverage: null, combinedAverage: null
         }
-      ], regionID: null, regionName: null, serviceRecord: null
+      ], regionID: null, regionName: null, profilePicture: 'Emblem', serviceRecord: null
     };
 
     fixture.detectChanges();

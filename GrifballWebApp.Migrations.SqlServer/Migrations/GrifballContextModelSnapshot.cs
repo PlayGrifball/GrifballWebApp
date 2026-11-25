@@ -3947,6 +3947,11 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<int>("ProfilePicture")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<int?>("RegionID")
                         .HasColumnType("int");
 
@@ -3994,6 +3999,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.ToTable("Users", "Auth", t =>
                         {
+                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "ProfilePicture IN (0, 1)");
+
                             t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "RegionSource IS NULL OR RegionSource IN (1, 2, 3)");
 
                             t.HasCheckConstraint("CK_Auth_Users_LateLeagueRecord", "MMR >= 0 AND Wins >= 0 AND Losses >= 0 AND WinStreak >= 0 AND LossStreak >= 0 AND (WinStreak = 0 OR LossStreak = 0) AND WinStreak <= Wins AND LossStreak <= Losses");

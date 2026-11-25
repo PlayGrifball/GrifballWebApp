@@ -412,4 +412,80 @@ public class ArchiveSeasonTests
             Assert.That(season.Stats, Is.GreaterThan(0));
         }
     }
+
+    /// <summary>
+    /// Seasons whose draft is in a workbook of its own (#604): SML21 Ammy's board (two captains per team, no Team Name row)
+    /// and SML20 Reach PC's blocks ("Captain", then "Round One" ... "Round Five").
+    /// </summary>
+    [TestCase("Summer League 2021 (Amateur)", 9, 27)]
+    [TestCase("Summer League 2020 (Reach PC)", 6, 20)]
+    public async Task ADraftWorkbooksSeason_HasEachTeamsCaptainAndPicks(string seasonName, int teams, int picks)
+    {
+        await using var context = Archive.NewContext();
+        // Teams with their players, then the picks in memory: SQLite has no APPLY for a projection of both
+        var seasonTeams = await context.Teams.AsNoTracking()
+            .Where(t => t.Season.HistoricalSourceID != null && t.Season.SeasonName == seasonName)
+            .Include(t => t.TeamPlayers)
+            .ToListAsync();
+        if (seasonTeams.Count == 0)
+            Assert.Ignore($"{seasonName} isn't in this copy of the archive");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasonTeams.Count(t => t.CaptainID != null), Is.GreaterThanOrEqualTo(teams), "Each team's captain from the draft");
+            Assert.That(seasonTeams.Sum(t => t.TeamPlayers.Count(p => p.DraftRound != null)), Is.GreaterThanOrEqualTo(picks), "The board's picks, by round");
+        }
+    }
+
+    /// <summary>GWL Tournament Series #1's bracket, from its tabs per round (#605): Koi No Yokan won its grand final.</summary>
+    [Test]
+    public async Task GwlTournamentSeries1_HasItsBracket_FromItsRoundTabs()
+    {
+        await using var context = Archive.NewContext();
+        var series = await context.SeasonMatches.AsNoTracking()
+            .Where(m => m.Season.HistoricalSourceID != null && m.Season.SeasonName == "GWL Tournament Series #1" && m.BracketMatch != null)
+            .Select(m => new { m.BracketMatch!.Bracket, Home = m.HomeTeam!.TeamName, Away = m.AwayTeam!.TeamName })
+            .ToListAsync();
+        if (!await context.Seasons.AnyAsync(s => s.HistoricalSourceID != null && s.SeasonName == "GWL Tournament Series #1"))
+            Assert.Ignore("GWL Tournament Series #1 isn't in this copy of the archive");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(series, Has.Count.GreaterThanOrEqualTo(5), "Rounds 2 and 3, the semifinals and the finals, both brackets");
+            Assert.That(series.Where(s => s.Bracket == Bracket.GrandFinal).SelectMany(s => new[] { s.Home.Trim(), s.Away.Trim() }),
+                Has.Some.EqualTo("Koi No Yokan").IgnoreCase, "The Finals tab is the grand final");
+        }
+    }
+
+    /// <summary>
+    /// Seasons whose matches are dated by their schedule (#603): most of their matches have the day the calendar gives them
+    /// (a match the calendar doesn't list, or names a team of no rule finds, stays undated; WL21's calendars fill only their
+    /// first weeks). SL19's per-game rows become its same-day series once dated (97 games, 50 matches). Those whose results are lost
+    /// (SML20, WL20 and SL20 Reach PC) have their schedule's matches, with no result.
+    /// </summary>
+    [TestCase("Spring League 2019", 45)]
+    [TestCase("Spring League 2017 (Pro)", 35)]
+    [TestCase("Spring League 2017 (Amateur)", 75)]
+    [TestCase("Fall League 2020 (PC)", 35)]
+    [TestCase("Winter League 2021 (Legacy)", 7)]
+    [TestCase("Winter League 2021 (Rookie)", 5)]
+    [TestCase("Spring League 2020 (Halo 5 Console)", 20)]
+    [TestCase("Spring League 2020 (Reach Console)", 9)]
+    [TestCase("Summer League 2020", 30)]
+    [TestCase("Winter League 2020 (Reach PC)", 15)]
+    [TestCase("Spring League 2020 (Reach PC)", 10)]
+    [TestCase("GGL Summer League 2017", 15)]
+    [TestCase("GWL Spring League 2023", 40)]
+    public async Task AScheduledSeason_HasItsMatchesDays(string seasonName, int dated)
+    {
+        await using var context = Archive.NewContext();
+        var matches = await context.SeasonMatches.AsNoTracking()
+            .Where(m => m.Season.HistoricalSourceID != null && m.Season.SeasonName == seasonName && m.BracketMatch == null)
+            .Select(m => m.ScheduledTime)
+            .ToListAsync();
+        if (matches.Count == 0)
+            Assert.Ignore($"{seasonName} isn't in this copy of the archive, or has no matches");
+
+        Assert.That(matches.Count(m => m != null), Is.GreaterThanOrEqualTo(dated), $"{matches.Count} matches");
+    }
 }

@@ -65,6 +65,34 @@ describe('ProfileIdentityComponent', () => {
     expect(changed).toBe(1);
   });
 
+  it('shows which picture the user chose, labelled, and saves another', async () => {
+    fixture.componentRef.setInput('profilePicture', 'GamerPicture');
+    http.expectOne(claimsUrl).flush([]);
+    await settle();
+    const select = el().querySelector<HTMLSelectElement>('#pi-picture')!;
+    expect(el().querySelector('label[for="pi-picture"]')).not.toBeNull();
+    expect(select.selectedOptions[0].textContent!.trim()).toBe('My gamer picture');
+    let changed = 0;
+    fixture.componentInstance.changed.subscribe(() => changed++);
+    select.value = 'Emblem';
+    select.dispatchEvent(new Event('change'));
+    const save = http.expectOne('/api/me/profile-picture');
+    expect(save.request.body).toEqual({ profilePicture: 'Emblem' });
+    save.flush(null, { status: 204, statusText: 'No Content' });
+    expect(changed).toBe(1);
+  });
+
+  it('puts the picture select back to what is saved when saving fails', async () => {
+    fixture.componentRef.setInput('profilePicture', 'GamerPicture');
+    http.expectOne(claimsUrl).flush([]);
+    await settle();
+    const select = el().querySelector<HTMLSelectElement>('#pi-picture')!;
+    select.value = 'Emblem';
+    select.dispatchEvent(new Event('change'));
+    http.expectOne('/api/me/profile-picture').flush({ title: 'No.' }, { status: 400, statusText: 'Bad Request' });
+    expect(select.value).toBe('GamerPicture');
+  });
+
   it('clears the region, and says when it cannot be saved', async () => {
     http.expectOne(claimsUrl).flush([]);
     await settle();

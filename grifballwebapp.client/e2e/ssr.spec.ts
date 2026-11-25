@@ -34,7 +34,7 @@ async function watch(page: Page): Promise<{ calls: string[], errors: string[] }>
   });
   page.on('console', message => {
     // A player with no stored picture answers 404 and the page keeps their initial; the browser logs that 404
-    if (message.type() === 'error' && !/\/(gamer-picture|halo-emblem)$/.test(message.location().url))
+    if (message.type() === 'error' && !/\/profile-picture$/.test(message.location().url))
       errors.push(message.text());
   });
   page.on('pageerror', error => errors.push(error.message));
@@ -215,7 +215,7 @@ test('pages for signed-in users are rendered on the server too, as that user', a
 });
 
 for (const path of ['/seasonManager', '/usermanagement', '/usermanagement/createuser', '/season/13/signupForm', '/season/13/draft', '/season/12/teams', '/reschedule-request/31',
-  '/databasebackup', '/usermanagement/telemetry']) {
+  '/sysadmin/databasebackup', '/sysadmin/telemetry']) {
   test(`${path} is rendered for a signed-in commissioner and taken over without errors`, async ({ page }) => {
     await signIn(page.context(), 'admin');
     const { errors } = await watch(page);

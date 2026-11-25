@@ -40,6 +40,10 @@ public sealed partial class HistoricalArchiveBuilder
     private string? _championsSourceUrl;
     private readonly List<RecordedGameInput> _games = [];
     private readonly List<ArchiveForfeitInput> _forfeits = [];
+    /// <summary>Schedules' matches of seasons whose results are lost (<see cref="ScheduleTab.Unplayed"/>).</summary>
+    private readonly List<ArchiveScheduledMatchInput> _scheduled = [];
+    /// <summary>The seasons a schedule covers (<see cref="HistoricalArchiveInput.ScheduledSeasons"/>).</summary>
+    private readonly HashSet<string> _scheduledSeasons = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ArchivePlayerInput> _players = [];
     private readonly List<CatalogSource> _catalog = [];
     /// <summary>Each Waypoint tab's games, parsed as its source is read; put under their season's key once every season is known.</summary>
@@ -53,6 +57,8 @@ public sealed partial class HistoricalArchiveBuilder
     private readonly List<LadderRead> _ladders = [];
     /// <summary>Each result list's games, put under their season once every season is known.</summary>
     private readonly List<(string SourceId, int? Year, SeasonDefaults? Defaults, ResultsTab Tab, List<RecordedGameInput>? Games)> _results = [];
+    /// <summary>Each schedule tab's matches, which date their season's series once every result list's games are in.</summary>
+    private readonly List<(string SourceId, ScheduleTab Tab, List<CalendarMatch>? Matches)> _schedules = [];
     /// <summary>Each bracket tab's series, put on their season's regular season once every season (and its standings) is known.</summary>
     private readonly List<(string SourceId, BracketTab Tab, ArchiveBracket? Bracket)> _brackets = [];
     /// <summary>Each normalized bracket table's series, keyed by season source ID.</summary>
@@ -143,11 +149,13 @@ public sealed partial class HistoricalArchiveBuilder
             _brackets.Add((id, tab, BracketParser.Parse(id, tab, workbook, _warnings)));
     }
 
-    /// <summary>The result lists of a source (<see cref="AddResults"/> puts their games under their seasons).</summary>
+    /// <summary>The result lists and schedules of a source (<see cref="AddResults"/> puts their games under their seasons, <see cref="AddSchedules"/> dates them).</summary>
     private void AddResultLists(string id, int? year, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
         foreach (var tab in config.Results)
             _results.Add((id, year, config.Season, tab, workbook.Sheet(tab.Sheet) is { } resultsSheet ? GameResultsParser.Parse(id, tab, resultsSheet, _warnings) : null));
+        foreach (var tab in config.Schedules)
+            _schedules.Add((id, tab, workbook.Sheet(tab.Sheet) is { } scheduleSheet ? ScheduleParser.Parse(id, tab, scheduleSheet, _warnings) : null));
     }
 
     /// <summary>The snapshot's workbook, the sheets its config reads; null (a warning said why) when it can't be read.</summary>
@@ -301,6 +309,7 @@ public sealed partial class HistoricalArchiveBuilder
         AddDrafts();
         AddResults();
         NameGameSides();
+        AddSchedules();
         AddBrackets();
         AddAwards();
 
@@ -315,6 +324,8 @@ public sealed partial class HistoricalArchiveBuilder
                 .ToDictionary(w => w.Key, w => new WaypointSeasonMatches { Regular = [.. w.Value.Regular], Playoffs = [.. w.Value.Playoffs], Schedule = [.. w.Value.Schedule.Values.OrderBy(g => g.MatchId, StringComparer.Ordinal)] }),
             RecordedGames = _games.Count > 0 ? _games : null,
             Forfeits = _forfeits.Count > 0 ? _forfeits : null,
+            ScheduledMatches = _scheduled.Count > 0 ? _scheduled : null,
+            ScheduledSeasons = _scheduledSeasons.Count > 0 ? [.. _scheduledSeasons] : null,
             // The players list goes along when it changed (it is matched against every season's placeholders)
             Players = _playersChanged && _players.Count > 0 ? _players : null,
         };
@@ -522,18 +533,22 @@ public sealed partial class HistoricalArchiveBuilder
                 .GroupBy(p => HistoricalKeys.Normalize(p.Gamertag)).ToDictionary(g => g.Key, g => g.First().TeamName!.Trim());
             foreach (var team in teams)
             {
-                var captain = SeasonPlayer(team.Captain, players);
+                var captain = SeasonPlayer(Nicknamed(tab, team.Captain), players);
                 var name = (team.TeamName.Length > 0 ? Closest(team.TeamName, known) : null)
                     ?? (captain is not null ? teamOf.GetValueOrDefault(HistoricalKeys.Normalize(captain)) : null);
                 if (name is null)
                     continue;
-                var picks = team.Picks.Select(p => SeasonPlayer(p.Gamertag, players) is { } gamertag ? p with { Gamertag = gamertag } : null).OfType<ArchiveDraftPick>().ToList();
+                var picks = team.Picks.Select(p => SeasonPlayer(Nicknamed(tab, p.Gamertag), players) is { } gamertag ? p with { Gamertag = gamertag } : null).OfType<ArchiveDraftPick>().ToList();
                 regular.Teams.Add(team with { TeamName = name, Captain = captain, Picks = picks });
             }
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
         }
     }
+
+    /// <summary>A draft's name for a player: the gamertag its tab's <see cref="DraftTab.Names"/> gives the nickname, else the name.</summary>
+    private static string? Nicknamed(DraftTab tab, string? name)
+        => name is null ? null : tab.Names.FirstOrDefault(n => string.Equals(n.Key, name.Trim(), StringComparison.OrdinalIgnoreCase)).Value ?? name;
 
     /// <summary>Two names' digits don't tell them apart: the same, or only one has any ("NecessaryEvil" and NecessaryEvil10,
     /// never "Reaper3" and Reaper2).</summary>

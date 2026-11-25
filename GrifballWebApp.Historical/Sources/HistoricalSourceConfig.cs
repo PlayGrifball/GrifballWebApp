@@ -54,6 +54,9 @@ public class HistoricalSourceConfig
     /// <summary>Tabs of a season's results, a game or a series per entry (GameResultsParser): the season's games when no
     /// per-game stats tab has them, and the forfeits and unlinked games of a Waypoint season's game history.</summary>
     public List<ResultsTab> Results { get; init; } = [];
+    /// <summary>Tabs of a season's schedule, a calendar (ScheduleParser): the days its matches were played on, which date
+    /// the games the season's result lists have without one.</summary>
+    public List<ScheduleTab> Schedules { get; init; } = [];
     /// <summary>A season's playoff bracket: who met whom in which round, their seeds and who won (BracketParser).</summary>
     public List<BracketTab> Brackets { get; init; } = [];
     /// <summary>Tabs of a season's draft: each team's captain, its place in the draft order and its picks by round.</summary>
@@ -105,6 +108,7 @@ public class HistoricalSourceConfig
             .. Ladders.Select(t => t.Sheet),
             FinishesSheet,
             .. Results.Select(t => t.Sheet),
+            .. Schedules.Select(t => t.Sheet),
             .. Brackets.Select(t => t.Sheet),
             .. Brackets.Select(t => t.RecordsSheet),
             .. Brackets.SelectMany(t => t.Rounds.Select(r => r.Sheet)),
@@ -394,8 +398,8 @@ public class DraftTab
     public DraftLayout Layout { get; init; }
     /// <summary>What a board's columns say of the draft's order.</summary>
     public DraftOrder Order { get; init; }
-    /// <summary>Players the tab names otherwise than the stats, by the name it gives (any case): a nickname or duo-captain
-    /// shorthand to their gamertag ("Viper": "PapaSnipezX").</summary>
+    /// <summary>Players the draft names by a nickname or duo-captain shorthand (any case), to their gamertag as the stats write it (SML20 Reach PC's
+    /// "Galvan": Galvann), who would otherwise be no player of the season.</summary>
     public Dictionary<string, string> Names { get; init; } = [];
 }
 
@@ -407,6 +411,9 @@ public enum DraftLayout
     Board,
     /// <summary>A row per player under a header with Team Name and Player Name, and Draft Order, Seed # or Draft Pick.</summary>
     Table,
+    /// <summary>A block per team: a "Captain" cell with the captain in the next cell, and below it a row per round ("Round
+    /// One"), each with its pick in the next cell; the blocks in reading order.</summary>
+    Blocks,
 }
 
 public enum DraftOrder
@@ -465,7 +472,8 @@ public enum ResultsLayout
     /// a link; the rest (not played yet) are left out.</summary>
     GameHistory = 3,
     /// <summary>A calendar: cells of games each after its time ("9:30pm: Impulse (5) vs. High Voltage (1)", "*8pm: A (0) @ B (5)"),
-    /// a game a score each; a game without scores (not played, or not reported) is left out.</summary>
+    /// a game a score each; a game without scores (not played, or not reported) is left out. With the tab's
+    /// <see cref="ResultsTab.Year"/> and <see cref="ResultsTab.Month"/>, each game is dated by the calendar's day above it.</summary>
     Calendar = 4,
 }
 
@@ -488,9 +496,39 @@ public class ResultsTab
     public string? Game { get; init; }
     /// <summary>Every game is a playoff game (a playoffs-only list).</summary>
     public bool IsPlayoffs { get; init; }
+    /// <summary>A <see cref="ResultsLayout.Calendar"/>'s year and month of its first row of days of the month (SL20 Console's
+    /// "1 | 2 | 3 | 4"): each game is dated by its day, at its time. Unset: its games are undated.</summary>
+    public int? Year { get; init; }
+    public int? Month { get; init; }
     /// <summary>Names the list gives a team that the season spells another way and no rule finds (an abbreviation that is not
     /// its words' first letters): the list's name to the season's.</summary>
     public Dictionary<string, string> Teams { get; init; } = [];
+}
+
+/// <summary>
+/// A tab of a season's schedule (ScheduleParser): a calendar whose days are dates ("5/19/2019"), a weekday's month and day
+/// ("Monday | March | 27") or a row of a week's days of the month ("2 | 3 | ... | 8"), each with its matches in the cells
+/// below it ("A vs. B 9:00", "A over B 2-0", "ND 5-3 IMP"). Its matches date the season's undated series of the same two
+/// teams, in order; a match no series is of is left out, or (<see cref="Unplayed"/>) is a match with no result.
+/// </summary>
+public class ScheduleTab
+{
+    public required string Sheet { get; init; }
+    /// <summary>The source ID of the season's stats workbook; null: this workbook's own.</summary>
+    public string? Season { get; init; }
+    /// <summary>The stats tab (its <see cref="StatsTab.Name"/>) of the season, when the workbook has several seasons.</summary>
+    public string? Tab { get; init; }
+    /// <summary>The year of the calendar's first day, when its days don't say (a month and day, a day of the month).</summary>
+    public int? Year { get; init; }
+    /// <summary>The month of the calendar's first row of days of the month; each row whose days start again from 1 is the next month's.</summary>
+    public int? Month { get; init; }
+    /// <summary>Names the calendar gives a team that the season spells another way and no rule finds: the calendar's name to the season's.</summary>
+    public Dictionary<string, string> Teams { get; init; } = [];
+    /// <summary>The season's results are lost: each meeting that dates no game is a match of its own, on its day, with no result.</summary>
+    public bool Unplayed { get; init; }
+    /// <summary>Each entry is a whole match whose games are a per-game tab's rows (GWL SL23's "A @ B"): it dates its teams' first
+    /// undated game and the undated games of theirs right after it.</summary>
+    public bool WholeSeries { get; init; }
 }
 
 /// <summary>

@@ -105,13 +105,14 @@ public class UserAggregateDatabaseTests
         var migrator = _context.GetService<IMigrator>();
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_UserAggregate"))) - 1]);
+        await using var old = BeforeSeasonSourceLinksContext.On(_context);
 
         // Rows as the old model's public setters could leave them
         var rows = new Dictionary<string, User>();
         void Row(string name, Shape shape)
         {
             var user = User.Seed(userName: name.Replace(' ', '-'));
-            Set(_context.Users.Add(user), shape);
+            Set(old.Users.Add(user), shape);
             rows[name] = user;
         }
         Row("legal", new(RegionID: West, RegionSource: RegionSource.Sysadmin, MMR: 1100, Wins: 3, Losses: 1, WinStreak: 2));
@@ -122,7 +123,7 @@ public class UserAggregateDatabaseTests
         Row("two streaks", new(Wins: 4, Losses: 4, WinStreak: 2, LossStreak: 1));
         Row("streaks past the record", new(Wins: 1, Losses: 3, WinStreak: 0, LossStreak: 5));
         Row("merged source", new(Wins: 0, Losses: 0, WinStreak: 2));
-        await _context.SaveChangesAsync();
+        await old.SaveChangesAsync();
 
         await migrator.MigrateAsync();
 

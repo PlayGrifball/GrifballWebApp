@@ -228,6 +228,7 @@ const profileStats = (userID: number, gamertag: string | null): ProfileStatsDto 
   isDummyUser: false,
   regionID: 2,
   regionName: 'Central North America',
+  profilePicture: 'Emblem',
   pastGamertags: [],
   championships: [
     {
@@ -553,7 +554,7 @@ const quickSearch: QuickSearchDto = {
   ],
 };
 
-// The Telemetry page (/usermanagement/telemetry): the last hour's metrics, a few log lines, and the traces (one open by ?trace=)
+// The Telemetry page (/sysadmin/telemetry): the last hour's metrics, a few log lines, and the traces (one open by ?trace=)
 const minuteSeries = (name: string, base: number, wave: number) => ({
   name, points: Array.from({ length: 61 }, (_, i) => [Date.parse('2026-10-29T17:00:00Z') + i * 60_000, Math.round((base + wave * Math.sin(i / 6)) * 100) / 100]),
 });
@@ -827,12 +828,12 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
       { userID: 403, name: 'Spartan Sam', score: 0.6, reasons: ['No recorded games: an unknown'] },
     ] }),
     '/api/commissioner-dashboard': answer('getDashboardData', commissionerDashboard),
-    // The historical import page (/usermanagement/historicalimport): its sources, jobs, schedule, and a guarded import's job
+    // The historical import page (/sysadmin/historicalimport): its sources, jobs, schedule, and a guarded import's job
     '/api/historical-sources': answer('getHistoricalSources', historicalSources),
     '/api/historical-imports': answer('getHistoricalImportJobs', historicalJobs),
     '/api/historical-imports/schedule': answer('getHistoricalImportSchedule', { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null }),
     '/api/historical-imports/41': answer('getHistoricalImportJob', historicalJob),
-    // The Jobs page (/usermanagement/jobs) and each job's runs (?take= is not matched)
+    // The Jobs page (/sysadmin/jobs) and each job's runs (?take= is not matched)
     '/api/jobs': answer('getJobs', jobsOverview),
     ...Object.fromEntries(jobsOverview.jobs.map(j => [`/api/jobs/${j.group}/${j.name}/runs`, answer('getJobHistory', jobHistory)])),
     // VODs: the match page's, the seasons', the teams' and the profiles' (through their teams), and the review list
@@ -897,12 +898,12 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
     '/api/late-league/seasons': answer('getLateLeagueSeasons', lateLeagueSeasons),
     '/api/late-league/seasons/3': answer('getLateLeagueSeason', { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]), ladder: lateLeagueLadder }),
     '/api/search': answer('quickSearch', quickSearch),
-    // The database backup page (/databasebackup): a SQLite backup made, and the last export done
+    // The database backup page (/sysadmin/databasebackup): a SQLite backup made, and the last export done
     '/api/backups/info': answer('backupInfo', { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] }),
     '/api/backups/sqlite/status': answer('backupDownloadStatus', { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',
               fileName: 'GrifballWebApp-2026-10-29.sqlite', tables: 64, rows: 182340, message: null, size: 41_943_040, runningFormat: null, progress: null, progressMessage: null }),
     '/api/database-exports/status': answer('backupExportStatus', { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null, progress: null, progressMessage: null }),
-    // The Telemetry page (/usermanagement/telemetry): every backend set up
+    // The Telemetry page (/sysadmin/telemetry): every backend set up
     '/api/telemetry/status': answer('getTelemetryStatus', { serviceName: 'grifballwebapp', logs: true, metrics: true, traces: true }),
     '/api/telemetry/metrics': answer('getTelemetryMetrics', telemetryMetrics),
     '/api/telemetry/logs': answer('getTelemetryLogs', telemetryLogs),
@@ -922,7 +923,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
 }
 
 // The historical import page: a few of the archive's sources (one gone for good), its latest jobs and a guarded import
-// The Jobs page (/usermanagement/jobs): the recurring jobs on a worker with Discord on, one paused and one failing
+// The Jobs page (/sysadmin/jobs): the recurring jobs on a worker with Discord on, one paused and one failing
 const job = (name: string, description: string, intervalSeconds: number, extra: object = {}) => ({
   group: 'recurring', name, displayName: name, description, recurring: true, enabled: true, state: 'Scheduled', intervalSeconds, defaultIntervalSeconds: intervalSeconds,
   nextRunAt: null, previousRunAt: null, pausedReason: null, pausedBy: null, pausedAt: null, running: [], status: null, ...extra,

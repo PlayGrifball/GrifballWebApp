@@ -50,27 +50,31 @@ describe('SeasonPlayerStatsComponent', () => {
       const req = await load(12, [
         stat(1, 'Alpha', { tradeNote: 'Traded wk 3', goals: 5, kills: 50, gamesPlayed: 10 }),
         stat(2, 'Bravo', { teamID: null, teamName: null, kdRatio: null, goals: 9, kills: 30, gamesPlayed: 12 }),
-        stat(3, 'Alpha', { isPlayoffs: true, teamName: 'Relentless', goals: 1, kills: 70, gamesPlayed: 3 }),
+        stat(3, 'Alpha', { userID: 101, isPlayoffs: true, teamName: 'Relentless', goals: 1, kills: 70, gamesPlayed: 3 }),
       ]);
       expect(req.request.params.has('teamID')).toBeFalse();
     });
 
-    it('lists every row, linking players and their teams', () => {
-      expect(players()).toEqual(['Alpha', 'Bravo', 'Alpha']);
+    it("adds each player's phases together under All, with no phase column, linking players and their teams", () => {
+      expect(players()).toEqual(['Bravo', 'Alpha']);
       expect(headers()[1]).toBe('Team');
-      const first = el().querySelectorAll('tbody tr')[0];
-      expect(Array.from(first.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/101', '/season/12/team/40']);
-      expect(first.textContent).toContain('Traded wk 3');
-      const second = el().querySelectorAll('tbody tr')[1];
-      expect(second.textContent).toContain('No team');
-      expect(second.textContent).toContain('-');
+      expect(headers()).not.toContain('Phase');
+      const alpha = el().querySelectorAll('tbody tr')[1];
+      expect(Array.from(alpha.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/101', '/season/12/team/40']);
+      expect(alpha.textContent).toContain('Traded wk 3');
+      expect(fixture.componentInstance.shown()[1]).toEqual(jasmine.objectContaining({ gamesPlayed: 13, goals: 6, kills: 120, deaths: 50, kdRatio: 2.4 }));
+      const bravo = el().querySelectorAll('tbody tr')[0];
+      expect(bravo.textContent).toContain('No team');
+      expect(bravo.textContent).toContain('-');
     });
 
-    it('filters by phase', () => {
+    it('filters by phase, with a phase column', () => {
       const buttons = Array.from(el().querySelectorAll<HTMLButtonElement>('.stats-controls button'));
       buttons[2].click();
       fixture.detectChanges();
       expect(players()).toEqual(['Alpha']);
+      expect(headers()).toContain('Phase');
+      expect(el().querySelector('tbody tr')!.textContent).toContain('Playoffs');
       expect(buttons[2].getAttribute('aria-pressed')).toBe('true');
       buttons[1].click();
       fixture.detectChanges();
@@ -86,7 +90,7 @@ describe('SeasonPlayerStatsComponent', () => {
       input.value = 'relent';
       input.dispatchEvent(new Event('input'));
       fixture.detectChanges();
-      expect(players()).toEqual(['Alpha', 'Alpha']);
+      expect(players()).toEqual(['Alpha']);
       input.value = 'nobody';
       input.dispatchEvent(new Event('input'));
       fixture.detectChanges();
@@ -95,6 +99,8 @@ describe('SeasonPlayerStatsComponent', () => {
     });
 
     it('sorts by goals, kills or games played from the headers, most first, and flips on a second click', () => {
+      fixture.componentInstance.phase.set('regular');
+      fixture.detectChanges();
       const header = (name: string) => Array.from(el().querySelectorAll('thead th')).find(th => th.querySelector('button')?.textContent!.trim().startsWith(name))!;
       const click = (name: string) => {
         header(name).querySelector('button')!.click();
@@ -103,28 +109,34 @@ describe('SeasonPlayerStatsComponent', () => {
       expect(header('Goals').getAttribute('aria-sort')).toBe('none');
 
       click('Goals');
-      expect(players()).toEqual(['Bravo', 'Alpha', 'Alpha']);
+      expect(players()).toEqual(['Bravo', 'Alpha']);
       expect(header('Goals').getAttribute('aria-sort')).toBe('descending');
       expect(header('Goals').querySelector('[aria-hidden="true"]')!.textContent).toBe('▼');
 
       click('Goals');
-      expect(players()).toEqual(['Alpha', 'Alpha', 'Bravo']);
+      expect(players()).toEqual(['Alpha', 'Bravo']);
       expect(header('Goals').getAttribute('aria-sort')).toBe('ascending');
 
       click('K');
-      expect(fixture.componentInstance.shown().map(p => p.kills)).toEqual([70, 50, 30]);
+      expect(fixture.componentInstance.shown().map(p => p.kills)).toEqual([50, 30]);
       expect(header('K').getAttribute('aria-sort')).toBe('descending');
       expect(header('Goals').getAttribute('aria-sort')).toBe('none');
 
       click('GP');
-      expect(fixture.componentInstance.shown().map(p => p.gamesPlayed)).toEqual([12, 10, 3]);
+      expect(fixture.componentInstance.shown().map(p => p.gamesPlayed)).toEqual([12, 10]);
+    });
+
+    it('sorts the combined rows under All', () => {
+      fixture.componentInstance.sortBy('kills');
+      fixture.detectChanges();
+      expect(fixture.componentInstance.shown().map(p => p.kills)).toEqual([120, 30]);
     });
 
     it('sorts only the rows the filters leave', () => {
-      fixture.componentInstance.phase.set('regular');
+      fixture.componentInstance.phase.set('playoffs');
       fixture.componentInstance.sortBy('kills');
       fixture.detectChanges();
-      expect(fixture.componentInstance.shown().map(p => p.kills)).toEqual([50, 30]);
+      expect(fixture.componentInstance.shown().map(p => p.kills)).toEqual([70]);
     });
 
     it('starts over, without the last season\'s rows, when the season changes', async () => {

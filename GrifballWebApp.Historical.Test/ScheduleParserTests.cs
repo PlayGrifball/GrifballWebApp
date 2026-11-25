@@ -1,0 +1,255 @@
+using GrifballWebApp.Historical.Parsing;
+using GrifballWebApp.Historical.Sources;
+using GrifballWebApp.Infrastructure.Excel;
+
+namespace GrifballWebApp.Historical.Test;
+
+/// <summary>ScheduleParser on the archive's calendars (the sheets' own, trimmed to a few days).</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+public class ScheduleParserTests
+{
+    private static readonly string[] NoMonth = ["sml20/Full Schedule: rows of days of the month not read (the tab's Year and Month aren't set)"];
+
+    private static SheetTable Sheet(params string[][] rows) => new() { Name = "Full Schedule", Rows = [.. rows] };
+
+    private static List<CalendarMatch> Parse(ScheduleTab tab, SheetTable sheet, List<string>? warnings = null)
+        => ScheduleParser.Parse("sml20", tab, sheet, warnings ?? []);
+
+    /// <summary>9 pm Eastern (summer time), in UTC: 1 am the next day.</summary>
+    private static DateTime NinePm(int year, int month, int day) => new DateTime(year, month, day, 1, 0, 0, DateTimeKind.Utc).AddDays(1);
+
+    [Test]
+    public void WeeksOfDays_DateTheMatchesBelowEachDay_TheNextMonthOnceTheDaysStartAgain()
+    {
+        // SML20's Full Schedule: a week's days of the month, its matches below; the standings to the right are no match
+        var sheet = Sheet(
+            ["", "", "", "Sunday", "", "Monday", "", "Tuesday", "", "", "", "", "", "", "", "", "", "Standings"],
+            ["", "Week", "", "30", "", "31", "", "1", "", "", "", "", "", "", "", "", "", "Slytherin (15-1)"],
+            ["", "1", "", "", "", "Bank Your Items! vs Slytherin 9:00", "", "ZAMF over Turquoise Jeep 2-0", "", "", "", "", "", "", "", "", "", "E-Dogs vs Zed 9:00"],
+            ["", "", "", "", "", "", "", "Kill The Carrier ", "", "", "", "", "", "", "", "", "", "Turquoise Jeep (9-1)"],
+            ["", "Week", "", "6", "", "7", "", "8"],
+            ["", "2", "", "Circus Galvino vs. Redemption Runners 10:00"]);
+
+        var matches = Parse(new ScheduleTab { Sheet = "Full Schedule", Year = 2020, Month = 5 }, sheet);
+
+        Assert.That(matches.Select(m => (m.PlayedAt, m.First, m.Second)), Is.EqualTo(new[]
+        {
+            (NinePm(2020, 5, 31), "Bank Your Items!", "Slytherin"),
+            (new DateTime(2020, 6, 1, 0, 0, 0, DateTimeKind.Utc), "ZAMF", "Turquoise Jeep"),
+            (NinePm(2020, 6, 6).AddHours(1), "Circus Galvino", "Redemption Runners"),
+        }), "May 30 and 31, then June; a match with no time is its day; half a match in a cell is none");
+    }
+
+    [Test]
+    public void ADateRow_DatesItsColumns_TheRowsFirstCellTheTime()
+    {
+        // SL19's Schedule: a Date row, each later row's first cell its time
+        var sheet = Sheet(
+            ["", "Sunday", "", "Monday"],
+            ["Date", "5/19/2019", "", "5/20/2019", "", "Date"],
+            ["9:00pm est", "", "", "Mon over Junk 5-3", "", "9:00pm est", "Team Name"],
+            ["9:00pm est", "Doc over TT 5-1", "MP over Hype 5-2"]);
+
+        var matches = Parse(new ScheduleTab { Sheet = "Schedule" }, sheet);
+
+        Assert.That(matches.Select(m => (m.PlayedAt, m.First, m.Second)), Is.EqualTo(new[]
+        {
+            (NinePm(2019, 5, 20), "Mon", "Junk"),
+            (NinePm(2019, 5, 19), "Doc", "TT"),
+            (NinePm(2019, 5, 19), "MP", "Hype"),
+        }), "A day's column runs to the next day's");
+    }
+
+    [Test]
+    public void AWeekdaysMonthAndDay_DateItsColumns_ScoresBetweenTheTeams()
+    {
+        // SL17's Schedule: "Monday | March | 27" per day, the year the tab's, into April
+        var sheet = Sheet(
+            ["Week One", "Friday", "March", "31", "Saturday", "April", "1"],
+            ["09:00:00", "ND 5-3 IMP", "", "", "HT 5-1 PR"]);
+
+        var matches = Parse(new ScheduleTab { Sheet = "Schedule", Year = 2017 }, sheet);
+
+        Assert.That(matches.Select(m => (m.PlayedAt.ToUniversalTime().Date, m.First, m.Second)), Is.EqualTo(new[]
+        {
+            (new DateTime(2017, 4, 1), "ND", "IMP"), (new DateTime(2017, 4, 2), "HT", "PR"),
+        }), "09:00:00 is 9 pm Eastern: the next day in UTC");
+    }
+
+    [TestCase("MM vs. LMT", "MM", "LMT")]
+    [TestCase("2-0 G over Z", "G", "Z")]
+    [TestCase("2 - 0 LMT over PIE", "LMT", "PIE")]
+    [TestCase("0 MM vs. DBAGS 2", "MM", "DBAGS")]
+    [TestCase("E-Dogs tied Redemption Runners 1-1", "E-Dogs", "Redemption Runners")]
+    [TestCase("Grifballs Deep V. Free Agents 8pm", "Grifballs Deep", "Free Agents")]
+    [TestCase("ASP (Dhmon) vs. FB (Saintz)", "ASP (Dhmon)", "FB (Saintz)")]
+    [TestCase("2 Hype Crew vs Zero Gravity", "2 Hype Crew", "Zero Gravity")]
+    [TestCase("9:30pm: Impulse (5) vs. High Voltage (1)", "Impulse", "High Voltage")]
+    public void AMatchsCell_NamesItsTwoTeams(string cell, string first, string second)
+    {
+        var matches = Parse(new ScheduleTab { Sheet = "Schedule" }, Sheet(["Date", "6/1/2020"], ["", cell]));
+
+        Assert.That(matches.Select(m => (m.First, m.Second)), Is.EqualTo(new[] { (first, second) }));
+    }
+
+    [TestCase("Split Series 1 - 1")]
+    [TestCase("No Games")]
+    [TestCase("ALL GAME TIMES ARE EASTERN!!!!!")]
+    [TestCase("TBD vs Alpha")]
+    public void ACellThatIsNoMatch_IsLeftOut(string cell)
+    {
+        Assert.That(Parse(new ScheduleTab { Sheet = "Schedule" }, Sheet(["Date", "6/1/2020"], ["", cell])), Is.Empty);
+    }
+
+    [Test]
+    public void ATimeInTheCellBelow_IsTheMatchs()
+    {
+        // WL21's Legacy Schedule: "8 PM Est." below the match
+        var matches = Parse(new ScheduleTab { Sheet = "Legacy Schedule" }, Sheet(["Date", "1/18/2021"], ["", "BFH vs. OD"], ["", "8 PM Est."]));
+
+        Assert.That(matches.Select(m => m.PlayedAt), Is.EqualTo(new[] { new DateTime(2021, 1, 19, 1, 0, 0, DateTimeKind.Utc) }), "8 pm Eastern (winter time)");
+    }
+
+    [Test]
+    public void DaysOfTheMonth_WithNoMonthSet_AreNotRead_AndSaySo()
+    {
+        var warnings = new List<string>();
+
+        var matches = Parse(new ScheduleTab { Sheet = "Full Schedule" }, Sheet(["Week", "2", "3", "4"], ["1", "A vs B"]), warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(matches, Is.Empty);
+            Assert.That(warnings, Is.EqualTo(NoMonth));
+        }
+    }
+
+    [Test]
+    public void AMonthAndDayCell_DatesItsColumn_TheYearTheTabs()
+    {
+        // GGL SML17's Schedule: "July 31st" per day, into August
+        var sheet = Sheet(
+            ["Date", "July 31st", "", "August 1st", "", "Date"],
+            ["9:00pm est", "OMG over NH 5-0", "DROP over DJ 5-3", "ARK over 4G1B 5-0", "", "9:00pm est"]);
+
+        var matches = Parse(new ScheduleTab { Sheet = "Schedule", Year = 2017 }, sheet);
+
+        Assert.That(matches.Select(m => (m.PlayedAt, m.First, m.Second)), Is.EqualTo(new[]
+        {
+            (NinePm(2017, 7, 31), "OMG", "NH"), (NinePm(2017, 7, 31), "DROP", "DJ"), (NinePm(2017, 8, 1), "ARK", "4G1B"),
+        }));
+    }
+
+    [Test]
+    public void AWeeksRow_DatesItsOwnCells_ByTheWeekdayHeaders_EachMatchTheTimeAfterIt()
+    {
+        // GWL SL23's Schedule: weekday headers, then a row per week, its label first, its matches beside it
+        var sheet = Sheet(
+            ["AWAY @ HOME", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday ", "Saturday "],
+            ["March 26th - April 1st", "", "Dhlyn @ ActiveHate           7PM EST              ActiveHate @ Dhlyn         Double Header", "", "", "", "", "Mavbrid @ oDhmon 10PM EST", "Blue = Rescheduled Games"]);
+
+        var matches = Parse(new ScheduleTab { Sheet = "Schedule", Year = 2023 }, sheet);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(matches.Select(m => (m.PlayedAt, m.First, m.Second)), Is.EqualTo(new[]
+            {
+                (new DateTime(2023, 3, 27, 23, 0, 0, DateTimeKind.Utc), "Dhlyn", "ActiveHate"),
+                (new DateTime(2023, 3, 27, 0, 0, 0, DateTimeKind.Utc), "ActiveHate", "Dhlyn"),
+                (new DateTime(2023, 4, 2, 2, 0, 0, DateTimeKind.Utc), "Mavbrid", "oDhmon"),
+            }), "Monday the 27th, Saturday April 1st; the legend right of Saturday is no day's");
+            Assert.That(matches[^1].Day, Is.EqualTo(new DateTime(2023, 4, 1)), "Its calendar day, though 10 pm is the next day in UTC");
+        }
+    }
+
+    [Test]
+    public void AWeekOrMonthDayThatIsNoDay_IsNoRowOfDays()
+    {
+        var sheet = Sheet(
+            ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
+            ["February 30th - March 6th", "A @ B"],
+            ["Date", "Feb 30", "Mar 1"],
+            ["", "C @ D", "E @ F"]);
+
+        Assert.That(Parse(new ScheduleTab { Sheet = "Schedule", Year = 2023 }, sheet).Select(m => (m.PlayedAt, m.First)),
+            Is.EqualTo(new[] { (new DateTime(2023, 3, 1, 0, 0, 0, DateTimeKind.Utc), "E") }), "No 30th of February; \"Mar 1\" is March's 1st");
+    }
+
+    [TestCase("A vs B 9am", 1, 13, 0)]
+    [TestCase("A vs B 21:30", 2, 1, 30)]
+    [TestCase("A vs B 8:00pm", 2, 0, 0)]
+    [TestCase("A vs B 0:30", 1, 0, 0)]
+    [TestCase("A vs B 9:75", 1, 0, 0)]
+    public void AMatchsTime_IsEasternInUtc_OrNoneWhenItIsNoTime(string cell, int day, int hour, int minute)
+    {
+        var matches = Parse(new ScheduleTab { Sheet = "Schedule" }, Sheet(["Date", "6/1/2020"], ["", cell]));
+
+        Assert.That(matches.Single().PlayedAt, Is.EqualTo(new DateTime(2020, 6, day, hour, minute, 0, DateTimeKind.Utc)),
+            "am and pm, a 24-hour time, and no time (midnight UTC) for an hour or minutes that are none");
+    }
+
+    [Test]
+    public void AWeekRow_NeedsTheTabsYear_AMonth_AndADay()
+    {
+        string[] header = ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
+        var weeks = Sheet(header, ["Week 5th - 11th", "A @ B"], ["March 0th - 6th", "C @ D"]);
+        var noYear = Sheet(header, ["March 5th - 11th", "E @ F"]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Parse(new ScheduleTab { Sheet = "Schedule", Year = 2023 }, weeks), Is.Empty, "No month's name, no 0th");
+            Assert.That(Parse(new ScheduleTab { Sheet = "Schedule" }, noYear), Is.Empty);
+        }
+    }
+
+    [Test]
+    public void DaysOfTheMonth_CrossIntoTheNextYear_AndARunEndsAtADayThatDoesntFollow()
+    {
+        var sheet = Sheet(
+            ["Week", "123", "45", "29.0", "30", "31", "1", "9"],
+            ["", "", "", "A vs B", "", "", "C vs D", "E vs F"],
+            ["Week", "3", "4", "5", "1"],
+            ["", "G vs H", "", "", "I vs J"]);
+
+        var matches = Parse(new ScheduleTab { Sheet = "Full Schedule", Year = 2020, Month = 12 }, sheet);
+
+        Assert.That(matches.Select(m => (m.PlayedAt, m.First)), Is.EqualTo(new[]
+        {
+            (new DateTime(2020, 12, 29, 0, 0, 0, DateTimeKind.Utc), "A"), (new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), "C"),
+            (new DateTime(2021, 1, 3, 0, 0, 0, DateTimeKind.Utc), "G"),
+        }), "123 and 45 are no days, 9 doesn't follow the 1st (E's is no day's), nor a 1st the 5th (I's)");
+    }
+
+    [Test]
+    public void ADateOfAYearNoSeasonWasPlayedIn_IsNoDay_AndAMonthAndDayInTheFirstColumnIsItsOwn()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Parse(new ScheduleTab { Sheet = "Schedule" }, Sheet(["Date", "1/1/1999"], ["", "A vs B"])), Is.Empty);
+            Assert.That(Parse(new ScheduleTab { Sheet = "Schedule" }, Sheet(["Date", "1/1/2200"], ["", "A vs B"])), Is.Empty);
+            Assert.That(Parse(new ScheduleTab { Sheet = "Schedule", Year = 2017 }, Sheet(["July 31st", "August 1st"], ["A @ B", "C @ D"])).Select(m => m.PlayedAt.Date),
+                Is.EqualTo(new[] { new DateTime(2017, 7, 31), new DateTime(2017, 8, 1) }));
+        }
+    }
+
+    [Test]
+    public void ARowOfNumbersWeeksAfterTheLastDay_IsNoWeek_AndMovesNoMonth()
+    {
+        // Mid-March, then a row of week numbers or standings ("5 | 6 | 7"): not April 5-7
+        var sheet = Sheet(
+            ["Week", "14", "15", "16"],
+            ["", "A vs B"],
+            ["", "5", "6", "7"],
+            ["", "C vs D"],
+            ["Week", "21", "22", "23"],
+            ["", "E vs F"]);
+
+        var matches = Parse(new ScheduleTab { Sheet = "Full Schedule", Year = 2021, Month = 3 }, sheet);
+
+        Assert.That(matches.Select(m => (m.PlayedAt.Date, m.First)), Is.EqualTo(new[]
+        {
+            (new DateTime(2021, 3, 14), "A"), (new DateTime(2021, 3, 14), "C"), (new DateTime(2021, 3, 21), "E"),
+        }), "C is still under the 14th; the 21st is March's");
+    }
+}

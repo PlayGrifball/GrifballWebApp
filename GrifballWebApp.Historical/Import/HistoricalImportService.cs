@@ -234,6 +234,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         public List<RecordedGameInput>? RecordedGames { get; set; }
         /// <summary>The season's forfeits; null when the archive has none for it (its forfeited matches are then left as they are).</summary>
         public List<ArchiveForfeitInput>? Forfeits { get; set; }
+        /// <summary>The season's scheduled matches with no result; null when the archive has none for it (its unplayed matches
+        /// are then left as they are).</summary>
+        public List<ArchiveScheduledMatchInput>? ScheduledMatches { get; set; }
         public SeasonFormat Format { get; set; } = SeasonFormat.LeagueSeason;
     }
 
@@ -471,6 +474,23 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Skip(report, $"Recorded game {game.SourceKey}: no season with the key {game.SeasonSourceId} in the archive");
         }
         AssignForfeits(input, bySourceId, report);
+        AssignScheduledMatches(input, bySourceId, report);
+    }
+
+    /// <summary>The scheduled matches to their seasons (never a matchmaking one: it has no teams); a season a schedule covers
+    /// has none when the archive lists none for it.</summary>
+    private void AssignScheduledMatches(HistoricalArchiveInput input, Dictionary<string, SeasonGroup> bySourceId, HistoricalImportReport report)
+    {
+        foreach (var key in input.ScheduledSeasons ?? [])
+            if (bySourceId.TryGetValue(key.Trim(), out var covered) && !covered.IsMatchmaking)
+                covered.ScheduledMatches ??= [];
+        foreach (var match in input.ScheduledMatches ?? [])
+        {
+            if (bySourceId.TryGetValue(match.SeasonSourceId.Trim(), out var group) && !group.IsMatchmaking)
+                (group.ScheduledMatches ??= []).Add(match);
+            else
+                Skip(report, $"Scheduled match {match.SourceKey}: no season with the key {match.SeasonSourceId} in the archive");
+        }
     }
 
     /// <summary>The forfeits to their seasons (never a matchmaking one: it has no teams).</summary>
@@ -851,8 +871,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (group.RecordedGames is not null)
                 games.AddRange(await ImportRecordedGames(group, season, gameVersions, resolver, teams, games, counts, recordedGamesToCheck, seasonMatchIDsToCheck, ct));
             await LinkSeries(group, season, games, bracket, counts, seasonMatchIDsToCheck, ct);
-            if (group.Forfeits is not null)
-                await ImportForfeits(group, season, teams, counts, ct);
+            await ImportGamelessMatches(group, season, teams, counts, ct);
             var tiers = await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
             await RemoveTitlesNoLongerThere(season, tiers, counts, ct);
             await ImportAwards(group, season, resolver, teams, counts, ct);
@@ -1869,8 +1888,10 @@ public partial class HistoricalImportService : IHistoricalImportService
         // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
         if (game.MatchedMatch is { } matched)
             _context.RemoveArchivedMatch(matched);
-        // A scrim is in no series: out of one an earlier import put it in (by the sides that series counted)
-        if (input.IsScrim && game.SeriesGame is not null)
+        // A scrim is in no series: out of one an earlier import put it in (by the sides that series counted). Nor is a game
+        // whose day changed (a schedule dates it now, #603) still in the series it was linked to undated: it is linked again,
+        // its series worked out from the days
+        if (game.SeriesGame is { } old && (input.IsScrim || (game.PlayedAt != facts.PlayedAt && !_sheetSlots.Contains(old.SeasonMatchID))))
             await UnlinkTracking(game, run, ct);
         // #548: still in a series (the common case, re-imported): its sides or outcome may have changed, so the
         // series is re-checked once the whole season is saved (ImportSeason's StatFlagService.CheckSeriesGamesAsync

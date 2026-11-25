@@ -2,7 +2,7 @@
 
   <aside class="profile-card hud-panel hud-panel--chamfer" aria-labelledby="profile-name">
     <span class="hud-kicker">&gt; Service record</span>
-    <div class="profile-emblem"><app-profile-picture kind="haloEmblem" [userID]="userID()" [name]="gamertag() || profileStats()?.displayName" /></div>
+    <div class="profile-emblem"><app-profile-picture [userID]="userID()" [name]="gamertag() || profileStats()?.displayName" /></div>
     <h1 id="profile-name" class="profile-name">{{gamertag() || profileStats()?.displayName || 'Unknown Spartan'}}</h1>
 
     <dl class="profile-facts">
@@ -67,7 +67,7 @@
       </section>
 
       <section class="hud-section hud-panel hud-panel--soft">
-        <app-profile-identity [regionID]="profileStats()?.regionID ?? null" (changed)="store.loadStats()" />
+        <app-profile-identity [regionID]="profileStats()?.regionID ?? null" [profilePicture]="profileStats()?.profilePicture ?? 'Emblem'" (changed)="store.loadStats()" />
       </section>
 
       <section class="hud-section hud-panel hud-panel--soft">

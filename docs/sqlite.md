@@ -108,7 +108,7 @@ empty). Stop the app first, or let it run: SQLite's source is read from one snap
 
 ## Backups from the site
 
-Sysadmins download the whole database from the **Database Backup** page (`/databasebackup`,
+Sysadmins download the whole database from the **Database Backup** page (`/sysadmin/databasebackup`,
 `POST api/backups/{format}`), whichever server the site is on, in any of these formats:
 
 - `sqlite`: a SQLite database made by the converter and checked against the source; a working database.

@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,11 @@ internal sealed class BeforeSeasonSourceLinksContext(DbContextOptions<GrifballCo
         => new(TestDatabase.Options(context.Database.GetConnectionString()!).Options);
 
     public static void IgnoreSourceLinks(ModelBuilder modelBuilder)
-        => modelBuilder.Entity<Season>().Ignore(s => s.HistoricalSourceLinks);
+    {
+        modelBuilder.Entity<Season>().Ignore(s => s.HistoricalSourceLinks);
+        // Every database this is for is older than the users' picture choice, which the model would insert and read back
+        modelBuilder.Entity<User>().Ignore(u => u.ProfilePicture);
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

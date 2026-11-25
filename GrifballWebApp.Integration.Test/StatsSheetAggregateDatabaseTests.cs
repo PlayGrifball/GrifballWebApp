@@ -125,8 +125,8 @@ public class StatsSheetAggregateMigrationTests
 
         await using var seasons = BeforeSeasonSourceLinksContext.On(_context);
         var season = await seasons.AddSeason();
-        var traded = await _context.AddUser("traded");
-        var alone = await _context.AddUser("alone");
+        var traded = await seasons.AddUser("traded");
+        var alone = await seasons.AddUser("alone");
         // As the old model's public setters could leave them
         var first = PlayerSeasonStat.Seed(new StatSheetTotals { Gamertag = "Traded" }, season.SeasonID, traded.Id, 1, stintIndex: 1);
         var zero = PlayerSeasonStat.Seed(new StatSheetTotals { Gamertag = "Traded" }, season.SeasonID, traded.Id, 1, stintIndex: 0);

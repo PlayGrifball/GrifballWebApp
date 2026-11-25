@@ -1,6 +1,6 @@
 # Telemetry page
 
-`/usermanagement/telemetry`, for sysadmins: the app's own logs, metrics and traces, read back from where it exports
+`/sysadmin/telemetry`, for sysadmins: the app's own logs, metrics and traces, read back from where it exports
 them (OpenTelemetry, `backend.telemetry` in the chart). The backend writes every query and pins it to the app's
 `service.name` (`OTEL_SERVICE_NAME`), so the page shows this app's telemetry and nothing else the backends hold; the
 browser never talks to Loki, Prometheus or Tempo.

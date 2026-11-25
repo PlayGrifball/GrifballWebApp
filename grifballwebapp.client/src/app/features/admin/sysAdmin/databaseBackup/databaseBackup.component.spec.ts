@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { provideRouter } from '@angular/router';
 import { BackupFormat, DatabaseBackupComponent, DownloadStatus, ExportStatus } from './databaseBackup.component';
 import { BACKUP_POLL_MS } from './databaseBackup.store';
 
@@ -15,7 +16,7 @@ describe('DatabaseBackupComponent', () => {
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     await TestBed.configureTestingModule({
       imports: [DatabaseBackupComponent],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()]
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
       .compileComponents();
