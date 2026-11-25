@@ -340,6 +340,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             groups.Remove(key);
         }
         var done = await ImportSeasons(groups, gameVersions, championsPrefixes, report, options, progress, ct);
+        await RetireRenamedSeasons(archiveSeasons, report, options, ct);
         if (input.Championships is { Champions.Count: > 0 } champions)
             await RetireLeftoverTitleSeasons(champions, archiveSeasons, leagues, report, options, ct);
         // After the seasons: their placeholders are who the players lists' Discord IDs and regions go to

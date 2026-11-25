@@ -758,6 +758,107 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         }
     }
 
+    private static HistoricalArchiveInput WithGames(HistoricalArchiveInput input, string seasonKey, params string[] gameKeys)
+    {
+        input.RecordedGames = [.. gameKeys.Select(k => Game(k, [("Silva", 1), ("Hen", 2)], "halo5", seasonKey: seasonKey))];
+        return input;
+    }
+
+    [Test]
+    public async Task Import_ASupersededSeasonWhoseRecordedGamesTheMergedSeasonBringsBack_IsRetired_AndTheGamesAreTheMergedSeasons()
+    {
+        await _service.Import(WithGames(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"), "sml18-fantasy/Fixtures & Results", "sml18#1", "sml18#2"));
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(2));
+
+        var report = await _service.Import(WithGames(TwoTabs("Summer League 2018", "Summer League 2018"), "sml18-fantasy/Total Stats", "sml18#1", "sml18#2"));
+
+        var merged = await Context.Seasons.SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(report.Warnings, Has.None.Contain("left for a sysadmin"));
+            Assert.That(merged.HistoricalSourceID, Is.EqualTo("sml18-fantasy/Total Stats"));
+            Assert.That(await Context.RecordedGames.Select(g => g.SeasonID).ToListAsync(), Is.EqualTo(new int?[] { merged.SeasonID, merged.SeasonID }));
+        }
+    }
+
+    [Test]
+    public async Task Import_ASupersededSeasonWithRecordedGamesTheMergedSeasonDoesNotBringBack_IsKept_AndTheReportSaysWhy()
+    {
+        await _service.Import(WithGames(TwoTabs("Summer League 2018 (Fantasy Rey)", "Summer League 2018"), "sml18-fantasy/Fixtures & Results", "sml18#1", "sml18#2"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(WithGames(TwoTabs("Summer League 2018", "Summer League 2018"), "sml18-fantasy/Total Stats", "sml18#1"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(report.Warnings, Has.Some.Contain("sml18-fantasy/Fixtures & Results").And.Contain("recorded games").And.Contain("left for a sysadmin"));
+            Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(2), "No game is lost");
+        }
+    }
+
+    private static HistoricalArchiveInput OneSeason(string name, string key)
+    {
+        var tab = Tab(name, "Stats", Player("Silva", team: "Cabs"));
+        var season = new ArchiveSeason
+        {
+            SeasonName = tab.SeasonName, GameVersion = tab.GameVersion, League = tab.League, Division = tab.Division,
+            SourceWorkbook = tab.SourceWorkbook, SourceSheet = tab.SourceSheet, Players = tab.Players, HistoricalSourceId = key,
+        };
+        return new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [season] } };
+    }
+
+    [Test]
+    public async Task Import_ASeasonWhoseSheetKeyIsGone_AndWhoseNameIsTheStartOfAnotherSeasonsName_IsRetiredWithItsStats()
+    {
+        await _service.Import(OneSeason("Summer League 2018", "sml18-fantasy/Stats#s14"));
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1));
+
+        var report = await _service.Import(OneSeason("Summer League 2018 (Pro)", "sml18-fantasy/Stats#sPro"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(await Context.Seasons.Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(new[] { "sml18-fantasy/Stats#sPro" }));
+            Assert.That(await Context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1), "Only the new season's stats are left");
+        }
+    }
+
+    [Test]
+    public async Task Import_ASeasonWhoseSheetKeyIsGone_WithNoSeasonOfAnExtendedName_IsKept()
+    {
+        await _service.Import(OneSeason("Summer League 2018", "sml18-fantasy/Stats#s14"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(OneSeason("Winter League 2018", "sml18-fantasy/Stats#s15"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public async Task Import_ASeasonWhoseSheetIsNotInTheArchiveAtAll_IsKept_EvenWhenAnotherSeasonHasAnExtendedName()
+    {
+        await _service.Import(OneSeason("Summer League 2018", "sml18-fantasy/Stats#s14"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(OneSeason("Summer League 2018 (Pro)", "other-workbook/Stats#sPro"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero, "A source that failed to load must not retire what it used to give");
+            Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(2));
+        }
+    }
+
     [Test]
     public async Task Run_ASupersededSeasonWithATitle_StopsForReviewUnderTheGuardrail_AndIsKept()
     {
