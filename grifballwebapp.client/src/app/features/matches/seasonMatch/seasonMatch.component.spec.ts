@@ -1381,6 +1381,19 @@ describe('SeasonMatchComponent lobby', () => {
     expect(roster('home')).not.toHaveSize(0);
   });
 
+  it('keeps the lobby shown when a reload brings another team, its roster filling in after', () => {
+    load(page());
+    httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
+    httpMock.expectOne('/api/teams/20').flush(team('Away', 'Tucker', 'Caboose'));
+    fixture.detectChanges();
+    // A playoff slot filled (a live change): the away team is another
+    reloadPage(httpMock, fixture, page({ awayTeamID: 21, awayTeamName: 'Blues' }));
+    fixture.detectChanges();
+    expect(el().querySelector('h1')).not.toBeNull();
+    expect(el().textContent).not.toContain('Loading the match');
+    httpMock.expectOne('/api/teams/21').flush(team('Blues', 'Church', 'Tex'));
+  });
+
   it('shows the page for a match that does not exist, or that could not be loaded', () => {
     httpMock.expectOne('/api/season-matches/7').flush('x', { status: 500, statusText: 'Server Error' });
     httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);

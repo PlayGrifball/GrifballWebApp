@@ -55,7 +55,6 @@ export class JobsComponent {
   readonly jobs = this.store.jobs;
   readonly nodes = this.store.nodes;
   readonly loaded = this.store.loaded;
-  readonly failed = this.store.failed;
   readonly unreachable = this.store.unreachable;
   readonly firstLoad = this.store.firstLoad;
 

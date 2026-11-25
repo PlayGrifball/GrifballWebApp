@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, DestroyRef, effect, inject, Injectable, PLATFORM_ID, signal, WritableSignal } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, linkedSignal, PLATFORM_ID, signal, WritableSignal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { map, Observable, Subscription, switchMap, takeWhile, timer } from 'rxjs';
 import type { OnDemandJobStatusDto, PossibleMatchDto, TeamPagePlayerDto } from '@api/models';
@@ -49,8 +49,14 @@ export class SeasonMatchStore {
   readonly awayRoster = computed(() => this.awayLoaded().players ?? []);
   /** The match and both rosters are in: the page is shown then, in one go, so the rosters do not
    * push the score and the rest down as they arrive. */
-  readonly ready = computed(() => this.pageLoaded()
+  private readonly rostersIn = computed(() => this.pageLoaded()
     && isLoaded(this.homeLoaded(), this.homeTeamID()) && isLoaded(this.awayLoaded(), this.awayTeamID()));
+  /** Shown once in, it stays: a reload that brings another team (a playoff slot filled) fills its roster in place
+   * rather than swapping the lobby for a skeleton. Another match starts over. */
+  readonly ready = linkedSignal<{ match: number, rostersIn: boolean }, boolean>({
+    source: () => ({ match: this.shownID(), rostersIn: this.rostersIn() }),
+    computation: (now, previous) => now.rostersIn || (!!previous && previous.source.match === now.match && previous.value),
+  });
 
   private readonly _possibleMatches = signal<PossibleMatchDto[]>([]);
   readonly possibleMatches = this._possibleMatches.asReadonly();

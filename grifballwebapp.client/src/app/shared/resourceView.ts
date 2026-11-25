@@ -16,6 +16,8 @@ export interface ResourceView<V> {
   readonly status: Signal<ResourceStatus>;
   /** The last request failed (false again as soon as a retry starts: see `error`). */
   readonly failed: Signal<boolean>;
+  /** The last request failed, also while a retry is on its way: what keeps an error shown until an answer comes. */
+  readonly failing: Signal<boolean>;
   /** Why the last request failed; kept while a retry is on its way, undefined once one succeeds. */
   readonly error: Signal<Error | undefined>;
   /** The last request answered (for "none found": answered with nothing, as opposed to not asked yet). */
@@ -43,6 +45,7 @@ export function resourceView<T>(resource: ResourceRef<T>, fallback: unknown): Re
     firstLoad: computed(() => resource.status() === 'loading'),
     status: resource.status,
     failed: computed(() => resource.status() === 'error'),
+    failing: computed(() => resource.error() !== undefined),
     error: resource.error,
     resolved: computed(() => resource.status() === 'resolved'),
     reload: () => resource.reload(),

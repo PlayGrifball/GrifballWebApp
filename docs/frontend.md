@@ -96,9 +96,12 @@ no page hides itself until it is ready.
   (one area: a chart, a bracket, a form); `count`, `columns` and `height` to match.
   `<app-skeleton label="standings" shape="table" [header]="false" [count]="8" [columns]="4" />`.
   Screen readers hear "Loading standings…"; the shapes are hidden from them.
-- **Only the first answer.** A reload (a live change, a retry) keeps the last answer shown. A `resourceView` says
-  which with `firstLoad` (its first answer for these parameters is on its way); a store without one keeps a `loaded`
-  signal that a failure sets too, so a failed load never leaves a skeleton up.
+- **Only the first answer.** A reload (a live change, a retry) keeps the last answer shown. A load is a `resourceView`,
+  which says it all: `firstLoad` (its first answer for these parameters is on its way: the skeleton), `failed` (the last
+  request failed: an error in the content's place) and `failing` (also while a retry is on its way, so an error stays up
+  rather than flashing a skeleton). A failure is never "loaded": a form filled from a load that failed shows an error,
+  never an empty form that would save over what it failed to read. A load that can't be a resource (one the page starts
+  by hand) sets its flag in one `finalize`, never in both its `next` and `error`.
 - **Not for something usually absent.** A part that shows only sometimes (the stat flags notice, a season's VODs, the
   chat's model picker) gets no skeleton: holding space for it would make the page jump when it doesn't come.
 - **Text that isn't known yet is a non-breaking space, not a guess**: a heading waits with `&nbsp;` (its line kept),

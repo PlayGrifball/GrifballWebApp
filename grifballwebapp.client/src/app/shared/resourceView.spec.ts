@@ -86,11 +86,13 @@ describe('resourceView', () => {
     TestBed.tick();
     // Angular's reloading: no longer "error", but the error it had is still there until the retry answers
     expect(view.failed()).toBeFalse();
+    expect(view.failing()).toBeTrue();
     expect(view.error()!.message).toBe('down');
     answers[1].next([5]);
     answers[1].complete();
     await settle();
     expect(view.error()).toBeUndefined();
+    expect(view.failing()).toBeFalse();
 
     view.reload();
     TestBed.tick();

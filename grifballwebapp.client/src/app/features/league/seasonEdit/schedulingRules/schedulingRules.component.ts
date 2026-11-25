@@ -27,7 +27,8 @@ export class SchedulingRulesComponent {
   readonly seasonID = input.required<number>();
 
   readonly rules = this.store.rules;
-  readonly loaded = this.store.loaded;
+  readonly firstLoad = this.store.firstLoad;
+  readonly failed = this.store.failed;
   readonly saving = this.store.saving;
   readonly saved = this.store.saved;
   readonly error = this.store.error;
@@ -41,10 +42,7 @@ export class SchedulingRulesComponent {
   readonly status = toSignal(this.form.statusChanges, { initialValue: this.form.status });
 
   constructor() {
-    effect(() => {
-      const seasonID = this.seasonID();
-      untracked(() => this.store.load(seasonID));
-    });
+    this.store.seasonID.use(this.seasonID);
     // The season's rules, once they arrive, are what is edited
     effect(() => {
       const rules = this.rules();

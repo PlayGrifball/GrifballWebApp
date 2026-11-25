@@ -1,4 +1,4 @@
-import { computed, inject, Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { DeploymentHistoryService } from '@api/services/deployment-history.service';
 import { StoreInput } from '@shared/storeInput';
@@ -22,7 +22,7 @@ export class DeploymentHistoryStore {
   /** Each season the player played, newest first; empty until loaded, or when it failed to. */
   readonly deployments = this.resource.value;
   /** The last load failed, also while a retry is on its way: the error and its Retry stay up until it answers. */
-  readonly failed = computed(() => this.resource.error() !== undefined);
+  readonly failed = this.resource.failing;
   /** The history is on its way: the panel is a skeleton (most players have one, so it doesn't appear from nothing). */
   readonly firstLoad = this.resource.firstLoad;
 

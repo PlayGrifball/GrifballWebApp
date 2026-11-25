@@ -58,9 +58,10 @@ export type SkeletonShape = 'lines' | 'table' | 'cards' | 'block';
     .skeleton__bar {
       display: block;
       border-radius: 2px;
-      background: linear-gradient(90deg, var(--hud-panel-faint) 25%, var(--hud-panel-soft) 50%, var(--hud-panel-faint) 75%) 0 0 / 300% 100%;
+      background: var(--hud-panel-soft);
       border: 1px solid var(--hud-hairline);
-      animation: skeleton-shimmer 1.6s ease-in-out infinite;
+      /* Opacity only: the compositor runs it, with no repaint a frame */
+      animation: skeleton-pulse 1.6s ease-in-out infinite;
     }
     .skeleton__lines { display: grid; gap: 10px; }
     .skeleton__line { height: 14px; }
@@ -78,9 +79,8 @@ export type SkeletonShape = 'lines' | 'table' | 'cards' | 'block';
       gap: 16px;
     }
     .skeleton__block { width: 100%; }
-    @keyframes skeleton-shimmer {
-      from { background-position: 100% 0; }
-      to { background-position: 0 0; }
+    @keyframes skeleton-pulse {
+      50% { opacity: 0.45; }
     }
     @media (prefers-reduced-motion: reduce) {
       .skeleton__bar { animation: none; }

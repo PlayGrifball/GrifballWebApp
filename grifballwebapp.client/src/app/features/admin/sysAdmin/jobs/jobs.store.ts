@@ -46,7 +46,7 @@ export class JobsStore {
   readonly loaded = this.overview.hasValue;
   readonly failed = this.overview.failed;
   /** The last read failed, also while it is read again: the error stays up until an answer comes. */
-  readonly unreachable = computed(() => this.overview.error() !== undefined);
+  readonly unreachable = this.overview.failing;
   /** The first read is on its way: a skeleton. */
   readonly firstLoad = this.overview.firstLoad;
 

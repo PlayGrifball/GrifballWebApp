@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, InjectionToken, signal } from '@angular/core';
 import type { ExternalLoginDto, ExternalProviderDto, LinkedLoginsDto } from '@api/models';
 import { ExternalLoginsService } from '@api/services/external-logins.service';
+import { finalize } from 'rxjs';
 import { errorText } from '../errorText';
 import { StoreInput } from '../storeInput';
 
@@ -39,15 +40,9 @@ export class LinkedAccountsStore {
     if (id === undefined)
       return;
     const call = id === null ? this.externalLogins.getMyExternalLogins() : this.externalLogins.getUserExternalLogins({ userID: id });
-    call.subscribe({
-      next: r => {
-        this._data.set({ ...r, providers: r.providers ?? [] });
-        this._answered.set(true);
-      },
-      error: (e: HttpErrorResponse) => {
-        this._answered.set(true);
-        this._message.set(errorText(e, 'Failed to load linked accounts'));
-      },
+    call.pipe(finalize(() => this._answered.set(true))).subscribe({
+      next: r => this._data.set({ ...r, providers: r.providers ?? [] }),
+      error: (e: HttpErrorResponse) => this._message.set(errorText(e, 'Failed to load linked accounts')),
     });
   }
 

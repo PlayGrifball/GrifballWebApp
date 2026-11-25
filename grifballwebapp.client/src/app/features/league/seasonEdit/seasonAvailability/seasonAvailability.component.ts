@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, input, linkedSignal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, input, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -39,16 +39,16 @@ export class AvailabilityOption {
     providers: [provideDatePickers(), SeasonAvailabilityStore],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class SeasonAvailabilityComponent implements OnInit {
+export class SeasonAvailabilityComponent {
   private readonly store = inject(SeasonAvailabilityStore);
 
-  ngOnInit(): void {
-    this.store.load(this.seasonID());
+  constructor() {
+    this.store.seasonID.use(this.seasonID);
   }
 
   readonly seasonID = input.required<number>();
-  /** The timeslots are in: the list is a skeleton until then. */
-  readonly loaded = this.store.loaded;
+  /** The timeslots are on their way: the list is a skeleton. */
+  readonly firstLoad = this.store.firstLoad;
 
   minutes: number = 30;
 

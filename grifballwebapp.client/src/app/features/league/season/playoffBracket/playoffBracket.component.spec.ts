@@ -133,6 +133,20 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(snackBar.open).toHaveBeenCalledWith('Failed to draw the bracket', 'Close');
   });
 
+  it('waits with a skeleton again for the next bracket after a failed draw', async () => {
+    spyOn(console, 'error');
+    viewer.render.and.returnValues(Promise.reject(new Error('draw failed')), new Promise(() => undefined));
+    fixture.detectChanges();
+    const data = viewerData([{ id: 1, name: 'Alpha' }]);
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(data);
+    await fixture.whenStable();
+    expect(component.waiting()).toBeFalse();
+    // Drawn again (a live change, a reload): its skeleton until this one is drawn
+    void component.render(data);
+    await Promise.resolve();
+    expect(component.waiting()).toBeTrue();
+  });
+
   it("loads the new season's bracket when the season changes, showing none of the previous one meanwhile", async () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([{ id: 1, name: 'Alpha' }]));

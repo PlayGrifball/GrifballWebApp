@@ -94,6 +94,8 @@ export class PlayoffBracketComponent {
     } else {
       this.hasBracket.set(true);
     }
+    // A draw that failed before doesn't stop this one's skeleton
+    this.viewerFailed.set(false);
     // The viewer draws into the page in the browser; on the server the box is left for it.
     if (!this.isBrowser)
       return;
