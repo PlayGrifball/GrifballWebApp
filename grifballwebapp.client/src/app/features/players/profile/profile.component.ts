@@ -19,6 +19,7 @@ import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSu
 import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
 import type { GameCareerSummaryDto, MatchmakingPlayerStatDto, PlayerSeasonStatDetailDto, ProfileStatsDto } from '@api/models';
 import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
+import { DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
 import { ProfileStore } from './profile.store';
 import { describePage, PageDescription, plural } from '@shared/pageMeta';
 import { activeYearSpan } from '@shared/eras';
@@ -63,6 +64,7 @@ export function describeProfile(profile: ProfileStatsDto): PageDescription | nul
     ProfileCommendationsComponent,
     CalendarSubscribeComponent,
     SkeletonComponent,
+    DataNoticeComponent,
   ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss',
