@@ -194,6 +194,16 @@ describe('TableComponent API responses', () => {
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
   const pending = () => httpMock.expectOne(r => r.url.startsWith('/api/test'));
 
+  it('holds the rows with a skeleton while the first page loads', async () => {
+    const skeleton = () => (fixture.nativeElement as HTMLElement).querySelector('app-skeleton');
+    expect(skeleton()!.textContent).toContain('Loading rows');
+    expect(text()).not.toContain('No results found');
+    pending().flush({ totalCount: 0, results: [] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(skeleton()).toBeNull();
+  });
+
   it('renders rows on success', async () => {
     pending().flush({ totalCount: 2, results: [{ id: 1, name: 'alpha' }, { id: 2, name: 'beta' }] });
     await fixture.whenStable();

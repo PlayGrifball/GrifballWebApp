@@ -3,6 +3,7 @@ import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { getPaginationResource, PaginationParams } from '../getPaginationResource';
+import { SkeletonComponent } from '../skeleton/skeleton.component';
 import { PaginationResult } from '../paginationResult';
 import { Observable } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
@@ -19,6 +20,7 @@ import { rowEnterAnimation } from '../rowEnterAnimation';
     RouterModule,
     MatButtonModule,
     NgTemplateOutlet,
+    SkeletonComponent,
   ],
   templateUrl: './table.component.html',
   styleUrl: './table.component.scss',

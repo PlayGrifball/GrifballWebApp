@@ -770,12 +770,6 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
   -webkit-font-smoothing: antialiased;
 }
 
-// A page (or part) whose data is still loading: laid out but not shown, so content arriving later
-// does not visibly push it around (layout shift). Shown in one go once the data is in.
-.hud-waiting {
-  visibility: hidden;
-}
-
 // The date and time pickers (@ng-matero/extensions): the header's year, date, hours, minutes and
 // AM/PM not being edited are dimmed to 60%, under 4.5:1 against the header. Dimmed less, they
 // still read as not selected and are legible. AM and PM are stacked at 18px a line on phones:

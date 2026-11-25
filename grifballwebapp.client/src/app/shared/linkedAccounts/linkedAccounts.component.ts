@@ -4,6 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import type { ExternalLoginDto, ExternalProviderDto, LinkedLoginsDto } from '@api/models';
 import { LinkedAccountsStore } from './linkedAccounts.store';
+import { SkeletonComponent } from '../skeleton/skeleton.component';
 
 export type ExternalLogin = ExternalLoginDto;
 export type ExternalProvider = ExternalProviderDto;
@@ -16,7 +17,7 @@ export type LinkedLogins = LinkedLoginsDto;
  */
 @Component({
   selector: 'app-linked-accounts',
-  imports: [MatButtonModule],
+  imports: [MatButtonModule, SkeletonComponent],
   templateUrl: './linkedAccounts.component.html',
   styleUrl: './linkedAccounts.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

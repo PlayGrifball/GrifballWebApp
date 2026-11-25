@@ -1,373 +1,373 @@
-<div class="hud-page profile">
-
-  <aside class="profile-card hud-panel hud-panel--chamfer" aria-labelledby="profile-name">
-    <span class="hud-kicker">&gt; Service record</span>
-    <div class="profile-emblem"><app-profile-picture [userID]="userID()" [name]="gamertag() || profileStats()?.displayName" /></div>
-    <h1 id="profile-name" class="profile-name">@if (gamertag() || profileStats()?.displayName; as name) { {{name}} } @else if (statsLoading()) { &nbsp; } @else { Unknown Spartan }</h1>
-
-    <dl class="profile-facts">
-      <div><dt class="hud-label">Gamertag</dt><dd>{{gamertag() ?? 'Not set'}}</dd></div>
-      <div><dt class="hud-label">Service no.</dt><dd>{{userID()}}</dd></div>
-      @if (profileStats()?.regionName) {
-        <div><dt class="hud-label">Region</dt><dd class="profile-region">{{profileStats()!.regionName}}</dd></div>
-      }
-      @if (activeSpan(); as span) {
-        <div><dt class="hud-label">Active seasons</dt><dd>{{span}}</dd></div>
-      }
-      @if (profileStats()?.isDummyUser) {
-        <div><dt class="hud-label">Status</dt><dd><span class="archival-pill">Historical Archive</span></dd></div>
-      }
-      @if (profileStats()?.championships?.length) {
-        <div><dt class="hud-label">Championships</dt><dd class="hud-gold font-bold">{{profileStats()!.championships.length}} Rings</dd></div>
-      }
-      @if (profileStats()?.pastGamertags?.length) {
-        <div>
-          <dt class="hud-label">Past Gamertags</dt>
-          <dd class="aliases-list">
-            @for (tag of profileStats()!.pastGamertags; track tag) {
-              <span class="alias-pill">{{tag}}</span>
-            }
-          </dd>
-        </div>
-      }
-    </dl>
-    @if (accountService.isSysAdmin() && profileStats()) {
-      <a mat-stroked-button class="profile-edit" [routerLink]="['/usermanagement/edituser', userID()]">Edit user</a>
-    }
-    <app-calendar-subscribe [path]="calendarPath()" description="The matches of this player's teams" />
-  </aside>
-
-  <div class="profile-main">
-    @if (profileStats()?.serviceRecord; as serviceRecord) {
-      <section class="hud-section hud-panel hud-panel--soft" aria-label="Service record stats">
-        <app-service-record [record]="serviceRecord" />
-      </section>
-    }
-
-    @if (accountService.personID() === userID()) {
-      @if (settingGamertag()) {
-      <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="profile-gamertag">
-        <h2 id="profile-gamertag" class="hud-h2">Gamertag</h2>
-        <p>Please set your gamertag to assist with stat tracking</p>
-        <form class="app-form" #form="ngForm" (ngSubmit)="setGamertag()">
-          <mat-form-field appearance="outline" class="app-full-width">
-            <mat-label>Gamertag</mat-label>
-            <input matInput required [(ngModel)]="gamertag" name="gamertag">
-            <app-error-message [control]="form.controls['gamertag']" />
-          </mat-form-field>
-          <button mat-flat-button [disabled]="!form.form.valid">
-            Set Gamertag
-          </button>
-        </form>
-      </section>
-      }
-
-      <section class="hud-section hud-panel hud-panel--soft">
-        <app-linked-accounts />
-      </section>
-
-      <section class="hud-section hud-panel hud-panel--soft">
-        <app-profile-identity [regionID]="profileStats()?.regionID ?? null" [profilePicture]="profileStats()?.profilePicture ?? 'Emblem'" (changed)="store.loadStats()" />
-      </section>
-
-      <section class="hud-section hud-panel hud-panel--soft">
-        <app-access-tokens />
-      </section>
-    }
-
-    <!-- Trophy Room / Rings -->
-    <section class="hud-section hud-panel hud-panel--soft trophy-section" aria-labelledby="trophy-heading">
-      <div class="section-header">
-        <span class="hud-kicker">&gt; Championships</span>
-        <h2 id="trophy-heading" class="hud-h2">Trophy Cabinet</h2>
-      </div>
-
-      @if (statsLoading()) {
-        <app-skeleton label="championships" shape="cards" [count]="3" height="96px" cardWidth="220px" />
-      } @else if (profileStats()?.championships?.length) {
-        <div class="trophy-grid">
-          @for (title of profileStats()!.championships; track title.playerChampionshipID) {
-            <div class="trophy-card hud-panel hud-panel--chamfer">
-              <div class="trophy-ring-icon" aria-hidden="true">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <circle cx="12" cy="14" r="6"/>
-                  <path d="M9 8l3-4 3 4"/>
-                </svg>
-              </div>
-              <div class="trophy-info">
-                <div class="trophy-title">
-                  <span class="trophy-tier">{{title.tier}} Tier</span>
-                  <span class="trophy-year">{{title.season.year}}</span>
-                </div>
-                <div class="trophy-season">
-                  <a [routerLink]="['/season', title.season.seasonID]" class="hud-text-link">{{title.season.seasonName}}</a>
-                </div>
-                <div class="trophy-meta">
-                  <a [routerLink]="['/season', title.season.seasonID, 'team', title.teamID]" class="trophy-team hud-text-link">{{title.teamName}}</a>
-                  @if (title.isCaptain) {
-                    <span class="captain-badge">Captain</span>
-                  }
-                  <span class="league-pill"><a routerLink="/seasons" [queryParams]="{ league: title.season.leagueID }">{{title.season.leagueName}}</a></span>
-                  @if (title.gameVersionName) {
-                    <span class="game-pill"><a routerLink="/seasons" [queryParams]="{ game: title.gameVersionID }">{{title.gameVersionName}}</a></span>
-                  }
-                </div>
-                @if (title.gamertagUsed && title.gamertagUsed !== gamertag()) {
-                  <div class="trophy-roster-tag">As: {{title.gamertagUsed}}</div>
-                }
-              </div>
-            </div>
-          }
-        </div>
-      } @else {
-        <p class="hud-muted empty-state">No championship rings recorded on this service record.</p>
-      }
-    </section>
-
-    <!-- Multi-Game Career Record -->
-    <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="career-heading">
-      <div class="section-header">
-        <span class="hud-kicker">&gt; Career metrics</span>
-        <h2 id="career-heading" class="hud-h2">Career Record</h2>
-      </div>
-
-      @if (availableGames().length > 0) {
-        <nav class="hud-tabs" aria-label="Game era filter">
-          <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === 'all'" [attr.aria-pressed]="selectedGame() === 'all'" (click)="selectGame('all')">
-            All Eras
-          </button>
-          @for (game of availableGames(); track game.gameVersionSlug) {
-            <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === game.gameVersionSlug" [attr.aria-pressed]="selectedGame() === game.gameVersionSlug" (click)="selectGame(game.gameVersionSlug!)">
-              {{game.gameVersionName}}
-            </button>
-          }
-        </nav>
-      }
-
-      @if (statsLoading()) {
-        <app-skeleton label="the career record" shape="cards" [count]="6" height="90px" cardWidth="160px" />
-      } @else if (activeCareer(); as career) {
-        <div class="stat-card-grid">
-          <div class="stat-card hud-panel">
-            <span class="hud-label">Record (W-L)</span>
-            <span class="stat-val">{{career.wins}} - {{career.losses}}</span>
-            <span class="stat-sub hud-gold">{{career.winPercent != null ? career.winPercent + '%' : '-'}} Win rate</span>
-          </div>
-
-          <div class="stat-card hud-panel">
-            <span class="hud-label">Games Played</span>
-            <span class="stat-val">{{career.gamesPlayed}}@if (career.gamesDecidedByVote) {<span class="hud-muted text-xs"> ({{career.gamesDecidedByVote}} by vote)</span>}</span>
-            <span class="stat-sub hud-muted">{{career.seasonsCount}} seasons</span>
-          </div>
-
-          @if (career.goals != null) {
-          <div class="stat-card hud-panel">
-            <span class="hud-label">Goals Scored</span>
-            <span class="stat-val hud-accent">{{career.goals}}</span>
-            <span class="stat-sub hud-muted">{{career.goalsPerGame != null ? career.goalsPerGame + '/game' : '-'}}</span>
-          </div>
-          }
-
-          <div class="stat-card hud-panel">
-            <span class="hud-label">K/D Ratio</span>
-            <span class="stat-val">{{career.kdRatio != null ? career.kdRatio : '-'}}</span>
-            <span class="stat-sub" [class.positive-spread]="career.kdSpread >= 0" [class.negative-spread]="career.kdSpread < 0">
-              {{career.kdSpread >= 0 ? '+' : ''}}{{career.kdSpread}} spread
-            </span>
-          </div>
-
-          <div class="stat-card hud-panel">
-            <span class="hud-label">Combat (K / D / A)</span>
-            <span class="stat-val">{{career.kills}} / {{career.deaths}}</span>
-            <span class="stat-sub hud-muted">{{career.assists}} assists</span>
-          </div>
-
-          @if (career.carrierKills != null) {
-          <div class="stat-card hud-panel">
-            <span class="hud-label">Carrier Stops</span>
-            <span class="stat-val">{{career.carrierKills}}</span>
-            <span class="stat-sub hud-muted">{{career.stopsPerGame != null ? career.stopsPerGame + '/game' : '-'}}</span>
-          </div>
-          }
-
-          @if (career.sprees != null) {
-          <div class="stat-card hud-panel">
-            <span class="hud-label">Medals</span>
-            <span class="stat-val">{{career.sprees + (career.multiKills ?? 0)}}</span>
-            <span class="stat-sub hud-muted">{{career.sprees}} sprees &middot; {{career.exterminations}} exts</span>
-          </div>
-          }
-
-          @if (career.damageDealt != null) {
-            <div class="stat-card hud-panel">
-              <span class="hud-label">Damage Dealt</span>
-              <span class="stat-val">{{career.damageDealt | number}}</span>
-              <span class="stat-sub hud-muted">{{career.damageTaken != null ? (career.damageTaken | number) + ' taken' : ''}}</span>
-            </div>
-          }
-        </div>
-        @if (career.goals == null) {
-          <p class="hud-muted career-note">Goals, carrier stops and medals count differently in each game: choose a game to see them.</p>
-        }
-      } @else {
-        <p class="hud-muted empty-state">No career match stats recorded for this selection.</p>
-      }
-    </section>
-
-    <!-- Deployment history: each team the player was on, its record and finish -->
-    <app-deployment-history [userID]="userID()" [game]="selectedGame()" />
-
-    <!-- Chronological Season History Table -->
-    <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="seasons-heading">
-      <div class="section-header">
-        <span class="hud-kicker">&gt; Archive history</span>
-        <h2 id="seasons-heading" class="hud-h2">Season History</h2>
-      </div>
-
-      @if (statsLoading()) {
-        <app-skeleton label="season history" shape="table" [count]="6" [columns]="8" />
-      } @else if (filteredSeasons().length > 0) {
-        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Season by season stats"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
-          <table class="season-table" aria-label="Player season records">
-            <thead>
-              <tr>
-                <th>Season</th>
-                <th>Game</th>
-                <th>Team</th>
-                <th>Phase</th>
-                <th class="hud-num">GP</th>
-                <th class="hud-num">W-L</th>
-                <th class="hud-num">Win %</th>
-                <th class="hud-num">Goals</th>
-                <th class="hud-num">K</th>
-                <th class="hud-num">D</th>
-                <th class="hud-num">+/-</th>
-                <th class="hud-num">K/D</th>
-                <th class="hud-num">Stops</th>
-                <th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (s of filteredSeasons(); track s.season.seasonID + '-' + s.isPlayoffs + '-' + s.stintIndex + '-' + s.teamID) {
-                <tr>
-                  <td>
-                    <div class="table-season-cell">
-                      <a [routerLink]="['/season', s.season.seasonID]" class="season-name hud-text-link">{{s.season.seasonName}}</a>
-                      <span class="league-sub"><a routerLink="/seasons" [queryParams]="{ league: s.season.leagueID }">{{s.season.leagueName}}</a></span>
-                    </div>
-                  </td>
-                  <td><span class="game-pill-sm"><a routerLink="/seasons" [queryParams]="{ game: s.gameVersionID }">{{s.gameVersionName}}</a></span></td>
-                  <td>
-                    <div class="team-cell">
-                      @if (s.teamID) {
-                        <a [routerLink]="['/season', s.season.seasonID, 'team', s.teamID]" class="team-name hud-text-link">{{s.teamName}}</a>
-                      } @else {
-                        <span>{{s.teamName || 'Independent'}}</span>
-                      }
-                      @if (s.tradeNote) {
-                        <span class="trade-sub">{{s.tradeNote}}</span>
-                      }
-                    </div>
-                  </td>
-                  <td>
-                    <span class="phase-pill" [class.playoffs]="s.isPlayoffs">
-                      {{s.isPlayoffs ? 'Playoffs' : 'Regular'}}
-                    </span>
-                  </td>
-                  <td class="hud-num">{{s.gamesPlayed}}</td>
-                  <td class="hud-num font-mono">{{s.wins}}-{{s.losses}}</td>
-                  <td class="hud-num font-mono">{{s.winPercent != null ? s.winPercent + '%' : '-'}}</td>
-                  <td class="hud-num font-mono hud-accent">{{s.goals}}</td>
-                  <td class="hud-num font-mono">{{s.kills}}</td>
-                  <td class="hud-num font-mono">{{s.deaths}}</td>
-                  <td class="hud-num font-mono" [class.positive-spread]="(s.kdSpread ?? 0) >= 0" [class.negative-spread]="(s.kdSpread ?? 0) < 0">
-                    {{(s.kdSpread ?? 0) >= 0 ? '+' : ''}}{{s.kdSpread ?? (s.kills - s.deaths)}}
-                  </td>
-                  <td class="hud-num font-mono">{{s.kdRatio != null ? s.kdRatio : '-'}}</td>
-                  <td class="hud-num font-mono">{{s.carrierKills}}</td>
-                  <td>
-                    <span class="source-tag" [class.waypoint]="s.source === 'Matches'">
-                      {{s.source}}
-                    </span>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      } @else {
-        <p class="hud-muted empty-state">No historical season participation records found.</p>
-      }
-    </section>
-
-    <!-- Late League: the Discord queue's games, and a line per archive season (no teams or phases) -->
-    @if (filteredLateLeague().length > 0) {
-      <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="late-league-heading">
-        <div class="section-header">
-          <span class="hud-kicker">&gt; Queue play</span>
-          <h2 id="late-league-heading" class="hud-h2">Late League</h2>
-        </div>
-        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Late League stats"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
-          <table class="season-table" aria-label="Player Late League records">
-            <thead>
-              <tr>
-                <th>Season</th>
-                <th>Game</th>
-                <th class="hud-num">GP</th>
-                <th class="hud-num">W-L</th>
-                <th class="hud-num">Win %</th>
-                <th class="hud-num">Goals</th>
-                <th class="hud-num">K</th>
-                <th class="hud-num">D</th>
-                <th class="hud-num">+/-</th>
-                <th class="hud-num">K/D</th>
-                <th class="hud-num">Stops</th>
-                <th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (l of filteredLateLeague(); track l.matchmakingSeasonID ?? 'queue') {
-                <tr>
-                  <td>
-                    @if (l.matchmakingSeasonID) {
-                      <a [routerLink]="['/late-league', l.matchmakingSeasonID]" class="season-name hud-text-link">{{l.matchmakingSeasonName}}</a>
-                    } @else {
-                      <span class="season-name">Current Late League</span>
-                    }
-                  </td>
-                  <td><span class="game-pill-sm">{{l.gameVersionName}}</span></td>
-                  <td class="hud-num">{{l.gamesPlayed}}@if (l.gamesDecidedByVote) {<span class="hud-muted"> ({{l.gamesDecidedByVote}} by vote)</span>}</td>
-                  <td class="hud-num font-mono">{{l.wins}}-{{l.losses}}</td>
-                  <td class="hud-num font-mono">{{l.winPercent != null ? l.winPercent + '%' : '-'}}</td>
-                  <td class="hud-num font-mono hud-accent">{{l.goals}}</td>
-                  <td class="hud-num font-mono">{{l.kills}}</td>
-                  <td class="hud-num font-mono">{{l.deaths}}</td>
-                  <td class="hud-num font-mono" [class.positive-spread]="(l.kdSpread ?? 0) >= 0" [class.negative-spread]="(l.kdSpread ?? 0) < 0">
-                    {{(l.kdSpread ?? 0) >= 0 ? '+' : ''}}{{l.kdSpread ?? (l.kills - l.deaths)}}
-                  </td>
-                  <td class="hud-num font-mono">{{l.kdRatio != null ? l.kdRatio : '-'}}</td>
-                  <td class="hud-num font-mono">{{l.carrierKills}}</td>
-                  <td><span class="source-tag" [class.waypoint]="l.source === 'Matches'">{{l.source}}</span></td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-        @if (lateLeagueByVote()) {
-          <p class="hud-muted vote-note">A game decided by its players' vote counts in GP and W-L only: it has no box score, so no goals, kills or stops.</p>
-        }
-      </section>
-    }
-
-    <!-- Commendations are Halo Infinite medals: hidden while another game's era is chosen -->
-    @if (showCommendations()) {
-      <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="commendations-heading">
-        <app-profile-commendations [userID]="userID()" />
-      </section>
-    }
-
-    <app-vod-list scope="player" [id]="userID()" />
-
-  </div>
-
-</div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}<div class="hud-page profile">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}  <aside class="profile-card hud-panel hud-panel--chamfer" aria-labelledby="profile-name">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <span class="hud-kicker">&gt; Service record</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <div class="profile-emblem"><app-profile-picture [userID]="userID()" [name]="gamertag() || profileStats()?.displayName" /></div>
+    <h1 id="profile-name" class="profile-name">@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}</h1>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <dl class="profile-facts">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <div><dt class="hud-label">Gamertag</dt><dd>{{gamertag() ?? 'Not set'}}</dd></div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <div><dt class="hud-label">Service no.</dt><dd>{{userID()}}</dd></div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (profileStats()?.regionName) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div><dt class="hud-label">Region</dt><dd class="profile-region">{{profileStats()!.regionName}}</dd></div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (activeSpan(); as span) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div><dt class="hud-label">Active seasons</dt><dd>{{span}}</dd></div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (profileStats()?.isDummyUser) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div><dt class="hud-label">Status</dt><dd><span class="archival-pill">Historical Archive</span></dd></div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (profileStats()?.championships?.length) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div><dt class="hud-label">Championships</dt><dd class="hud-gold font-bold">{{profileStats()!.championships.length}} Rings</dd></div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (profileStats()?.pastGamertags?.length) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <dt class="hud-label">Past Gamertags</dt>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <dd class="aliases-list">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            @for (tag of profileStats()!.pastGamertags; track tag) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              <span class="alias-pill">{{tag}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </dd>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    </dl>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    @if (accountService.isSysAdmin() && profileStats()) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <a mat-stroked-button class="profile-edit" [routerLink]="['/usermanagement/edituser', userID()]">Edit user</a>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <app-calendar-subscribe [path]="calendarPath()" description="The matches of this player's teams" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}  </aside>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}  <div class="profile-main">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    @if (profileStats()?.serviceRecord; as serviceRecord) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <section class="hud-section hud-panel hud-panel--soft" aria-label="Service record stats">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <app-service-record [record]="serviceRecord" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    @if (accountService.personID() === userID()) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (settingGamertag()) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="profile-gamertag">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <h2 id="profile-gamertag" class="hud-h2">Gamertag</h2>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <p>Please set your gamertag to assist with stat tracking</p>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <form class="app-form" #form="ngForm" (ngSubmit)="setGamertag()">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <mat-form-field appearance="outline" class="app-full-width">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <mat-label>Gamertag</mat-label>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <input matInput required [(ngModel)]="gamertag" name="gamertag">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <app-error-message [control]="form.controls['gamertag']" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </mat-form-field>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <button mat-flat-button [disabled]="!form.form.valid">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            Set Gamertag
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </button>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        </form>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <section class="hud-section hud-panel hud-panel--soft">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <app-linked-accounts />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <section class="hud-section hud-panel hud-panel--soft">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <app-profile-identity [regionID]="profileStats()?.regionID ?? null" [profilePicture]="profileStats()?.profilePicture ?? 'Emblem'" (changed)="store.loadStats()" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <section class="hud-section hud-panel hud-panel--soft">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <app-access-tokens />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <!-- Trophy Room / Rings -->
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <section class="hud-section hud-panel hud-panel--soft trophy-section" aria-labelledby="trophy-heading">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <div class="section-header">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <span class="hud-kicker">&gt; Championships</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <h2 id="trophy-heading" class="hud-h2">Trophy Cabinet</h2>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (statsLoading()) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <app-skeleton label="championships" shape="cards" [count]="3" height="96px" cardWidth="220px" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      } @else if (profileStats()?.championships?.length) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div class="trophy-grid">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          @for (title of profileStats()!.championships; track title.playerChampionshipID) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <div class="trophy-card hud-panel hud-panel--chamfer">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              <div class="trophy-ring-icon" aria-hidden="true">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <circle cx="12" cy="14" r="6"/>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <path d="M9 8l3-4 3 4"/>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                </svg>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              <div class="trophy-info">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <div class="trophy-title">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <span class="trophy-tier">{{title.tier}} Tier</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <span class="trophy-year">{{title.season.year}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <div class="trophy-season">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <a [routerLink]="['/season', title.season.seasonID]" class="hud-text-link">{{title.season.seasonName}}</a>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <div class="trophy-meta">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <a [routerLink]="['/season', title.season.seasonID, 'team', title.teamID]" class="trophy-team hud-text-link">{{title.teamName}}</a>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  @if (title.isCaptain) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    <span class="captain-badge">Captain</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <span class="league-pill"><a routerLink="/seasons" [queryParams]="{ league: title.season.leagueID }">{{title.season.leagueName}}</a></span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  @if (title.gameVersionName) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    <span class="game-pill"><a routerLink="/seasons" [queryParams]="{ game: title.gameVersionID }">{{title.gameVersionName}}</a></span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                @if (title.gamertagUsed && title.gamertagUsed !== gamertag()) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <div class="trophy-roster-tag">As: {{title.gamertagUsed}}</div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      } @else {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <p class="hud-muted empty-state">No championship rings recorded on this service record.</p>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <!-- Multi-Game Career Record -->
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="career-heading">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <div class="section-header">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <span class="hud-kicker">&gt; Career metrics</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <h2 id="career-heading" class="hud-h2">Career Record</h2>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (availableGames().length > 0) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <nav class="hud-tabs" aria-label="Game era filter">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === 'all'" [attr.aria-pressed]="selectedGame() === 'all'" (click)="selectGame('all')">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            All Eras
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </button>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          @for (game of availableGames(); track game.gameVersionSlug) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === game.gameVersionSlug" [attr.aria-pressed]="selectedGame() === game.gameVersionSlug" (click)="selectGame(game.gameVersionSlug!)">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              {{game.gameVersionName}}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            </button>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        </nav>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (statsLoading()) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <app-skeleton label="the career record" shape="cards" [count]="6" height="90px" cardWidth="160px" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      } @else if (activeCareer(); as career) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div class="stat-card-grid">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <div class="stat-card hud-panel">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="hud-label">Record (W-L)</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-val">{{career.wins}} - {{career.losses}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-sub hud-gold">{{career.winPercent != null ? career.winPercent + '%' : '-'}} Win rate</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <div class="stat-card hud-panel">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="hud-label">Games Played</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-val">{{career.gamesPlayed}}@if (career.gamesDecidedByVote) {<span class="hud-muted text-xs"> ({{career.gamesDecidedByVote}} by vote)</span>}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-sub hud-muted">{{career.seasonsCount}} seasons</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          @if (career.goals != null) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <div class="stat-card hud-panel">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="hud-label">Goals Scored</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-val hud-accent">{{career.goals}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-sub hud-muted">{{career.goalsPerGame != null ? career.goalsPerGame + '/game' : '-'}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <div class="stat-card hud-panel">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="hud-label">K/D Ratio</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-val">{{career.kdRatio != null ? career.kdRatio : '-'}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-sub" [class.positive-spread]="career.kdSpread >= 0" [class.negative-spread]="career.kdSpread < 0">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              {{career.kdSpread >= 0 ? '+' : ''}}{{career.kdSpread}} spread
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            </span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <div class="stat-card hud-panel">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="hud-label">Combat (K / D / A)</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-val">{{career.kills}} / {{career.deaths}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-sub hud-muted">{{career.assists}} assists</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          @if (career.carrierKills != null) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <div class="stat-card hud-panel">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="hud-label">Carrier Stops</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-val">{{career.carrierKills}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-sub hud-muted">{{career.stopsPerGame != null ? career.stopsPerGame + '/game' : '-'}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          @if (career.sprees != null) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <div class="stat-card hud-panel">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="hud-label">Medals</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-val">{{career.sprees + (career.multiKills ?? 0)}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <span class="stat-sub hud-muted">{{career.sprees}} sprees &middot; {{career.exterminations}} exts</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          @if (career.damageDealt != null) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <div class="stat-card hud-panel">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              <span class="hud-label">Damage Dealt</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              <span class="stat-val">{{career.damageDealt | number}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              <span class="stat-sub hud-muted">{{career.damageTaken != null ? (career.damageTaken | number) + ' taken' : ''}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        @if (career.goals == null) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <p class="hud-muted career-note">Goals, carrier stops and medals count differently in each game: choose a game to see them.</p>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      } @else {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <p class="hud-muted empty-state">No career match stats recorded for this selection.</p>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <!-- Deployment history: each team the player was on, its record and finish -->
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <app-deployment-history [userID]="userID()" [game]="selectedGame()" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <!-- Chronological Season History Table -->
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="seasons-heading">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <div class="section-header">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <span class="hud-kicker">&gt; Archive history</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <h2 id="seasons-heading" class="hud-h2">Season History</h2>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      @if (statsLoading()) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <app-skeleton label="season history" shape="table" [count]="6" [columns]="8" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      } @else if (filteredSeasons().length > 0) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Season by season stats"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <table class="season-table" aria-label="Player season records">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <thead>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              <tr>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th>Season</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th>Game</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th>Team</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th>Phase</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">GP</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">W-L</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">Win %</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">Goals</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">K</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">D</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">+/-</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">K/D</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">Stops</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th>Source</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              </tr>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            </thead>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <tbody>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              @for (s of filteredSeasons(); track s.season.seasonID + '-' + s.isPlayoffs + '-' + s.stintIndex + '-' + s.teamID) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <tr>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    <div class="table-season-cell">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      <a [routerLink]="['/season', s.season.seasonID]" class="season-name hud-text-link">{{s.season.seasonName}}</a>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      <span class="league-sub"><a routerLink="/seasons" [queryParams]="{ league: s.season.leagueID }">{{s.season.leagueName}}</a></span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  </td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td><span class="game-pill-sm"><a routerLink="/seasons" [queryParams]="{ game: s.gameVersionID }">{{s.gameVersionName}}</a></span></td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    <div class="team-cell">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      @if (s.teamID) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                        <a [routerLink]="['/season', s.season.seasonID, 'team', s.teamID]" class="team-name hud-text-link">{{s.teamName}}</a>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      } @else {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                        <span>{{s.teamName || 'Independent'}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      @if (s.tradeNote) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                        <span class="trade-sub">{{s.tradeNote}}</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  </td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    <span class="phase-pill" [class.playoffs]="s.isPlayoffs">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      {{s.isPlayoffs ? 'Playoffs' : 'Regular'}}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    </span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  </td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num">{{s.gamesPlayed}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{s.wins}}-{{s.losses}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{s.winPercent != null ? s.winPercent + '%' : '-'}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono hud-accent">{{s.goals}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{s.kills}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{s.deaths}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono" [class.positive-spread]="(s.kdSpread ?? 0) >= 0" [class.negative-spread]="(s.kdSpread ?? 0) < 0">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    {{(s.kdSpread ?? 0) >= 0 ? '+' : ''}}{{s.kdSpread ?? (s.kills - s.deaths)}}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  </td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{s.kdRatio != null ? s.kdRatio : '-'}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{s.carrierKills}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    <span class="source-tag" [class.waypoint]="s.source === 'Matches'">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      {{s.source}}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    </span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  </td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                </tr>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            </tbody>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </table>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      } @else {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <p class="hud-muted empty-state">No historical season participation records found.</p>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <!-- Late League: the Discord queue's games, and a line per archive season (no teams or phases) -->
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    @if (filteredLateLeague().length > 0) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="late-league-heading">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div class="section-header">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <span class="hud-kicker">&gt; Queue play</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <h2 id="late-league-heading" class="hud-h2">Late League</h2>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Late League stats"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <table class="season-table" aria-label="Player Late League records">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <thead>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              <tr>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th>Season</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th>Game</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">GP</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">W-L</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">Win %</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">Goals</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">K</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">D</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">+/-</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">K/D</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th class="hud-num">Stops</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <th>Source</th>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              </tr>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            </thead>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            <tbody>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              @for (l of filteredLateLeague(); track l.matchmakingSeasonID ?? 'queue') {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                <tr>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    @if (l.matchmakingSeasonID) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      <a [routerLink]="['/late-league', l.matchmakingSeasonID]" class="season-name hud-text-link">{{l.matchmakingSeasonName}}</a>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    } @else {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                      <span class="season-name">Current Late League</span>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  </td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td><span class="game-pill-sm">{{l.gameVersionName}}</span></td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num">{{l.gamesPlayed}}@if (l.gamesDecidedByVote) {<span class="hud-muted"> ({{l.gamesDecidedByVote}} by vote)</span>}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{l.wins}}-{{l.losses}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{l.winPercent != null ? l.winPercent + '%' : '-'}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono hud-accent">{{l.goals}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{l.kills}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{l.deaths}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono" [class.positive-spread]="(l.kdSpread ?? 0) >= 0" [class.negative-spread]="(l.kdSpread ?? 0) < 0">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                    {{(l.kdSpread ?? 0) >= 0 ? '+' : ''}}{{l.kdSpread ?? (l.kills - l.deaths)}}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  </td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{l.kdRatio != null ? l.kdRatio : '-'}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td class="hud-num font-mono">{{l.carrierKills}}</td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                  <td><span class="source-tag" [class.waypoint]="l.source === 'Matches'">{{l.source}}</span></td>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}                </tr>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}              }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}            </tbody>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          </table>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        @if (lateLeagueByVote()) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}          <p class="hud-muted vote-note">A game decided by its players' vote counts in GP and W-L only: it has no box score, so no goals, kills or stops.</p>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <!-- Commendations are Halo Infinite medals: hidden while another game's era is chosen -->
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    @if (showCommendations()) {
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="commendations-heading">
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}        <app-profile-commendations [userID]="userID()" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}      </section>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    }
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}    <app-vod-list scope="player" [id]="userID()" />
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}  </div>
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}
+@if (gamertag() || profileStats()?.displayName; as name) {<ng-container>{{name}}</ng-container>} @else if (statsLoading()) {&nbsp;} @else {<ng-container>Unknown Spartan</ng-container>}</div>

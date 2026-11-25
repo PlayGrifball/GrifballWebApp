@@ -26,6 +26,9 @@
     <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
     <tr mat-row [animate.enter]="rowEnter()" *matRowDef="let row; columns: displayedColumns();"></tr>
 </table>
+@if (x.status() === 'loading' && current().results.length === 0) {
+<app-skeleton label="rows" shape="table" [header]="false" [count]="pageSize()" [columns]="displayedColumns().length" />
+}
 @if (x.error()) {
 <div class="table-message table-error" role="alert">
     Failed to load data.

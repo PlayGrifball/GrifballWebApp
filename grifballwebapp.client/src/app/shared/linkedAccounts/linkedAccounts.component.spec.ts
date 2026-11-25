@@ -86,6 +86,7 @@ describe('LinkedAccountsComponent', () => {
 
   it('says so when nothing is linked', () => {
     create();
+    expect(status()).toBe('Loading linked accounts…');
     flushMine(mine({ logins: [] }));
     expect(el().textContent).toContain('No linked accounts.');
   });
@@ -164,13 +165,13 @@ describe('LinkedAccountsComponent', () => {
     expect(status()).toBe('Linked Discord');
   });
 
-  it('leaves a link to the browser while rendering on the server: no call, the URL untouched', () => {
+  it('leaves a link to the browser while rendering on the server: no call, the URL untouched, its place held by a skeleton', () => {
     queryParams = { linkCallback: 'true' };
     create(undefined, 'server');
 
     // http.verify (afterEach): neither LinkCallback nor the list is asked for on the server
     expect(location.replaceState).not.toHaveBeenCalled();
-    expect(status()).toBeUndefined();
+    expect(status()).toBe('Loading linked accounts…');
   });
 
   it('still lists your logins while rendering on the server', () => {
