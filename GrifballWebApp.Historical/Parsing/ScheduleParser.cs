@@ -328,7 +328,7 @@ public static partial class ScheduleParser
     [GeneratedRegex(@"(\s+(\d{1,2}(:\d{2})?\s*([ap]\.?\s*m\.?)?|\d{1,2}\s*-\s*\d{1,2}|e[sd]?t\.?|eastern|\(\d+\s*-\s*\d+\)|\(\d{1,2}\)))+\s*\.?$", RegexOptions.IgnoreCase)]
     private static partial Regex TrailingNoise();
 
-    [GeneratedRegex(@"(?<![\d:])(?<h>\d{1,2})(?::(?<m>\d{2}))?(?::\d{2})?\s*(?<ap>[ap])?\.?\s*m?\.?(?![\d-])", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(?<![\d:])(?<h>\d{1,2})(?::(?<m>\d{2}))?(?::\d{2})?(?:\s*(?<ap>[ap])\.?\s*m?\.?(?![a-z]))?(?![\d-])", RegexOptions.IgnoreCase)]
     private static partial Regex TimePattern();
 
     /// <summary>"9:30pm: ", "*8pm: " before a match (SL20 Console's calendar).</summary>

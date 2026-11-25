@@ -29,12 +29,15 @@ public sealed partial class HistoricalArchiveBuilder
             }
             var key = HistoricalKeys.SeasonSourceId(regular.SourceWorkbook!, regular.SourceSheet!);
             var names = SeasonTeamNames.Of(SeasonOf(regular), tab.Teams);
+            // A per-game tab's side is its players' team (its rows name no team)
+            var teamOf = SeasonOf(regular).SelectMany(s => s.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName))
+                .GroupBy(p => HistoricalKeys.Normalize(p.Gamertag)).ToDictionary(g => g.Key, g => g.First().TeamName!.Trim());
             // The season's undated games, a series' as one: what the meetings date, in their lists' order
             var undated = _games
                 .Where(g => string.Equals(g.SeasonSourceId, key, StringComparison.OrdinalIgnoreCase) && g.Teams.Count == 2)
                 .GroupBy(g => g.Series ?? g.SourceKey, StringComparer.Ordinal)
                 .Where(g => g.All(game => game.PlayedAt is null))
-                .Select(g => (Games: g.ToList(), Pair: Pair(g.First().Teams[0].Name, g.First().Teams[1].Name)))
+                .Select(g => (Games: g.ToList(), Pair: Pair(SideTeam(g.First(), 0, teamOf), SideTeam(g.First(), 1, teamOf))))
                 .ToList();
             var meetings = matches
                 .Select(m => (m.PlayedAt, Home: ScheduledTeam(names, m.First), Away: ScheduledTeam(names, m.Second)))
@@ -77,6 +80,15 @@ public sealed partial class HistoricalArchiveBuilder
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.Add(key);
         }
+    }
+
+    /// <summary>A game's side's team: its name, or (a per-game tab's side, unnamed) the team most of its players are on.</summary>
+    private static string? SideTeam(RecordedGameInput game, int index, Dictionary<string, string> teamOf)
+    {
+        var side = game.Teams[index];
+        return side.Name ?? game.Players.Where(p => p.Side == side.Side)
+            .Select(p => teamOf.GetValueOrDefault(HistoricalKeys.Normalize(p.Gamertag)))
+            .OfType<string>().GroupBy(t => t, StringComparer.OrdinalIgnoreCase).OrderByDescending(t => t.Count()).Select(t => t.Key).FirstOrDefault();
     }
 
     /// <summary>Two teams in either order, as one key.</summary>

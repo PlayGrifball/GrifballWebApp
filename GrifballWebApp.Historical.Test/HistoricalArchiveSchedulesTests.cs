@@ -145,4 +145,33 @@ public class HistoricalArchiveSchedulesTests
         Assert.That(build.Input.RecordedGames!.Select(g => g.PlayedAt), Is.EqualTo(new DateTime?[] { June1, June1, June1, June8 }),
             "Captains name their teams; the first match is both games in a row");
     }
+
+    private static readonly object?[] CarnageHeader = Row("Player", "Team", "GamesPlayed", "Wins", "Loses", "Goals", "Kills", "Assists", "Deaths", "Betrayals", "HammerKills", "BombStops", "GameTime", "TimeStamp", "Game");
+
+    /// <summary>A per-game tab's row, no timestamp: a game is a run of rows of one game time.</summary>
+    private static object?[] Carnage(string player, int team, bool won, int gameTime)
+        => Row(player, team, 1, won ? 1 : 0, won ? 0 : 1, won ? 1 : 0, 10, 2, 9, 0, 5, 1, gameTime, null, null);
+
+    [Test]
+    public void APerGameTabsGame_IsItsPlayersTeams_ForTheSchedule()
+    {
+        // GWL SL23's HR_MatchH: its rows name no team, only their side's number
+        var source = Source("gwl23", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "GWL Spring League 2023", Game = "reach" },
+                Tabs = [new() { Name = "Stats" }],
+                Games = [new() { Sheet = "HR_MatchH", Season = "gwl23/Stats", Game = "reach" }],
+                Schedules = [new() { Sheet = "Schedule", WholeSeries = true }],
+            },
+            Workbook(("Stats", [StatsHeader, Row("Ace", "Alpha", 4, 1), Row("Bee", "Bravo", 4, 1), Row("Cee", "Charlie", 4, 1)]),
+                ("HR_MatchH", [CarnageHeader,
+                    Carnage("Ace", 0, true, 600), Carnage("Bee", 1, false, 600),
+                    Carnage("Bee", 0, true, 700), Carnage("Ace", 1, false, 700),
+                    Carnage("Cee", 0, true, 800), Carnage("Ace", 1, false, 800)]),
+                ("Schedule", [Row("Date", "6/1/2020", "6/8/2020"), Row(null, "Ace @ Bee", "Cee @ Ace")])));
+
+        var build = HistoricalArchiveBuilder.Build([source]);
+
+        Assert.That(build.Input.RecordedGames!.Select(g => g.PlayedAt), Is.EqualTo(new DateTime?[] { June1, June1, June8 }));
+    }
 }
