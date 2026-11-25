@@ -1180,6 +1180,18 @@ migrations:
       schedule: "0 3 * * *"
       # Paused, as for retention above.
       suspend: false
+    # SQL Server only: transaction log backups (a CronJob), for restoring to any point between them.
+    # The migration Job sets the database's recovery model on every deploy: FULL with these on, else
+    # SIMPLE, where SQL Server truncates the log itself (restores only to a full backup). FULL without
+    # log backups would grow the log until the disk fills. Files are <database>_log_YYYYMMDD_HHMMSS.trn
+    # in the folder above; the first, with no full backup to base the chain on, writes one first.
+    # Retention deletes a log backup once no kept full backup needs it. Not with onDemand: it would
+    # keep the database awake.
+    log:
+      enabled: false
+      schedule: "*/15 * * * *"
+      # Paused, as for retention above.
+      suspend: false
   # On a release's first deploy - its database doesn't exist yet, or exists with no tables (made
   # beforehand, as a managed server's often is) - restore the newest backup from a folder (another
   # environment's, say), then migrate applies whatever the image has that it lacks. SQL Server restores

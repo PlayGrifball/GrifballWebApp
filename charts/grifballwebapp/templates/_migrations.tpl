@@ -532,7 +532,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b \
         -v BACKUP_DIR="$BACKUP_DIR" BACKUP_FILE="$file" DB_NAME="$DB_NAME" \
         -Q "EXEC master.sys.xp_create_subdir N'\$$(BACKUP_DIR)';
-          DECLARE @compression nvarchar(20) = CASE WHEN CONVERT(int, SERVERPROPERTY('EngineEdition')) = 3 OR (CONVERT(int, SERVERPROPERTY('EngineEdition')) = 2 AND CONVERT(nvarchar(128), SERVERPROPERTY('Edition')) NOT LIKE N'Web%') THEN N'COMPRESSION' ELSE N'NO_COMPRESSION' END;
+          {{ include "grif.mssqlCompression" . }}
           DECLARE @backup nvarchar(max) = N'BACKUP DATABASE [\$$(DB_NAME)] TO DISK = N''\$$(BACKUP_FILE)'' WITH FORMAT, INIT, ' + @compression + N', NAME = ''Pre-migration backup''';
           EXEC (@backup);"
       {{- end }}
@@ -575,6 +575,9 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- else }}
       if [ -s /work/pending.txt ]; then {{ include "grif.byProvider" (dict "root" . "sql" "/app/efbundle" "pg" "/app/postgres/efbundle") }}; else echo "Nothing to migrate."; fi
       {{- end }}
+      {{- if not (include "grif.postgres" .) }}
+      {{- include "grif.recoveryModelScript" . | nindent 6 }}
+      {{- end }}
       {{- if .Values.database.logins.enabled }}
       {{- if include "grif.postgres" . }}
       {{- include "grif.pgLoginSyncScript" . | nindent 6 }}
@@ -587,7 +590,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- end }}
   env:
     {{- include "grif.migrationEnv" . | nindent 4 }}
-    {{- if or .Values.database.logins.enabled (include "grif.previewReset" .) }}
+    {{- if or .Values.database.logins.enabled (include "grif.previewReset" .) (not (include "grif.postgres" .)) }}
     {{- include "grif.dbEnv" . | nindent 4 }}
     {{- end }}
     {{- if .Values.database.logins.enabled }}
@@ -625,6 +628,22 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
   resources:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
+
+{{/*
+SQL Server's recovery model, after the migrations (the database exists by then): FULL with log backups
+(migrations.backup.log), else SIMPLE, so the log never grows unbacked. Azure SQL manages its own.
+*/}}
+{{- define "grif.recoveryModelScript" -}}
+{{- $model := ternary "FULL" "SIMPLE" (eq (include "grif.logBackups" .) "true") -}}
+# Recovery model (migrations.backup.log).
+sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
+  IF CONVERT(int, SERVERPROPERTY('EngineEdition')) IN (5, 8) PRINT N'Azure SQL manages the recovery model.';
+  ELSE IF EXISTS (SELECT 1 FROM sys.databases WHERE name = N'\$$(DB_NAME)' AND recovery_model_desc <> N'{{ $model }}')
+  BEGIN
+    ALTER DATABASE [\$$(DB_NAME)] SET RECOVERY {{ $model }};
+    PRINT N'Recovery model: {{ $model }}.';
+  END"
 {{- end }}
 
 {{/*

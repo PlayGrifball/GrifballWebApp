@@ -81,7 +81,6 @@ tests:
   - it: records nothing outside a preview
     asserts:
       - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "__PreviewMigrationContents" }
-      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: sa } }
 
   - it: has no recheck without restore or convert (the reset database is migrated from empty)
     set:

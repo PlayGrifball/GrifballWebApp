@@ -444,6 +444,23 @@ the file), or for PostgreSQL in the backup volume the chart's pods mount at /bac
 {{- .Values.migrations.backup.directory | default (printf "%s/%s" (include "grif.byProvider" (dict "root" . "sql" "/var/opt/mssql/backup" "pg" "/backup")) .Release.Namespace) -}}
 {{- end }}
 
+{{/* "true" when SQL Server log backups are on (migrations.backup.log): the database in FULL recovery, else SIMPLE. */}}
+{{- define "grif.logBackups" -}}
+{{- $m := .Values.migrations -}}
+{{- if and $m.enabled $m.backup.enabled $m.backup.log.enabled (not (include "grif.postgres" .)) }}true{{ end -}}
+{{- end }}
+
+{{/* "true" when a grif-backup pod runs: the scheduled backup or the log backups. */}}
+{{- define "grif.backupPods" -}}
+{{- $m := .Values.migrations -}}
+{{- if or (and $m.enabled $m.backup.enabled $m.backup.scheduled.enabled) (include "grif.logBackups" .) }}true{{ end -}}
+{{- end }}
+
+{{/* SQL Server: T-SQL setting @compression to COMPRESSION where the edition has it (Enterprise, Standard, Developer), else NO_COMPRESSION. */}}
+{{- define "grif.mssqlCompression" -}}
+DECLARE @compression nvarchar(20) = CASE WHEN CONVERT(int, SERVERPROPERTY('EngineEdition')) = 3 OR (CONVERT(int, SERVERPROPERTY('EngineEdition')) = 2 AND CONVERT(nvarchar(128), SERVERPROPERTY('Edition')) NOT LIKE N'Web%') THEN N'COMPRESSION' ELSE N'NO_COMPRESSION' END;
+{{- end }}
+
 {{/*
 The backend's login: database.logins.app with logins on, else the administrator (database.user).
 grif.appUser returns the user; grif.appPassword its password's Secret reference (JSON);
