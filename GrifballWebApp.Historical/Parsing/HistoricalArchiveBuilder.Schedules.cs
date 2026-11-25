@@ -54,7 +54,7 @@ public sealed partial class HistoricalArchiveBuilder
     }
 
     /// <summary>A schedule's meeting: its two teams (the season's names, home first) on a day, and how many entries it has.</summary>
-    private sealed record Meeting(DateTime PlayedAt, (string, string) Pair, string Home, string Away, int Count);
+    private sealed record Meeting(DateTime PlayedAt, (string, string) Teams, string Home, string Away, int Count);
 
     /// <summary>A season's undated games, a series' as one unit, in their lists' order: what the meetings date.</summary>
     private List<(List<RecordedGameInput> Games, (string, string) Pair)> Undated(string key, List<ArchiveSeason> season)
@@ -82,11 +82,11 @@ public sealed partial class HistoricalArchiveBuilder
     private static bool DateGames(Meeting meeting, List<(List<RecordedGameInput> Games, (string, string) Pair)> undated, bool wholeSeries)
     {
         var (entries, dated) = (0, false);
-        while (entries < meeting.Count && undated.FindIndex(u => u.Pair == meeting.Pair) is var index and >= 0)
+        while (entries < meeting.Count && undated.FindIndex(u => u.Pair == meeting.Teams) is var index and >= 0)
         {
             // A whole match: its teams' undated games (or one-game series) in a row
             var end = index + 1;
-            while (wholeSeries && end < undated.Count && undated[end].Pair == meeting.Pair)
+            while (wholeSeries && end < undated.Count && undated[end].Pair == meeting.Teams)
                 end++;
             foreach (var game in undated.Skip(index).Take(end - index).SelectMany(u => u.Games))
                 game.PlayedAt = meeting.PlayedAt;

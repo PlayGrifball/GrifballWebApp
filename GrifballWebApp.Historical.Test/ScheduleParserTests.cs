@@ -203,8 +203,8 @@ public class ScheduleParserTests
     public void DaysOfTheMonth_CrossIntoTheNextYear_AndARunEndsAtADayThatDoesntFollow()
     {
         var sheet = Sheet(
-            ["Week", "123", "29.0", "30", "31", "1", "9"],
-            ["", "", "A vs B", "", "", "C vs D", "E vs F"],
+            ["Week", "123", "45", "29.0", "30", "31", "1", "9"],
+            ["", "", "", "A vs B", "", "", "C vs D", "E vs F"],
             ["Week", "3", "4", "5", "1"],
             ["", "G vs H", "", "", "I vs J"]);
 
@@ -214,7 +214,7 @@ public class ScheduleParserTests
         {
             (new DateTime(2020, 12, 29, 0, 0, 0, DateTimeKind.Utc), "A"), (new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), "C"),
             (new DateTime(2021, 1, 3, 0, 0, 0, DateTimeKind.Utc), "G"),
-        }), "123 is no day, 9 doesn't follow the 1st (E's is no day's), nor a 1st the 5th (I's)");
+        }), "123 and 45 are no days, 9 doesn't follow the 1st (E's is no day's), nor a 1st the 5th (I's)");
     }
 
     [Test]
@@ -223,6 +223,7 @@ public class ScheduleParserTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Parse(new ScheduleTab { Sheet = "Schedule" }, Sheet(["Date", "1/1/1999"], ["", "A vs B"])), Is.Empty);
+            Assert.That(Parse(new ScheduleTab { Sheet = "Schedule" }, Sheet(["Date", "1/1/2200"], ["", "A vs B"])), Is.Empty);
             Assert.That(Parse(new ScheduleTab { Sheet = "Schedule", Year = 2017 }, Sheet(["July 31st", "August 1st"], ["A @ B", "C @ D"])).Select(m => m.PlayedAt.Date),
                 Is.EqualTo(new[] { new DateTime(2017, 7, 31), new DateTime(2017, 8, 1) }));
         }
