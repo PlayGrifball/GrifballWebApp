@@ -1516,7 +1516,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             foreach (var game in slot.SeriesGames.Where(l => l.MatchID != null && !listed.Contains(l.MatchID.Value)).ToList())
                 DetachSheetGame(slot, game);
         gone.RemoveAll(m => _sheetSlots.Contains(m.SeasonMatchID));
-        var fed = (await BracketSlotsFedBy(season.SeasonID, gone, ct)).Where(m => !_sheetSlots.Contains(m.SeasonMatchID)).ToList();
+        var fed = await BracketSlotsFedBy(season.SeasonID, gone, ct);
         foreach (var match in gone)
             match.Cancel();
         _context.SeasonMatches.RemoveRange(gone);
@@ -1923,8 +1923,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// </summary>
     private async Task<int?> Unlink(RecordedGame game, CancellationToken ct)
     {
-        if (game.SeriesGame is not { } seriesGame)
-            return null;
+        var seriesGame = game.SeriesGame!;
         var match = await _context.SeasonMatches.Include(m => m.SeriesGames).Include(m => m.BracketMatch)
             .FirstAsync(m => m.SeasonMatchID == seriesGame.SeasonMatchID, ct);
         if (_sheetSlots.Contains(match.SeasonMatchID))
