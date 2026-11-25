@@ -57,6 +57,16 @@ describe('SeasonEditStore', () => {
     expect(store.season()).toBeNull();
   });
 
+  it('is loaded, with no season, when the season fails to load, and logs it', () => {
+    const log = spyOn(console, 'error');
+    api.getSeason.and.returnValue(throwError(() => new Error('down')));
+    store.seasonID.use(signal(4));
+    TestBed.tick();
+    expect(store.loaded()).toBeTrue();
+    expect(store.season()).toBeNull();
+    expect(log).toHaveBeenCalled();
+  });
+
   it("loads the selects' options, and logs those that fail", () => {
     const error = spyOn(console, 'error');
     api.getSeasons.and.returnValue(throwError(() => 'down'));

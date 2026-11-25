@@ -60,7 +60,6 @@ describe('EditUserStore', () => {
   });
 
   it('is no longer pending when the user fails to load', () => {
-    spyOn(console, 'error');
     store.userID.use(signal(5));
     TestBed.tick();
     http.expectOne('/api/users/5').flush(null, { status: 500, statusText: 'Server Error' });
