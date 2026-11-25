@@ -417,6 +417,9 @@ public static partial class GameResultsParser
         return null;
     }
 
+    private static bool InPlayoffsColumn((int Row, int Column)? anchor, int row, int column)
+        => anchor is { } a && row >= a.Row && column == a.Column;
+
     private static void SeriesCells(ResultsParse parse)
     {
         var anchor = PlayoffsAnchor(parse);
@@ -430,7 +433,7 @@ public static partial class GameResultsParser
             {
                 if (SeriesEntry.Of(row[c].Trim()) is not { } entry)
                     continue;
-                parse.Playoffs = rowPlayoffs || (anchor is { } a && r >= a.Row && c == a.Column);
+                parse.Playoffs = rowPlayoffs || InPlayoffsColumn(anchor, r, c);
                 // The game scores after it, in the cells beside it (until a cell that is none)
                 var scores = entry.Games;
                 if (scores.Count == 0)
