@@ -835,6 +835,29 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     }
 
     [Test]
+    public async Task Import_ARenamedSeasonWithRecordedGamesUnderKeysTheArchiveNoLongerHas_IsRetired_AndTheGamesGoWithIt()
+    {
+        var first = OneSeason("Summer League 2018", "sml18-fantasy/Stats#s14");
+        await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = first.Seasons,
+            RecordedGames = [Game("old#1", [("Silva", 1), ("Hen", 2)], "halo5", seasonKey: "sml18-fantasy/Stats#s14")],
+        });
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(1));
+
+        var report = await _service.Import(OneSeason("Summer League 2018 (Pro)", "sml18-fantasy/Stats#sPro"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1));
+            Assert.That(await Context.RecordedGames.CountAsync(), Is.Zero);
+            Assert.That(await Context.Seasons.Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(OnlyThePro));
+        }
+    }
+
+    [Test]
     public async Task Import_ASeasonWhoseSheetKeyIsGone_WithNoSeasonOfAnExtendedName_IsKept()
     {
         await _service.Import(OneSeason("Summer League 2018", "sml18-fantasy/Stats#s14"));
