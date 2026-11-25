@@ -66,6 +66,8 @@
             <app-schedule-list [seasonID]="shownSeasonID()" [feedPublic]="summary()?.isPublic ?? false" />
           } @placeholder {
             <app-skeleton label="the schedule" shape="cards" [count]="4" height="180px" cardWidth="400px" />
+          } @error {
+            <app-data-notice message="The schedule couldn't load. Reload the page to try again." />
           }
         }
       </section>
@@ -81,6 +83,8 @@
             <app-playoff-bracket [seasonID]="shownSeasonID()" [champions]="summary()?.champions" [hasEnded]="!!summary()?.hasEnded" (bracketChanged)="getSummary()" />
           } @placeholder {
             <app-skeleton label="the bracket" shape="block" height="360px" />
+          } @error {
+            <app-data-notice message="The bracket couldn't load. Reload the page to try again." />
           }
         }
       </section>
@@ -99,6 +103,8 @@
               <app-playoff-bracket [seasonID]="shownSeasonID()" />
             } @placeholder {
               <app-skeleton label="the bracket" shape="block" height="360px" />
+            } @error {
+              <app-data-notice message="The bracket couldn't load. Reload the page to try again." />
             }
           }
         </section>
