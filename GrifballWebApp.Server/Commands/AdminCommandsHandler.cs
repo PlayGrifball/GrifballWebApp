@@ -290,7 +290,7 @@ public class AdminCommandsHandler
         var lines = overview.Jobs
             .Select(x => $"`{x.Group}/{x.Name}` · {x.State}" + (x.Enabled ? "" : " · paused"))
             .ToList();
-        await context.Reply(CommandReplies.Embed("Jobs", _urls.Page("usermanagement/jobs"), CommandReplies.Lines(lines, "No jobs.")));
+        await context.Reply(CommandReplies.Embed("Jobs", _urls.Page("sysadmin/jobs"), CommandReplies.Lines(lines, "No jobs.")));
     }
 
     /// <summary>Runs or pauses a job named group/name, as the jobs page does.</summary>

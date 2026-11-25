@@ -428,6 +428,8 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     [TestCase("/usermanagement/merges")]
     [TestCase("/seasonManager")]
     [TestCase("/commissioner-dashboard")]
+    [TestCase("/sysadmin")]
+    [TestCase("/sysadmin/jobs")]
     [TestCase("/season/1/playergrades")]
     [TestCase("/season/1/signups")]
     public async Task AStaffPage_IsTheStaffArea(string path)

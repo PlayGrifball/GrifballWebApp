@@ -93,17 +93,47 @@ export const APP_ROUTES: Routes = [
     canActivate: [isEventOrganizerGuard]
   },
   {
-    path: 'infiniteclient',
-    loadComponent: () => import('./features/admin/infiniteClient/infiniteClient.component').then(m => m.InfiniteClientComponent),
+    path: 'sysadmin',
+    loadComponent: () => import('./features/admin/sysAdmin/sysAdmin.component').then(m => m.SysAdminComponent),
+    title: 'SysAdmin',
+    canActivate: [isSysAdminGuard]
+  },
+  {
+    path: 'sysadmin/historicalimport',
+    loadComponent: () => import('./features/admin/sysAdmin/historicalImport/historicalImport.component').then(m => m.HistoricalImportComponent),
+    title: 'Historical Import',
+    canActivate: [isSysAdminGuard]
+  },
+  {
+    path: 'sysadmin/jobs',
+    loadComponent: () => import('./features/admin/sysAdmin/jobs/jobs.component').then(m => m.JobsComponent),
+    title: 'Jobs',
+    canActivate: [isSysAdminGuard]
+  },
+  {
+    path: 'sysadmin/telemetry',
+    loadComponent: () => import('./features/admin/sysAdmin/telemetry/telemetry.component').then(m => m.TelemetryComponent),
+    title: 'Telemetry',
+    canActivate: [isSysAdminGuard]
+  },
+  {
+    path: 'sysadmin/infiniteclient',
+    loadComponent: () => import('./features/admin/sysAdmin/infiniteClient/infiniteClient.component').then(m => m.InfiniteClientComponent),
     title: 'Infinite Client',
     canActivate: [isSysAdminGuard]
   },
   {
-    path: 'databasebackup',
-    loadComponent: () => import('./features/admin/databaseBackup/databaseBackup.component').then(m => m.DatabaseBackupComponent),
+    path: 'sysadmin/databasebackup',
+    loadComponent: () => import('./features/admin/sysAdmin/databaseBackup/databaseBackup.component').then(m => m.DatabaseBackupComponent),
     title: 'Database Backup',
     canActivate: [isSysAdminGuard]
   },
+  // Their old addresses: bookmarks, and the Infinite Client's registered sign-in redirect (its ?code= is kept)
+  { path: 'infiniteclient', redirectTo: '/sysadmin/infiniteclient', pathMatch: 'full' },
+  { path: 'databasebackup', redirectTo: '/sysadmin/databasebackup', pathMatch: 'full' },
+  { path: 'usermanagement/historicalimport', redirectTo: '/sysadmin/historicalimport', pathMatch: 'full' },
+  { path: 'usermanagement/jobs', redirectTo: '/sysadmin/jobs', pathMatch: 'full' },
+  { path: 'usermanagement/telemetry', redirectTo: '/sysadmin/telemetry', pathMatch: 'full' },
   {
     path: 'usermanagement',
     loadComponent: () => import('./features/admin/userManagement/userManagement.component').then(m => m.UserManagementComponent),
@@ -150,24 +180,6 @@ export const APP_ROUTES: Routes = [
     path: 'usermanagement/merges',
     loadComponent: () => import('./features/admin/userManagement/merges/merges.component').then(m => m.MergesComponent),
     title: 'Merges',
-    canActivate: [isSysAdminGuard]
-  },
-  {
-    path: 'usermanagement/historicalimport',
-    loadComponent: () => import('./features/admin/userManagement/historicalImport/historicalImport.component').then(m => m.HistoricalImportComponent),
-    title: 'Historical Import',
-    canActivate: [isSysAdminGuard]
-  },
-  {
-    path: 'usermanagement/jobs',
-    loadComponent: () => import('./features/admin/userManagement/jobs/jobs.component').then(m => m.JobsComponent),
-    title: 'Jobs',
-    canActivate: [isSysAdminGuard]
-  },
-  {
-    path: 'usermanagement/telemetry',
-    loadComponent: () => import('./features/admin/userManagement/telemetry/telemetry.component').then(m => m.TelemetryComponent),
-    title: 'Telemetry',
     canActivate: [isSysAdminGuard]
   },
   {

@@ -93,7 +93,8 @@ const signedInPages = [
   '/commissioner-dashboard',
   '/excel',
   '/excel/1xGrifballAutumnBrawl2026/Week%203',
-  '/infiniteclient',
+  '/sysadmin',
+  '/sysadmin/infiniteclient',
   '/usermanagement',
   '/usermanagement/createuser',
   '/usermanagement/edituser/2',
@@ -104,10 +105,10 @@ const signedInPages = [
   '/usermanagement/claims',
   '/usermanagement/merges',
   '/usermanagement/pastgamertags?xboxUserID=2535400000000117',
-  '/usermanagement/historicalimport',
-  '/usermanagement/jobs',
-  '/usermanagement/telemetry',
-  '/databasebackup',
+  '/sysadmin/historicalimport',
+  '/sysadmin/jobs',
+  '/sysadmin/telemetry',
+  '/sysadmin/databasebackup',
 ];
 const allPages = [...publicPages, ...(signedIn ? signedInPages : signedOutPages)];
 

@@ -76,8 +76,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
     { title: "Season Manager", path: "/seasonManager", show: computed(() => this.accountService.isEventOrganizer()) },
     { title: "Commissioner Dashboard", path: "/commissioner-dashboard", show: computed(() => this.accountService.isEventOrganizer()) },
     { title: "User Management", path: "/usermanagement", show: computed(() => this.accountService.isSysAdmin()) },
-    { title: "Infinite Client", path: "/infiniteclient", show: computed(() => this.accountService.isSysAdmin()) },
-    { title: "Database Backup", path: "/databasebackup", show: computed(() => this.accountService.isSysAdmin()) },
+    { title: "SysAdmin", path: "/sysadmin", show: computed(() => this.accountService.isSysAdmin()) },
     { title: "Excel Exporter", path: "/excel", show: computed(() => this.accountService.isEventOrganizer()) },
   ]);
 

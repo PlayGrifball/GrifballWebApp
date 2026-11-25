@@ -121,7 +121,7 @@ gateway you can reach (e.g. `kubectl port-forward -n halo-gateway svc/halo-gatew
 secrets as above. An unknown mode or a gateway URL that isn't an absolute http(s) URL stops the app at startup, naming
 the setting. Without either, the app still runs; only the Halo features (match imports, gamertag lookups) fail.
 
-The **Infinite Client** page (`/infiniteclient`, sysadmins) shows which mode is active:
+The **Infinite Client** page (`/sysadmin/infiniteclient`, sysadmins) shows which mode is active:
 
 - Gateway: the gateway's status from a fresh check (`GET /api/halo/status`): whether the gateway answered, its Halo
   account's status (Healthy, or Degraded when it has to be signed in again), what a test call (one match's stats)

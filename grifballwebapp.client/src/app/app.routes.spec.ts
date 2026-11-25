@@ -1,4 +1,5 @@
-import { Route } from '@angular/router';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter, Route, Router } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
 import { HomeComponent } from './features/home/home.component';
 import { ThemeComponent } from './core/layout/theme/theme.component';
@@ -17,17 +18,18 @@ import { PasswordResetComponent } from './features/account/passwordReset/passwor
 import { SeasonManagerComponent } from './features/league/seasonManager/seasonManager.component';
 import { SeasonEditComponent } from './features/league/seasonEdit/seasonEdit.component';
 import { SeasonAvailabilityComponent } from './features/league/seasonEdit/seasonAvailability/seasonAvailability.component';
-import { InfiniteClientComponent } from './features/admin/infiniteClient/infiniteClient.component';
-import { DatabaseBackupComponent } from './features/admin/databaseBackup/databaseBackup.component';
+import { SysAdminComponent } from './features/admin/sysAdmin/sysAdmin.component';
+import { InfiniteClientComponent } from './features/admin/sysAdmin/infiniteClient/infiniteClient.component';
+import { DatabaseBackupComponent } from './features/admin/sysAdmin/databaseBackup/databaseBackup.component';
 import { UserManagementComponent } from './features/admin/userManagement/userManagement.component';
 import { CreateUserComponent } from './features/admin/userManagement/createUser/createUser.component';
 import { EditUserComponent } from './features/admin/userManagement/editUser/editUser.component';
 import { MergeUserComponent } from './features/admin/userManagement/mergeUser/mergeUser.component';
 import { GamertagClaimsComponent } from './features/admin/userManagement/gamertagClaims/gamertagClaims.component';
 import { PastGamertagsComponent } from './features/admin/userManagement/pastGamertags/pastGamertags.component';
-import { HistoricalImportComponent } from './features/admin/userManagement/historicalImport/historicalImport.component';
-import { JobsComponent } from './features/admin/userManagement/jobs/jobs.component';
-import { TelemetryComponent } from './features/admin/userManagement/telemetry/telemetry.component';
+import { HistoricalImportComponent } from './features/admin/sysAdmin/historicalImport/historicalImport.component';
+import { JobsComponent } from './features/admin/sysAdmin/jobs/jobs.component';
+import { TelemetryComponent } from './features/admin/sysAdmin/telemetry/telemetry.component';
 import { MergesComponent } from './features/admin/userManagement/merges/merges.component';
 import { ProfileComponent } from './features/players/profile/profile.component';
 import { XboxAccountComponent } from './features/players/xboxAccount/xboxAccount.component';
@@ -97,15 +99,21 @@ describe('APP_ROUTES', () => {
     expect(seasonManagerRoute?.canActivate?.length).toBe(1);
   });
 
+  it("has the sysadmins' SysAdmin page, guarded", () => {
+    const route = APP_ROUTES.find(r => r.path === 'sysadmin');
+    expect(route?.title).toBe('SysAdmin');
+    expect(route?.canActivate?.length).toBe(1);
+  });
+
   it('should have protected infiniteclient route', () => {
-    const infiniteClientRoute = APP_ROUTES.find(r => r.path === 'infiniteclient');
+    const infiniteClientRoute = APP_ROUTES.find(r => r.path === 'sysadmin/infiniteclient');
     expect(infiniteClientRoute).toBeDefined();
     expect(infiniteClientRoute?.title).toBe('Infinite Client');
     expect(infiniteClientRoute?.canActivate).toBeDefined();
   });
 
   it('should have protected databasebackup route', () => {
-    const backupRoute = APP_ROUTES.find(r => r.path === 'databasebackup');
+    const backupRoute = APP_ROUTES.find(r => r.path === 'sysadmin/databasebackup');
     expect(backupRoute?.title).toBe('Database Backup');
     expect(backupRoute?.canActivate?.length).toBe(1);
   });
@@ -124,19 +132,19 @@ describe('APP_ROUTES', () => {
   });
 
   it("has the sysadmins' historical import page, guarded", () => {
-    const route = APP_ROUTES.find(r => r.path === 'usermanagement/historicalimport');
+    const route = APP_ROUTES.find(r => r.path === 'sysadmin/historicalimport');
     expect(route?.title).toBe('Historical Import');
     expect(route?.canActivate?.length).toBe(1);
   });
 
   it("has the sysadmins' jobs page, guarded", () => {
-    const route = APP_ROUTES.find(r => r.path === 'usermanagement/jobs');
+    const route = APP_ROUTES.find(r => r.path === 'sysadmin/jobs');
     expect(route?.title).toBe('Jobs');
     expect(route?.canActivate?.length).toBe(1);
   });
 
   it("has the sysadmins' telemetry page, guarded", () => {
-    const route = APP_ROUTES.find(r => r.path === 'usermanagement/telemetry');
+    const route = APP_ROUTES.find(r => r.path === 'sysadmin/telemetry');
     expect(route?.title).toBe('Telemetry');
     expect(route?.canActivate?.length).toBe(1);
   });
@@ -239,8 +247,12 @@ describe('APP_ROUTES lazy loading', () => {
     'seasonManager': SeasonManagerComponent,
     'seasonEdit/:seasonID': SeasonEditComponent,
     'seasonAvailability/:seasonID': SeasonAvailabilityComponent,
-    'infiniteclient': InfiniteClientComponent,
-    'databasebackup': DatabaseBackupComponent,
+    'sysadmin': SysAdminComponent,
+    'sysadmin/historicalimport': HistoricalImportComponent,
+    'sysadmin/jobs': JobsComponent,
+    'sysadmin/telemetry': TelemetryComponent,
+    'sysadmin/infiniteclient': InfiniteClientComponent,
+    'sysadmin/databasebackup': DatabaseBackupComponent,
     'usermanagement': UserManagementComponent,
     'usermanagement/createuser': CreateUserComponent,
     'usermanagement/edituser/:userID': EditUserComponent,
@@ -250,9 +262,6 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/claims': GamertagClaimsComponent,
     'usermanagement/merges': MergesComponent,
     'usermanagement/pastgamertags': PastGamertagsComponent,
-    'usermanagement/historicalimport': HistoricalImportComponent,
-    'usermanagement/jobs': JobsComponent,
-    'usermanagement/telemetry': TelemetryComponent,
     'profile/:userID': ProfileComponent,
     'xbox/:xuid': XboxAccountComponent,
     'history/team/:teamID': TeamHistoryComponent,
@@ -269,9 +278,36 @@ describe('APP_ROUTES lazy loading', () => {
     '**': NotFoundComponent,
   };
 
-  it('covers every route in the table above', () => {
+  // The SysAdmin pages' old addresses
+  const redirects: Record<string, string> = {
+    'infiniteclient': '/sysadmin/infiniteclient',
+    'databasebackup': '/sysadmin/databasebackup',
+    'usermanagement/historicalimport': '/sysadmin/historicalimport',
+    'usermanagement/jobs': '/sysadmin/jobs',
+    'usermanagement/telemetry': '/sysadmin/telemetry',
+  };
+
+  it('covers every route in the tables above', () => {
     const byName = (a: string, b: string) => a.localeCompare(b);
-    expect(APP_ROUTES.map(r => r.path!).sort(byName)).toEqual(Object.keys(expected).sort(byName));
+    expect(APP_ROUTES.map(r => r.path!).sort(byName)).toEqual([...Object.keys(expected), ...Object.keys(redirects)].sort(byName));
+  });
+
+  for (const [path, target] of Object.entries(redirects)) {
+    it(`'${path}' redirects to ${target}`, () => {
+      const route = APP_ROUTES.find(r => r.path === path)!;
+      expect(route.redirectTo).toBe(target);
+      expect(route.pathMatch).toBe('full');
+    });
+  }
+
+  it("keeps the Infinite Client's sign-in code through its old address's redirect", async () => {
+    const oldAddress = APP_ROUTES.find(r => r.path === 'infiniteclient')!;
+    TestBed.configureTestingModule({
+      providers: [provideRouter([oldAddress, { path: 'sysadmin/infiniteclient', children: [] }])],
+    });
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/infiniteclient?code=abc');
+    expect(router.url).toBe('/sysadmin/infiniteclient?code=abc');
   });
 
   for (const [path, component] of Object.entries(expected)) {
@@ -286,10 +322,11 @@ describe('APP_ROUTES lazy loading', () => {
     const guarded = APP_ROUTES.filter(r => r.canActivate?.length).map(r => r.path);
     expect(guarded).toEqual(jasmine.arrayWithExactContents([
       'seasonManager', 'seasonEdit/:seasonID', 'seasonAvailability/:seasonID',
-      'infiniteclient', 'databasebackup', 'usermanagement', 'usermanagement/createuser',
+      'sysadmin', 'sysadmin/historicalimport', 'sysadmin/jobs', 'sysadmin/telemetry', 'sysadmin/infiniteclient', 'sysadmin/databasebackup',
+      'usermanagement', 'usermanagement/createuser',
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
       'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',
-      'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'usermanagement/jobs', 'usermanagement/telemetry', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
+      'usermanagement/merges', 'usermanagement/pastgamertags', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
       'stat-flags',
     ]));
   });

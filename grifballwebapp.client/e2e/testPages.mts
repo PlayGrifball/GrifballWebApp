@@ -27,12 +27,12 @@ export const VISITOR = ['/profile/117', '/login', '/register', '/reset-password?
 // The commissioners' and admins' pages (a visitor is sent home from them)
 export const SIGNED_IN = [
   '/profile/999', '/seasonManager', '/seasonEdit/0', '/seasonEdit/12', '/seasonAvailability/12', '/commissioner-dashboard',
-  '/excel', '/excel/1xGrifballAutumnBrawl2026/Week%203', '/infiniteclient', '/usermanagement', '/usermanagement/createuser',
+  '/excel', '/excel/1xGrifballAutumnBrawl2026/Week%203', '/sysadmin', '/sysadmin/infiniteclient', '/usermanagement', '/usermanagement/createuser',
   '/usermanagement/edituser/2', '/usermanagement/mergeuser', '/usermanagement/mergeuser/2', '/usermanagement/mergeuser/2/3',
   '/usermanagement/claims', '/usermanagement/merges', '/usermanagement/pastgamertags', '/usermanagement/pastgamertags?xboxUserID=2535400000000117',
-  '/usermanagement/historicalimport', '/usermanagement/jobs', '/databasebackup',
+  '/sysadmin/historicalimport', '/sysadmin/jobs', '/sysadmin/databasebackup',
   // The Telemetry page on its Overview (metrics), and opened on a trace from a link (its waterfall)
-  '/usermanagement/telemetry', '/usermanagement/telemetry?trace=4bf92f3577b34da6a3ce929d0e0e4736',
+  '/sysadmin/telemetry', '/sysadmin/telemetry?trace=4bf92f3577b34da6a3ce929d0e0e4736',
 ];
 
 /** Every route, by role: a visitor's pages, and a signed-in commissioner/admin's. */
@@ -660,7 +660,7 @@ export const OVERLAYS: Overlay[] = [
   // The Telemetry page (it opens on Overview, or on a trace from a link): its Logs tab, one level only, a log line
   // open, every line of one trace, its Traces tab, the failed ones only, and a span of a trace open
   {
-    name: 'telemetry, logs', role: 'admin', path: '/usermanagement/telemetry', sheet: 'telemetry',
+    name: 'telemetry, logs', role: 'admin', path: '/sysadmin/telemetry', sheet: 'telemetry',
     parts: [HEADING, TABS, '.tm-log-line'],
     setup: async page => {
       await telemetryTab(page, 'Logs');
@@ -671,7 +671,7 @@ export const OVERLAYS: Overlay[] = [
     close: null,
   },
   {
-    name: 'telemetry, logs, errors only', role: 'admin', path: '/usermanagement/telemetry', sheet: 'telemetry',
+    name: 'telemetry, logs, errors only', role: 'admin', path: '/sysadmin/telemetry', sheet: 'telemetry',
     parts: [HEADING, TABS, '.tm-log-line'],
     setup: async page => {
       await telemetryTab(page, 'Logs');
@@ -685,13 +685,13 @@ export const OVERLAYS: Overlay[] = [
   },
   {
     // Not a dialog: a log line opened on the Logs tab, its properties and links to its trace
-    name: 'telemetry, log line', role: 'admin', path: '/usermanagement/telemetry', sheet: 'telemetry',
+    name: 'telemetry, log line', role: 'admin', path: '/sysadmin/telemetry', sheet: 'telemetry',
     parts: [HEADING, TABS, '.tm-detail'],
     setup: openLogLine,
     close: null,
   },
   {
-    name: 'telemetry, logs of one trace', role: 'admin', path: '/usermanagement/telemetry', sheet: 'telemetry',
+    name: 'telemetry, logs of one trace', role: 'admin', path: '/sysadmin/telemetry', sheet: 'telemetry',
     parts: [HEADING, TABS, '.tm-log-line'],
     setup: async page => {
       const detail = await openLogLine(page);
@@ -703,7 +703,7 @@ export const OVERLAYS: Overlay[] = [
     close: null,
   },
   {
-    name: 'telemetry, traces', role: 'admin', path: '/usermanagement/telemetry', sheet: 'telemetry',
+    name: 'telemetry, traces', role: 'admin', path: '/sysadmin/telemetry', sheet: 'telemetry',
     parts: [HEADING, TABS],
     setup: async page => {
       await telemetryTab(page, 'Traces');
@@ -714,7 +714,7 @@ export const OVERLAYS: Overlay[] = [
     close: null,
   },
   {
-    name: 'telemetry, failed traces only', role: 'admin', path: '/usermanagement/telemetry', sheet: 'telemetry',
+    name: 'telemetry, failed traces only', role: 'admin', path: '/sysadmin/telemetry', sheet: 'telemetry',
     parts: [HEADING, TABS],
     setup: async page => {
       await telemetryTab(page, 'Traces');
@@ -729,7 +729,7 @@ export const OVERLAYS: Overlay[] = [
   },
   {
     // Not a dialog: a span opened in a trace's waterfall (its attributes and its exception event)
-    name: 'telemetry, trace span', role: 'admin', path: '/usermanagement/telemetry?trace=4bf92f3577b34da6a3ce929d0e0e4736', sheet: 'telemetry',
+    name: 'telemetry, trace span', role: 'admin', path: '/sysadmin/telemetry?trace=4bf92f3577b34da6a3ce929d0e0e4736', sheet: 'telemetry',
     parts: [HEADING, TABS, '.tm-detail'],
     setup: async page => {
       await page.locator('.tm-span').first().click();
@@ -765,7 +765,7 @@ export const OVERLAYS: Overlay[] = [
     close: null,
   },
   {
-    name: 'database backup, format list', role: 'admin', path: '/databasebackup', sheet: 'database-backup',
+    name: 'database backup, format list', role: 'admin', path: '/sysadmin/databasebackup', sheet: 'database-backup',
     setup: async page => {
       await page.getByRole('combobox', { name: 'Format' }).click();
       const listbox = page.getByRole('listbox');
@@ -774,7 +774,7 @@ export const OVERLAYS: Overlay[] = [
     },
   },
   {
-    name: 'database backup, server list', role: 'admin', path: '/databasebackup', sheet: 'database-backup',
+    name: 'database backup, server list', role: 'admin', path: '/sysadmin/databasebackup', sheet: 'database-backup',
     setup: async page => {
       await page.getByRole('combobox', { name: 'Server' }).click();
       const listbox = page.getByRole('listbox');
@@ -957,7 +957,7 @@ export const OVERLAYS: Overlay[] = [
   // opened, and a VOD from the review list being linked to a season
   {
     // Not a dialog: the job panel the page opens above its jobs list
-    name: 'historical import, job details', role: 'admin', path: '/usermanagement/historicalimport', sheet: 'historical-import',
+    name: 'historical import, job details', role: 'admin', path: '/sysadmin/historicalimport', sheet: 'historical-import',
     parts: [HEADING, '.hi-job'],
     setup: async page => {
       await page.getByRole('button', { name: 'Show job 41' }).click();
@@ -968,7 +968,7 @@ export const OVERLAYS: Overlay[] = [
     close: null,
   },
   {
-    name: 'historical import, failures and warnings', role: 'admin', path: '/usermanagement/historicalimport', sheet: 'historical-import',
+    name: 'historical import, failures and warnings', role: 'admin', path: '/sysadmin/historicalimport', sheet: 'historical-import',
     parts: [HEADING, '.hi-job'],
     setup: async page => {
       await page.getByRole('button', { name: 'Show job 41' }).click();
@@ -981,7 +981,7 @@ export const OVERLAYS: Overlay[] = [
     close: null,
   },
   {
-    name: 'historical import, linking a VOD', role: 'admin', path: '/usermanagement/historicalimport', sheet: 'historical-import',
+    name: 'historical import, linking a VOD', role: 'admin', path: '/sysadmin/historicalimport', sheet: 'historical-import',
     parts: [HEADING, '.vr-editor'],
     setup: async page => {
       await page.getByRole('button', { name: /^Link AGLA Playoffs/ }).click();
@@ -993,7 +993,7 @@ export const OVERLAYS: Overlay[] = [
   },
   // The Jobs page: the panel it opens under its list, of a job that runs and of one paused
   {
-    name: 'jobs, job details', role: 'admin', path: '/usermanagement/jobs', sheet: 'jobs',
+    name: 'jobs, job details', role: 'admin', path: '/sysadmin/jobs', sheet: 'jobs',
     parts: [HEADING, '.jb-detail'],
     setup: async page => {
       await page.getByRole('button', { name: 'Details of historical-refresh' }).click();
@@ -1004,7 +1004,7 @@ export const OVERLAYS: Overlay[] = [
     close: null,
   },
   {
-    name: 'jobs, a paused job', role: 'admin', path: '/usermanagement/jobs', sheet: 'jobs',
+    name: 'jobs, a paused job', role: 'admin', path: '/sysadmin/jobs', sheet: 'jobs',
     parts: [HEADING, '.jb-detail'],
     setup: async page => {
       await page.getByRole('button', { name: 'Details of xbox-placeholders' }).click();
