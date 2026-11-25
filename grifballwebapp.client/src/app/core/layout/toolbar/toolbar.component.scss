@@ -14,7 +14,7 @@
   max-width: var(--hud-max-width);
   margin: 0 auto;
   padding: 0 var(--hud-gutter);
-  min-height: clamp(60px, 6.5vw, 82px);
+  min-height: clamp(66px, 6.8vw, 88px);
   display: flex;
   align-items: center;
   gap: 8px clamp(12px, 2vw, 28px);
@@ -26,19 +26,19 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: clamp(8px, 1vw, 12px);
+  gap: clamp(10px, 1.2vw, 16px);
   min-height: 44px;
   font-weight: 700;
-  font-size: clamp(20px, 2.5vw, 32px);
+  font-size: clamp(24px, 3vw, 40px);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--hud-heading);
 }
 
 .hud-brand__mark {
-  height: 1.08em;
+  height: 1.5em;
   width: auto;
-  aspect-ratio: 107 / 100;
+  aspect-ratio: 765.04 / 719.04;
   flex: none;
   display: block;
 }
@@ -137,7 +137,7 @@
 @media (max-width: 400px) {
   .hud-header__bar { gap: 8px; }
   .hud-header__tools { gap: 2px; --mat-icon-button-state-layer-size: 44px; }
-  .hud-brand { font-size: 17px; letter-spacing: 0.12em; }
+  .hud-brand { font-size: 17px; letter-spacing: 0.1em; gap: 6px; }
   .hud-header__login { padding: 0 10px; letter-spacing: 0.12em; }
   .hud-header__chat { display: none; }
 }
