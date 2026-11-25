@@ -396,6 +396,9 @@ public enum DraftLayout
     Board,
     /// <summary>A row per player under a header with Team Name and Player Name, and Draft Order, Seed # or Draft Pick.</summary>
     Table,
+    /// <summary>A block per team: a "Captain" cell with the captain in the next cell, and below it a row per round ("Round
+    /// One"), each with its pick in the next cell; the blocks in reading order.</summary>
+    Blocks,
 }
 
 public enum DraftOrder

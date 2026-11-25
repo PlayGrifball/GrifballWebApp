@@ -91,6 +91,8 @@ public class DraftParserTests
     [TestCase("Second Round", 2)]
     [TestCase("fifth round", 5)]
     [TestCase("Duo/1st Round:", 1)]
+    [TestCase("Round One", 1)]
+    [TestCase("Round Five", 5)]
     [TestCase("0th Round", null)]
     [TestCase("Player 2", null)]
     [TestCase("Round", null)]
@@ -302,5 +304,71 @@ public class DraftParserTests
 
         Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("JUNKYARD DOGS", null, 1), ("12 Inches of Tommy", "Priest XYZ", 4), ("Alpha", "x Zeg x", 3) }),
             "The column's place where it gives one, the captain's code's where it doesn't; a team with neither is none of the draft");
+    }
+
+    [Test]
+    public void Board_WithNoTeamNameRow_StartsAtItsFirstCaptainRow_ItsTeamsTheCaptains()
+    {
+        // SML21 Ammy's draft: a title, two captains per team, then the rounds, and the player pool below
+        var sheet = Sheet(
+            ["", "AGLA Summer League 2021 Ammy Draft"],
+            ["", "Captain 1", "AwareMosquito", "Conra4859", "lol Ninj0"],
+            ["", "Captain 2", "Beam1n1", "TommyWestSide", "Nkot"],
+            ["", "First Round:", "RDG NHL", "TheAlphaTurtle", "Atonemilitant"],
+            ["", "Second Round:", "Nihilus", "MoldyVolts", ""],
+            ["", "Player Pool"],
+            ["", "Player", "H3"],
+            ["", "Dabb", "Tank"]);
+
+        var teams = Board(sheet);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("", "AwareMosquito", 1), ("", "Conra4859", 2), ("", "lol Ninj0", 3) }),
+                "Each team is its first captain's, the builder finds which; the second captain is no pick");
+            Assert.That(Picks(teams), Is.EqualTo(new (string, string, int, int?)[]
+            {
+                ("", "RDG NHL", 1, null), ("", "Nihilus", 2, null), ("", "TheAlphaTurtle", 1, null), ("", "MoldyVolts", 2, null), ("", "Atonemilitant", 1, null),
+            }));
+        }
+    }
+
+    [Test]
+    public void Board_WithATeamNameRow_HasNoBoardAtACaptainRow()
+    {
+        // A board whose captains are in a "Captain 1" row is read from its Team Name row, once
+        var sheet = Sheet(
+            ["Team Name", "Alpha", "Bravo"],
+            ["Captain 1", "Ace", "Bee"],
+            ["1st Round", "Dee", "Eee"]);
+
+        Assert.That(Captains(Board(sheet)), Is.EqualTo(new (string, string?, int?)[] { ("Alpha", "Ace", 1), ("Bravo", "Bee", 2) }));
+    }
+
+    [Test]
+    public void Blocks_ReadEachCaptainsBlock_InReadingOrder_ARepeatedCaptainRowOnce()
+    {
+        // SML20 (Reach PC)'s draft: two blocks side by side per row of them, "Captain" then "Round One"... each beside its name
+        var sheet = Sheet(
+            ["", "Player Pool", "Captain", "Sam Adams", "Captain", "Zeg"],
+            ["Captains", "oDhmon", "Round One", "Galvan", "Round One", "Digital Pain"],
+            ["Sam Adams", "mstell96", "Round Two", "Jiggly", "Round Two", "Rage"],
+            ["Zeg", "Conra4859", "Captain", "Grunt", "Captain", "Nkot"],
+            ["", "", "Captain", "Grunt", "Captain", "Nkot"],
+            ["", "", "Round One", "dhmon", "Round One", "ixLiono"],
+            ["", "", "Round Two", "LightSaber", "Round Two", ""]);
+
+        var teams = DraftParser.Parse(sheet, new DraftTab { Sheet = "Sheet1", Layout = DraftLayout.Blocks })!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("", "Sam Adams", 1), ("", "Zeg", 2), ("", "Grunt", 3), ("", "Nkot", 4) }),
+                "Row by row, each row's blocks left to right");
+            Assert.That(Picks(teams), Is.EqualTo(new (string, string, int, int?)[]
+            {
+                ("", "Galvan", 1, null), ("", "Jiggly", 2, null), ("", "Digital Pain", 1, null), ("", "Rage", 2, null),
+                ("", "dhmon", 1, null), ("", "LightSaber", 2, null), ("", "ixLiono", 1, null),
+            }), "The player pool beside the blocks is no team's");
+        }
     }
 }
