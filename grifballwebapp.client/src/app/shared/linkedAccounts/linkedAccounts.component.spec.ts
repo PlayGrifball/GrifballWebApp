@@ -86,7 +86,7 @@ describe('LinkedAccountsComponent', () => {
 
   it('says so when nothing is linked', () => {
     create();
-    expect(status()).toBe('Loading linked accounts…');
+    expect(el().querySelector('app-skeleton')!.textContent).toContain('Loading linked accounts…');
     flushMine(mine({ logins: [] }));
     expect(el().textContent).toContain('No linked accounts.');
   });
@@ -174,7 +174,7 @@ describe('LinkedAccountsComponent', () => {
 
     // http.verify (afterEach): neither LinkCallback nor the list is asked for on the server
     expect(location.replaceState).not.toHaveBeenCalled();
-    expect(status()).toBe('Loading linked accounts…');
+    expect(el().querySelector('app-skeleton')!.textContent).toContain('Loading linked accounts…');
   });
 
   it('still lists your logins while rendering on the server', () => {

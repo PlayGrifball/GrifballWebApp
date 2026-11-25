@@ -6,7 +6,8 @@ export type SkeletonShape = 'lines' | 'table' | 'cards' | 'block';
 /**
  * Holds the place of something still loading, in about its shape and size, so it doesn't push the page around when it
  * arrives (layout shift). A page or part shows it in its load's `@else` (or `@defer`'s `@placeholder`), never next
- * to what it stands for. Screen readers hear "Loading {label}"; the shapes themselves are hidden from them.
+ * to what it stands for. Screen readers read "Loading {label}" where it is; the shapes are hidden from them. It is
+ * not a live region (role=status): a page loading several parts would announce each.
  */
 @Component({
   selector: 'app-skeleton',
@@ -86,7 +87,6 @@ export type SkeletonShape = 'lines' | 'table' | 'cards' | 'block';
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { role: 'status' },
 })
 export class SkeletonComponent {
   /** What is loading, for screen readers: "Loading {label}". */

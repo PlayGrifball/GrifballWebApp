@@ -12,9 +12,9 @@ describe('SkeletonComponent', () => {
   const el = () => fixture.nativeElement as HTMLElement;
   const bars = () => el().querySelectorAll('.skeleton__bar');
 
-  it('is a status saying what is loading, with its shapes hidden from screen readers', () => {
+  it('says what is loading, in its text rather than a live region (a page has several), with its shapes hidden from screen readers', () => {
     fixture.detectChanges();
-    expect(el().getAttribute('role')).toBe('status');
+    expect(el().getAttribute('role')).toBeNull();
     expect(el().textContent!.trim()).toBe('Loading standings…');
     expect(el().querySelector('.skeleton__lines')!.getAttribute('aria-hidden')).toBe('true');
   });
