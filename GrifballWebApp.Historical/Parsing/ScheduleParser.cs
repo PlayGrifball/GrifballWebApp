@@ -150,15 +150,16 @@ public static partial class ScheduleParser
             return days;
         }
 
-        /// <summary>"Monday | March | 27": the weekday's column, the month and day after it, the year the tab's (the next
-        /// one once the months start again).</summary>
+        /// <summary>"Monday | March | 27": the weekday's column, the month and day after it; or "July 31st" in a cell. The
+        /// year is the tab's (the next one once the months start again).</summary>
         private List<(int Column, DateTime Day)> MonthDays(string[] row)
         {
             var days = new List<(int Column, DateTime Day)>();
-            for (var c = 0; c + 1 < row.Length; c++)
+            for (var c = 0; c < row.Length; c++)
             {
-                var m = Array.IndexOf(Months, row[c].Trim().ToLowerInvariant()) + 1;
-                if (m == 0 || Day(row[c + 1]) is not int day || year is null)
+                var named = MonthAndDay().Match(row[c].Trim());
+                var m = named.Success ? MonthOf(named.Groups["month"].Value) : c + 1 < row.Length ? MonthOf(row[c]) : 0;
+                if (m == 0 || year is null || (named.Success ? Day(named.Groups["day"].Value) : Day(row[c + 1])) is not int day)
                     continue;
                 var y = _last is { } last ? last.Year + (m < last.Month ? 1 : 0) : year.Value;
                 if (day > DateTime.DaysInMonth(y, m))
@@ -191,6 +192,13 @@ public static partial class ScheduleParser
             }
             return run;
         }
+    }
+
+    /// <summary>A month's number by its name ("March", "Mar"); 0 for anything else.</summary>
+    private static int MonthOf(string name)
+    {
+        var text = name.Trim().TrimEnd('.').ToLowerInvariant();
+        return text.Length >= 3 ? Array.FindIndex(Months, m => m == text || (text.Length == 3 && m.StartsWith(text, StringComparison.Ordinal))) + 1 : 0;
     }
 
     /// <summary>A day of the month, "14" (or "14.0"); null otherwise.</summary>
@@ -261,6 +269,10 @@ public static partial class ScheduleParser
     /// <summary>"2-0 " before the first team ("2-0 G over Z").</summary>
     [GeneratedRegex(@"^\d{1,2}\s*-\s*\d{1,2}\s+(?=\D)")]
     private static partial Regex LeadingScore();
+
+    /// <summary>"July 31st", "Aug 1": a month's name and a day.</summary>
+    [GeneratedRegex(@"^(?<month>[A-Za-z]{3,9})\.?\s+(?<day>\d{1,2})(st|nd|rd|th)?$")]
+    private static partial Regex MonthAndDay();
 
     /// <summary>"0 MM vs. DBAGS 2": a count before the first team and after the second.</summary>
     [GeneratedRegex(@"^\d{1,2}\s+(?<rest>\D.*\s(?:vs\.?|v\.?|@)\s.*?)\s+\d{1,2}$", RegexOptions.IgnoreCase)]

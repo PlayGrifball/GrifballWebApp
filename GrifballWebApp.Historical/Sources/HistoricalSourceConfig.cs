@@ -496,7 +496,7 @@ public class ResultsTab
 /// A tab of a season's schedule (ScheduleParser): a calendar whose days are dates ("5/19/2019"), a weekday's month and day
 /// ("Monday | March | 27") or a row of a week's days of the month ("2 | 3 | ... | 8"), each with its matches in the cells
 /// below it ("A vs. B 9:00", "A over B 2-0", "ND 5-3 IMP"). Its matches date the season's undated series of the same two
-/// teams, in order; a match no series is of is left out.
+/// teams, in order; a match no series is of is left out, or (<see cref="Unplayed"/>) is a match with no result.
 /// </summary>
 public class ScheduleTab
 {
@@ -511,6 +511,8 @@ public class ScheduleTab
     public int? Month { get; init; }
     /// <summary>Names the calendar gives a team that the season spells another way and no rule finds: the calendar's name to the season's.</summary>
     public Dictionary<string, string> Teams { get; init; } = [];
+    /// <summary>The season's results are lost: each meeting that dates no game is a match of its own, on its day, with no result.</summary>
+    public bool Unplayed { get; init; }
 }
 
 /// <summary>

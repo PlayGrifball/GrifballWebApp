@@ -121,4 +121,20 @@ public class ScheduleParserTests
             Assert.That(warnings, Is.EqualTo(new[] { "sml20/Full Schedule: rows of days of the month not read (the tab's Year and Month aren't set)" }));
         }
     }
+
+    [Test]
+    public void AMonthAndDayCell_DatesItsColumn_TheYearTheTabs()
+    {
+        // GGL SML17's Schedule: "July 31st" per day, into August
+        var sheet = Sheet(
+            ["Date", "July 31st", "", "August 1st", "", "Date"],
+            ["9:00pm est", "OMG over NH 5-0", "DROP over DJ 5-3", "ARK over 4G1B 5-0", "", "9:00pm est"]);
+
+        var matches = Parse(new ScheduleTab { Sheet = "Schedule", Year = 2017 }, sheet);
+
+        Assert.That(matches.Select(m => (m.PlayedAt, m.First, m.Second)), Is.EqualTo(new[]
+        {
+            (NinePm(2017, 7, 31), "OMG", "NH"), (NinePm(2017, 7, 31), "DROP", "DJ"), (NinePm(2017, 8, 1), "ARK", "4G1B"),
+        }));
+    }
 }

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Historical.Import;
 using GrifballWebApp.Historical.Sources;
 
@@ -9,8 +10,9 @@ public sealed partial class HistoricalArchiveBuilder
     /// <summary>
     /// Each schedule's matches date their season's undated games. The schedule's matches of the same two teams on one day are
     /// one meeting; in the schedule's order, a meeting dates the first undated series of those teams (in their result list's
-    /// order), all its games, or as many of their undated games outside a series (a per-game tab's, each its own entry) as it
-    /// has matches. A meeting with nothing left to date is left out, and said in a warning.
+    /// order), and the next, until it has dated as many games as it has entries (a series' games each an entry, a per-game
+    /// tab's games each their own). A meeting with nothing left to date is left out, and said in a warning; of a season whose
+    /// results are lost (<see cref="ScheduleTab.Unplayed"/>) it is a match with no result, when the season has both teams.
     /// </summary>
     private void AddSchedules()
     {
@@ -34,29 +36,34 @@ public sealed partial class HistoricalArchiveBuilder
                 .Select(g => (Games: g.ToList(), IsSeries: g.First().Series is not null, Pair: Pair(g.First().Teams[0].Name, g.First().Teams[1].Name)))
                 .ToList();
             var meetings = matches
-                .Select(m => (m.PlayedAt, Pair: Pair(ScheduledTeam(names, m.First), ScheduledTeam(names, m.Second))))
-                .GroupBy(m => (m.PlayedAt.Date, m.Pair))
-                .Select(g => (PlayedAt: g.Min(m => m.PlayedAt), g.Key.Pair, Count: g.Count()))
+                .Select(m => (m.PlayedAt, Home: ScheduledTeam(names, m.First), Away: ScheduledTeam(names, m.Second)))
+                .GroupBy(m => (m.PlayedAt.Date, Pair: Pair(m.Home, m.Away)))
+                .Select(g => (PlayedAt: g.Min(m => m.PlayedAt), g.Key.Pair, g.First().Home, g.First().Away, Count: g.Count()))
                 .OrderBy(m => m.PlayedAt)
                 .ToList();
             var left = 0;
             foreach (var meeting in meetings)
             {
-                var dated = false;
-                for (var n = 0; n < meeting.Count; n++)
+                var games = 0;
+                while (games < meeting.Count && undated.FindIndex(u => u.Pair == meeting.Pair) is var index and >= 0)
                 {
-                    var index = undated.FindIndex(u => u.Pair == meeting.Pair);
-                    if (index < 0)
-                        break;
-                    var unit = undated[index];
-                    foreach (var game in unit.Games)
+                    foreach (var game in undated[index].Games)
                         game.PlayedAt = meeting.PlayedAt;
+                    games += undated[index].Games.Count;
                     undated.RemoveAt(index);
-                    dated = true;
-                    if (unit.IsSeries)
-                        break;
                 }
-                if (!dated)
+                if (games > 0)
+                    continue;
+                if (tab.Unplayed && names.Knows(meeting.Home) && names.Knows(meeting.Away))
+                    _scheduled.Add(new ArchiveScheduledMatchInput
+                    {
+                        SeasonSourceId = key,
+                        SourceKey = $"{sourceId}/{tab.Sheet}@{meeting.PlayedAt:yyyy-MM-dd}",
+                        Home = meeting.Home,
+                        Away = meeting.Away,
+                        PlayedAt = meeting.PlayedAt,
+                    });
+                else
                     left++;
             }
             if (left > 0)

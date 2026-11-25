@@ -234,6 +234,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         public List<RecordedGameInput>? RecordedGames { get; set; }
         /// <summary>The season's forfeits; null when the archive has none for it (its forfeited matches are then left as they are).</summary>
         public List<ArchiveForfeitInput>? Forfeits { get; set; }
+        /// <summary>The season's scheduled matches with no result; null when the archive has none for it (its unplayed matches
+        /// are then left as they are).</summary>
+        public List<ArchiveScheduledMatchInput>? ScheduledMatches { get; set; }
         public SeasonFormat Format { get; set; } = SeasonFormat.LeagueSeason;
     }
 
@@ -471,6 +474,19 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Skip(report, $"Recorded game {game.SourceKey}: no season with the key {game.SeasonSourceId} in the archive");
         }
         AssignForfeits(input, bySourceId, report);
+        AssignScheduledMatches(input, bySourceId, report);
+    }
+
+    /// <summary>The scheduled matches to their seasons (never a matchmaking one: it has no teams).</summary>
+    private void AssignScheduledMatches(HistoricalArchiveInput input, Dictionary<string, SeasonGroup> bySourceId, HistoricalImportReport report)
+    {
+        foreach (var match in input.ScheduledMatches ?? [])
+        {
+            if (bySourceId.TryGetValue(match.SeasonSourceId.Trim(), out var group) && !group.IsMatchmaking)
+                (group.ScheduledMatches ??= []).Add(match);
+            else
+                Skip(report, $"Scheduled match {match.SourceKey}: no season with the key {match.SeasonSourceId} in the archive");
+        }
     }
 
     /// <summary>The forfeits to their seasons (never a matchmaking one: it has no teams).</summary>
@@ -853,6 +869,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             await LinkSeries(group, season, games, bracket, counts, seasonMatchIDsToCheck, ct);
             if (group.Forfeits is not null)
                 await ImportForfeits(group, season, teams, counts, ct);
+            if (group.ScheduledMatches is not null)
+                await ImportScheduledMatches(group, season, teams, counts, ct);
             var tiers = await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
             await RemoveTitlesNoLongerThere(season, tiers, counts, ct);
             await ImportAwards(group, season, resolver, teams, counts, ct);
