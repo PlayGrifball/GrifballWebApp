@@ -81,7 +81,7 @@ describe('SignupsComponent', () => {
     answer.next([signup('Grif')]);
     fixture.detectChanges();
     expect(el.querySelector('app-skeleton')).toBeNull();
-    expect(rows().length).toBe(1);
+    expect(rows()).toHaveSize(1);
   });
 
   it('loads the signups for the season in the route', () => {

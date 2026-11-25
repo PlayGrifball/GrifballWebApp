@@ -14,6 +14,9 @@ export class DraftHelperStore {
   private readonly _suggestions = signal<DraftSuggestions | null>(null);
   /** The picks suggested for the team on deck; null without one (no captains yet). */
   readonly suggestions = this._suggestions.asReadonly();
+  /** The first answer is in: a skeleton until then. A reload (a pick made) keeps the last shown. */
+  private readonly _loaded = signal(false);
+  readonly loaded = this._loaded.asReadonly();
   private loads = 0;
 
   /** Loads the season's pool and suggestions; an earlier load answered late is dropped. */
@@ -28,6 +31,7 @@ export class DraftHelperStore {
         return;
       this._pool.set(pool);
       this._suggestions.set(suggestions);
+      this._loaded.set(true);
     });
   }
 }

@@ -5,6 +5,10 @@
     can play (35%), and sharing the captain's region (15%).
   </p>
 
+  @if (!loaded()) {
+  <app-skeleton label="suggested picks" [count]="6" />
+  }
+
   @if (suggestions(); as picks) {
   <h3 class="hud-label">Suggested picks for {{ picks.captainName }} ({{ picks.teamName }})</h3>
   <ol class="dh-picks">

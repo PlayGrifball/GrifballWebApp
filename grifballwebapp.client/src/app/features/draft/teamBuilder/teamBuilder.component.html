@@ -16,6 +16,10 @@
 
 <h2 class="hud-h2">Teams</h2>
 
+@if (!draftLoaded()) {
+<app-skeleton label="the teams" shape="cards" [count]="8" height="200px" cardWidth="220px" />
+}
+
 <div (dndDrop)="onDropInTeam($event)"
      [dndDropzone]="['availablePlayer', 'team']"
      class="dndList flexList"
@@ -67,6 +71,10 @@
 </div>
 
 <h2 class="hud-h2">Draft Pool</h2>
+
+@if (!draftLoaded()) {
+<app-skeleton label="the draft pool" [count]="6" />
+}
 
 <mat-list (dndDrop)="onDropInPool($event)"
           class="dndList flexList"

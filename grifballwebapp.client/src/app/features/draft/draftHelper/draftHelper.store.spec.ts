@@ -20,11 +20,23 @@ describe('DraftHelperStore', () => {
 
   it("loads the season's pool in detail and the suggested picks", () => {
     store.load(5);
+    expect(store.loaded()).toBeFalse();
     http.expectOne('/api/seasons/5/draft/pool-details').flush(pool);
     http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
 
     expect(store.pool()).toEqual(pool);
     expect(store.suggestions()).toEqual(suggestions);
+  });
+
+  it('stays loaded while it loads again, keeping the last answer shown', () => {
+    store.load(5);
+    http.expectOne('/api/seasons/5/draft/pool-details').flush(pool);
+    http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
+    store.load(5);
+    expect(store.loaded()).toBeTrue();
+    expect(store.pool()).toEqual(pool);
+    http.expectOne('/api/seasons/5/draft/pool-details').flush(pool);
+    http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
   });
 
   it('has no suggestions without a team to make them for, the pool all the same; a later season replaces an earlier', () => {

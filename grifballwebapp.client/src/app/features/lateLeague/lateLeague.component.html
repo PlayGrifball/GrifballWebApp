@@ -35,7 +35,7 @@
   }
 </ng-template>
 
-<div class="hud-page" [class.hud-waiting]="!loaded()">
+<div class="hud-page">
   @if (matchmakingSeasonID()) {
     <a routerLink="/late-league" class="hud-text-link back">&lt; Late League</a>
     @if (detail(); as d) {
@@ -87,6 +87,8 @@
       }
     } @else if (loaded()) {
       <p class="hud-muted">That Late League season couldn't be loaded.</p>
+    } @else {
+      <app-skeleton label="the season" shape="table" [count]="10" [columns]="7" />
     }
   } @else {
     <div class="hud-page-head">
@@ -112,6 +114,8 @@
         }
       } @else if (loaded()) {
         <p class="hud-muted">The current Late League stats couldn't be loaded.</p>
+      } @else {
+        <app-skeleton label="the current Late League" shape="table" [count]="8" [columns]="7" />
       }
     </section>
 
@@ -143,6 +147,8 @@
         }
       } @else if (loaded()) {
         <p class="hud-muted">The past seasons couldn't be loaded.</p>
+      } @else {
+        <app-skeleton label="past seasons" shape="table" [count]="5" [columns]="6" />
       }
     </section>
   }

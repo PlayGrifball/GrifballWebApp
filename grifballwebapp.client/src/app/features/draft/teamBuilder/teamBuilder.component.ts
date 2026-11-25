@@ -13,6 +13,7 @@ import { SeasonTabsComponent } from '../../league';
 import { DraftHelperComponent } from '../draftHelper/draftHelper.component';
 import { TeamBuilderStore } from './teamBuilder.store';
 import { AppLog } from '@core/telemetry/appLog';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 @Component({
     selector: 'app-team-builder',
@@ -25,6 +26,7 @@ import { AppLog } from '@core/telemetry/appLog';
         MatCardModule,
         RouterLink,
         DraftHelperComponent,
+        SkeletonComponent,
     ],
     templateUrl: './teamBuilder.component.html',
     styleUrl: './teamBuilder.component.scss',

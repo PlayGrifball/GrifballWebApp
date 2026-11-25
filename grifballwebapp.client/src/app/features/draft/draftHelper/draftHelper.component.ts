@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, input, untracked } 
 import { DecimalPipe, PercentPipe } from '@angular/common';
 import type { DraftTimeslot } from '@api/models';
 import { DraftHelperStore } from './draftHelper.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /**
  * The draft helper beside the board: the picks suggested for the team on deck (each with its score and why) and the pool in
@@ -9,7 +10,7 @@ import { DraftHelperStore } from './draftHelper.store';
  */
 @Component({
   selector: 'app-draft-helper',
-  imports: [DecimalPipe, PercentPipe],
+  imports: [DecimalPipe, PercentPipe, SkeletonComponent],
   templateUrl: './draftHelper.component.html',
   styleUrl: './draftHelper.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,6 +25,7 @@ export class DraftHelperComponent {
 
   readonly pool = this.store.pool;
   readonly suggestions = this.store.suggestions;
+  readonly loaded = this.store.loaded;
 
   constructor() {
     effect(() => {

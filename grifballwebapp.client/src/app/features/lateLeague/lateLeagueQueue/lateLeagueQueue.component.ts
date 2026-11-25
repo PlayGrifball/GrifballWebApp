@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LateLeagueQueueStore } from './lateLeagueQueue.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /**
  * The Late League queue, on the home page and the Late League page: how many players are in it, live, and Join / Leave for a signed-in
@@ -13,7 +14,7 @@ import { LateLeagueQueueStore } from './lateLeagueQueue.store';
   selector: 'app-late-league-queue',
   templateUrl: 'lateLeagueQueue.component.html',
   styleUrl: 'lateLeagueQueue.component.scss',
-  imports: [RouterLink],
+  imports: [RouterLink, SkeletonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [LateLeagueQueueStore],
 })
