@@ -135,10 +135,10 @@ public static partial class ScheduleParser
             if (row.Length > 0 && _weekdays.Count > 0 && year is not null && WeekRange().Match(row[0].Trim()) is { Success: true } week
                 && MonthOf(week.Groups["month"].Value) is var wm and > 0 && Day(week.Groups["day"].Value) is int wd)
             {
-                var y = _last is { } before ? before.Year + (wm < before.Month ? 1 : 0) : year.Value;
-                if (wd <= DateTime.DaysInMonth(y, wm))
+                var weekYear = _last is { } lastDay ? lastDay.Year + (wm < lastDay.Month ? 1 : 0) : year.Value;
+                if (wd <= DateTime.DaysInMonth(weekYear, wm))
                 {
-                    var start = new DateTime(y, wm, wd);
+                    var start = new DateTime(weekYear, wm, wd);
                     inline = true;
                     return Seen([.. _weekdays.OrderBy(w => w.Key).Select(w => (w.Key, start.AddDays((w.Value - (int)start.DayOfWeek + 7) % 7)))]);
                 }
