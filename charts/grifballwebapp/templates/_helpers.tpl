@@ -450,6 +450,11 @@ the file), or for PostgreSQL in the backup volume the chart's pods mount at /bac
 {{- if and $m.enabled $m.backup.enabled $m.backup.log.enabled (not (include "grif.postgres" .)) }}true{{ end -}}
 {{- end }}
 
+{{/* "true" when the migration Job sets the recovery model: the chart's own SQL Server only. An external one's is its owner's. */}}
+{{- define "grif.managesRecoveryModel" -}}
+{{- if and (not (include "grif.postgres" .)) (include "grif.bundled" .) (not .Values.database.host) }}true{{ end -}}
+{{- end }}
+
 {{/* "true" when a grif-backup pod runs: the scheduled backup or the log backups. */}}
 {{- define "grif.backupPods" -}}
 {{- $m := .Values.migrations -}}

@@ -94,6 +94,31 @@ tests:
           path: spec.template.spec.containers[0].args[0]
           pattern: "SET RECOVERY SIMPLE"
 
+  - it: leaves an external SQL Server's recovery model to its owner
+    template: templates/migrations-job.yaml
+    set:
+      mssql.enabled: false
+      database: { host: sql.example.internal, user: grif, password: { secretName: grif-db, key: password } }
+      migrations.backup.log.enabled: true
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "SET RECOVERY"
+
+  - it: says an external database must be FULL already, rather than waiting for a deploy
+    template: templates/backup-log.yaml
+    set:
+      mssql.enabled: false
+      database: { host: sql.example.internal, user: grif, password: { secretName: grif-db, key: password } }
+      migrations.backup.log.enabled: true
+    asserts:
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "an external server''s recovery model is its owner''s to set"
+      - notMatchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: "sets it on the next deploy"
+
   - it: lets the log backup pods reach SQL Server without the scheduled backup
     template: templates/networkpolicy.yaml
     set:

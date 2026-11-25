@@ -575,7 +575,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- else }}
       if [ -s /work/pending.txt ]; then {{ include "grif.byProvider" (dict "root" . "sql" "/app/efbundle" "pg" "/app/postgres/efbundle") }}; else echo "Nothing to migrate."; fi
       {{- end }}
-      {{- if not (include "grif.postgres" .) }}
+      {{- if include "grif.managesRecoveryModel" . }}
       {{- include "grif.recoveryModelScript" . | nindent 6 }}
       {{- end }}
       {{- if .Values.database.logins.enabled }}
@@ -590,7 +590,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- end }}
   env:
     {{- include "grif.migrationEnv" . | nindent 4 }}
-    {{- if or .Values.database.logins.enabled (include "grif.previewReset" .) (not (include "grif.postgres" .)) }}
+    {{- if or .Values.database.logins.enabled (include "grif.previewReset" .) (include "grif.managesRecoveryModel" .) }}
     {{- include "grif.dbEnv" . | nindent 4 }}
     {{- end }}
     {{- if .Values.database.logins.enabled }}
@@ -631,15 +631,14 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
 {{- end }}
 
 {{/*
-SQL Server's recovery model, after the migrations (the database exists by then): FULL with log backups
-(migrations.backup.log), else SIMPLE, so the log never grows unbacked. Azure SQL manages its own.
+The chart's own SQL Server's recovery model (grif.managesRecoveryModel), after the migrations (the database
+exists by then): FULL with log backups (migrations.backup.log), else SIMPLE, so the log never grows unbacked.
 */}}
 {{- define "grif.recoveryModelScript" -}}
 {{- $model := ternary "FULL" "SIMPLE" (eq (include "grif.logBackups" .) "true") -}}
 # Recovery model (migrations.backup.log).
 sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
-  IF CONVERT(int, SERVERPROPERTY('EngineEdition')) IN (5, 8) PRINT N'Azure SQL manages the recovery model.';
-  ELSE IF EXISTS (SELECT 1 FROM sys.databases WHERE name = N'\$$(DB_NAME)' AND recovery_model_desc <> N'{{ $model }}')
+  IF EXISTS (SELECT 1 FROM sys.databases WHERE name = N'\$$(DB_NAME)' AND recovery_model_desc <> N'{{ $model }}')
   BEGIN
     ALTER DATABASE [\$$(DB_NAME)] SET RECOVERY {{ $model }};
     PRINT N'Recovery model: {{ $model }}.';
