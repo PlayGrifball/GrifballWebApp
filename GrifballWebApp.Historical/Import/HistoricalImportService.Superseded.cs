@@ -110,18 +110,14 @@ public partial class HistoricalImportService
         return games.Count > 0 && games.TrueForAll(g => g.Origin != RecordedGameOrigin.Manual && coming.Contains(g.SourceKey));
     }
 
-    /// <summary>Its games go with the season, out of their series and matched matches as a game the archive dropped does.</summary>
+    /// <summary>Its games go with the season, out of their series as a game the archive dropped does (a matched match is a matchmaking season's, never a leftover's).</summary>
     private async Task RemoveRecordedGamesOf(int seasonID, CancellationToken ct)
     {
         var games = await _context.RecordedGames.Where(g => g.SeasonID == seasonID)
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
-            .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
-            .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
             .AsSplitQuery().ToListAsync(ct);
         foreach (var game in games)
         {
-            if (game.MatchedMatch is { } matched)
-                _context.RemoveArchivedMatch(matched);
             if (game.SeriesGame is { } seriesGame)
                 _context.Remove(seriesGame);
             _context.RemoveRecordedGame(game);
