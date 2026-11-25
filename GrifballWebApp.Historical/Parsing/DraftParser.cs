@@ -68,7 +68,7 @@ public static partial class DraftParser
         for (var r = 0; r < sheet.Rows.Count; r++)
         {
             var labels = Enumerable.Range(0, sheet.Rows[r].Length)
-                .Where(c => CaptainLabel().IsMatch(sheet.Cell(r, c)) && (r == 0 || !CaptainLabel().IsMatch(sheet.Cell(r - 1, c))) && HasRoundRow(sheet, r, c))
+                .Where(c => FirstCaptainRow(sheet, r, c) && HasRoundRow(sheet, r, c))
                 .ToList();
             for (var i = 0; i < labels.Count; i++)
             {
@@ -79,6 +79,10 @@ public static partial class DraftParser
         return teams;
     }
 
+    /// <summary>A Captain row that isn't right below another (a team's second captain's): a board's first.</summary>
+    private static bool FirstCaptainRow(SheetTable sheet, int r, int c)
+        => CaptainLabel().IsMatch(sheet.Cell(r, c)) && (r == 0 || !CaptainLabel().IsMatch(sheet.Cell(r - 1, c)));
+
     /// <summary>A round's row below the Captain row, before the next board's first Captain row.</summary>
     private static bool HasRoundRow(SheetTable sheet, int captainRow, int column)
     {
@@ -86,7 +90,7 @@ public static partial class DraftParser
         {
             if (Round(sheet.Cell(r, column)) is not null)
                 return true;
-            if (CaptainLabel().IsMatch(sheet.Cell(r, column)) && !CaptainLabel().IsMatch(sheet.Cell(r - 1, column)))
+            if (FirstCaptainRow(sheet, r, column))
                 return false;
         }
         return false;
@@ -154,7 +158,9 @@ public static partial class DraftParser
     /// row as both the names row and the captain row.</summary>
     private static List<ArchiveTeam> Block(SheetTable sheet, int namesRow, int label, int end, DraftOrder order, Func<string, string> named, int? captainRow = null)
     {
-        var rows = Enumerable.Range(namesRow + 1, sheet.Rows.Count - namesRow - 1).TakeWhile(r => !TeamNameLabel().IsMatch(sheet.Cell(r, label))).ToList();
+        // Up to the next board's names: its Team Name row, or (a board with none) its first Captain row
+        var rows = Enumerable.Range(namesRow + 1, sheet.Rows.Count - namesRow - 1)
+            .TakeWhile(r => !TeamNameLabel().IsMatch(sheet.Cell(r, label)) && (captainRow is null || !FirstCaptainRow(sheet, r, label))).ToList();
         var captains = captainRow ?? rows.First(r => CaptainLabel().IsMatch(sheet.Cell(r, label)));
         var columns = Enumerable.Range(label + 1, Math.Max(0, end - label - 1))
             .TakeWhile(c => Name(sheet.Cell(namesRow, c)).Length > 0 || Player(sheet.Cell(captains, c)).Length > 0)

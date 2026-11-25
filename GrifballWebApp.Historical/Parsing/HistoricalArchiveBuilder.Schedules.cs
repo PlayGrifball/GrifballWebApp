@@ -28,8 +28,9 @@ public sealed partial class HistoricalArchiveBuilder
                 continue;
             }
             var key = HistoricalKeys.SeasonSourceId(regular.SourceWorkbook!, regular.SourceSheet!);
+            _scheduledSeasons.Add(key);
             var names = SeasonTeamNames.Of(SeasonOf(regular), tab.Teams);
-            var undated = Undated(key, SeasonOf(regular));
+            var undated = Undated(key, SeasonOf(regular), names);
             var meetings = Meetings(matches, names);
             var left = 0;
             foreach (var meeting in meetings.Where(m => !DateGames(m, undated, tab.WholeSeries)))
@@ -38,7 +39,7 @@ public sealed partial class HistoricalArchiveBuilder
                     _scheduled.Add(new ArchiveScheduledMatchInput
                     {
                         SeasonSourceId = key,
-                        SourceKey = $"{sourceId}/{tab.Sheet}@{meeting.PlayedAt:yyyy-MM-dd}",
+                        SourceKey = $"{sourceId}/{tab.Sheet}@{meeting.Day:yyyy-MM-dd}",
                         Home = meeting.Home,
                         Away = meeting.Away,
                         PlayedAt = meeting.PlayedAt,
@@ -53,11 +54,12 @@ public sealed partial class HistoricalArchiveBuilder
         }
     }
 
-    /// <summary>A schedule's meeting: its two teams (the season's names, home first) on a day, and how many entries it has.</summary>
-    private sealed record Meeting(DateTime PlayedAt, (string, string) Teams, string Home, string Away, int Count);
+    /// <summary>A schedule's meeting: its two teams (the season's names, home first) on a calendar day, at its first match's
+    /// time, and how many entries it has.</summary>
+    private sealed record Meeting(DateTime Day, DateTime PlayedAt, (string, string) Teams, string Home, string Away, int Count);
 
     /// <summary>A season's undated games, a series' as one unit, in their lists' order: what the meetings date.</summary>
-    private List<(List<RecordedGameInput> Games, (string, string) Pair)> Undated(string key, List<ArchiveSeason> season)
+    private List<(List<RecordedGameInput> Games, (string, string) Pair)> Undated(string key, List<ArchiveSeason> season, SeasonTeamNames names)
     {
         // A per-game tab's side is its players' team (its rows name no team)
         var teamOf = season.SelectMany(s => s.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName))
@@ -66,15 +68,15 @@ public sealed partial class HistoricalArchiveBuilder
             .Where(g => string.Equals(g.SeasonSourceId, key, StringComparison.OrdinalIgnoreCase) && g.Teams.Count == 2)
             .GroupBy(g => g.Series ?? g.SourceKey, StringComparer.Ordinal)
             .Where(g => g.All(game => game.PlayedAt is null))
-            .Select(g => (Games: g.ToList(), Pair: Pair(SideTeam(g.First(), 0, teamOf), SideTeam(g.First(), 1, teamOf))))];
+            .Select(g => (Games: g.ToList(), Pair: Pair(SideTeam(g.First(), 0, teamOf, names), SideTeam(g.First(), 1, teamOf, names))))];
     }
 
-    /// <summary>The schedule's matches as meetings: the same two teams' on one day are one, in the schedule's order.</summary>
+    /// <summary>The schedule's matches as meetings: the same two teams' on one calendar day are one, in time order.</summary>
     private static List<Meeting> Meetings(List<CalendarMatch> matches, SeasonTeamNames names)
         => [.. matches
-            .Select(m => (m.PlayedAt, Home: ScheduledTeam(names, m.First), Away: ScheduledTeam(names, m.Second)))
-            .GroupBy(m => (m.PlayedAt.Date, Pair: Pair(m.Home, m.Away)))
-            .Select(g => new Meeting(g.Min(m => m.PlayedAt), g.Key.Pair, g.First().Home, g.First().Away, g.Count()))
+            .Select(m => (m.Day, m.PlayedAt, Home: ScheduledTeam(names, m.First), Away: ScheduledTeam(names, m.Second)))
+            .GroupBy(m => (m.Day, Pair: Pair(m.Home, m.Away)))
+            .Select(g => new Meeting(g.Key.Day, g.Min(m => m.PlayedAt), g.Key.Pair, g.First().Home, g.First().Away, g.Count()))
             .OrderBy(m => m.PlayedAt)];
 
     /// <summary>A meeting dates the first undated units of its teams until it has dated as many games as it has entries (a
@@ -97,12 +99,14 @@ public sealed partial class HistoricalArchiveBuilder
         return dated;
     }
 
-    /// <summary>A game's side's team: its name, or (a per-game tab's side, unnamed) the team most of its players are on; ""
-    /// when its players are on no team.</summary>
-    private static string SideTeam(RecordedGameInput game, int index, Dictionary<string, string> teamOf)
+    /// <summary>A game's side's team: its name as the season names the team (a per-game block's title's "ND"), or (a per-game
+    /// tab's side, unnamed) the team most of its players are on; "" when its players are on no team.</summary>
+    private static string SideTeam(RecordedGameInput game, int index, Dictionary<string, string> teamOf, SeasonTeamNames names)
     {
         var side = game.Teams[index];
-        return side.Name ?? game.Players.Where(p => p.Side == side.Side)
+        if (side.Name is { } name)
+            return names.Resolve(name);
+        return game.Players.Where(p => p.Side == side.Side)
             .Select(p => teamOf.GetValueOrDefault(HistoricalKeys.Normalize(p.Gamertag)))
             .OfType<string>().GroupBy(t => t, StringComparer.OrdinalIgnoreCase).OrderByDescending(t => t.Count()).Select(t => t.Key).FirstOrDefault() ?? "";
     }

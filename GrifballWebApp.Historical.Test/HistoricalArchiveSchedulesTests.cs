@@ -15,6 +15,7 @@ public class HistoricalArchiveSchedulesTests
     private static HistoricalSourceContent Source(string id, HistoricalSourceConfig config, byte[] content)
         => new(HistoricalTestData.Source(id, $"https://example.org/{id}", config.ToJson()), 1, content);
 
+    private static readonly string[] WL21Legacy = ["wl21-legacy/Stats"];
     private static readonly DateTime June1 = new(2020, 6, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime June8 = new(2020, 6, 8, 0, 0, 0, DateTimeKind.Utc);
 
@@ -74,6 +75,7 @@ public class HistoricalArchiveSchedulesTests
         {
             Assert.That(build.Input.RecordedGames!.Single().PlayedAt, Is.EqualTo(June8));
             Assert.That(build.Warnings, Does.Contain("wl21-schedule: schedule 'Missing' not read (no such sheet)"));
+            Assert.That(build.Input.ScheduledSeasons, Is.EqualTo(WL21Legacy), "The season the schedule covers");
         }
     }
 
@@ -239,5 +241,50 @@ public class HistoricalArchiveSchedulesTests
             Assert.That(changed.Seasons, Does.Contain("s/Stats"), "The schedule changed: its season is the build's");
             Assert.That(unchanged.Input.RecordedGames!.Single().PlayedAt, Is.EqualTo(June1));
         }
+    }
+
+    [Test]
+    public void AnEveningsTwoEntries_AreOneMeeting_ThoughTheLaterIsTheNextDayInUtc()
+    {
+        // 7:30 pm and 8:30 pm Eastern on June 1st: the second is June 2nd in UTC
+        var source = Source("sl17", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Spring League 2017 (Pro)", Game = "halo5" },
+                Tabs = [new() { Name = "Stats" }],
+                Results = [new() { Sheet = "Game Results" }],
+                Schedules = [new() { Sheet = "Schedule" }],
+            },
+            Workbook(("Stats", [StatsHeader, Row("Ace", "Alpha", 4, 1), Row("Bee", "Bravo", 4, 1)]),
+                ("Game Results", [Row("Winner", null, "Loser"), Row("Alpha", "5-3", "Bravo"), Row("Alpha", "5-1", "Bravo")]),
+                ("Schedule", [Row("Date", "6/1/2020"), Row(null, "Alpha 5-3 Bravo 7:30pm"), Row(null, "Alpha 5-1 Bravo 8:30pm")])));
+
+        var build = HistoricalArchiveBuilder.Build([source]);
+
+        Assert.That(build.Input.RecordedGames!.Select(g => g.PlayedAt), Is.All.EqualTo(new DateTime(2020, 6, 1, 23, 30, 0, DateTimeKind.Utc)),
+            "One meeting: the series' two games at its first entry's time");
+    }
+
+    [Test]
+    public void APerGameBlocksSideLabel_IsItsTeam_AsTheSeasonNamesIt_ForTheSchedule()
+    {
+        // SL19's Game Results: a block's side with players keeps its row's label ("Our Lady Tunaa")
+        object?[] header = Row("Team", "Player", "Games Played", "Wins", "Minutes", "Goals", "Kills", "Assists", "Deaths", "Carrier Kills");
+        var source = Source("sl19", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Spring League 2019", Game = "halo3" },
+                Tabs = [new() { Name = "Stats" }],
+                Games = [new() { Sheet = "Game Results", Season = "sl19/Stats", Game = "halo3", Layout = GamesLayout.Blocks }],
+                Schedules = [new() { Sheet = "Schedule" }],
+            },
+            Workbook(("Stats", [StatsHeader, Row("imShad", "Our Lady Tuna", 4, 1), Row("godwit1ivy", "Collateral Damage", 4, 1)]),
+                ("Game Results", [Row("Template"),
+                    Row("Week 1 - Our Lady Tuna over Collateral Damage (5-2)"),
+                    header,
+                    Row("Our Lady Tunaa", "imShad (c)", 1, 1, 17.6, 0, 73, 1, 44, 2)]),
+                ("Schedule", [Row("Date", "5/19/2019"), Row(null, "Our Lady Tuna over Collateral Damage 5-2")])));
+
+        var build = HistoricalArchiveBuilder.Build([source]);
+
+        Assert.That(build.Input.RecordedGames!.Single().PlayedAt, Is.EqualTo(new DateTime(2019, 5, 19, 0, 0, 0, DateTimeKind.Utc)));
     }
 }

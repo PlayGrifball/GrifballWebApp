@@ -170,6 +170,8 @@ public class RescheduleService
                 && sm.AwayTeamID != null
                 && sm.ScheduledTime < cutoffDate)
             .Where(SeasonMatch.Undecided)
+            // An archived season's match with no result (its schedule's, its results lost) was played long ago
+            .Where(sm => sm.Season.HistoricalSourceID == null)
             .OrderBy(sm => sm.ScheduledTime)
             .AsNoTracking()
             .ToListAsync(ct);

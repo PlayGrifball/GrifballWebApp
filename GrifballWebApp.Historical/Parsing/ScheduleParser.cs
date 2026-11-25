@@ -6,7 +6,11 @@ using GrifballWebApp.Infrastructure.Excel;
 namespace GrifballWebApp.Historical.Parsing;
 
 /// <summary>A match on a season's schedule: when it was played, and its two teams as the calendar names them.</summary>
-public sealed record CalendarMatch(DateTime PlayedAt, string First, string Second);
+public sealed record CalendarMatch(DateTime PlayedAt, string First, string Second)
+{
+    /// <summary>The calendar's day it is under (an evening's match is the next day in UTC).</summary>
+    public DateTime Day { get; init; }
+}
 
 /// <summary>
 /// A season's schedule (<see cref="ScheduleTab"/>): a calendar of rows of days, each day a column, its matches in the cells
@@ -26,7 +30,8 @@ public sealed record CalendarMatch(DateTime PlayedAt, string First, string Secon
 /// </summary>
 public static partial class ScheduleParser
 {
-    private static readonly TimeZoneInfo Eastern = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+    /// <summary>The league's time zone, which the calendars' times are in.</summary>
+    private static readonly TimeZoneInfo Eastern = TimeZoneInfo.FindSystemTimeZoneById(GrifballWebApp.Application.Scheduler.ScheduleService.LeagueTimeZoneId);
     private static readonly string[] Months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
     private static readonly string[] Weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -52,7 +57,7 @@ public static partial class ScheduleParser
         {
             var timed = LeadingTime().Match(pieces[i]);
             if (Teams(timed.Success ? pieces[i][timed.Length..] : pieces[i]) is { } teams)
-                yield return new CalendarMatch(At(day, MatchTime(sheet, r, c, pieces, i)), teams.First, teams.Second);
+                yield return new CalendarMatch(At(day, MatchTime(sheet, r, c, pieces, i)), teams.First, teams.Second) { Day = day.Date };
         }
     }
 
@@ -170,7 +175,8 @@ public static partial class ScheduleParser
         private int YearOf(int m) => _last is { } last ? last.Year + (m < last.Month ? 1 : 0) : year!.Value;
 
         /// <summary>A row's run of three or more days of the month, in the tab's month or the last row's; a day earlier than
-        /// the last is the next month's (a week across its end).</summary>
+        /// the last is the next month's (a week across its end). A run that would start more than 16 days (two weeks' break) after the last
+        /// day is no week's (a row of standings or week numbers, "5 | 6 | 7"), and moves nothing.</summary>
         private List<(int Column, DateTime Day)> DaysOfMonth(List<(int Column, int Day)> run)
         {
             if (run.Count < 3)
@@ -182,13 +188,17 @@ public static partial class ScheduleParser
             }
             var days = new List<(int Column, DateTime Day)>();
             var (y, m) = _last is { } last ? (last.Year, last.Month) : (year.Value, month.Value);
+            var previous = _last;
             foreach (var (column, day) in run)
             {
-                while (day > DateTime.DaysInMonth(y, m) || (_last is { } before && new DateTime(y, m, day) < before.AddDays(-3)))
+                while (day > DateTime.DaysInMonth(y, m) || (previous is { } before && new DateTime(y, m, day) < before.AddDays(-3)))
                     (y, m) = m == 12 ? (y + 1, 1) : (y, m + 1);
-                _last = new DateTime(y, m, day);
-                days.Add((column, _last.Value));
+                previous = new DateTime(y, m, day);
+                days.Add((column, previous.Value));
             }
+            if (_last is { } lastDay && days[0].Day > lastDay.AddDays(16))
+                return [];
+            _last = previous;
             return days;
         }
 

@@ -27,6 +27,9 @@ public class HistoricalArchiveInput
     public List<ArchiveForfeitInput>? Forfeits { get; init; }
     /// <summary>Matches a season's schedule has whose results are lost (<see cref="Sources.ScheduleTab.Unplayed"/>).</summary>
     public List<ArchiveScheduledMatchInput>? ScheduledMatches { get; init; }
+    /// <summary>The seasons (their keys) a schedule covers: their matches with no result are the archive's
+    /// <see cref="ScheduledMatches"/>, none when it lists none, so ones it no longer lists go.</summary>
+    public List<string>? ScheduledSeasons { get; init; }
     /// <summary>Players lists (the Late League master list and the like): a gamertag's Discord ID, region and system.
     /// Filled by the spreadsheet parser, or from late-league-master.json (<see cref="LateLeagueMasterFile"/>).</summary>
     public List<ArchivePlayerInput>? Players { get; init; }

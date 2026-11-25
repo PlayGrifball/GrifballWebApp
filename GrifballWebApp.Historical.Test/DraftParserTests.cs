@@ -428,4 +428,19 @@ public class DraftParserTests
             }));
         }
     }
+
+    [Test]
+    public void CaptainBoards_Stacked_EachReadsOnlyItsOwnRounds()
+    {
+        var sheet = Sheet(
+            ["Captain 1", "Ace", "Bee"],
+            ["Captain 2", "Abe", "Ben"],
+            ["1st Round", "Dee", "Eee"],
+            ["Captain 1", "Cee", "Fee"],
+            ["1st Round", "Gee", "Hee"]);
+
+        Assert.That(Picks(Board(sheet)).Select(p => p.Gamertag), Is.EqualTo(StackedPicks), "The lower board's rounds are none of the upper's");
+    }
+
+    private static readonly string[] StackedPicks = ["Dee", "Eee", "Gee", "Hee"];
 }

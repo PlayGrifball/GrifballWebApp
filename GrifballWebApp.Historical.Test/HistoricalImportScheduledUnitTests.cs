@@ -1,6 +1,7 @@
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Test.TestDoubles;
+using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure.Services;
 using GrifballWebApp.Historical.Import;
@@ -118,6 +119,55 @@ internal sealed class HistoricalImportScheduledUnitTests : ApplicationDbContextT
                 ((string?)"Red Team", (string?)"Blue Team", (DateTime?)new DateTime(2020, 1, 6, 1, 0, 0, DateTimeKind.Utc)),
                 ("Blue Team", "Red Team", new DateTime(2020, 1, 5, 1, 0, 0, DateTimeKind.Utc)),
             }));
+        }
+    }
+
+    /// <summary>A per-game tab's game of Church's Red Team (side 1, the winner) and Tex's Blue Team.</summary>
+    private static RecordedGameInput Game(int row, DateTime? playedAt) => new()
+    {
+        SeasonSourceId = SeasonKey,
+        SourceKey = $"winter-league-2020/HR_MatchH#{row}",
+        GameVersion = "reach",
+        PlayedAt = playedAt,
+        Teams = [new RecordedTeamInput { Side = 1, Outcome = Outcomes.Won }, new RecordedTeamInput { Side = 2, Outcome = Outcomes.Lost }],
+        Players = [new RecordedPlayerInput { Gamertag = "Church", Side = 1, Kills = 5 }, new RecordedPlayerInput { Gamertag = "Tex", Side = 2, Kills = 3 }],
+    };
+
+    private static HistoricalArchiveInput WithGames(params RecordedGameInput[] games)
+        => new() { Seasons = new UnifiedArchive { Seasons = [Season()] }, RecordedGames = [.. games] };
+
+    [Test]
+    public async Task Import_AgainWithItsGamesDated_LinksThemAgain_AsOneDatedSeries()
+    {
+        // #603: a schedule now dates games an earlier import linked undated, each its own series
+        await _service.Import(WithGames(Game(1, null), Game(2, null)));
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.SeasonMatches.CountAsync(), Is.EqualTo(2), "Undated: a series each");
+        var day = new DateTime(2020, 1, 6, 1, 0, 0, DateTimeKind.Utc);
+
+        await _service.Import(WithGames(Game(1, day), Game(2, day.AddMinutes(20))));
+
+        var matches = await Context.SeasonMatches.AsNoTracking().Include(m => m.SeriesGames).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(matches.Select(m => (m.ScheduledTime, m.SeriesGames.Count)), Is.EqualTo(new[] { ((DateTime?)day, 2) }), "The day's two games are one series, on its day");
+            Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(2), "The same games, not new ones");
+        }
+    }
+
+    [Test]
+    public async Task Import_ASeasonItsScheduleCovers_WithNoScheduledMatchNow_LosesItsOldOnes()
+    {
+        // Its results found since: every meeting dates a game, none is a match of its own
+        await _service.Import(Input(Scheduled(5, "Red Team", "Blue Team")));
+        Context.ChangeTracker.Clear();
+
+        var again = await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [Season()] }, ScheduledSeasons = [SeasonKey, "nothing/Stats"] });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(again.SeasonMatchesRemoved, Is.EqualTo(1));
+            Assert.That(await Context.SeasonMatches.CountAsync(), Is.Zero);
         }
     }
 }

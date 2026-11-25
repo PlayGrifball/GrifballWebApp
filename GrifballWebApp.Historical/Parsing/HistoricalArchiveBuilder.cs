@@ -42,6 +42,8 @@ public sealed partial class HistoricalArchiveBuilder
     private readonly List<ArchiveForfeitInput> _forfeits = [];
     /// <summary>Schedules' matches of seasons whose results are lost (<see cref="ScheduleTab.Unplayed"/>).</summary>
     private readonly List<ArchiveScheduledMatchInput> _scheduled = [];
+    /// <summary>The seasons a schedule covers (<see cref="HistoricalArchiveInput.ScheduledSeasons"/>).</summary>
+    private readonly HashSet<string> _scheduledSeasons = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ArchivePlayerInput> _players = [];
     private readonly List<CatalogSource> _catalog = [];
     /// <summary>Each Waypoint tab's games, parsed as its source is read; put under their season's key once every season is known.</summary>
@@ -313,6 +315,7 @@ public sealed partial class HistoricalArchiveBuilder
             RecordedGames = _games.Count > 0 ? _games : null,
             Forfeits = _forfeits.Count > 0 ? _forfeits : null,
             ScheduledMatches = _scheduled.Count > 0 ? _scheduled : null,
+            ScheduledSeasons = _scheduledSeasons.Count > 0 ? [.. _scheduledSeasons] : null,
             // The players list goes along when it changed (it is matched against every season's placeholders)
             Players = _playersChanged && _players.Count > 0 ? _players : null,
         };
