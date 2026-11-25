@@ -1208,13 +1208,13 @@ public partial class HistoricalImportService : IHistoricalImportService
             var team = teams.Find(archiveTeam.TeamName);
             if (team is null)
                 continue;
-            if (!string.IsNullOrWhiteSpace(archiveTeam.Captain))
+            if (!string.IsNullOrWhiteSpace(archiveTeam.Captain) && !Parsing.SeasonStatsParser.IsTotalsLabel(archiveTeam.Captain))
             {
                 var captainId = (await resolver.Resolve(archiveTeam.Captain, null, ct)).UserId;
                 teams.Join(team.TeamName, captainId);
                 teams.Captains.TryAdd(team.TeamID, captainId);
             }
-            foreach (var gamertag in archiveTeam.Roster.Where(r => !string.IsNullOrWhiteSpace(r)))
+            foreach (var gamertag in archiveTeam.Roster.Where(r => !string.IsNullOrWhiteSpace(r) && !Parsing.SeasonStatsParser.IsTotalsLabel(r)))
             {
                 var userId = (await resolver.Resolve(gamertag, null, ct)).UserId;
                 teams.Join(team.TeamName, userId);
@@ -1229,7 +1229,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// the round; a team's picks come from the first board that gives any.</summary>
     private static async Task ImportPicks(ArchiveTeam archiveTeam, Team team, PlayerResolver resolver, SeasonTeams teams, CancellationToken ct)
     {
-        var picks = archiveTeam.Picks.Where(p => p.Round >= 1 && !string.IsNullOrWhiteSpace(p.Gamertag)).ToList();
+        var picks = archiveTeam.Picks.Where(p => p.Round >= 1 && !string.IsNullOrWhiteSpace(p.Gamertag) && !Parsing.SeasonStatsParser.IsTotalsLabel(p.Gamertag)).ToList();
         if (picks.Count == 0 || teams.Picks.ContainsKey(team.TeamID))
             return;
         var byUser = new Dictionary<int, ArchivedPick>();
@@ -1964,7 +1964,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             .ToDictionaryAsync(s => (s.UserID, s.StintIndex, s.IsPlayoffs), ct);
         foreach (var entry in group.Entries)
         {
-            foreach (var player in entry.Players.Where(p => !string.IsNullOrWhiteSpace(p.Gamertag)))
+            foreach (var player in entry.Players.Where(p => !string.IsNullOrWhiteSpace(p.Gamertag) && !Parsing.SeasonStatsParser.IsTotalsLabel(p.Gamertag)))
             {
                 // Renamed players are found through their gamertag history, so their Waypoint row isn't joined by a
                 // second, Manual one under the old gamertag

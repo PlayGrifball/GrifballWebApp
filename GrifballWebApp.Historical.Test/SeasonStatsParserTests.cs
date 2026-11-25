@@ -687,5 +687,24 @@ public class SeasonStatsParserTests
         Assert.That(player.TotalSecondsPlayed, Is.EqualTo(2438m));
     }
 
+    [Test]
+    public void SideBySideFinals_TotalsRows_AreNoPlayers()
+    {
+        var playoffs = Playoffs(
+            PlayoffHeader,
+            Row("Ascended", "Regresser", 1, 1, null, 2, 30, null, 10),
+            Row("GAME 1"),
+            Row("W vs ApoPo (5-1) host", "Goals", "Kills", "Deaths"),
+            Row("Regresser", 3, 25, 5),
+            Row("Total", 3, 25, 5),
+            Row("Totals:", 3, 25, 5),
+            Row("L vs Ascended (1-5) host", "Goals", "Kills", "Deaths"),
+            Row("Totalitarian", 1, 32, 36),
+            Row("Totals", 1, 32, 36));
+
+        Assert.That(playoffs.Players.Select(p => p.Gamertag), Is.EquivalentTo(SideBySideExpectedPlayers));
+    }
+
+    private static readonly string[] SideBySideExpectedPlayers = ["Regresser", "Totalitarian"];
     private static readonly string[] ExpectedStatsSeasonKey = ["stats/Regular Season Stats Sheet"];
 }

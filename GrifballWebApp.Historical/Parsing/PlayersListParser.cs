@@ -24,7 +24,7 @@ public static class PlayersListParser
         }
         for (var r = 1; r < sheet.Rows.Count; r++)
         {
-            if (Value(r, gamertag) is not string tag)
+            if (Value(r, gamertag) is not string tag || SeasonStatsParser.IsTotalsLabel(tag))
                 continue;
             players.Add(new ArchivePlayerInput
             {

@@ -173,14 +173,14 @@ public static partial class DraftParser
         {
             var place = i + 1;
             var picks = rounds.Select(round => (round.Round, Gamertag: namedPlayer(Player(sheet.Cell(round.Row, c))), Number: round.Numbers?.GetValueOrDefault(c)))
-                .Where(p => p.Gamertag.Length > 0)
+                .Where(p => p.Gamertag.Length > 0 && !SeasonStatsParser.IsTotalsLabel(p.Gamertag))
                 .Select(p => new ArchiveDraftPick(p.Gamertag, p.Round, p.Number ?? (order == DraftOrder.Linear ? (p.Round - 1) * columns.Count + place : (int?)null)))
                 .ToList();
             var captain = Captain(sheet.Cell(captains, c), namedPlayer);
             return new ArchiveTeam
             {
                 TeamName = named(sheet.Cell(namesRow, c)),
-                Captain = captain.Length == 0 ? null : captain,
+                Captain = captain.Length == 0 || SeasonStatsParser.IsTotalsLabel(captain) ? null : captain,
                 DraftOrder = order == DraftOrder.None ? null : place,
                 Picks = picks,
             };
@@ -286,7 +286,7 @@ public static partial class DraftParser
         /// <summary>A player's Draft Pick code: "C3" makes them the captain, 3rd in the order; "R2P3" a pick of round 2.</summary>
         public void Take(string gamertag, string code)
         {
-            if (gamertag.Length == 0)
+            if (gamertag.Length == 0 || SeasonStatsParser.IsTotalsLabel(gamertag))
                 return;
             var captain = CaptainCode().Match(code);
             var pick = PickCode().Match(code);

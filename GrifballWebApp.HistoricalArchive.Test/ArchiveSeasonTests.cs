@@ -498,4 +498,27 @@ public class ArchiveSeasonTests
 
         Assert.That(matches.Count(m => m != null), Is.GreaterThanOrEqualTo(dated), $"{matches.Count} matches");
     }
+
+    [Test]
+    public async Task NoSeason_HasATotalsRowAsAPlayer()
+    {
+        await using var context = Archive.NewContext();
+        var seasonStats = (await context.PlayerSeasonStats.AsNoTracking()
+                .Select(p => new { p.Season.SeasonName, p.Gamertag })
+                .ToListAsync())
+            .Where(p => GrifballWebApp.Historical.Parsing.SeasonStatsParser.IsTotalsLabel(p.Gamertag))
+            .Select(p => $"SeasonStat {p.SeasonName}: {p.Gamertag}");
+        var matchmakingStats = (await context.MatchmakingPlayerStats.AsNoTracking()
+                .Select(p => new { p.MatchmakingSeason.Name, p.Gamertag })
+                .ToListAsync())
+            .Where(p => GrifballWebApp.Historical.Parsing.SeasonStatsParser.IsTotalsLabel(p.Gamertag))
+            .Select(p => $"MatchmakingStat {p.Name}: {p.Gamertag}");
+        var recordedGames = (await context.RecordedGameLines.AsNoTracking()
+                .Select(p => new { p.RecordedGame.SourceKey, p.Gamertag })
+                .ToListAsync())
+            .Where(p => GrifballWebApp.Historical.Parsing.SeasonStatsParser.IsTotalsLabel(p.Gamertag))
+            .Select(p => $"RecordedGame {p.SourceKey}: {p.Gamertag}");
+
+        Assert.That(seasonStats.Concat(matchmakingStats).Concat(recordedGames), Is.Empty);
+    }
 }

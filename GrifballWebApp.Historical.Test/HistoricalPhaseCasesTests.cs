@@ -159,18 +159,64 @@ public class HistoricalPhaseCasesTests
     }
 
     private static readonly string[] NumberedPlayers = ["P12", "R1", "R22", "R5"];
-    private static readonly string[] OnlyThePlayers = ["Galvann", "Invayda Zim"];
+    private static readonly string[] OnlyThePlayers = ["Galvann", "Invayda Zim", "Totalitarian"];
+    private static readonly string[] CarnageExpectedPlayers = ["Galvann", "Totalitarian", "Invayda Zim"];
+    private static readonly string[] BlockExpectedPlayers = ["imShad", "Totalitarian", "godwit1ivy"];
+    private static readonly string[] BlockExpectedTeams = ["Tuna", "Damage"];
 
     [Test]
     public void StatsTab_TotalsAndAveragesRows_AreNoPlayers()
     {
         var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "S" }, Tabs = [new() { Name = "Stats" }] };
         var workbook = SheetWorkbook.Read(Workbook(("Stats", [
-            Row("Player", "Kills"), Row("Galvann", 50), Row("TOTAL", 90), Row("Invayda Zim", 40), Row("Team Average", 45), Row("subtotal (week 1)", 10)])))!;
+            Row("Player", "Kills"), Row("Galvann", 50), Row("Total", 90), Row("Totals", 90), Row("Totals:", 90),
+            Row("Invayda Zim", 40), Row("Totalitarian", 25), Row("Team Average", 45), Row("subtotal (week 1)", 10)])))!;
 
         var season = SeasonStatsParser.Parse("s", config, workbook, []).Single();
 
         Assert.That(season.Players.Select(p => p.Gamertag), Is.EqualTo(OnlyThePlayers));
+    }
+
+    [Test]
+    public void Carnage_TotalsRowsAndRepeatedHeaders_AreNoPlayers()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("History", [
+            CarnageHeader,
+            Row("Galvann", 1, 1, 1, 0, 2, 15, 1, 5, "Mon Jul 11 18:02:15 2022"),
+            Row("Total", 1, 1, 1, 0, 2, 15, 1, 5, "Mon Jul 11 18:02:15 2022"),
+            Row("Totals", 1, 1, 1, 0, 2, 15, 1, 5, "Mon Jul 11 18:02:15 2022"),
+            Row("Totalitarian", 1, 1, 1, 0, 1, 8, 0, 3, "Mon Jul 11 18:02:15 2022"),
+            Row("Invayda Zim", 0, 1, 0, 1, 1, 10, 0, 12, "Mon Jul 11 18:02:15 2022"),
+            Row("Totals:", 0, 1, 0, 1, 1, 10, 0, 12, "Mon Jul 11 18:02:15 2022"),
+            Row("Player", "Team", 1, 1, 0, 0, 1, 0, 1, "Mon Jul 11 18:02:15 2022")])))!;
+
+        var games = RecordedGameParser.Parse("h", new GamesTab { Sheet = "History", Season = "h/Stats", Game = "halo3" }, workbook, []);
+
+        Assert.That(games.Single().Players.Select(p => p.Gamertag), Is.EqualTo(CarnageExpectedPlayers));
+    }
+
+    [Test]
+    public void BlockGame_TotalsRowsInSideOrPlayerColumn_AreNoPlayers()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Game Results", [
+            Row("Week 1 - Tuna over Damage (5-2)"),
+            BlockHeader,
+            Row("Tuna", "imShad", 1, 1, 10, 3, 20, 1, 10, 2),
+            Row("Total", null, 1, 1, 10, 3, 20, 1, 10, 2),
+            Row("Tuna", "Totals", 1, 1, 10, 3, 20, 1, 10, 2),
+            Row("Dummy Side", "Totals:", 1, 1, 10, 3, 20, 1, 10, 2),
+            Row(null, "Total", 1, 1, 10, 3, 20, 1, 10, 2),
+            Row("Tuna", "Totalitarian", 1, 1, 10, 2, 12, 0, 8, 1),
+            Row("Damage", "godwit1ivy", 1, 0, 10, 2, 10, 0, 15, 0),
+            Row("Totals:", null, 1, 0, 10, 2, 10, 0, 15, 0)])))!;
+
+        var game = RecordedGameParser.Parse("wl", new GamesTab { Sheet = "Game Results", Season = "wl/Stats", Game = "halo3", Layout = GamesLayout.Blocks }, workbook, []).Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(game.Players.Select(p => p.Gamertag), Is.EqualTo(BlockExpectedPlayers));
+            Assert.That(game.Teams.Select(t => t.Name), Is.EqualTo(BlockExpectedTeams));
+        }
     }
 
     private const string Link = "https://www.halowaypoint.com/halo-infinite/players/x/matches/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";

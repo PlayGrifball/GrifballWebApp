@@ -557,4 +557,39 @@ public class GamesTableParserTests
                 "a date that isn't one is none");
         }
     }
+
+    [Test]
+    public void Matches_TotalsRowGamertags_AreSkipped_WhileNamesContainingTotalStay()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "Player_Stats",
+                    Game = "halo3",
+                    SeasonColumn = "season_id",
+                    Seasons = new() { ["s1"] = new() { Name = "Season 1", Year = 2010 } },
+                },
+            ],
+            GameTables = [new() { Sheet = "Matches", PlayersSheet = "Match_Players", Stats = "Player_Stats" }],
+        };
+        var workbook = Workbook(
+            ("Player_Stats", [Row("season_id", "gamertag", "team", "games played"), Row("s1", "Ace", "Blue", 1)]),
+            ("Matches", [Row("match_id", "season_id", "bungie_game_id", "is_forfeit", "team1_name", "team1_score", "team2_name", "team2_score"), Row(1, "s1", 10, 0, "Red", 5, "Blue", 3)]),
+            ("Match_Players", [
+                Row("match_id", "side", "gamertag", "kills", "deaths", "assists"),
+                Row(1, 1, "Total", 10, 5, 0),
+                Row(1, 2, "Totals", 10, 5, 0),
+                Row(1, 1, "Totalitarian", 6, 3, 1),
+                Row(1, 2, "Average Joe", 4, 2, 0),
+            ]));
+
+        var games = Games(Build("com", workbook, config), "Matches");
+
+        Assert.That(games.Single().Players.Select(p => p.Gamertag), Is.EqualTo(MatchesExpectedPlayers));
+    }
+
+    private static readonly string[] MatchesExpectedPlayers = ["Totalitarian", "Average Joe"];
 }

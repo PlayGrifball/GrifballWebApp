@@ -108,6 +108,8 @@ public static partial class RecordedGameParser
         {
             var row = sheet.Rows[r];
             var name = Cell(row, c.Player).Trim();
+            if (SeasonStatsParser.IsTotalsRow(name) || SeasonStatsParser.IsRepeatingHeader(name, c.TeamOf(row)))
+                continue;
             var (k, d, g, gp) = (Int(row, c.Kills), Int(row, c.Deaths), Int(row, c.Goals), Int(row, c.GamesPlayed));
             // A week or playoffs marker (in the player column, or the next one), or a row of zeros
             if (name.Length == 0 || ((k ?? 0) == 0 && (d ?? 0) == 0 && (g ?? 0) == 0 && (gp ?? 0) == 0))
@@ -163,7 +165,7 @@ public static partial class RecordedGameParser
             SwordKills = Int(row, c.Sword),
             BallKills = Int(row, c.Ball),
             CarrierKills = Int(row, c.Stops),
-        }).Where(p => p.Gamertag.Length > 0).ToList();
+        }).Where(p => p.Gamertag.Length > 0 && !SeasonStatsParser.IsTotalsRow(p.Gamertag)).ToList();
         var teams = block.Rows.GroupBy(row => Side(c.TeamOf(row))).OrderBy(s => s.Key).Select(s => new RecordedTeamInput
         {
             Side = s.Key,
@@ -238,13 +240,16 @@ public static partial class RecordedGameParser
         {
             var row = sheet.Rows[end];
             var first = Cell(row, 0).Trim();
-            if (first.StartsWith("Totals", StringComparison.OrdinalIgnoreCase))
+            if (SeasonStatsParser.IsTotalsRow(first))
+                continue;
+            var rawPlayer = Cell(row, 1).Trim();
+            if (SeasonStatsParser.IsTotalsRow(rawPlayer) || SeasonStatsParser.IsRepeatingHeader(rawPlayer, first))
                 continue;
             var named = first.Length > 0 && !first.Equals("Sub", StringComparison.OrdinalIgnoreCase);
             if (named && !sideOf.TryGetValue(first, out side))
                 sideOf[first] = side = sideOf.Count + 1;
-            var gamertag = ArchiveCells.Gamertag(Cell(row, 1)).Gamertag;
-            if (gamertag.Length == 0 || !Played(row, played, kills, deaths))
+            var gamertag = ArchiveCells.Gamertag(rawPlayer).Gamertag;
+            if (gamertag.Length == 0 || SeasonStatsParser.IsTotalsRow(gamertag) || !Played(row, played, kills, deaths))
                 continue;
             players.Add(new RecordedPlayerInput
             {
