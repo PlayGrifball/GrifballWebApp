@@ -31,9 +31,10 @@ public static partial class SeasonStatsParser
         ["bomb stops"] = "carrierKills", ["bombstops"] = "carrierKills", ["plate stops"] = "carrierKills",
         ["avg life"] = "averageLifeSeconds", ["averagelife"] = "averageLifeSeconds", ["average life"] = "averageLifeSeconds",
         ["avg life duration"] = "averageLifeSeconds", ["average life duration"] = "averageLifeSeconds", ["average life (seconds)"] = "averageLifeSeconds",
+        ["avg life (seconds)"] = "averageLifeSeconds", ["average life (seconds)"] = "averageLifeSeconds",
         ["avg life (s)"] = "averageLifeSeconds", ["average life (s)"] = "averageLifeSeconds",
         ["time"] = "totalSecondsPlayed", ["minutes"] = "totalSecondsPlayed", ["minutes played"] = "totalSecondsPlayed", ["seconds played"] = "totalSecondsPlayed",
-        ["time played (seconds)"] = "totalSecondsPlayed", ["time (m)"] = "totalSecondsPlayed", ["game time"] = "totalSecondsPlayed", ["gametime"] = "totalSecondsPlayed", ["timealive"] = "totalSecondsPlayed", ["playingtime"] = "totalSecondsPlayed",
+        ["time played (seconds)"] = "totalSecondsPlayed", ["time played (minutes)"] = "totalSecondsPlayed", ["time (m)"] = "totalSecondsPlayed", ["game time"] = "totalSecondsPlayed", ["gametime"] = "totalSecondsPlayed", ["timealive"] = "totalSecondsPlayed", ["playingtime"] = "totalSecondsPlayed",
         ["sprees"] = "sprees", ["killing spree"] = "sprees", ["killing sprees"] = "sprees", ["killingsprees"] = "sprees",
         ["multikills"] = "multiKills", ["multikill"] = "multiKills",
         ["exterminations"] = "exterminations", ["extermination"] = "exterminations", ["exterm"] = "exterminations", ["exterms"] = "exterminations",
@@ -51,12 +52,16 @@ public static partial class SeasonStatsParser
     private static readonly string[] ExtendedKeys = ["roundsWon", "roundsLost", "roundsTied", "goalAssists"];
 
     public static List<ArchiveSeason> Parse(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook, List<string> warnings)
+        => Parse(sourceId, config, workbook, warnings, null);
+
+    internal static List<ArchiveSeason> Parse(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook, List<string> warnings,
+        List<(StatsTab Tab, ArchiveSeason Season, Dictionary<int, (string Key, string Header)> Columns)>? pendingGames)
     {
         var seasons = new List<ArchiveSeason>();
         var rosters = Rosters(sourceId, config, workbook, warnings);
         foreach (var tab in config.Tabs)
         {
-            if (ParseTab(sourceId, config, workbook, tab, rosters, warnings) is { } season)
+            if (ParseTab(sourceId, config, workbook, tab, rosters, warnings, pendingGames) is { } season)
                 seasons.Add(season);
         }
         if (TeamsOnly(sourceId, config, workbook) is { } teamsOnly)
@@ -103,7 +108,8 @@ public static partial class SeasonStatsParser
 
     /// <summary>A stats tab's season; null (with a warning) for a tab that isn't there or is empty.</summary>
     private static ArchiveSeason? ParseTab(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook, StatsTab tab,
-        Dictionary<string, string> rosters, List<string> warnings)
+        Dictionary<string, string> rosters, List<string> warnings,
+        List<(StatsTab Tab, ArchiveSeason Season, Dictionary<int, (string Key, string Header)> Columns)>? pendingGames)
     {
         var sheet = workbook.Sheet(tab.Name);
         if (sheet is null || sheet.Rows.Count <= tab.HeaderRow + 1)
@@ -121,11 +127,8 @@ public static partial class SeasonStatsParser
             .OfType<string>().Where(v => v.Length > 0).DefaultIfEmpty("x").All(v => v is "0" or "1");
         var played = PlayedDates(sourceId, workbook, tab, sheet, dataRows, warnings);
         var players = TabPlayers(sheet, config, tab, columns, sides, rosters);
-        if (tab.GamesSheet is { } gamesName)
-            CountGames(sourceId, workbook, gamesName, columns, players, warnings);
-
         var defaults = config.Season;
-        return new ArchiveSeason
+        var entry = new ArchiveSeason
         {
             SeasonName = tab.CustomSeason ?? defaults?.Name ?? sourceId,
             GameVersion = tab.Game ?? defaults?.Game ?? "",
@@ -142,6 +145,14 @@ public static partial class SeasonStatsParser
             Titles = tab.CustomSeason is null ? defaults?.Titles : null,
             Players = players,
         };
+        if (tab.GamesSheet is { } gamesName)
+        {
+            if (!gamesName.Contains('/'))
+                CountGames(sourceId, workbook, gamesName, columns, players, warnings);
+            else
+                pendingGames?.Add((tab, entry, columns));
+        }
+        return entry;
     }
 
     /// <summary>When the tab's games were played: the stats tool's TimeStamp column (each player's last game), or another
@@ -164,6 +175,8 @@ public static partial class SeasonStatsParser
         return played;
     }
 
+    internal sealed record GameRecordsResult(Dictionary<string, (int Games, int Wins, int Losses)> Counts, DateTime? FirstPlayedAt, DateTime? LastPlayedAt);
+
     /// <summary>Fills the games played, wins and losses the tab has no column for from its games tab
     /// (<see cref="StatsTab.GamesSheet"/>): a player's rows there, and of them the won and the lost (a tie or a game left
     /// unfinished is neither). A player with no games there, or with more than one line (stints the games can't be split
@@ -171,13 +184,18 @@ public static partial class SeasonStatsParser
     private static void CountGames(string sourceId, SheetWorkbook workbook, string gamesName, Dictionary<int, (string Key, string Header)> columns,
         List<ArchivePlayer> players, List<string> warnings)
     {
-        if (GameRecords(sourceId, workbook, gamesName, warnings) is not { } records)
-            return;
+        if (GameRecords(sourceId, workbook, gamesName, warnings) is { } records)
+            ApplyGameRecords(sourceId, gamesName, records, columns, players, warnings);
+    }
+
+    internal static void ApplyGameRecords(string sourceId, string gamesName, GameRecordsResult records, Dictionary<int, (string Key, string Header)> columns,
+        List<ArchivePlayer> players, List<string> warnings)
+    {
         var has = columns.Values.Select(c => c.Key).ToHashSet();
         foreach (var lines in players.GroupBy(p => HistoricalKeys.Normalize(p.Gamertag)))
         {
             var player = lines.First();
-            if (!records.TryGetValue(lines.Key, out var record))
+            if (!records.Counts.TryGetValue(lines.Key, out var record))
             {
                 warnings.Add($"{sourceId}: no games of '{player.Gamertag}' in '{gamesName}'");
                 continue;
@@ -199,7 +217,7 @@ public static partial class SeasonStatsParser
     /// <summary>Each player's games, wins and losses in a games tab: a Waypoint match export's PlayerId and Outcome (2 a win,
     /// 3 a loss), or a tab headed as a stats tab (its gamertag, Wins and Losses columns). Null, with a warning, for a tab
     /// that isn't there or has neither.</summary>
-    private static Dictionary<string, (int Games, int Wins, int Losses)>? GameRecords(string sourceId, SheetWorkbook workbook, string name, List<string> warnings)
+    internal static GameRecordsResult? GameRecords(string sourceId, SheetWorkbook workbook, string name, List<string> warnings)
     {
         if (workbook.Sheet(name) is not { Rows.Count: > 0 } sheet)
         {
@@ -222,7 +240,9 @@ public static partial class SeasonStatsParser
             var (games, wins, losses) = records.GetValueOrDefault(key);
             records[key] = (games + 1, wins + (won ? 1 : 0), losses + (lost ? 1 : 0));
         }
-        return records;
+        var stamp = StampColumn(sheet.Rows[0]);
+        var played = stamp < 0 ? [] : Stamps(sheet.Rows.Skip(1), stamp);
+        return new GameRecordsResult(records, played.Count > 0 ? played.Min() : null, played.Count > 0 ? played.Max() : null);
     }
 
     /// <summary>A games tab's columns: the player's, and the game's result (a Waypoint Outcome, or Wins and Losses).</summary>
@@ -248,7 +268,7 @@ public static partial class SeasonStatsParser
         return player < 0 || (result.OutcomeColumn < 0 && result.WinsColumn < 0) ? null : result;
     }
 
-    private static int StampColumn(string[] header) => Array.FindIndex(header, h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp");
+    private static int StampColumn(string[] header) => Array.FindIndex(header, h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp" or "firstjoinedtime");
 
     private static List<DateTime> Stamps(IEnumerable<string[]> rows, int column)
         => rows.Select(r => PlayedAt(column < r.Length ? r[column] : null)).OfType<DateTime>().ToList();

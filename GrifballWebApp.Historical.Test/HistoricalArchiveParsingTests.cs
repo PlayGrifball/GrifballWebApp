@@ -602,6 +602,23 @@ public class HistoricalArchiveParsingTests
         }
     }
 
+    [Test]
+    public void WaypointMatchParser_BareIds_ReadsWholeGuidCellsWhenEnabled()
+    {
+        var match = Guid.NewGuid();
+        var sheet = Read(Workbook(("Game Links", [
+            Row("Match #", "ID"),
+            Row("1", match.ToString().ToUpperInvariant()),
+            Row("2", "not-a-guid"),
+        ]))).Sheet("Game Links")!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(WaypointMatchParser.Parse(sheet, [], bareIds: false).Regular, Is.Empty);
+            Assert.That(WaypointMatchParser.Parse(sheet, [], bareIds: true).Regular, Is.EqualTo(new[] { match.ToString() }));
+        }
+    }
+
     private static readonly object?[] CarnageHeader = Row("Player", "Team", "GamesPlayed", "Wins", "Loses", "Goals", "Kills", "Assists", "Deaths", "Betrayals", "HammerKills", "BombStops", "GameTime", "TimeStamp", "Game");
     private static readonly string[] expected = new[] { "Player", "", "Avg Life" };
     private static readonly string[] expectedArray = new[] { "Rayzyr", "21", ":25", "1:02:05", "1/28/2019", "12.3", "TRUE", "#DIV/0!" };
@@ -950,6 +967,25 @@ public class HistoricalArchiveParsingTests
         {
             [HistoricalKeys.Normalize("ActiveHate")] = "ActiveHate", [HistoricalKeys.Normalize("Havoc Puppies")] = "ActiveHate",
             [HistoricalKeys.Normalize("Sauted Smurf")] = "Sauted Smurf", [HistoricalKeys.Normalize("MuNgO PuNgO")] = "Sauted Smurf",
+        }));
+    }
+
+    [Test]
+    public void ADraftSheetWithDuoCaptains_MapsBothCaptainsWithPlayerAliases()
+    {
+        var sheet = Read(Workbook(("Pro Team Chart", [
+            Row("Team Name:", "The Menz Fan Club (MFC)"),
+            Row("Captain", "Hells/Scullen"),
+            Row("1st Round:", "Solace")]))).Sheet("Pro Team Chart")!;
+        var names = new Dictionary<string, string> { ["Hells"] = "Hells Angel cx", ["Scullen"] = "Scullen cx", ["Solace"] = "Solace VIII" };
+
+        var teams = RosterParser.Parse(sheet, null, names);
+
+        Assert.That(teams, Is.EquivalentTo(new Dictionary<string, string>
+        {
+            [HistoricalKeys.Normalize("Hells Angel cx")] = "The Menz Fan Club (MFC)",
+            [HistoricalKeys.Normalize("Scullen cx")] = "The Menz Fan Club (MFC)",
+            [HistoricalKeys.Normalize("Solace VIII")] = "The Menz Fan Club (MFC)",
         }));
     }
 
@@ -1773,8 +1809,8 @@ public class HistoricalArchiveParsingTests
                 Is.SubsetOf(sources.Where(s => s.Config?.Tabs.Count > 0).Select(s => s.HistoricalSourceID)));
             Assert.That(sources.Count(s => s.Config?.ChampionsSheet is not null), Is.EqualTo(1));
             Assert.That(sources.Single(s => s.Kind == HistoricalSourceKind.YouTubeChannel).Enabled, Is.True, "Kept for the VODs to come");
-            Assert.That(stats, Has.Count.EqualTo(67),
-                "The seasons the Node compiler made, the DJBluePDX Summer Series and the GrifballHub archive's since; not SML21's copies of WL21 Legacy's Playoff Stats");
+            Assert.That(stats, Has.Count.EqualTo(70),
+                "The seasons the Node compiler made, the DJBluePDX Summer Series, the GrifballHub archive's since, and the 2026 SML26/WL26 seasons; not SML21's copies of WL21 Legacy's Playoff Stats");
         }
     }
 

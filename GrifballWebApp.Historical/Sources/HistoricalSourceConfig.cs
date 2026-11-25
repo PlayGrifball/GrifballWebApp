@@ -60,6 +60,9 @@ public class HistoricalSourceConfig
     public List<DraftTab> Drafts { get; init; } = [];
     /// <summary>Tabs of a season's awards (MVPs, named season awards, records): AwardsParser.</summary>
     public List<AwardsTab> Awards { get; init; } = [];
+    /// <summary>Tabs of per-game match history (e.g. a CSV-only Season Match History tab) read into game counts for
+    /// cross-source <see cref="StatsTab.GamesSheet"/> references ("{sourceId}/{sheet}").</summary>
+    public List<string> GameRecordSheets { get; init; } = [];
     /// <summary>Teams this workbook's rosters, standings and champions record name another way, by the name they give: a
     /// placeholder never filled in (H3 Action 2022's "Team Name", RDG NHL's team) that would otherwise read as no team, or a
     /// champion the record spells otherwise than its season's sheets ("Yung Hummu", the sheets' Yung Humma).</summary>
@@ -106,6 +109,7 @@ public class HistoricalSourceConfig
             .. Brackets.SelectMany(t => t.Rounds.Select(r => r.Sheet)),
             .. Drafts.Select(t => t.Sheet),
             .. Awards.Select(t => t.Sheet),
+            .. GameRecordSheets,
             ChampionsSheet,
             ChampionsTable?.Sheet,
             BracketTable?.Sheet,
@@ -301,6 +305,9 @@ public class RosterTab
     public required string Sheet { get; init; }
     /// <summary>The source ID of the season's stats workbook.</summary>
     public required string Season { get; init; }
+    /// <summary>Players the tab names otherwise than the stats, by the name it gives (any case): a nickname or duo-captain
+    /// shorthand to their gamertag ("Viper": "PapaSnipezX").</summary>
+    public Dictionary<string, string> Names { get; init; } = [];
 }
 
 /// <summary>
@@ -386,6 +393,9 @@ public class DraftTab
     public DraftLayout Layout { get; init; }
     /// <summary>What a board's columns say of the draft's order.</summary>
     public DraftOrder Order { get; init; }
+    /// <summary>Players the tab names otherwise than the stats, by the name it gives (any case): a nickname or duo-captain
+    /// shorthand to their gamertag ("Viper": "PapaSnipezX").</summary>
+    public Dictionary<string, string> Names { get; init; } = [];
 }
 
 public enum DraftLayout
@@ -415,6 +425,8 @@ public class WaypointTab
     public required string Sheet { get; init; }
     /// <summary>The source ID of the season's stats workbook: its regular season's key is what the matches go under.</summary>
     public required string Season { get; init; }
+    /// <summary>Also read cells that hold a bare match GUID (e.g. a Game Links sheet's ID column), not only Halo URLs.</summary>
+    public bool BareIds { get; init; }
 }
 
 public enum GamesLayout

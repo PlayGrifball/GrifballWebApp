@@ -567,4 +567,18 @@ public class StandingsParserTests
             Assert.That(RosterParser.Parse(new SheetTable { Name = " ", Rows = [.. TeamStatRows] }), Is.Empty);
         }
     }
+
+    [Test]
+    public void Standings_ReadsMwAndMlHeaders()
+    {
+        var sheet = Sheet(
+            ["Team", "", "MW", "ML"],
+            ["Uncle Scorefester", "1", "11", "4"],
+            ["Low IQ", "2", "11", "4"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings", Ranked = true })!;
+
+        Assert.That(teams.Select(t => (t.TeamName, t.Wins, t.Losses, t.Rank)),
+            Is.EqualTo(new[] { ("Uncle Scorefester", (int?)11, (int?)4, (int?)1), ("Low IQ", (int?)11, (int?)4, (int?)2) }));
+    }
 }

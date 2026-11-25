@@ -567,4 +567,45 @@ public class SeasonStatsParserTests
         var players = SeasonStatsParser.Parse("sml16", config, workbook, []).Single().Players;
         Assert.That(players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("iGalvanator", "Impulse"), ("KID TONGA 1", "Impulse") }));
     }
+
+    [Test]
+    public void Sml26Columns_AndCrossSourceGameRecordSheets_AreParsed()
+    {
+        var statsContent = Workbook(("Regular Season Stats Sheet",
+        [
+            Row("Gamertag", "Time Played (Minutes)", "Avg Life (Seconds)", "Rounds Won", "Rounds Lost", "Kills", "Deaths"),
+            Row("Ace", 10, 12.5, 5, 2, 20, 10),
+        ]));
+        var historyContent = Workbook(("Season Match History",
+        [
+            Row("FirstJoinedTime", "PlayerId", "Outcome"),
+            Row("2026-11-17T01:36:12.827Z", "Ace", 2),
+            Row("2026-11-19T01:37:35.479Z", "Ace", 3),
+        ]));
+
+        var statsSource = new HistoricalSourceContent(HistoricalTestData.Source("stats", "https://example.org/stats",
+            new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Winter League 2026 (Pro)", League = "AGLA", Game = "infinite", Division = "Pro" },
+                Tabs = [new() { Name = "Regular Season Stats Sheet", GamesSheet = "history/Season Match History" }],
+            }.ToJson()), 1, statsContent);
+        var historySource = new HistoricalSourceContent(HistoricalTestData.Source("history", "https://example.org/history",
+            new HistoricalSourceConfig { GameRecordSheets = ["Season Match History"] }.ToJson()), 2, historyContent);
+
+        var build = HistoricalArchiveBuilder.Build([statsSource, historySource], new HashSet<string> { "history" });
+        var season = build.Input.Seasons.Seasons.Single();
+        var player = season.Players.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Is.Empty);
+            Assert.That(build.Seasons, Is.EquivalentTo(ExpectedStatsSeasonKey));
+            Assert.That((player.GamesPlayed, player.Wins, player.Losses, player.TotalSecondsPlayed, player.AverageLifeSeconds),
+                Is.EqualTo(((int?)2, (int?)1, (int?)1, (decimal?)600m, (decimal?)12.5m)));
+            Assert.That((season.FirstPlayedAt?.Date, season.LastPlayedAt?.Date),
+                Is.EqualTo(((DateTime?)new DateTime(2026, 11, 17, 0, 0, 0, DateTimeKind.Utc), (DateTime?)new DateTime(2026, 11, 19, 0, 0, 0, DateTimeKind.Utc))));
+        }
+    }
+
+    private static readonly string[] ExpectedStatsSeasonKey = ["stats/Regular Season Stats Sheet"];
 }

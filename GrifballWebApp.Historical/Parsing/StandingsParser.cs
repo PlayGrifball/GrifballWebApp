@@ -21,8 +21,8 @@ public static partial class StandingsParser
     private static readonly Dictionary<string, Field> Headers = new(StringComparer.Ordinal)
     {
         ["team"] = Field.Team, ["teams"] = Field.Team, ["team name"] = Field.Team, ["team names"] = Field.Team, ["team standings"] = Field.Team,
-        ["w"] = Field.Wins, ["win"] = Field.Wins, ["wins"] = Field.Wins, ["won"] = Field.Wins,
-        ["l"] = Field.Losses, ["loss"] = Field.Losses, ["losses"] = Field.Losses,
+        ["w"] = Field.Wins, ["win"] = Field.Wins, ["wins"] = Field.Wins, ["won"] = Field.Wins, ["mw"] = Field.Wins,
+        ["l"] = Field.Losses, ["loss"] = Field.Losses, ["losses"] = Field.Losses, ["ml"] = Field.Losses,
         ["record"] = Field.Record, ["w-l"] = Field.Record,
         ["rank"] = Field.Rank, ["seed"] = Field.Rank, ["place"] = Field.Rank, ["standing"] = Field.Rank, ["standings"] = Field.Rank, ["season standing"] = Field.Rank, ["season standings"] = Field.Rank, ["ps"] = Field.Rank,
         ["place finished"] = Field.Finish, ["finish"] = Field.Finish, ["final place"] = Field.Finish, ["playoffs"] = Field.Finish,

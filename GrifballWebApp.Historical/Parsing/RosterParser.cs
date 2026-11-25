@@ -22,9 +22,10 @@ public static partial class RosterParser
     /// <param name="sheet">The roster tab.</param>
     /// <param name="config">The workbook's config, for the teams it names another way (<see cref="HistoricalSourceConfig.TeamNames"/>): a
     /// placeholder never filled in ("Team Name") would otherwise be no team.</param>
-    public static Dictionary<string, string> Parse(SheetTable sheet, HistoricalSourceConfig? config = null)
+    /// <param name="playerNames">Players the tab names otherwise than the stats (nicknames or duo-captain shorthands).</param>
+    public static Dictionary<string, string> Parse(SheetTable sheet, HistoricalSourceConfig? config = null, IReadOnlyDictionary<string, string>? playerNames = null)
     {
-        var teams = new Teams(config);
+        var teams = new Teams(config, playerNames);
         if (!Table(sheet, teams))
         {
             DraftSheet(sheet, teams);
@@ -94,9 +95,15 @@ public static partial class RosterParser
         var captains = CaptainLabel().IsMatch(row[label]);
         foreach (var column in columns.Keys.Where(c => c < row.Length).ToList())
         {
-            if (columns[column] is null && captains && ArchiveCells.Gamertag(row[column]).Gamertag is { Length: > 0 } captain)
-                columns[column] = captain;
-            teams.Add(row[column], columns[column]);
+            var parts = captains && row[column].Contains('/')
+                ? row[column].Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                : [row[column]];
+            foreach (var part in parts)
+            {
+                if (columns[column] is null && captains && ArchiveCells.Gamertag(part).Gamertag is { Length: > 0 } captain)
+                    columns[column] = teams.NamedPlayer(captain);
+                teams.Add(part, columns[column]);
+            }
         }
     }
 
@@ -131,15 +138,19 @@ public static partial class RosterParser
     }
 
     /// <summary>Each player's team (by normalized gamertag), the first a roster gives them.</summary>
-    private sealed class Teams(HistoricalSourceConfig? config)
+    private sealed class Teams(HistoricalSourceConfig? config, IReadOnlyDictionary<string, string>? playerNames)
     {
         public Dictionary<string, string> ByPlayer { get; } = new(StringComparer.Ordinal);
+
+        public string NamedPlayer(string gamertag)
+            => playerNames?.FirstOrDefault(n => string.Equals(n.Key.Trim(), gamertag.Trim(), StringComparison.OrdinalIgnoreCase)).Value ?? gamertag;
 
         public void Add(string? gamertag, string? team)
         {
             var (clean, _, _) = ArchiveCells.Gamertag(gamertag);
             if (clean.Length == 0 || string.IsNullOrWhiteSpace(team))
                 return;
+            clean = NamedPlayer(clean);
             team = config?.TeamName(team.Trim()) ?? team.Trim();
             if (!HistoricalKeys.IsExcludedTeamName(team))
                 ByPlayer.TryAdd(HistoricalKeys.Normalize(clean), team);

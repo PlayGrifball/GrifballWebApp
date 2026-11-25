@@ -73,8 +73,8 @@ public class ArchiveSeason
     public string? Titles { get; init; }
     /// <summary>When the entry's games were played, as far as its sheet says (a stats tab's TimeStamp column): the season's
     /// dates when its games don't give them.</summary>
-    public DateTime? FirstPlayedAt { get; init; }
-    public DateTime? LastPlayedAt { get; init; }
+    public DateTime? FirstPlayedAt { get; set; }
+    public DateTime? LastPlayedAt { get; set; }
     /// <summary>The year its source is filed under (the catalog's), for a season whose name and sheet give no date.</summary>
     public int? SourceYear { get; set; }
     public List<ArchivePlayer> Players { get; init; } = [];

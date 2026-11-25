@@ -30,7 +30,7 @@ public static partial class WaypointMatchParser
     /// <summary>Words that make a Home/Away header a column of something else than the team (its score, its link).</summary>
     private static readonly string[] NotTeamHeaderWords = ["win", "loss", "score", "pt", "goal", "link", "url", "result", "seed", "rank", "stat"];
 
-    public static (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule) Parse(SheetTable sheet, List<string> unparsed)
+    public static (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule) Parse(SheetTable sheet, List<string> unparsed, bool bareIds = false)
     {
         var regular = new List<string>();
         var playoffs = new List<string>();
@@ -47,7 +47,7 @@ public static partial class WaypointMatchParser
             if (first.Length > 0)
                 inPlayoffs = PlayoffsPattern().IsMatch(first);
 
-            var ids = RowMatchIds(sheet.Name, row, unparsed);
+            var ids = RowMatchIds(sheet.Name, row, unparsed, bareIds);
             (inPlayoffs ? playoffs : regular).AddRange(ids);
 
             if (headerRow < 0 || r <= headerRow)
@@ -62,12 +62,12 @@ public static partial class WaypointMatchParser
     }
 
     /// <summary>The match IDs of a row's links; a link without one goes in <paramref name="unparsed"/>.</summary>
-    private static List<string> RowMatchIds(string sheetName, IEnumerable<string> row, List<string> unparsed)
+    private static List<string> RowMatchIds(string sheetName, IEnumerable<string> row, List<string> unparsed, bool bareIds)
     {
         var ids = new List<string>();
         foreach (var cell in row)
         {
-            var cellIds = MatchIds(cell);
+            var cellIds = MatchIds(cell, bareIds);
             if (cellIds is null)
                 unparsed.Add($"{sheetName}: {cell.Trim()}");
             else
@@ -125,11 +125,11 @@ public static partial class WaypointMatchParser
     }
 
     /// <summary>The match IDs a cell links to (several links are several games); null for a link without one.</summary>
-    public static List<string>? MatchIds(string? cell)
+    public static List<string>? MatchIds(string? cell, bool bareIds = false)
     {
         var text = cell ?? "";
         if (!LinkPattern().IsMatch(text))
-            return [];
+            return bareIds && ExactGuidPattern().IsMatch(text.Trim()) ? [text.Trim().ToLowerInvariant()] : [];
         var found = new List<string>();
         foreach (var part in text.Split([' ', '\t', '\n', '\r', ',', ';'], StringSplitOptions.RemoveEmptyEntries).Where(p => LinkPattern().IsMatch(p)))
         {
@@ -144,6 +144,9 @@ public static partial class WaypointMatchParser
 
     [GeneratedRegex(@"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", RegexOptions.IgnoreCase)]
     private static partial Regex GuidPattern();
+
+    [GeneratedRegex(@"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", RegexOptions.IgnoreCase)]
+    private static partial Regex ExactGuidPattern();
 
     [GeneratedRegex(@"(halowaypoint\.com|halodatahive\.com|haloquery\.com)", RegexOptions.IgnoreCase)]
     private static partial Regex LinkPattern();

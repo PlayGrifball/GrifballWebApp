@@ -31,11 +31,13 @@ public static partial class DraftParser
     {
         // A cell's team name, as the workbook's config names it: a placeholder never filled in ("Team Name") is a team's
         string Named(string cell) => config?.TeamName(Name(cell)) ?? Name(cell);
-        var teams = tab.Layout == DraftLayout.Table ? Table(sheet, Named) : Board(sheet, tab.Order, Named);
+        string NamedPlayer(string cell) => tab.Names.Count == 0 ? cell
+            : tab.Names.FirstOrDefault(n => string.Equals(n.Key.Trim(), cell.Trim(), StringComparison.OrdinalIgnoreCase)).Value ?? cell;
+        var teams = tab.Layout == DraftLayout.Table ? Table(sheet, Named, NamedPlayer) : Board(sheet, tab.Order, Named, NamedPlayer);
         return teams.Count == 0 ? null : teams;
     }
 
-    private static List<ArchiveTeam> Board(SheetTable sheet, DraftOrder order, Func<string, string> named)
+    private static List<ArchiveTeam> Board(SheetTable sheet, DraftOrder order, Func<string, string> named, Func<string, string> namedPlayer)
     {
         var teams = new List<ArchiveTeam>();
         for (var r = 0; r < sheet.Rows.Count; r++)
@@ -44,7 +46,7 @@ public static partial class DraftParser
             for (var i = 0; i < labels.Count; i++)
             {
                 var end = i + 1 < labels.Count ? labels[i + 1] : sheet.Rows.Max(row => row.Length);
-                teams.AddRange(Block(sheet, r, labels[i], end, order, named));
+                teams.AddRange(Block(sheet, r, labels[i], end, order, named, namedPlayer));
             }
         }
         return teams;
@@ -62,23 +64,23 @@ public static partial class DraftParser
 
     /// <summary>A board's teams: its columns after its label's, each a team with a name or a captain, up to <paramref name="end"/>
     /// or a column with neither (what is beside the board: a seed list, notes).</summary>
-    private static List<ArchiveTeam> Block(SheetTable sheet, int namesRow, int label, int end, DraftOrder order, Func<string, string> named)
+    private static List<ArchiveTeam> Block(SheetTable sheet, int namesRow, int label, int end, DraftOrder order, Func<string, string> named, Func<string, string> namedPlayer)
     {
         var rows = Enumerable.Range(namesRow + 1, sheet.Rows.Count - namesRow - 1).TakeWhile(r => !TeamNameLabel().IsMatch(sheet.Cell(r, label))).ToList();
         var captainRow = rows.First(r => CaptainLabel().IsMatch(sheet.Cell(r, label)));
         var columns = Enumerable.Range(label + 1, Math.Max(0, end - label - 1))
-            .TakeWhile(c => Name(sheet.Cell(namesRow, c)).Length > 0 || Player(sheet.Cell(captainRow, c)).Length > 0)
+            .TakeWhile(c => Name(sheet.Cell(namesRow, c)).Length > 0 || Captain(sheet.Cell(captainRow, c), namedPlayer).Length > 0)
             .Where(c => named(sheet.Cell(namesRow, c)) is not { Length: > 0 } name || !HistoricalKeys.IsExcludedTeamName(name))
             .ToList();
         var rounds = Rounds(sheet, rows, label, columns);
         return columns.Select((c, i) =>
         {
             var place = i + 1;
-            var picks = rounds.Select(round => (round.Round, Gamertag: Player(sheet.Cell(round.Row, c)), Number: round.Numbers?.GetValueOrDefault(c)))
+            var picks = rounds.Select(round => (round.Round, Gamertag: namedPlayer(Player(sheet.Cell(round.Row, c))), Number: round.Numbers?.GetValueOrDefault(c)))
                 .Where(p => p.Gamertag.Length > 0)
                 .Select(p => new ArchiveDraftPick(p.Gamertag, p.Round, p.Number ?? (order == DraftOrder.Linear ? (p.Round - 1) * columns.Count + place : (int?)null)))
                 .ToList();
-            var captain = Player(sheet.Cell(captainRow, c));
+            var captain = Captain(sheet.Cell(captainRow, c), namedPlayer);
             return new ArchiveTeam
             {
                 TeamName = named(sheet.Cell(namesRow, c)),
@@ -87,6 +89,15 @@ public static partial class DraftParser
                 Picks = picks,
             };
         }).ToList();
+    }
+
+    private static string Captain(string cell, Func<string, string> namedPlayer)
+    {
+        if (!cell.Contains('/'))
+            return namedPlayer(Player(cell));
+        return cell.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(p => namedPlayer(Player(p)))
+            .FirstOrDefault(p => p.Length > 0) ?? "";
     }
 
     /// <summary>The block's round rows, in order, each with its picks' numbers when the row above it gives them.</summary>
@@ -124,7 +135,7 @@ public static partial class DraftParser
 
     private static readonly string[] Ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
 
-    private static List<ArchiveTeam> Table(SheetTable sheet, Func<string, string> named)
+    private static List<ArchiveTeam> Table(SheetTable sheet, Func<string, string> named, Func<string, string> namedPlayer)
     {
         for (var h = 0; h < Math.Min(sheet.Rows.Count, 5); h++)
         {
@@ -135,12 +146,12 @@ public static partial class DraftParser
                 continue;
             var order = header.FindIndex(c => c is "draft order" or "seed #" or "seed");
             var pick = header.FindIndex(c => c is "draft pick");
-            return TableRows(sheet, h, (team, player, order, pick), named);
+            return TableRows(sheet, h, (team, player, order, pick), named, namedPlayer);
         }
         return [];
     }
 
-    private static List<ArchiveTeam> TableRows(SheetTable sheet, int header, (int Team, int Player, int Order, int Pick) columns, Func<string, string> named)
+    private static List<ArchiveTeam> TableRows(SheetTable sheet, int header, (int Team, int Player, int Order, int Pick) columns, Func<string, string> named, Func<string, string> namedPlayer)
     {
         var (teamColumn, playerColumn, orderColumn, pickColumn) = columns;
         var teams = new List<TableTeam>();
@@ -159,7 +170,7 @@ public static partial class DraftParser
             if (orderColumn >= 0)
                 team.Order ??= Place(sheet.Cell(r, orderColumn));
             if (pickColumn >= 0)
-                team.Take(Player(sheet.Cell(r, playerColumn)), sheet.Cell(r, pickColumn).Trim());
+                team.Take(namedPlayer(Player(sheet.Cell(r, playerColumn))), sheet.Cell(r, pickColumn).Trim());
         }
         return [.. teams.Where(t => t.Order is not null || t.Captain is not null || t.Picks.Count > 0)
             .Select(t => new ArchiveTeam { TeamName = t.TeamName, DraftOrder = t.Order, Captain = t.Captain, Picks = t.Picks })];
