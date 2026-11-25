@@ -138,8 +138,9 @@ describe('SeasonAvailabilityComponent', () => {
     expect(snackBar.open).toHaveBeenCalledWith('Failed to save');
   });
 
-  it('renders the loaded timeslots, without a manual detectChanges', async () => {
-    await fixture.whenStable();
+  it('renders the loaded timeslots, without a manual detectChanges after them', async () => {
+    // Not whenStable before the answer: a resource still loading keeps the app unstable
+    fixture.detectChanges();
     http.expectOne('/api/seasons/14/availability').flush([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
     await fixture.whenStable();
 
