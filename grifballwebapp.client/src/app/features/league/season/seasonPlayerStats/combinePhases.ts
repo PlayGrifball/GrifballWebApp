@@ -61,7 +61,11 @@ function combine(rows: SeasonPlayerStatDto[]): SeasonPlayerStatDto {
 }
 
 /** Ordinal, as the server's ThenBy on the gamertag: the browser's locale does not change the order. */
-const compareOrdinal = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+function compareOrdinal(a: string, b: string): number {
+  if (a === b)
+    return 0;
+  return a < b ? -1 : 1;
+}
 
 /**
  * A player's regular season and playoffs as one line per team they played for, most goals first (then kills, then

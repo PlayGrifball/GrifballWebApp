@@ -61,7 +61,7 @@ describe('combinePhases', () => {
     expect(line).toEqual(jasmine.objectContaining({ kdRatio: 1.12, winPercent: 31.2 }));
     // 3 / 8 = 0.375 -> 0.38 (the odd half goes up)
     const [odd] = combinePhases([stat({ kills: 1, deaths: 4 }), stat({ isPlayoffs: true, kills: 2, deaths: 4 })]);
-    expect(odd.kdRatio).toBe(0.38);
+    expect(odd).toEqual(jasmine.objectContaining({ kdRatio: 0.38 }));
   });
 
   it('orders gamertags by code point, not by locale', () => {
