@@ -98,6 +98,14 @@ describe('APP_ROUTES', () => {
     expect(seasonManagerRoute?.canActivate?.length).toBe(1);
   });
 
+  it('has a guarded route for every card of the SysAdmin page', () => {
+    for (const tool of new SysAdminComponent().tools) {
+      const route = APP_ROUTES.find(r => '/' + r.path === tool.path);
+      expect(route).withContext(tool.path).toBeDefined();
+      expect(route?.canActivate?.length).withContext(tool.path).toBe(1);
+    }
+  });
+
   it("has the sysadmins' SysAdmin page, guarded", () => {
     const route = APP_ROUTES.find(r => r.path === 'sysadmin');
     expect(route?.title).toBe('SysAdmin');
