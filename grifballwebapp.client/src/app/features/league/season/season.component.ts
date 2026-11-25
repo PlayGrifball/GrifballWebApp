@@ -18,6 +18,7 @@ import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.comp
 import { SeasonAwardsComponent } from './seasonAwards/seasonAwards.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { SeasonStore } from './season.store';
 import { describePage, pageDate, PageDescription, plural } from '@shared/pageMeta';
 
@@ -74,6 +75,7 @@ function describeChampions(champions: SeasonSummaryDto['champions']): string | n
         SeasonAwardsComponent,
         SeasonPlayerStatsComponent,
         VodListComponent,
+        SkeletonComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [SeasonStore],
@@ -108,12 +110,12 @@ export class SeasonComponent implements OnInit {
   readonly formatNotice = computed(() => this.isTournament()
     ? 'A tournament: a bracket only, with no regular season schedule or standings.'
     : null);
-  /** The name is in: the page is shown then, as a longer name can move the Sign up button below it. */
+  /** The name is in (or failed to load). */
   readonly nameLoaded = this.store.nameLoaded;
   /** The current and upcoming signups, drafts and seasons (empty until they load, or if they fail). */
   private readonly events = this.store.events;
   readonly eventsLoaded = this.store.eventsLoaded;
-  /** The page is shown once the name and whether to offer Sign up are known, so nothing moves. */
+  /** The head is a skeleton until the name and whether to offer Sign up are known, so nothing moves. */
   readonly ready = computed(() => this.nameLoaded() && this.eventsLoaded());
   /** The server's time while the browser takes over its page, then the browser's (pageNow). */
   readonly now = pageNow();

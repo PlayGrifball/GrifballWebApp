@@ -1,5 +1,8 @@
-<div class="hud-page" [class.hud-waiting]="!ready()">
+<div class="hud-page">
 
+  @if (!ready()) {
+    <app-skeleton label="the season" [count]="4" />
+  } @else {
   <div class="season-head">
     <div class="hud-page-head">
       <span class="hud-kicker">&gt; {{kicker()}}</span>
@@ -34,6 +37,7 @@
     </div>
     }
   </div>
+  }
 
   @if (phases().length > 0 && !summary()?.hasEnded) {
     <app-season-phase-bar [steps]="phases()" />
@@ -89,10 +93,9 @@
       <div class="season-overview">
         <section class="hud-section season-overview__standings" aria-labelledby="season-standings">
           <h2 id="season-standings" class="hud-h2">Standings</h2>
-          <app-team-standings #standings [seasonID]="shownSeasonID()" />
+          <app-team-standings [seasonID]="shownSeasonID()" />
         </section>
-        <!-- Below the standings on phones: shown once they are in, so they do not push it down. -->
-        <aside class="hud-section season-overview__week" aria-labelledby="season-week" [class.hud-waiting]="!standings.loaded()">
+        <aside class="hud-section season-overview__week" aria-labelledby="season-week">
           <h2 id="season-week" class="hud-h2">This week</h2>
           @if (noMatches()) {
             <app-data-notice message="Match results weren't recorded for this season." />

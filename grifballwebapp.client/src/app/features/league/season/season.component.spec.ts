@@ -244,25 +244,20 @@ describe('SeasonComponent', () => {
     expect(bracket.champions()).toEqual(champions);
   });
 
-  it('shows this week once the standings above it are in', () => {
-    fixture.detectChanges();
-    const aside = () => (fixture.nativeElement as HTMLElement).querySelector('aside')!;
-    expect(aside().classList).toContain('hud-waiting');
-    const standings = fixture.debugElement.query(By.directive(StubTeamStandings)).componentInstance as StubTeamStandings;
-    standings.loaded.set(true);
-    fixture.detectChanges();
-    expect(aside().classList).not.toContain('hud-waiting');
-  });
+  const headSkeleton = () => (fixture.nativeElement as HTMLElement).querySelector('app-skeleton');
 
-  it('keeps the page hidden until the season name is in, also when it fails', () => {
+  it('shows a skeleton in place of the head until the season name is in, also when it fails, and its sections meanwhile', () => {
     const name = new Subject<SeasonSummaryDto>();
     summaries.get.and.returnValue(name);
     fixture.detectChanges();
-    const page = () => (fixture.nativeElement as HTMLElement).querySelector('.hud-page')!;
-    expect(page().classList).toContain('hud-waiting');
+    expect(headSkeleton()!.textContent).toContain('Loading the season');
+    expect((fixture.nativeElement as HTMLElement).querySelector('h1')).toBeNull();
+    // The sections load at the same time, each showing its own skeleton
+    expect(fixture.debugElement.query(By.directive(StubTeamStandings))).not.toBeNull();
     name.error(new Error('down'));
     fixture.detectChanges();
-    expect(page().classList).not.toContain('hud-waiting');
+    expect(headSkeleton()).toBeNull();
+    expect(heading()).toBe('Season');
   });
 
   describe('Sign up', () => {
@@ -301,18 +296,17 @@ describe('SeasonComponent', () => {
       home.currentAndFutureEvents.and.returnValue(throwError(() => new Error('down')));
       fixture.detectChanges();
       expect(signUpLink()).toBeUndefined();
-      expect((fixture.nativeElement as HTMLElement).querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
+      expect(headSkeleton()).toBeNull();
     });
 
-    it('keeps the page hidden until it is known whether to offer it', () => {
+    it('keeps the head a skeleton until it is known whether to offer it', () => {
       const events = new Subject<SeasonEvent[]>();
       home.currentAndFutureEvents.and.returnValue(events);
       fixture.detectChanges();
-      const page = () => (fixture.nativeElement as HTMLElement).querySelector('.hud-page')!;
-      expect(page().classList).toContain('hud-waiting');
+      expect(headSkeleton()).not.toBeNull();
       events.next([signup(-day, day)]);
       fixture.detectChanges();
-      expect(page().classList).not.toContain('hud-waiting');
+      expect(headSkeleton()).toBeNull();
       expect(signUpLink()).toBeDefined();
     });
 

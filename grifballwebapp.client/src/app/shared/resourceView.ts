@@ -9,6 +9,9 @@ export interface ResourceView<V> {
   readonly hasValue: Signal<boolean>;
   /** A request is on its way (the first, or a reload). */
   readonly isLoading: Signal<boolean>;
+  /** Nothing to show yet: the first answer for these parameters is on its way (not a reload, which keeps the last
+   * value shown). What a page shows a skeleton for. */
+  readonly firstLoad: Signal<boolean>;
   /** The resource's own status ('idle' before anything is asked for, 'loading', 'resolved', 'error', …). */
   readonly status: Signal<ResourceStatus>;
   /** The last request failed (false again as soon as a retry starts: see `error`). */
@@ -37,6 +40,7 @@ export function resourceView<T>(resource: ResourceRef<T>, fallback: unknown): Re
     value: computed(() => resource.hasValue() ? resource.value() : fallback),
     hasValue: computed(() => resource.hasValue()),
     isLoading: resource.isLoading,
+    firstLoad: computed(() => resource.status() === 'loading'),
     status: resource.status,
     failed: computed(() => resource.status() === 'error'),
     error: resource.error,
