@@ -1054,7 +1054,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var matchesGone = await _context.SeasonMatches
             .Where(m => (m.HomeTeamID != null && ids.Contains(m.HomeTeamID.Value)) || (m.AwayTeamID != null && ids.Contains(m.AwayTeamID.Value)))
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct);
-        var redrawn = await BracketSlotsFedBy(season, matchesGone, ct);
+        var redrawn = await BracketSlotsFedBy(season.SeasonID, matchesGone, ct);
         // Each match and team gone says so: its page, and its players' profiles, hear of it; a slot only drawn again (its teams are
         // still there) is no match canceled
         foreach (var match in matchesGone)
@@ -1075,9 +1075,9 @@ public partial class HistoricalImportService : IHistoricalImportService
 
     /// <summary>The bracket slots fed by a removed one (a side is the winner or loser of that slot) and the slots they feed in turn:
     /// the slots point at each other, so they go too, and the bracket is drawn again right after.</summary>
-    private async Task<List<SeasonMatch>> BracketSlotsFedBy(Season season, List<SeasonMatch> matchesGone, CancellationToken ct)
+    private async Task<List<SeasonMatch>> BracketSlotsFedBy(int seasonID, List<SeasonMatch> matchesGone, CancellationToken ct)
     {
-        var slots = await _context.SeasonMatches.Where(m => m.SeasonID == season.SeasonID && m.BracketMatch != null)
+        var slots = await _context.SeasonMatches.Where(m => m.SeasonID == seasonID && m.BracketMatch != null)
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct);
         var removed = matchesGone.Select(m => m.SeasonMatchID).ToHashSet();
         var gone = slots.Where(s => removed.Contains(s.SeasonMatchID)).Select(s => s.BracketMatch!.MatchBracketInfoID).ToHashSet();
@@ -1516,11 +1516,13 @@ public partial class HistoricalImportService : IHistoricalImportService
             foreach (var game in slot.SeriesGames.Where(l => l.MatchID != null && !listed.Contains(l.MatchID.Value)).ToList())
                 DetachSheetGame(slot, game);
         gone.RemoveAll(m => _sheetSlots.Contains(m.SeasonMatchID));
+        var fed = await BracketSlotsFedBy(season.SeasonID, gone, ct);
         foreach (var match in gone)
             match.Cancel();
         _context.SeasonMatches.RemoveRange(gone);
+        _context.SeasonMatches.RemoveRange(fed);
         await _context.SaveChangesAsync(ct);
-        counts.SeasonMatchesRemoved += gone.Count;
+        counts.SeasonMatchesRemoved += gone.Count + fed.Count;
     }
 
     /// <summary>
@@ -1933,7 +1935,11 @@ public partial class HistoricalImportService : IHistoricalImportService
         var (homeWon, awayWon) = WinsIn(game, match);
         var stillHasGames = _context.RemoveImportedSeriesGame(match, seriesGame, homeWon, awayWon);
         if (!stillHasGames)
+        {
+            // Slots fed by this one point at it: they go with it, their games linked again as the bracket is drawn again
+            _context.SeasonMatches.RemoveRange(await BracketSlotsFedBy(match.SeasonID, [match], ct));
             _context.SeasonMatches.Remove(match);
+        }
         await _context.SaveChangesAsync(ct);
         return stillHasGames ? match.SeasonMatchID : null;
     }
