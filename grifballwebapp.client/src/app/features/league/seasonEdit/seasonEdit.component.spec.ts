@@ -136,11 +136,13 @@ describe('SeasonEditComponent', () => {
   it('fills the form once the season arrives, without a manual detectChanges', async () => {
     const loaded = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(loaded);
-    await fixture.whenStable();
+    // Not whenStable before the answer: a resource still loading keeps the app unstable
+    fixture.detectChanges();
     expect(el().textContent).not.toContain('Edit Availability');
     expect(el().querySelector('app-skeleton')).withContext('the form held by a skeleton').not.toBeNull();
 
     loaded.next(season({ seasonName: 'Arrived Later' }));
+    loaded.complete();
     await fixture.whenStable();
 
     expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')?.value).toBe('Arrived Later');
@@ -241,7 +243,7 @@ describe('SeasonEditComponent', () => {
   it('empties the form for a new season, and drops the previous season when it arrives late', async () => {
     const late = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(late);
-    await render();
+    fixture.detectChanges();
 
     fixture.componentRef.setInput('seasonID', '0');
     await render();
