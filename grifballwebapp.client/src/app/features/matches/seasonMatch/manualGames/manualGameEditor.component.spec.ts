@@ -50,6 +50,8 @@ describe('ManualGameEditorComponent', () => {
   });
 
   it('edits the caller\'s form in place, a player line at a time', async () => {
+    // The fields register with the form a microtask after they are drawn
+    await fixture.whenStable();
     const input = el().querySelector<HTMLInputElement>('input[name="map"]')!;
     input.value = 'Pit';
     input.dispatchEvent(new Event('input'));

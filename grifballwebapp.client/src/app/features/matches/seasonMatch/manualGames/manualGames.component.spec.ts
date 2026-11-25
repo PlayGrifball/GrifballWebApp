@@ -154,10 +154,10 @@ describe('ManualGamesComponent', () => {
     createAsCommissioner();
     component.startAdd();
     fixture.detectChanges();
-    const [form] = await fixture.getDeferBlocks();
-    await form.render(DeferBlockState.Placeholder);
+    // Drawn at once, before its code has come
     expect(text()).toContain('Loading the game form');
-    await form.render(DeferBlockState.Complete);
+    await opened();
+    expect(text()).not.toContain('Loading the game form');
     expect(button('Save game')).toBeDefined();
   });
 
