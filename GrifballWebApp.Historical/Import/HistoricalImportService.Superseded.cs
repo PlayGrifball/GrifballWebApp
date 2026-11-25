@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Queries;
+using GrifballWebApp.Domain.Archive;
 using Microsoft.Extensions.Logging;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +35,7 @@ public partial class HistoricalImportService
             var leftovers = imported.Where(s => keys.Contains(s.HistoricalSourceID, StringComparer.OrdinalIgnoreCase)).ToList();
             var allGone = true;
             foreach (var season in leftovers.Where(s => !retired.Contains(s.SeasonID)))
-                if (await RetireSupersededSeason(season.SeasonID, season.HistoricalSourceID, season.SeasonName, group.SeasonName, report, options, ct))
+                if (await RetireSupersededSeason(season.SeasonID, season.HistoricalSourceID, season.SeasonName, group, report, options, ct))
                     retired.Add(season.SeasonID);
                 else
                     allGone = false;
@@ -44,22 +45,84 @@ public partial class HistoricalImportService
         return blocked;
     }
 
-    private Task<bool> RetireSupersededSeason(int seasonID, string key, string name, string mergedInto, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
-        => RetireSeason(new SeasonRetirement(seasonID, key, name, $"it is part of {mergedInto} now", ["season matches"]), async removal =>
+    private async Task<bool> RetireSupersededSeason(int seasonID, string key, string name, SeasonGroup merged, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
+    {
+        var gamesComeBack = await RecordedGamesComeBack(seasonID, merged, ct);
+        return await RetireSeason(new SeasonRetirement(seasonID, key, name, $"it is part of {merged.SeasonName} now", gamesComeBack ? ["season matches", "recorded games"] : ["season matches"]), async removal =>
         {
-            var counts = new HistoricalImportReport();
-            var season = await _context.Seasons.WithChampionships().WithAwards().SingleAsync(s => s.SeasonID == seasonID, ct);
-            removal.TeamsBefore = await _context.Teams.CountAsync(t => t.SeasonID == seasonID, ct);
-            removal.TitlesBefore = season.PlayerChampionships.Count;
-            removal.AwardsBefore = await _context.Seasons.Awards().CountAsync(a => a.SeasonID == seasonID, ct);
-            removal.MatchesBefore = await _context.SeasonMatches.CountAsync(m => m.SeasonID == seasonID, ct);
-            await RemoveTeamsNoLongerThere(season, new SeasonTeams(), counts, ct);
-            counts.SeasonMatchesRemoved = removal.MatchesBefore;
-            (removal.TeamsRemoved, removal.TitlesRemoved, removal.AwardsRemoved, removal.MatchesRemoved) = (counts.TeamsRemoved, removal.TitlesBefore, counts.AwardsRemoved, removal.MatchesBefore);
-            _context.Seasons.Remove(season);
-            await _context.SaveChangesAsync(ct);
-            return counts;
+            if (gamesComeBack)
+                await DetachRecordedGamesOf(seasonID, ct);
+            return await RemoveSeasonWithItsSchedule(seasonID, removal, ct);
         }, report, options, ct);
+    }
+
+    /// <summary>The season with its teams, rosters, titles, awards, season matches and any stat rows left.</summary>
+    private async Task<HistoricalImportReport> RemoveSeasonWithItsSchedule(int seasonID, HistoricalSeasonRemoval removal, CancellationToken ct)
+    {
+        var counts = new HistoricalImportReport();
+        var season = await _context.Seasons.WithChampionships().WithAwards().SingleAsync(s => s.SeasonID == seasonID, ct);
+        removal.TeamsBefore = await _context.Teams.CountAsync(t => t.SeasonID == seasonID, ct);
+        removal.TitlesBefore = season.PlayerChampionships.Count;
+        removal.AwardsBefore = await _context.Seasons.Awards().CountAsync(a => a.SeasonID == seasonID, ct);
+        removal.MatchesBefore = await _context.SeasonMatches.CountAsync(m => m.SeasonID == seasonID, ct);
+        await RemoveTeamsNoLongerThere(season, new SeasonTeams(), counts, ct);
+        counts.SeasonMatchesRemoved = removal.MatchesBefore;
+        (removal.TeamsRemoved, removal.TitlesRemoved, removal.AwardsRemoved, removal.MatchesRemoved) = (counts.TeamsRemoved, removal.TitlesBefore, counts.AwardsRemoved, removal.MatchesBefore);
+        var stats = await _context.PlayerSeasonStats.Where(s => s.SeasonID == seasonID).ToListAsync(ct);
+        removal.StatsBefore = removal.StatsRemoved = counts.StatsRemoved = stats.Count;
+        _context.PlayerSeasonStats.RemoveRange(stats);
+        _context.Seasons.Remove(season);
+        await _context.SaveChangesAsync(ct);
+        return counts;
+    }
+
+    /// <summary>
+    /// An imported season whose sheet key the archive no longer has, while the sheet it was read from still gives other seasons
+    /// (renamed or split: "Summer League 2011" is now "Summer League 2011 (Pro)" and "(Amateur)"), and a season of the DB the archive has, named as its name and a variant in brackets, is the same games: it goes
+    /// with its stats and schedule, under the guardrail, unless anything else points at it. A sheet the archive no longer
+    /// reads at all keeps its seasons: its source may only have failed to load.
+    /// </summary>
+    private async Task RetireRenamedSeasons(HashSet<string> archiveKeys, HashSet<string> everyKey, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
+    {
+        var sheets = everyKey.Select(SheetOf).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var imported = await _context.Seasons.AsNoTracking().Where(Season.ImportedFromArchive)
+            .Select(s => new { s.SeasonID, s.HistoricalSourceID, s.SeasonName, s.LeagueID }).ToListAsync(ct);
+        var current = imported.Where(s => archiveKeys.Contains(s.HistoricalSourceID)).ToList();
+        foreach (var season in imported.Where(s => !everyKey.Contains(s.HistoricalSourceID) && (options.Seasons is not { } only || only.Contains(s.HistoricalSourceID)) && sheets.Contains(SheetOf(s.HistoricalSourceID))))
+        {
+            var successor = current.Find(c => c.LeagueID == season.LeagueID && c.SeasonName.StartsWith(season.SeasonName + " (", StringComparison.OrdinalIgnoreCase));
+            if (successor is null || !await _context.PlayerSeasonStats.AnyAsync(s => s.SeasonID == successor.SeasonID, ct))
+                continue;
+            await RetireSeason(new SeasonRetirement(season.SeasonID, season.HistoricalSourceID, season.SeasonName, $"it is {successor.SeasonName} now", ["stats", "season matches"]),
+                removal => RemoveSeasonWithItsSchedule(season.SeasonID, removal, ct), report, options, ct);
+        }
+    }
+
+    /// <summary>A season key without its season part: the sheet it was read from.</summary>
+    private static string SheetOf(string key) => key.Contains('#', StringComparison.Ordinal) ? key[..key.IndexOf('#', StringComparison.Ordinal)] : key;
+
+    /// <summary>The leftover has recorded games, every one imported and one the merged season brings back by its key: the
+    /// import makes them again in the merged season, so they need not keep the leftover.</summary>
+    private async Task<bool> RecordedGamesComeBack(int seasonID, SeasonGroup merged, CancellationToken ct)
+    {
+        // A game entered by hand has no key to come back by (null), so it keeps the leftover
+        var games = await _context.RecordedGames.AsNoTracking().Where(g => g.SeasonID == seasonID)
+            .Select(g => g.Origin == RecordedGameOrigin.Manual ? null : g.SourceKey).ToListAsync(ct);
+        var coming = (merged.RecordedGames ?? []).Select(g => g.SourceKey.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return games.Count > 0 && games.TrueForAll(key => coming.Contains(key!));
+    }
+
+    /// <summary>Its games leave it, out of their series, to be the merged season's again when it imports them by their keys: none is deleted.</summary>
+    private async Task DetachRecordedGamesOf(int seasonID, CancellationToken ct)
+    {
+        var games = await _context.RecordedGames.Where(g => g.SeasonID == seasonID).Include(g => g.SeriesGame).ToListAsync(ct);
+        foreach (var game in games)
+        {
+            if (game.SeriesGame is { } seriesGame)
+                _context.Remove(seriesGame);
+            game.LeaveSeason();
+        }
+    }
 
     /// <summary>
     /// Retires an imported season that no archive season is now, in a transaction of its own and under the guardrail. It

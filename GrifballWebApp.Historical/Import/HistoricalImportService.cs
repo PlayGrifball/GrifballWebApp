@@ -323,6 +323,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         await GroupChampionships(input.Championships, groups, titlesAs, leagues, gameVersions, report, ct);
         // Every season the archive has now, before a partial run narrows it: a titles-only season not among them is left over
         var archiveSeasons = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var everyKey = groups.Values.SelectMany(AllKeys).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         AssignGames(input, groups, report);
         GatherSources(groups, input.Catalog, ChampionsWorkbook(input.Championships));
@@ -340,6 +341,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             groups.Remove(key);
         }
         var done = await ImportSeasons(groups, gameVersions, championsPrefixes, report, options, progress, ct);
+        await RetireRenamedSeasons(archiveSeasons, everyKey, report, options, ct);
         if (input.Championships is { Champions.Count: > 0 } champions)
             await RetireLeftoverTitleSeasons(champions, archiveSeasons, leagues, report, options, ct);
         // After the seasons: their placeholders are who the players lists' Discord IDs and regions go to
