@@ -627,5 +627,31 @@ public class SeasonStatsParserTests
         Assert.That(build.Warnings, Has.Some.Contains("no game records source 'history/Season Match History'"));
     }
 
-    private static readonly string[] ExpectedStatsSeasonKey =["stats/Regular Season Stats Sheet"];
+    [Test]
+    public void ATabWithNoSeasonDefaults_IsNamedForItsSource_AndAGamesSheetOfAnotherSource_NeedsNoPendingList()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Stats", [Row("Player", "Kills"), Row("A", 6)])))!;
+        var config = new HistoricalSourceConfig { Tabs = [new() { Name = "Stats", GamesSheet = "history/Matches" }] };
+
+        var season = SeasonStatsParser.Parse("src", config, workbook, []).Single();
+
+        Assert.That((season.SeasonName, season.GameVersion, season.League, season.Division, season.Titles), Is.EqualTo(("src", "", "AGLA", "Open", (string?)null)));
+    }
+
+    [Test]
+    public void ATabWithItsOwnSeason_DoesNotTakeTheDefaultsTitles()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Stats", [Row("Player", "Kills"), Row("A", 6)])))!;
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "Default", Game = "infinite", Titles = "Champions" },
+            Tabs = [new() { Name = "Stats", CustomSeason = "Other" }],
+        };
+
+        var season = SeasonStatsParser.Parse("src", config, workbook, []).Single();
+
+        Assert.That((season.SeasonName, season.Titles), Is.EqualTo(("Other", (string?)null)));
+    }
+
+    private static readonly string[] ExpectedStatsSeasonKey = ["stats/Regular Season Stats Sheet"];
 }
