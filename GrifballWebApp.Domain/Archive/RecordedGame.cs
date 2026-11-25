@@ -156,6 +156,9 @@ public class RecordedGame : AuditableEntity
         SeasonID = seasonID;
     }
 
+    /// <summary>The game is in no season: its season is going, and the import puts it in the one that has it now, by its key.</summary>
+    public void LeaveSeason() => SeasonID = null;
+
     /// <summary>What a commissioner entered now, for a game entered by hand. Never an imported game: its archive is what
     /// corrects it.</summary>
     public void EditByHand(RecordedGameFacts facts)

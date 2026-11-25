@@ -805,12 +805,12 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
 
     private static readonly string[] OnlyThePro = ["sml18-fantasy/Stats#sPro"];
 
-    private static HistoricalArchiveInput OneSeason(string name, string key)
+    private static HistoricalArchiveInput OneSeason(string name, string key, string league = "AGLA", bool withStats = true)
     {
-        var tab = Tab(name, "Stats", Player("Silva", team: "Cabs"));
+        var tab = Tab(name, "Stats", withStats ? [Player("Silva", team: "Cabs")] : []);
         var season = new ArchiveSeason
         {
-            SeasonName = tab.SeasonName, GameVersion = tab.GameVersion, League = tab.League, Division = tab.Division,
+            SeasonName = tab.SeasonName, GameVersion = tab.GameVersion, League = league, Division = tab.Division,
             SourceWorkbook = tab.SourceWorkbook, SourceSheet = tab.SourceSheet, Players = tab.Players, HistoricalSourceId = key,
         };
         return new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [season] } };
@@ -860,6 +860,51 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.SeasonsRetired, Is.Zero, "A source that failed to load must not retire what it used to give");
+            Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public async Task Import_ASeasonWhoseNameExtendedSeasonIsAnotherLeagues_IsKept()
+    {
+        await _service.Import(OneSeason("Summer League 2018", "sml18-fantasy/Stats#s14"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(OneSeason("Summer League 2018 (Pro)", "sml18-fantasy/Stats#sPro", league: "GGL"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public async Task Import_ASeasonWhoseExtendedNamedSeasonHasNoStats_IsKept_ItsStatsAreTheOnlyCopy()
+    {
+        await _service.Import(OneSeason("Summer League 2018", "sml18-fantasy/Stats#s14"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(OneSeason("Summer League 2018 (Pro)", "sml18-fantasy/Stats#sPro", withStats: false));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero);
+            Assert.That(await Context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task Run_APartialRun_DoesNotRetireAStaleKeySeasonItWasNotAskedFor()
+    {
+        await _service.Import(OneSeason("Summer League 2018", "sml18-fantasy/Stats#s14"));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Run(OneSeason("Summer League 2018 (Pro)", "sml18-fantasy/Stats#sPro"), new HistoricalImportRunOptions { Seasons = new HashSet<string> { "sml18-fantasy/Stats#sPro" } });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsRetired, Is.Zero);
             Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(2));
         }
     }

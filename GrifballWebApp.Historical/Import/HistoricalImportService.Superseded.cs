@@ -51,7 +51,7 @@ public partial class HistoricalImportService
         return await RetireSeason(new SeasonRetirement(seasonID, key, name, $"it is part of {merged.SeasonName} now", gamesComeBack ? ["season matches", "recorded games"] : ["season matches"]), async removal =>
         {
             if (gamesComeBack)
-                await RemoveRecordedGamesOf(seasonID, ct);
+                await DetachRecordedGamesOf(seasonID, ct);
             return await RemoveSeasonWithItsSchedule(seasonID, removal, ct);
         }, report, options, ct);
     }
@@ -82,16 +82,16 @@ public partial class HistoricalImportService
     /// with its stats and schedule, under the guardrail, unless anything else points at it. A sheet the archive no longer
     /// reads at all keeps its seasons: its source may only have failed to load.
     /// </summary>
-    private async Task RetireRenamedSeasons(HashSet<string> archiveKeys, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
+    private async Task RetireRenamedSeasons(HashSet<string> archiveKeys, HashSet<string> everyKey, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
     {
-        var sheets = archiveKeys.Select(SheetOf).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var sheets = everyKey.Select(SheetOf).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var imported = await _context.Seasons.AsNoTracking().Where(Season.ImportedFromArchive)
-            .Select(s => new { s.SeasonID, s.HistoricalSourceID, s.SeasonName }).ToListAsync(ct);
+            .Select(s => new { s.SeasonID, s.HistoricalSourceID, s.SeasonName, s.LeagueID }).ToListAsync(ct);
         var current = imported.Where(s => archiveKeys.Contains(s.HistoricalSourceID)).ToList();
-        foreach (var season in imported.Where(s => !archiveKeys.Contains(s.HistoricalSourceID) && sheets.Contains(SheetOf(s.HistoricalSourceID))))
+        foreach (var season in imported.Where(s => !everyKey.Contains(s.HistoricalSourceID) && (options.Seasons is not { } only || only.Contains(s.HistoricalSourceID)) && sheets.Contains(SheetOf(s.HistoricalSourceID))))
         {
-            var successor = current.Find(c => c.SeasonName.StartsWith(season.SeasonName + " (", StringComparison.OrdinalIgnoreCase));
-            if (successor is null)
+            var successor = current.Find(c => c.LeagueID == season.LeagueID && c.SeasonName.StartsWith(season.SeasonName + " (", StringComparison.OrdinalIgnoreCase));
+            if (successor is null || !await _context.PlayerSeasonStats.AnyAsync(s => s.SeasonID == successor.SeasonID, ct))
                 continue;
             await RetireSeason(new SeasonRetirement(season.SeasonID, season.HistoricalSourceID, season.SeasonName, $"it is {successor.SeasonName} now", ["stats", "season matches"]),
                 removal => RemoveSeasonWithItsSchedule(season.SeasonID, removal, ct), report, options, ct);
@@ -112,17 +112,15 @@ public partial class HistoricalImportService
         return games.Count > 0 && games.TrueForAll(key => coming.Contains(key!));
     }
 
-    /// <summary>Its games go with the season, out of their series as a game the archive dropped does (a matched match is a matchmaking season's, never a leftover's).</summary>
-    private async Task RemoveRecordedGamesOf(int seasonID, CancellationToken ct)
+    /// <summary>Its games leave it, out of their series, to be the merged season's again when it imports them by their keys: none is deleted.</summary>
+    private async Task DetachRecordedGamesOf(int seasonID, CancellationToken ct)
     {
-        var games = await _context.RecordedGames.Where(g => g.SeasonID == seasonID)
-            .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
-            .AsSplitQuery().ToListAsync(ct);
+        var games = await _context.RecordedGames.Where(g => g.SeasonID == seasonID).Include(g => g.SeriesGame).ToListAsync(ct);
         foreach (var game in games)
         {
             if (game.SeriesGame is { } seriesGame)
                 _context.Remove(seriesGame);
-            _context.RemoveRecordedGame(game);
+            game.LeaveSeason();
         }
     }
 
