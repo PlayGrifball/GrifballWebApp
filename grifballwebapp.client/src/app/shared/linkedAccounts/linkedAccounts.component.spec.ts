@@ -160,6 +160,9 @@ describe('LinkedAccountsComponent', () => {
     const req = http.expectOne('/api/me/external-logins');
     expect(req.request.method).toBe('POST');
     req.flush(discord);
+    // The list is read again: its skeleton shows under the message meanwhile
+    fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')).not.toBeNull();
     flushMine(mine());
 
     expect(status()).toBe('Linked Discord');

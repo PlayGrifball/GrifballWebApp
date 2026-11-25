@@ -59,6 +59,19 @@ describe('EditUserStore', () => {
     expect(store.loaded()).toBeNull();
   });
 
+  it("is not pending once the route has no user, even with a user's answer on its way", () => {
+    const userID = signal(5);
+    store.userID.use(userID);
+    TestBed.tick();
+    const late = http.expectOne('/api/users/5');
+    userID.set(0);
+    TestBed.tick();
+    expect(store.pending()).toBeFalse();
+    if (!late.cancelled)
+      late.flush(user(5, null));
+    expect(store.pending()).toBeFalse();
+  });
+
   it('is no longer pending when the user fails to load', () => {
     store.userID.use(signal(5));
     TestBed.tick();

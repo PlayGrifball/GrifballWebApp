@@ -45,13 +45,13 @@ export class EditUserStore {
   }
 
   private load(userID: number): void {
-    // Nothing of the previous user stays
+    // Nothing of the previous user stays, nor a wait for them
     this._loaded.set(null);
+    this._pending.set(userID !== 0);
     if (userID === 0) {
       this.log.warn('Edit user: no user ID in the route');
       return;
     }
-    this._pending.set(true);
     this.userManagement.getUser({ userID })
       .pipe(whileCurrent(userID, this.userID.value))
       .subscribe({

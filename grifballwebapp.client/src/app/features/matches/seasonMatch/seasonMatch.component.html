@@ -1,6 +1,9 @@
 @let match = seasonMatch();
 <div class="hud-page">
 
+  @if (!store.ready()) {
+    <app-skeleton label="the match" shape="block" height="420px" />
+  } @else {
   <div class="lobby-head">
     <div class="hud-page-head">
       <a class="hud-kicker lobby-head__season" [routerLink]="['/season', match?.seasonID]">&gt; {{match?.seasonName ?? 'Season'}} · {{match?.isPlayoff ? 'Playoffs' : 'Regular season'}}</a>
@@ -21,11 +24,13 @@
       <span>There is an active reschedule request for this match. Request ID: {{ match?.activeRescheduleRequestId }}</span>
     </div>
   }
+  }
 
   @if (isStaff()) {
     <app-stat-flags-notice [seasonMatchID]="seasonMatchID()" />
   }
 
+  @if (store.ready()) {
   <section class="lobby" aria-label="Teams and score">
     <div class="lobby-team lobby-team--home">
       @if (match?.homeTeamResult === 'Bye') {
@@ -35,16 +40,12 @@
           <span>{{match?.homeTeamName}}</span><span class="hud-label">Red</span>
         </a>
       }
-      @if (!store.ready()) {
-        <app-skeleton label="the red roster" [count]="5" />
-      } @else {
       @for (player of store.homeRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           <app-profile-picture [userID]="player.userID" [name]="player.gamertag" />
           <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag || 'Unknown Spartan'}}</a></span>
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
         </div>
-      }
       }
     </div>
 
@@ -77,9 +78,6 @@
           <span class="hud-label">Blue</span><span>{{match?.awayTeamName}}</span>
         </a>
       }
-      @if (!store.ready()) {
-        <app-skeleton label="the blue roster" [count]="5" />
-      } @else {
       @for (player of store.awayRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
@@ -87,9 +85,9 @@
           <app-profile-picture [userID]="player.userID" [name]="player.gamertag" />
         </div>
       }
-      }
     </div>
   </section>
+  }
 
   <app-vod-list scope="seasonMatch" [id]="seasonMatchID()" />
 

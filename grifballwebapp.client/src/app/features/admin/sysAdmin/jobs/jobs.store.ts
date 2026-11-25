@@ -45,6 +45,10 @@ export class JobsStore {
   readonly nodes = computed(() => this.overview.value()?.nodes ?? []);
   readonly loaded = this.overview.hasValue;
   readonly failed = this.overview.failed;
+  /** The last read failed, also while it is read again: the error stays up until an answer comes. */
+  readonly unreachable = computed(() => this.overview.error() !== undefined);
+  /** The first read is on its way: a skeleton. */
+  readonly firstLoad = this.overview.firstLoad;
 
   private readonly history = resourceView(rxResource({
     params: () => this.selectedKey.value() ?? undefined,

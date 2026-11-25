@@ -36,6 +36,10 @@ export class TeamBuilderStore {
   readonly playerPool = signal<TeamsPlayerDto[]>([]);
   /** Whether the shown season's teams and pool are in (false from {@link show} until they load). */
   readonly loaded = signal(false);
+  /** The shown season's load failed (the draft, or which season is current): nothing more is coming until a reload. */
+  private readonly failed = signal(false);
+  /** Loaded, or failed: the page's skeletons go either way. */
+  readonly settled = computed(() => this.loaded() || this.failed());
 
   // Every reload goes through here; a newer one cancels the one still loading (see load).
   private readonly reloads = new Subject<void>();
@@ -95,6 +99,7 @@ export class TeamBuilderStore {
         this.playerPool.set(pool);
         this.loaded.set(true);
       }
+      this.failed.set(teams === undefined || pool === undefined);
       if (locked !== undefined)
         this.captainLocked.set(locked);
       if (teams === undefined || pool === undefined || locked === undefined)
@@ -116,6 +121,7 @@ export class TeamBuilderStore {
     this.playerPool.set([]);
     this.loaded.set(false);
     this.captainLocked.set(true);
+    this.failed.set(false);
     if (seasonID === 0) {
       this.seasons.getCurrentSeasonId()
         .pipe(whileCurrent(seasonID, this.routeSeasonID))
@@ -124,6 +130,7 @@ export class TeamBuilderStore {
             this._shownSeasonID.set(result);
             this.load();
           },
+          error: () => this.failed.set(true),
         });
     }
     else {

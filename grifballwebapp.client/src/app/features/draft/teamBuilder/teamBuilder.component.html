@@ -16,7 +16,7 @@
 
 <h2 class="hud-h2">Teams</h2>
 
-@if (!draftLoaded()) {
+@if (!draftSettled()) {
 <app-skeleton label="the teams" shape="cards" [count]="8" height="200px" cardWidth="220px" />
 }
 
@@ -72,7 +72,7 @@
 
 <h2 class="hud-h2">Draft Pool</h2>
 
-@if (!draftLoaded()) {
+@if (!draftSettled()) {
 <app-skeleton label="the draft pool" [count]="6" />
 }
 

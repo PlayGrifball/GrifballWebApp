@@ -25,6 +25,9 @@ export class LinkedAccountsStore {
 
   private readonly _data = signal<LinkedLoginsDto | undefined>(undefined);
   readonly data = this._data.asReadonly();
+  /** The list has been answered (or failed): until then, and with no list to show, a skeleton holds its place. */
+  private readonly _answered = signal(false);
+  readonly answered = this._answered.asReadonly();
   private readonly _message = signal<string | null>(null);
   readonly message = this._message.asReadonly();
   private readonly _busy = signal(false);
@@ -37,8 +40,14 @@ export class LinkedAccountsStore {
       return;
     const call = id === null ? this.externalLogins.getMyExternalLogins() : this.externalLogins.getUserExternalLogins({ userID: id });
     call.subscribe({
-      next: r => this._data.set({ ...r, providers: r.providers ?? [] }),
-      error: (e: HttpErrorResponse) => this._message.set(errorText(e, 'Failed to load linked accounts')),
+      next: r => {
+        this._data.set({ ...r, providers: r.providers ?? [] });
+        this._answered.set(true);
+      },
+      error: (e: HttpErrorResponse) => {
+        this._answered.set(true);
+        this._message.set(errorText(e, 'Failed to load linked accounts'));
+      },
     });
   }
 

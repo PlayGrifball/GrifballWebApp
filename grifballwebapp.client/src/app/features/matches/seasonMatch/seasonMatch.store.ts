@@ -83,6 +83,7 @@ export class SeasonMatchStore {
     this.seasonMatchID = seasonMatchID;
     this.shownID.set(seasonMatchID);
     this._seasonMatch.set(null);
+    this._pageLoaded.set(false);
     const page = this.reload();
     this.getPossibleMatches();
     this.getPullStatus();

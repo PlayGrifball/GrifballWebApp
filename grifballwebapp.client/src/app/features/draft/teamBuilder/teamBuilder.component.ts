@@ -57,6 +57,8 @@ export class TeamBuilderComponent {
   ].join('|'));
   /** Whether the draft is in: the helper waits for it, so it loads once with it, not first with an empty one. */
   protected readonly draftLoaded = this.store.loaded;
+  /** The draft is in, or failed to load: the skeletons go either way. */
+  protected readonly draftSettled = this.store.settled;
   readonly captainLocked = this.store.captainLocked;
   readonly teams = this.store.teams;
   readonly playerPool = this.store.playerPool;

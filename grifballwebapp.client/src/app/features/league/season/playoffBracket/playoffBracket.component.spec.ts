@@ -122,6 +122,17 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(text()).not.toContain('Loading the bracket');
   });
 
+  it('leaves no skeleton waiting when the viewer fails to draw the bracket, and says so', async () => {
+    spyOn(console, 'error');
+    viewer.render.and.rejectWith(new Error('draw failed'));
+    fixture.detectChanges();
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([{ id: 1, name: 'Alpha' }]));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(component.waiting()).toBeFalse();
+    expect(snackBar.open).toHaveBeenCalledWith('Failed to draw the bracket', 'Close');
+  });
+
   it("loads the new season's bracket when the season changes, showing none of the previous one meanwhile", async () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([{ id: 1, name: 'Alpha' }]));

@@ -56,6 +56,8 @@ export class JobsComponent {
   readonly nodes = this.store.nodes;
   readonly loaded = this.store.loaded;
   readonly failed = this.store.failed;
+  readonly unreachable = this.store.unreachable;
+  readonly firstLoad = this.store.firstLoad;
 
   /** The job whose runs and schedule are shown. */
   readonly selectedKey = signal<JobKey | null>(null);

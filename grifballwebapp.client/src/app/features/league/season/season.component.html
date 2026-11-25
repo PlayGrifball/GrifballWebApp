@@ -37,14 +37,13 @@
     </div>
     }
   </div>
-  }
 
   @if (phases().length > 0 && !summary()?.hasEnded) {
     <app-season-phase-bar [steps]="phases()" />
   }
-
   @if (summary()?.isHistorical) {
     <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" [sources]="summary()?.historicalSourceLinks" [eraLabel]="eraLabel()" />
+  }
   }
 
   <app-season-tabs [seasonID]="shownSeasonID()" [active]="view()" />

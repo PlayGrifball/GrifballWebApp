@@ -296,7 +296,7 @@ describe('Home page events', () => {
     it('shows skeletons for the hero and the past seasons until each is in', () => {
       fixture.detectChanges();
       const skeletons = () => Array.from(el().querySelectorAll('app-skeleton')).map(s => s.textContent!.trim());
-      expect(skeletons()).toEqual(['Loading the current season…', 'Loading past seasons…']);
+      expect(skeletons()).toEqual(['Loading the current season…', 'Loading objectives…', 'Loading past seasons…']);
       http.expectOne('/api/events').flush('x', { status: 500, statusText: 'Server Error' });
       fixture.detectChanges();
       expect(skeletons()).toEqual(['Loading past seasons…']);

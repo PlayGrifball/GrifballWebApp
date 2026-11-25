@@ -33,6 +33,7 @@ export class LinkedAccountsComponent implements OnInit {
   userID = input<number>();
 
   readonly data = this.store.data;
+  readonly answered = this.store.answered;
   readonly message = this.store.message;
   readonly busy = this.store.busy;
   readonly canUnlink = computed(() => {

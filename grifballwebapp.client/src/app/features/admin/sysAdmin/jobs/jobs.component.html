@@ -85,9 +85,9 @@
         </tbody>
       </table>
     </div>
-  } @else if (failed()) {
+  } @else if (unreachable()) {
     <p class="hud-empty hud-empty--error" role="alert">The jobs couldn't be loaded.</p>
-  } @else {
+  } @else if (firstLoad()) {
     <app-skeleton label="the jobs" shape="table" [count]="8" [columns]="6" />
   }
 

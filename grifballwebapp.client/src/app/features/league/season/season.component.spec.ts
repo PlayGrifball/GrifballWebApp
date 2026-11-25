@@ -304,10 +304,13 @@ describe('SeasonComponent', () => {
       home.currentAndFutureEvents.and.returnValue(events);
       fixture.detectChanges();
       expect(headSkeleton()).not.toBeNull();
+      // The timeline comes with the head, not after it
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-season-phase-bar')).toBeNull();
       events.next([signup(-day, day)]);
       fixture.detectChanges();
       expect(headSkeleton()).toBeNull();
       expect(signUpLink()).toBeDefined();
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-season-phase-bar')).not.toBeNull();
     });
 
     it('follows the clock: closing while the page is open takes it away', () => {

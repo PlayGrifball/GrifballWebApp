@@ -170,6 +170,11 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.seasonMatch()).toBeNull();
     expect(document.title).not.toContain('Old Home');
+    // Waiting again: the lobby and the games are skeletons, not "no games" for a match not read yet
+    const skeletons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('app-skeleton')).map(s => s.textContent!.trim());
+    expect(skeletons).toContain('Loading the match…');
+    expect(skeletons).toContain('Loading games played…');
+    expect(text()).not.toContain('There are no reported games');
   });
 
   it('cancels the previous match\'s request when the match changes before it answers', () => {
@@ -1349,22 +1354,25 @@ describe('SeasonMatchComponent lobby', () => {
     expect(el().querySelector('.lobby-possibles')!.textContent).toContain('No games found for these teams yet.');
   });
 
-  it('holds the rosters and the games with skeletons until the match and both rosters are in', () => {
+  it('holds the lobby and the games with skeletons until the match and both rosters are in, guessing nothing', () => {
     fixture.detectChanges();
     const skeletons = () => Array.from(el().querySelectorAll('app-skeleton')).map(s => s.textContent!.trim());
+    expect(skeletons()).toContain('Loading the match…');
     expect(skeletons()).toContain('Loading games played…');
     load(page());
     expect(fixture.componentInstance.store.ready()).toBeFalse();
     expect(skeletons()).not.toContain('Loading games played…');
     httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
     fixture.detectChanges();
-    expect(skeletons()).toContain('Loading the red roster…');
-    expect(skeletons()).toContain('Loading the blue roster…');
+    // No title, kicker or score yet: nothing that would change once the rest is in
+    expect(skeletons()).toContain('Loading the match…');
+    expect(el().querySelector('h1')).toBeNull();
+    expect(el().querySelector('.lobby')).toBeNull();
     httpMock.expectOne('/api/teams/20').flush(team('Away', 'Tucker', 'Caboose'));
     fixture.detectChanges();
-    expect(skeletons()).not.toContain('Loading the red roster…');
-    expect(skeletons()).not.toContain('Loading the blue roster…');
-    expect(roster('home').length).toBeGreaterThan(0);
+    expect(skeletons()).not.toContain('Loading the match…');
+    expect(el().querySelector('h1')).not.toBeNull();
+    expect(roster('home')).not.toHaveSize(0);
   });
 
   it('shows the page for a match that does not exist, or that could not be loaded', () => {

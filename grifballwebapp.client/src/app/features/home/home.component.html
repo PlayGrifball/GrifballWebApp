@@ -39,7 +39,9 @@
 
   <app-late-league-queue />
 
-  @if (currentAndFutureEvents().length > 0) {
+  @if (!eventsLoaded()) {
+    <app-skeleton label="objectives" shape="cards" [count]="3" height="130px" />
+  } @else if (currentAndFutureEvents().length > 0) {
     <section class="hud-section" aria-labelledby="home-objectives">
       <h2 id="home-objectives" class="hud-h2">Objectives</h2>
       <div class="hud-grid">
