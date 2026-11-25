@@ -374,6 +374,39 @@ public class XboxImageSourceTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task Emblems_AnItemCallThatAnswersNothing_IsFailed_AndOneThrottledWithoutAWait_WaitsAMinute()
+    {
+        await AddAccountsAsync(1);
+        GivenMapping();
+        GivenEmblem(1, "/Inventory/Spartan/Emblems/silent.json");
+        _halo.GameCmsGetItem(Arg.Any<string>(), Arg.Any<string>()).Returns(new HaloApiResultContainer<InGameItem, HaloApiErrorContainer>(null!, null!));
+
+        var failed = await Source().RunEmblemsAsync();
+        var row = await RowAsync(1, XboxUserImageKind.HaloEmblem);
+
+        Assert.That((failed.Failed, row.Error), Is.EqualTo((1, "The emblem item: Halo gave no answer")));
+
+        _halo.GameCmsGetItem(Arg.Any<string>(), Arg.Any<string>()).Returns(Error<InGameItem>(429));
+        _time.Advance(TimeSpan.FromHours(7));
+        var throttled = await Source().RunEmblemsAsync();
+
+        Assert.That(throttled.ThrottledFor, Is.EqualTo(TimeSpan.FromMinutes(1)));
+    }
+
+    [Test]
+    public async Task Emblems_AMappedEmblemWithoutTheEquippedConfiguration_FallsBackToItsItem()
+    {
+        await AddAccountsAsync(1);
+        GivenMapping();
+        GivenEmblem(1, "/inventory/armor/emblems/013-001-aaaa.json", configuration: 9);
+        _halo.GameCmsGetItem(Arg.Any<string>(), Arg.Any<string>()).Returns(Error<InGameItem>(404));
+
+        var report = await Source().RunEmblemsAsync();
+
+        Assert.That(report.NotFound, Is.EqualTo(1));
+    }
+
+    [Test]
     public async Task Emblems_AnItemHalo404s_IsNotFound_AndOneItemCallFailing_IsFailed()
     {
         await AddAccountsAsync(1, 2);
