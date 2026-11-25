@@ -93,8 +93,12 @@ public partial class HistoricalImportService
             var successor = current.Find(c => c.LeagueID == season.LeagueID && c.SeasonName.StartsWith(season.SeasonName + " (", StringComparison.OrdinalIgnoreCase));
             if (successor is null || !await _context.PlayerSeasonStats.AnyAsync(s => s.SeasonID == successor.SeasonID, ct))
                 continue;
-            await RetireSeason(new SeasonRetirement(season.SeasonID, season.HistoricalSourceID, season.SeasonName, $"it is {successor.SeasonName} now", ["stats", "season matches"]),
-                removal => RemoveSeasonWithItsSchedule(season.SeasonID, removal, ct), report, options, ct);
+            await RetireSeason(new SeasonRetirement(season.SeasonID, season.HistoricalSourceID, season.SeasonName, $"it is {successor.SeasonName} now", ["stats", "season matches", "recorded games"]),
+                async removal =>
+                {
+                    await DeleteRecordedGamesOf(season.SeasonID, ct);
+                    return await RemoveSeasonWithItsSchedule(season.SeasonID, removal, ct);
+                }, report, options, ct);
         }
     }
 
@@ -110,6 +114,20 @@ public partial class HistoricalImportService
             .Select(g => g.Origin == RecordedGameOrigin.Manual ? null : g.SourceKey).ToListAsync(ct);
         var coming = (merged.RecordedGames ?? []).Select(g => g.SourceKey.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return games.Count > 0 && games.TrueForAll(key => coming.Contains(key!));
+    }
+
+    /// <summary>Its games go with it, out of their series as a game the archive dropped does: the successor has the same games under other keys, so none comes back to it.</summary>
+    private async Task DeleteRecordedGamesOf(int seasonID, CancellationToken ct)
+    {
+        var games = await _context.RecordedGames.Where(g => g.SeasonID == seasonID)
+            .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
+            .AsSplitQuery().ToListAsync(ct);
+        foreach (var game in games)
+        {
+            if (game.SeriesGame is { } seriesGame)
+                _context.Remove(seriesGame);
+            _context.RemoveRecordedGame(game);
+        }
     }
 
     /// <summary>Its games leave it, out of their series, to be the merged season's again when it imports them by their keys: none is deleted.</summary>
