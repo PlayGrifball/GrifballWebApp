@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SeasonPlayerStatsStore } from './seasonPlayerStats.store';
+import { combinePhases } from './combinePhases';
 
 export type StatPhase = 'all' | 'regular' | 'playoffs';
 /** The columns the leaderboard sorts by. */
@@ -14,7 +15,7 @@ const SORTED: Record<SortDirection, { ariaSort: string, arrow: string }> = {
 const UNSORTED = { ariaSort: 'none', arrow: '' };
 
 /**
- * The season's player stats, or one team's: a leaderboard by phase, filtered by gamertag or team and sorted by
+ * The season's player stats, or one team's: a leaderboard by phase (All adds a player's phases together), filtered by gamertag or team and sorted by
  * clicking a column header (goals, kills or games played).
  * With a team, it shows nothing at all when the team has no stats, so the team page has no empty table.
  */
@@ -47,6 +48,8 @@ export class SeasonPlayerStatsComponent {
   readonly showGrabs = computed(() => this.stats().some(p => p.grabs != null || p.battingAverage != null || p.scoringAverage != null || p.combinedAverage != null));
 
   readonly phase = signal<StatPhase>('all');
+  /** The phase column, for one phase's rows: All adds the phases together. */
+  readonly showPhase = computed(() => this.phase() !== 'all');
   readonly query = signal('');
   /** null: the server's order. */
   readonly sort = signal<{ column: StatSortColumn, direction: SortDirection } | null>(null);
@@ -60,9 +63,9 @@ export class SeasonPlayerStatsComponent {
   readonly shown = computed(() => {
     const phase = this.phase();
     const query = this.query().trim().toLowerCase();
-    const rows = this.stats().filter(p =>
-      (phase === 'all' || p.isPlayoffs === (phase === 'playoffs')) &&
-      (!query || p.gamertag.toLowerCase().includes(query) || (p.teamName?.toLowerCase().includes(query) ?? false)));
+    const inPhase = phase === 'all' ? combinePhases(this.stats()) : this.stats().filter(p => p.isPlayoffs === (phase === 'playoffs'));
+    const rows = inPhase.filter(p =>
+      !query || p.gamertag.toLowerCase().includes(query) || (p.teamName?.toLowerCase().includes(query) ?? false));
     const sort = this.sort();
     if (!sort)
       return rows;
