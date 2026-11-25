@@ -4552,6 +4552,63 @@
         }
       }
     },
+    "/me/profile-picture": {
+      "post": {
+        "tags": [
+          "MyProfile"
+        ],
+        "summary": "Sets which of the signed-in user's Xbox images (Halo emblem or gamer picture) shows for them.",
+        "operationId": "SetMyProfilePicture",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SetProfilePictureRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/gamertag-claims/preview": {
       "get": {
         "tags": [
@@ -9676,6 +9733,116 @@
         ],
         "summary": "The Halo Infinite emblem of the Xbox account a site user is tied to, as the site stored it; 404 when the user has no account or none is stored yet.",
         "operationId": "GetUserHaloEmblem",
+        "parameters": [
+          {
+            "name": "userID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/xbox-accounts/{xboxUserID}/profile-picture": {
+      "get": {
+        "tags": [
+          "XboxAccounts"
+        ],
+        "summary": "The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.",
+        "operationId": "GetXboxAccountProfilePicture",
+        "parameters": [
+          {
+            "name": "xboxUserID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userID}/profile-picture": {
+      "get": {
+        "tags": [
+          "XboxAccounts"
+        ],
+        "summary": "The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.",
+        "operationId": "GetUserProfilePicture",
         "parameters": [
           {
             "name": "userID",
@@ -15382,6 +15549,14 @@
         },
         "additionalProperties": false
       },
+      "ProfilePictureChoice": {
+        "enum": [
+          "Emblem",
+          "GamerPicture"
+        ],
+        "type": "string",
+        "description": "Which of a user's Xbox images stands for them on the site; the other is the fallback when the account has none of it."
+      },
       "ProfileStatsDto": {
         "required": [
           "careerByGame",
@@ -15392,6 +15567,7 @@
           "lateLeague",
           "overallCareer",
           "pastGamertags",
+          "profilePicture",
           "regionID",
           "regionName",
           "seasons",
@@ -15423,6 +15599,14 @@
           "regionName": {
             "type": "string",
             "nullable": true
+          },
+          "profilePicture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePictureChoice"
+              }
+            ],
+            "description": "Which Xbox image the user chose to show for them."
           },
           "pastGamertags": {
             "type": "array",
@@ -17755,6 +17939,23 @@
         "properties": {
           "paused": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetProfilePictureRequest": {
+        "required": [
+          "profilePicture"
+        ],
+        "type": "object",
+        "properties": {
+          "profilePicture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePictureChoice"
+              }
+            ],
+            "description": "Which of a user's Xbox images stands for them on the site; the other is the fallback when the account has none of it."
           }
         },
         "additionalProperties": false

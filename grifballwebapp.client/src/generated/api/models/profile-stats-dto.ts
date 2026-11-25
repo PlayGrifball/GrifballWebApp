@@ -5,6 +5,7 @@ import { GameCareerSummaryDto } from '../models/game-career-summary-dto';
 import { MatchmakingPlayerStatDto } from '../models/matchmaking-player-stat-dto';
 import { PlayerChampionshipDto } from '../models/player-championship-dto';
 import { PlayerSeasonStatDetailDto } from '../models/player-season-stat-detail-dto';
+import { ProfilePictureChoice } from '../models/profile-picture-choice';
 import { ServiceRecordDto } from '../models/service-record-dto';
 export interface ProfileStatsDto {
   careerByGame: Array<GameCareerSummaryDto>;
@@ -23,6 +24,11 @@ export interface ProfileStatsDto {
    * Gamertags the user's Xbox account had before (its renames), latest first.
    */
   pastGamertags: Array<string>;
+
+  /**
+   * Which Xbox image the user chose to show for them.
+   */
+  profilePicture: ProfilePictureChoice;
   regionID: number | null;
   regionName: string | null;
   seasons: Array<PlayerSeasonStatDetailDto>;

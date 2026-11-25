@@ -21,6 +21,8 @@ import { GetRegions$Params } from '../fn/my-profile/get-regions';
 import { previewGamertagClaim } from '../fn/my-profile/preview-gamertag-claim';
 import { PreviewGamertagClaim$Params } from '../fn/my-profile/preview-gamertag-claim';
 import { RegionDto } from '../models/region-dto';
+import { setMyProfilePicture } from '../fn/my-profile/set-my-profile-picture';
+import { SetMyProfilePicture$Params } from '../fn/my-profile/set-my-profile-picture';
 import { setMyRegion } from '../fn/my-profile/set-my-region';
 import { SetMyRegion$Params } from '../fn/my-profile/set-my-region';
 
@@ -95,6 +97,41 @@ export class MyProfileService extends BaseService {
    */
   setMyRegion(params?: SetMyRegion$Params, context?: HttpContext): Observable<void> {
     const resp = this.setMyRegion$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<void>): void => r.body)
+    );
+  }
+
+  /** Path part for operation `setMyProfilePicture()` */
+  static readonly SetMyProfilePicturePath = '/me/profile-picture';
+
+  /**
+   * Sets which of the signed-in user's Xbox images (Halo emblem or gamer picture) shows for them.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `setMyProfilePicture()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  setMyProfilePicture$Response(params?: SetMyProfilePicture$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+    const obs = setMyProfilePicture(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Sets which of the signed-in user's Xbox images (Halo emblem or gamer picture) shows for them.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `setMyProfilePicture$Response()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  setMyProfilePicture(params?: SetMyProfilePicture$Params, context?: HttpContext): Observable<void> {
+    const resp = this.setMyProfilePicture$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<void>): void => r.body)
     );

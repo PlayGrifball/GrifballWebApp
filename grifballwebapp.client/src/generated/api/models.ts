@@ -144,6 +144,7 @@ export type { ProblemDetails } from './models/problem-details';
 export type { ProcessRescheduleDto } from './models/process-reschedule-dto';
 export type { ProfileCommendationsDto } from './models/profile-commendations-dto';
 export type { ProfileDto } from './models/profile-dto';
+export type { ProfilePictureChoice } from './models/profile-picture-choice';
 export type { ProfileStatsDto } from './models/profile-stats-dto';
 export type { QueueLiveDto } from './models/queue-live-dto';
 export type { QueueStatusDto } from './models/queue-status-dto';
@@ -205,6 +206,7 @@ export type { ServiceRecordTotalsDto } from './models/service-record-totals-dto'
 export type { SetEnabledRequest } from './models/set-enabled-request';
 export type { SetGamertagRequest } from './models/set-gamertag-request';
 export type { SetPausedRequest } from './models/set-paused-request';
+export type { SetProfilePictureRequest } from './models/set-profile-picture-request';
 export type { SetRegionRequest } from './models/set-region-request';
 export type { SheetDto } from './models/sheet-dto';
 export type { SignupBodyDto } from './models/signup-body-dto';
