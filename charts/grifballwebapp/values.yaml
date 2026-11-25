@@ -1186,11 +1186,12 @@ migrations:
     # to a full backup). FULL without log backups would grow the log until the disk fills. An external
     # server's is left as it is: set it FULL yourself for these. Files are <database>_log_YYYYMMDD_HHMMSS.trn
     # in the folder above; the first, with no full backup to base the chain on, writes one first.
-    # Retention deletes a log backup once no kept full backup needs it. Not with onDemand: it would
-    # keep the database awake.
+    # Retention deletes a log backup once no kept full backup needs it, so it must be on too. Not with
+    # onDemand: it would keep the database awake.
     log:
       enabled: false
-      schedule: "*/15 * * * *"
+      # Every 15 minutes, off the hour, so its first full backup doesn't start beside the nightly one.
+      schedule: "5-59/15 * * * *"
       # Paused, as for retention above.
       suspend: false
   # On a release's first deploy - its database doesn't exist yet, or exists with no tables (made

@@ -8,20 +8,24 @@ release:
   namespace: grif-x
 set:
   mssql.acceptEula: true
+  # Log backups require it.
+  migrations.backup.retention.enabled: true
 tests:
   - it: is off by default
     template: templates/backup-log.yaml
     asserts:
       - hasDocuments: { count: 0 }
 
-  - it: runs a CronJob every 15 minutes, one at a time, as a grif-backup pod
+  - it: runs a CronJob every 15 minutes off the hour, one at a time, as a grif-backup pod
     template: templates/backup-log.yaml
     set:
       migrations.backup.log.enabled: true
     asserts:
       - isKind: { of: CronJob }
       - equal: { path: metadata.name, value: grif-backup-log }
-      - equal: { path: spec.schedule, value: "*/15 * * * *" }
+      - equal: { path: spec.schedule, value: "5-59/15 * * * *" }
+      # databaseWaitSeconds (300), then an hour for the backup.
+      - equal: { path: spec.jobTemplate.spec.activeDeadlineSeconds, value: 3900 }
       - equal: { path: spec.suspend, value: false }
       - equal: { path: spec.concurrencyPolicy, value: Forbid }
       - equal: { path: spec.jobTemplate.spec.template.metadata.labels.app, value: grif-backup }
@@ -56,12 +60,26 @@ tests:
           path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
           pattern: "RESTORE VERIFYONLY FROM DISK = N'\\\\\\$\\$\\(LOG_FILE\\)'"
 
-  - it: needs the pre-migration backups on, as the others do
+  - it: refuses to render without the pre-migration backups, rather than leave the database SIMPLE
     template: templates/backup-log.yaml
     set:
       migrations.backup: { enabled: false, log: { enabled: true } }
     asserts:
-      - hasDocuments: { count: 0 }
+      - failedTemplate: { errorMessage: "migrations.backup.log needs migrations.enabled and migrations.backup.enabled: without them the database would be left in SIMPLE recovery with no log backups" }
+
+  - it: refuses to render without the migration Job
+    template: templates/backup-log.yaml
+    set:
+      migrations: { enabled: false, backup: { log: { enabled: true } } }
+    asserts:
+      - failedTemplate: { errorMessage: "migrations.backup.log needs migrations.enabled and migrations.backup.enabled: without them the database would be left in SIMPLE recovery with no log backups" }
+
+  - it: refuses to render without retention, which alone deletes the .trn files
+    template: templates/backup-log.yaml
+    set:
+      migrations.backup: { retention: { enabled: false }, log: { enabled: true } }
+    asserts:
+      - failedTemplate: { errorMessage: "migrations.backup.log needs migrations.backup.retention.enabled: nothing else deletes the .trn files" }
 
   - it: is SQL Server only
     template: templates/backup-log.yaml

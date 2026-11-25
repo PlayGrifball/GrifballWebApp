@@ -1,6 +1,12 @@
 {{- $m := .Values.migrations -}}
 {{- $l := $m.backup.log -}}
-{{- if and $m.enabled $m.backup.enabled $l.enabled }}
+{{- if $l.enabled }}
+{{- if not (and $m.enabled $m.backup.enabled) }}
+{{- fail "migrations.backup.log needs migrations.enabled and migrations.backup.enabled: without them the database would be left in SIMPLE recovery with no log backups" }}
+{{- end }}
+{{- if not $m.backup.retention.enabled }}
+{{- fail "migrations.backup.log needs migrations.backup.retention.enabled: nothing else deletes the .trn files" }}
+{{- end }}
 {{- if include "grif.postgres" . }}
 {{- fail "migrations.backup.log is SQL Server only" }}
 {{- end }}
@@ -27,7 +33,8 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 1
-      activeDeadlineSeconds: 600
+      # The wait for the database, then the backup: a first one can carry a large log.
+      activeDeadlineSeconds: {{ add (int $m.databaseWaitSeconds) 3600 }}
       template:
         metadata:
           labels:
