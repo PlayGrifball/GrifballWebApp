@@ -394,17 +394,17 @@ public class XboxImageSourceTests : SqliteContextFixture
     }
 
     [Test]
-    public async Task Emblems_AnImageThatIsNotAnImage_IsNotFound()
+    public async Task Emblems_AnItemImageOverTheSizeLimit_IsFailed()
     {
         await AddAccountsAsync(1);
         GivenMapping();
         GivenEmblem(1, "/Inventory/Spartan/Emblems/3627007-SpartanEmblem.json");
         GivenItem("Inventory/Spartan/Emblems/3627007-SpartanEmblem.json", "progression/Inventory/Emblems/3627007-SpartanEmblem-SM.png");
-        _halo.GameCmsGetImage(Arg.Any<string>()).Returns(Ok(new byte[] { 0x3C, 0x73, 0x76, 0x67 }));
+        _halo.GameCmsGetImage(Arg.Any<string>()).Returns(Ok(new byte[XboxUserImage.MaxContentBytes + 1]));
 
         var report = await Source().RunEmblemsAsync();
 
-        Assert.That((report.Stored, report.NotFound), Is.EqualTo((0, 1)));
+        Assert.That((report.Stored, report.Failed), Is.EqualTo((0, 1)));
     }
 
     [Test]
