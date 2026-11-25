@@ -1,0 +1,9 @@
+<span class="hud-avatar profile-picture" [class.hud-avatar--accent]="accent()" [class.profile-picture--emblem]="kind() === 'haloEmblem'">
+  <span class="profile-picture__initial" [class.profile-picture__initial--hidden]="state() === 'loaded'">{{ initial() }}</span>
+  @if (src(); as url) {
+    @if (state() !== 'failed') {
+      <img class="profile-picture__image" [class.profile-picture__image--shown]="state() === 'loaded'" [src]="url" alt="" loading="lazy" decoding="async"
+        (load)="state.set('loaded')" (error)="state.set('failed')">
+    }
+  }
+</span>

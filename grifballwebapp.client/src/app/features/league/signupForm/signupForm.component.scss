@@ -23,7 +23,7 @@
   gap: 14px;
 }
 
-.enlist-who__avatar { width: 44px; height: 44px; }
+.enlist-who__avatar { --profile-picture-size: 44px; }
 .enlist-who__text { display: flex; flex-direction: column; min-width: 0; }
 .enlist-who__name { font-weight: 700; font-size: 20px; color: var(--hud-heading); overflow-wrap: anywhere; }
 

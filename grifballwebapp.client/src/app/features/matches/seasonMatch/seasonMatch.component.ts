@@ -1,4 +1,5 @@
 import { DOCUMENT, NgTemplateOutlet, DatePipe } from '@angular/common';
+import { ProfilePictureComponent } from '@shared/profilePicture/profilePicture.component';
 import { HttpErrorResponse } from '@angular/common/http';
 import { afterNextRender, Component, computed, effect, ElementRef, Injector, input, linkedSignal, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject, viewChild } from '@angular/core';
 import { RouterModule } from '@angular/router';
@@ -109,6 +110,7 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
 @Component({
     selector: 'app-season-match',
     imports: [
+        ProfilePictureComponent,
         RouterModule,
         FormsModule,
         MatInputModule,

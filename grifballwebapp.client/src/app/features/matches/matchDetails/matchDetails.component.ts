@@ -1,4 +1,5 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
+import { ProfilePictureComponent } from '@shared/profilePicture/profilePicture.component';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { ToDatePipe } from '@shared/toDate.pipe';
@@ -44,7 +45,7 @@ export function describeMatch(match: MatchDetailsDto): PageDescription {
  */
 @Component({
   selector: 'app-match-details',
-  imports: [RouterModule, DatePipe, DecimalPipe, ToDatePipe],
+  imports: [ProfilePictureComponent, RouterModule, DatePipe, DecimalPipe, ToDatePipe],
   templateUrl: './matchDetails.component.html',
   styleUrl: './matchDetails.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

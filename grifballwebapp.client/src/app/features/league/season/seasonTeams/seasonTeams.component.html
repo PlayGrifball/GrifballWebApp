@@ -95,7 +95,7 @@
               <ul class="team-card__roster">
                 @for (player of team.players; track player.teamPlayerID) {
                   <li class="team-card__player" [class.team-card__player--captain]="player.isCaptain">
-                    <span class="hud-avatar" aria-hidden="true">{{ (player.gamertag || '?').charAt(0) }}</span>
+                    <app-profile-picture [userID]="player.userID" [name]="player.gamertag" />
                     <div class="player-info">
                       <a [routerLink]="['/profile', player.userID]" class="player-name hud-text-link" [title]="player.gamertag">
                         {{ player.gamertag }}

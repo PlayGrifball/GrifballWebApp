@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, signal, viewChild, viewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, inject, input, signal, viewChild, viewChildren } from '@angular/core';
+import { ProfilePictureComponent } from '@shared/profilePicture/profilePicture.component';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
@@ -8,6 +9,7 @@ import { AccountService } from '../../auth/account.service';
 @Component({
     selector: 'app-toolbar',
     imports: [
+        ProfilePictureComponent,
         RouterLink,
         MatButtonModule,
         MatIconModule,
@@ -24,9 +26,6 @@ export class ToolbarComponent {
   readonly snav = input.required<MatSidenav>();
   /** The menu button opens the sidenav; it is only needed when some links do not fit in the bar. */
   readonly showMenu = input(true);
-
-  /** The letter on the user's square avatar. */
-  readonly initial = computed(() => this.accountService.displayName()?.trim().charAt(0).toUpperCase() || '?');
 
   /** The signed-in user's menu (Profile, Log out), opened from their chip. */
   readonly menuOpen = signal(false);

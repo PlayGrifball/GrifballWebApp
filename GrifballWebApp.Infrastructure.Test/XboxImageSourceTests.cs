@@ -771,6 +771,23 @@ public class XboxImageSourceTests : SqliteContextFixture
     // ---- reading them ----
 
     [Test]
+    public async Task XboxImageService_FindsTheXboxAccountOfAUser_OrNothing()
+    {
+        var linked = GrifballWebApp.Domain.Players.User.Seed(userName: "linked", xboxUser: XboxUser.FromXbox(77, "Linked"));
+        var unlinked = GrifballWebApp.Domain.Players.User.Seed(userName: "unlinked");
+        Context.Users.AddRange(linked, unlinked);
+        await Context.SaveChangesAsync();
+        var service = new XboxImageService(Context);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await service.GetXboxUserIdOfAsync(linked.Id), Is.EqualTo(77L));
+            Assert.That(await service.GetXboxUserIdOfAsync(unlinked.Id), Is.Null, "no Xbox account linked");
+            Assert.That(await service.GetXboxUserIdOfAsync(99999), Is.Null, "no such user");
+        }
+    }
+
+    [Test]
     public async Task XboxImageService_GivesOnlyAStoredImage_OfTheKindAsked()
     {
         await AddAccountsAsync(1, 2);

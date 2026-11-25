@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed, effect, input, numberAttribute, untracked } from '@angular/core';
+import { ProfilePictureComponent } from '@shared/profilePicture/profilePicture.component';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AccountService } from '@core/auth/account.service';
@@ -43,6 +44,7 @@ export function describeProfile(profile: ProfileStatsDto): PageDescription | nul
 @Component({
   selector: 'app-profile',
   imports: [
+    ProfilePictureComponent,
     RouterLink,
     FormsModule,
     DecimalPipe,
