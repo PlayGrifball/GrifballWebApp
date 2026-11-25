@@ -501,11 +501,7 @@ public class XboxImageSource
                     Throttled(XboxUserImageKind.HaloEmblem, report, wait);
                     return true;
                 }
-                image = response.Result is { Length: > 0 and <= XboxUserImage.MaxContentBytes } bytes && SniffContentType(bytes) is { } type
-                    ? new DownloadedImage(bytes, type)
-                    : null;
-                if (image is null && response.Result is null)
-                    throw new InvalidOperationException("The emblem image: " + Describe(response));
+                image = EmblemImageOf(response);
                 downloaded[path] = image;
             }
             if (image is null)
@@ -519,6 +515,16 @@ public class XboxImageSource
             report.Failed++;
         }
         return false;
+    }
+
+    private static DownloadedImage? EmblemImageOf(HaloApiResultContainer<byte[], HaloApiErrorContainer> response)
+    {
+        var image = response.Result is { Length: > 0 and <= XboxUserImage.MaxContentBytes } bytes && SniffContentType(bytes) is { } type
+            ? new DownloadedImage(bytes, type)
+            : null;
+        if (image is null && response.Result is null)
+            throw new InvalidOperationException("The emblem image: " + Describe(response));
+        return image;
     }
 
     /// <summary>The image type of the bytes by their first bytes (the gateway gives the image without its type); null for anything but PNG, JPEG or WebP.</summary>
