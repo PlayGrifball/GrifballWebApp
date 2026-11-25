@@ -1,5 +1,4 @@
-import { TestBed } from '@angular/core/testing';
-import { provideRouter, Route, Router } from '@angular/router';
+import { Route } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
 import { HomeComponent } from './features/home/home.component';
 import { ThemeComponent } from './core/layout/theme/theme.component';
@@ -106,7 +105,7 @@ describe('APP_ROUTES', () => {
   });
 
   it('should have protected infiniteclient route', () => {
-    const infiniteClientRoute = APP_ROUTES.find(r => r.path === 'sysadmin/infiniteclient');
+    const infiniteClientRoute = APP_ROUTES.find(r => r.path === 'infiniteclient');
     expect(infiniteClientRoute).toBeDefined();
     expect(infiniteClientRoute?.title).toBe('Infinite Client');
     expect(infiniteClientRoute?.canActivate).toBeDefined();
@@ -251,7 +250,7 @@ describe('APP_ROUTES lazy loading', () => {
     'sysadmin/historicalimport': HistoricalImportComponent,
     'sysadmin/jobs': JobsComponent,
     'sysadmin/telemetry': TelemetryComponent,
-    'sysadmin/infiniteclient': InfiniteClientComponent,
+    'infiniteclient': InfiniteClientComponent,
     'sysadmin/databasebackup': DatabaseBackupComponent,
     'usermanagement': UserManagementComponent,
     'usermanagement/createuser': CreateUserComponent,
@@ -278,36 +277,9 @@ describe('APP_ROUTES lazy loading', () => {
     '**': NotFoundComponent,
   };
 
-  // The SysAdmin pages' old addresses
-  const redirects: Record<string, string> = {
-    'infiniteclient': '/sysadmin/infiniteclient',
-    'databasebackup': '/sysadmin/databasebackup',
-    'usermanagement/historicalimport': '/sysadmin/historicalimport',
-    'usermanagement/jobs': '/sysadmin/jobs',
-    'usermanagement/telemetry': '/sysadmin/telemetry',
-  };
-
-  it('covers every route in the tables above', () => {
+  it('covers every route in the table above', () => {
     const byName = (a: string, b: string) => a.localeCompare(b);
-    expect(APP_ROUTES.map(r => r.path!).sort(byName)).toEqual([...Object.keys(expected), ...Object.keys(redirects)].sort(byName));
-  });
-
-  for (const [path, target] of Object.entries(redirects)) {
-    it(`'${path}' redirects to ${target}`, () => {
-      const route = APP_ROUTES.find(r => r.path === path)!;
-      expect(route.redirectTo).toBe(target);
-      expect(route.pathMatch).toBe('full');
-    });
-  }
-
-  it("keeps the Infinite Client's sign-in code through its old address's redirect", async () => {
-    const oldAddress = APP_ROUTES.find(r => r.path === 'infiniteclient')!;
-    TestBed.configureTestingModule({
-      providers: [provideRouter([oldAddress, { path: 'sysadmin/infiniteclient', children: [] }])],
-    });
-    const router = TestBed.inject(Router);
-    await router.navigateByUrl('/infiniteclient?code=abc');
-    expect(router.url).toBe('/sysadmin/infiniteclient?code=abc');
+    expect(APP_ROUTES.map(r => r.path!).sort(byName)).toEqual(Object.keys(expected).sort(byName));
   });
 
   for (const [path, component] of Object.entries(expected)) {
@@ -322,7 +294,7 @@ describe('APP_ROUTES lazy loading', () => {
     const guarded = APP_ROUTES.filter(r => r.canActivate?.length).map(r => r.path);
     expect(guarded).toEqual(jasmine.arrayWithExactContents([
       'seasonManager', 'seasonEdit/:seasonID', 'seasonAvailability/:seasonID',
-      'sysadmin', 'sysadmin/historicalimport', 'sysadmin/jobs', 'sysadmin/telemetry', 'sysadmin/infiniteclient', 'sysadmin/databasebackup',
+      'sysadmin', 'sysadmin/historicalimport', 'sysadmin/jobs', 'sysadmin/telemetry', 'infiniteclient', 'sysadmin/databasebackup',
       'usermanagement', 'usermanagement/createuser',
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
       'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',

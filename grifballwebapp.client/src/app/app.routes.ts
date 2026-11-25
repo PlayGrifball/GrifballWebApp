@@ -117,7 +117,8 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
-    path: 'sysadmin/infiniteclient',
+    // Not under /sysadmin: this path is the registered sign-in redirect of the Infinite Client
+    path: 'infiniteclient',
     loadComponent: () => import('./features/admin/sysAdmin/infiniteClient/infiniteClient.component').then(m => m.InfiniteClientComponent),
     title: 'Infinite Client',
     canActivate: [isSysAdminGuard]
@@ -128,12 +129,6 @@ export const APP_ROUTES: Routes = [
     title: 'Database Backup',
     canActivate: [isSysAdminGuard]
   },
-  // Their old addresses: bookmarks, and the Infinite Client's registered sign-in redirect (its ?code= is kept)
-  { path: 'infiniteclient', redirectTo: '/sysadmin/infiniteclient', pathMatch: 'full' },
-  { path: 'databasebackup', redirectTo: '/sysadmin/databasebackup', pathMatch: 'full' },
-  { path: 'usermanagement/historicalimport', redirectTo: '/sysadmin/historicalimport', pathMatch: 'full' },
-  { path: 'usermanagement/jobs', redirectTo: '/sysadmin/jobs', pathMatch: 'full' },
-  { path: 'usermanagement/telemetry', redirectTo: '/sysadmin/telemetry', pathMatch: 'full' },
   {
     path: 'usermanagement',
     loadComponent: () => import('./features/admin/userManagement/userManagement.component').then(m => m.UserManagementComponent),

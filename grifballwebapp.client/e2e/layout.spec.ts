@@ -144,7 +144,7 @@ const PAGES: PageCase[] = [
   { name: 'excel', path: '/excel/1xGrifballAutumnBrawl2026/Week%203', role: 'admin', ready: 'app-excel form', parts: ['text:app-excel h1'] },
   { name: 'excel-blank', sheet: 'excel', path: '/excel', role: 'admin', ready: 'app-excel form', parts: ['text:app-excel h1'] },
   { name: 'sysadmin', path: '/sysadmin', role: 'admin', ready: 'app-sys-admin a.hud-card', parts: ['text:app-sys-admin h1', 'app-sys-admin .hud-grid'] },
-  { name: 'infinite-client', path: '/sysadmin/infiniteclient', role: 'admin', ready: 'app-infinite-client h1', parts: ['text:app-infinite-client h1'] },
+  { name: 'infinite-client', path: '/infiniteclient', role: 'admin', ready: 'app-infinite-client h1', parts: ['text:app-infinite-client h1'] },
   { name: 'database-backup', path: '/sysadmin/databasebackup', role: 'admin', ready: 'app-database-backup mat-select', parts: ['text:app-database-backup h1'] },
   { name: 'gamertag-claims', path: '/usermanagement/claims', role: 'admin', ready: 'app-gamertag-claims tbody tr',
     parts: ['text:app-gamertag-claims h1', ...TABS, 'app-gamertag-claims .hud-table-wrap'] },

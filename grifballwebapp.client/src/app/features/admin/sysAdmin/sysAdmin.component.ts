@@ -20,7 +20,7 @@ export class SysAdminComponent {
     { title: 'Historical Import', path: '/sysadmin/historicalimport', description: 'Import past seasons from the historical archive.' },
     { title: 'Jobs', path: '/sysadmin/jobs', description: 'The recurring jobs: when they run, their state and their runs.' },
     { title: 'Telemetry', path: '/sysadmin/telemetry', description: "The app's own logs, metrics and traces." },
-    { title: 'Infinite Client', path: '/sysadmin/infiniteclient', description: "The Halo Infinite client's mode, status and sign-in." },
+    { title: 'Infinite Client', path: '/infiniteclient', description: "The Halo Infinite client's mode, status and sign-in." },
     { title: 'Database Backup', path: '/sysadmin/databasebackup', description: 'Download the database, or export it to another server.' },
   ];
 }

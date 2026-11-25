@@ -21,7 +21,7 @@ describe('SysAdminComponent', () => {
       ['Historical Import', '/sysadmin/historicalimport'],
       ['Jobs', '/sysadmin/jobs'],
       ['Telemetry', '/sysadmin/telemetry'],
-      ['Infinite Client', '/sysadmin/infiniteclient'],
+      ['Infinite Client', '/infiniteclient'],
       ['Database Backup', '/sysadmin/databasebackup'],
     ]);
   });

@@ -94,7 +94,7 @@ const signedInPages = [
   '/excel',
   '/excel/1xGrifballAutumnBrawl2026/Week%203',
   '/sysadmin',
-  '/sysadmin/infiniteclient',
+  '/infiniteclient',
   '/usermanagement',
   '/usermanagement/createuser',
   '/usermanagement/edituser/2',
