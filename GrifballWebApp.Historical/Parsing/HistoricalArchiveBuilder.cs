@@ -325,7 +325,7 @@ public sealed partial class HistoricalArchiveBuilder
     {
         foreach (var (sourceId, tab, season, columns) in _pendingGameCounts)
         {
-            var key = tab.GamesSheet!;
+            var key = string.Join('/', tab.GamesSheet!.Split('/', 2).Select(p => p.Trim()));
             if (!_gameRecords.TryGetValue(key, out var found))
             {
                 _warnings.Add($"{sourceId}: no game records source '{key}'");

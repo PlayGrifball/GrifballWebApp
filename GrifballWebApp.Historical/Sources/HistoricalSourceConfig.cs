@@ -93,7 +93,8 @@ public class HistoricalSourceConfig
         [
             .. Tabs.Select(t => t.Name),
             .. Tabs.Select(t => t.DatesSheet),
-            .. Tabs.Select(t => t.GamesSheet),
+            // "source/Sheet" names a tab of another source's workbook: not one of this workbook's
+            .. Tabs.Select(t => t.GamesSheet is { } games && games.Contains('/') ? null : t.GamesSheet),
             .. Tables.SelectMany(t => new[] { t.Sheet, t.Players?.Sheet, t.Teams?.Sheet, t.StandingsSheet }),
             .. Waypoint.Select(t => t.Sheet),
             .. Games.Select(t => t.Sheet),

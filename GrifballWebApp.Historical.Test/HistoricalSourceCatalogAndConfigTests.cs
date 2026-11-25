@@ -146,6 +146,23 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
     }
 
     [Test]
+    public void SheetNames_LeavesOutAGamesSheetOfAnotherSource()
+    {
+        var config = new HistoricalSourceConfig { Tabs = [new StatsTab { Name = "Stats", GamesSheet = "history/Season Match History" }] };
+
+        Assert.That(config.SheetNames(), Is.EquivalentTo(new[] { "Stats" }));
+    }
+
+    [TestCase("2026-wl26-pro-stats")]
+    [TestCase("2026-wl26-ammy-stats")]
+    public void Wl26StatsSources_FallBackToTheTabTheirUrlNames(string sourceId)
+    {
+        var entry = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == sourceId);
+
+        Assert.That(entry.Url, Does.Contain($"gid={entry.Gid}"));
+    }
+
+    [Test]
     public void SheetNames_IgnoresNullEntries()
     {
         var config = new HistoricalSourceConfig

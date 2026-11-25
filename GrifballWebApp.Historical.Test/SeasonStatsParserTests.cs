@@ -608,6 +608,25 @@ public class SeasonStatsParserTests
     }
 
     [Test]
+    public void CrossSourceGameRecordSheet_WithSpacesAroundItsParts_IsFound()
+    {
+        var statsContent = Workbook(("Stats", [Row("Gamertag", "Kills"), Row("Ace", 20)]));
+        var historyContent = Workbook(("Matches", [Row("FirstJoinedTime", "PlayerId", "Outcome"), Row("2026-11-17T01:36:12.827Z", "Ace", 2)]));
+        var statsSource = new HistoricalSourceContent(HistoricalTestData.Source("stats", "https://example.org/stats",
+            new HistoricalSourceConfig { Tabs = [new() { Name = "Stats", GamesSheet = "history/ Matches " }] }.ToJson()), 1, statsContent);
+        var historySource = new HistoricalSourceContent(HistoricalTestData.Source("history", "https://example.org/history",
+            new HistoricalSourceConfig { GameRecordSheets = ["Matches"] }.ToJson()), 2, historyContent);
+
+        var build = HistoricalArchiveBuilder.Build([statsSource, historySource]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Is.Empty);
+            Assert.That(build.Input.Seasons.Seasons.Single().Players.Single().GamesPlayed, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
     public void CrossSourceGameRecordSheet_NoSourceHasIt_IsWarnedAbout()
     {
         var statsContent = Workbook(("Regular Season Stats Sheet",
