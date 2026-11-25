@@ -29,6 +29,7 @@ class LinkedAccountsStubComponent {}
 @Component({ selector: 'app-profile-identity', template: '<p>identity</p>' })
 class ProfileIdentityStubComponent {
   readonly regionID = input<number | null>(null);
+  readonly profilePicture = input<string>('Emblem');
   readonly changed = output<void>();
 }
 
