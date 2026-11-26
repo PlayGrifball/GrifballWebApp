@@ -137,7 +137,7 @@ public static partial class RecordedGameParser
     }
 
     private static bool IsSummaryOrHeader(string name, string? team)
-        => SeasonStatsParser.IsTotalsRow(name) || SeasonStatsParser.IsRepeatingHeader(name, team);
+        => SeasonStatsParser.IsTotalsLabel(name) || SeasonStatsParser.IsRepeatingHeader(name, team);
 
     private static bool IsAllZero(params int?[] counts) => counts.All(n => (n ?? 0) == 0);
 
@@ -246,7 +246,7 @@ public static partial class RecordedGameParser
             var row = sheet.Rows[end];
             var first = Cell(row, 0).Trim();
             var rawPlayer = Cell(row, 1).Trim();
-            if (SeasonStatsParser.IsTotalsRow(first) || IsSummaryOrHeader(rawPlayer, first))
+            if (SeasonStatsParser.IsTotalsLabel(first) || IsSummaryOrHeader(rawPlayer, first))
                 continue;
             var named = first.Length > 0 && !first.Equals("Sub", StringComparison.OrdinalIgnoreCase);
             if (named && !sideOf.TryGetValue(first, out side))

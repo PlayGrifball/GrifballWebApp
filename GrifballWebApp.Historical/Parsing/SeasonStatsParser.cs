@@ -233,7 +233,7 @@ public static partial class SeasonStatsParser
         for (var r = 1; r < sheet.Rows.Count; r++)
         {
             var gamertag = sheet.Cell(r, columns.PlayerColumn).Trim();
-            if (gamertag.Length == 0 || IsTotalsRow(gamertag))
+            if (gamertag.Length == 0 || IsTotalsLabel(gamertag))
                 continue;
             var (won, lost) = columns.Result(sheet, r);
             var key = HistoricalKeys.Normalize(gamertag);
@@ -324,7 +324,7 @@ public static partial class SeasonStatsParser
         var (rawGamertag, teamName) = NameCells(sheet, r, tab, columns);
         // In a tab whose Team column names teams, a row that played no game and whose Team cell is a number is outside the
         // table: a game side of a host (FL21's) or a bracket's seed beside a team under the stats (SML20's)
-        if (string.IsNullOrWhiteSpace(rawGamertag) || IsTotalsRow(rawGamertag) || IsRepeatingHeader(rawGamertag, teamName)
+        if (string.IsNullOrWhiteSpace(rawGamertag) || IsTotalsLabel(rawGamertag) || IsRepeatingHeader(rawGamertag, teamName)
             || (!sides && ArchiveCells.Number(teamName) is not null && !PlayedAGame(row, columns)))
         {
             currentTeam = null;
@@ -469,7 +469,7 @@ public static partial class SeasonStatsParser
             if (hdr.NameCol >= row.Length || string.IsNullOrWhiteSpace(row[hdr.NameCol]) || !HasAnyGameStat(row, hdr.Cols))
                 continue;
             var rawName = row[hdr.NameCol];
-            if (IsTotalsRow(rawName) || IsRepeatingHeader(rawName, null))
+            if (IsTotalsLabel(rawName) || IsRepeatingHeader(rawName, null))
                 continue;
             var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(rawName);
             if (gamertag.Length == 0)
@@ -726,17 +726,16 @@ public static partial class SeasonStatsParser
         return at.Year is >= 2007 and <= 2100 ? DateTime.SpecifyKind(at, DateTimeKind.Utc) : null;
     }
 
-    /// <summary>Whether a cell is a summary row ("Total", "Totals", "Team Total", "Average", "Subtotal", "Team Stats") rather than a player.</summary>
-    public static bool IsTotalsRow(string? value) => !string.IsNullOrWhiteSpace(value) && TotalsRow().IsMatch(value);
-
-    /// <summary>Whether a cell is an exact summary label ("Total", "Totals", "Totals:", "Average", "Subtotal", "Team Stats", or a "Total Stats ..." banner) rather than a player whose gamertag merely contains one of those words.</summary>
+    /// <summary>Whether a cell is a summary label ("Total", "Totals:", "Team Total", "Grand Total", "Average", "Subtotal", "Team Stats", "Total Kills", or a "Total Stats ..." banner) rather than a player whose gamertag merely contains one of those words.</summary>
     public static bool IsTotalsLabel(string? value)
         => !string.IsNullOrWhiteSpace(value)
-        && (ArchiveCells.HeaderKey(value).TrimEnd(':') is "total" or "totals" or "average" or "averages" or "subtotal" or "subtotals" or "teamstats"
-            || TotalStatsBanner().IsMatch(value));
+        && (SummaryKey().IsMatch(ArchiveCells.HeaderKey(value).TrimEnd(':')) || TotalStatsBanner().IsMatch(value));
 
-    [GeneratedRegex(@"\btotals?\b|\baverages?\b|\bsubtotals?\b|\bteam stats\b", RegexOptions.IgnoreCase)]
-    private static partial Regex TotalsRow();
+    /// <summary>Whether a cell names a player: not blank and not a summary label.</summary>
+    public static bool IsPlayerTag(string? value) => !string.IsNullOrWhiteSpace(value) && !IsTotalsLabel(value);
+
+    [GeneratedRegex(@"^(?:(?:grand|sub|team)?(?:total|average)s?(?:kills|deaths|games|stats)?|teamstats)$")]
+    private static partial Regex SummaryKey();
 
     [GeneratedRegex(@"^\s*total\s+stats\b", RegexOptions.IgnoreCase)]
     private static partial Regex TotalStatsBanner();
