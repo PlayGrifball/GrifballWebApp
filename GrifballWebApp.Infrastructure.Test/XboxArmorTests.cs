@@ -224,6 +224,7 @@ public class XboxArmorTests : SqliteContextFixture
 
         var first = await Source().RunAsync();
         var held = await Source().RunAsync();
+        await _halo.Received(1).EconomyPlayerPublicCustomization(Arg.Any<string>());
         _time.Advance(TimeSpan.FromMinutes(6));
         _halo.EconomyPlayerPublicCustomization(Arg.Any<string>()).Returns(Ok(Armor()));
         var after = await Source().RunAsync();
@@ -232,7 +233,6 @@ public class XboxArmorTests : SqliteContextFixture
         {
             Assert.That((first.Checked, first.ThrottledFor), Is.EqualTo((0, (TimeSpan?)TimeSpan.FromMinutes(5))));
             Assert.That(held.ThrottledFor, Is.Not.Null);
-            await _halo.Received(1).EconomyPlayerPublicCustomization(Arg.Any<string>());
             Assert.That(after.Stored, Is.EqualTo(2));
         }
     }
