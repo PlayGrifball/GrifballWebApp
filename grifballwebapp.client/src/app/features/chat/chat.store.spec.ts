@@ -391,7 +391,7 @@ describe('ChatStore', () => {
       expect(store.confirm(true)).toBeTrue();
 
       expect(connection.stream.calls.mostRecent().args as [string, ChatConfirmDto]).toEqual(['Confirm', {
-        actionId: 'a1', approved: true, history: [turn(false, 'Forfeit match 12'), turn(true, 'This waits for you.')],
+        actionId: 'a1', approved: true, history: [turn(false, 'Forfeit match 12'), turn(true, 'This waits for you.')], page: null, pageTitle: null,
       }]);
       expect(store.waiting()).withContext('answered: no buttons while it runs').toBeNull();
       expect(store.turns().slice(-2)).toEqual([turn(false, CONFIRMED), turn(true, '')]);
@@ -400,6 +400,14 @@ describe('ChatStore', () => {
       await new Promise(resolve => setTimeout(resolve));
       expect(store.turns().at(-1)).toEqual(turn(true, 'Done.'));
       expect(store.waiting()).toBeNull();
+    });
+
+    it('sends the page it was confirmed from, when there is one', async () => {
+      const store = await asking();
+
+      store.confirm(true, { path: '/season/4', title: 'Spring' });
+
+      expect(connection.stream.calls.mostRecent().args[1]).toEqual(jasmine.objectContaining({ page: '/season/4', pageTitle: 'Spring' }));
     });
 
     it('cancels', async () => {

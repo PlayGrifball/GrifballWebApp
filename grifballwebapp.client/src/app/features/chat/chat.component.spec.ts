@@ -221,7 +221,7 @@ describe('ChatComponent', () => {
 
     const [method, sent] = stream.calls.mostRecent().args as [string, ChatConfirmDto];
     expect(method).toBe('Confirm');
-    expect(sent).toEqual(jasmine.objectContaining({ actionId: 'a1', approved: true }));
+    expect(sent).toEqual(jasmine.objectContaining({ actionId: 'a1', approved: true, page: null, pageTitle: null }));
     expect(turns().at(-2)).toEqual(['You', CONFIRMED]);
     expect(el().querySelector('.chat__confirm')).withContext('answered').toBeNull();
   });

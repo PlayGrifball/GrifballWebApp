@@ -46,7 +46,7 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
 
     /// <summary>
     /// The user's answer to the change waiting for it (<see cref="GrifChat.ConfirmAsync"/>: only its ID and the answer come from the
-    /// page), then the chat's reply, streamed as <see cref="Ask"/>'s.
+    /// page, with the page itself as <see cref="Ask"/>'s), then the chat's reply, streamed as <see cref="Ask"/>'s.
     /// </summary>
     public Task<ChannelReader<string>> Confirm(ChatConfirmDto answer, CancellationToken cancellationToken)
     {
@@ -54,7 +54,7 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
             return Task.FromResult(Refuse(Channel.CreateUnbounded<string>(), refused));
         var caller = user.AsToolCaller();
         return StreamAsync(caller, () => chat.ConfirmAsync(GrifChat.History(answer.History),
-            answer.ActionId, answer.Approved, caller, ChatHost.Site, Asker(caller), cancellationToken), cancellationToken);
+            answer.ActionId, answer.Approved, caller, GrifChat.WithPage(ChatHost.Site, answer.Page, answer.PageTitle), Asker(caller), cancellationToken), cancellationToken);
     }
 
     /// <summary>The change waiting for the user's answer (its ID and what it does), or null.</summary>

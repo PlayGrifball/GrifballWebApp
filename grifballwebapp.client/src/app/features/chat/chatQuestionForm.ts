@@ -27,7 +27,7 @@ export class ChatQuestionForm {
   }
 
   confirm(approved: boolean): void {
-    this.store.confirm(approved);
+    this.store.confirm(approved, this.page());
   }
 
   stop(): void {

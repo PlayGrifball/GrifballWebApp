@@ -50,6 +50,12 @@ public sealed record ChatConfirmDto
 
     /// <summary>The conversation so far, oldest first, as with a question.</summary>
     public required List<ChatTurnDto> History { get; init; }
+
+    /// <summary>The path of the page the person is looking at (Flipyap's chat in a corner of it), for the model's context; null: none (the chat page).</summary>
+    public string? Page { get; init; }
+
+    /// <summary>The title of that page, for the same.</summary>
+    public string? PageTitle { get; init; }
 }
 
 /// <summary>A change waiting for the user's answer: its ID, and what it does as they're shown it.</summary>

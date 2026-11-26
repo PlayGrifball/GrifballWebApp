@@ -10536,7 +10536,9 @@
         "required": [
           "actionId",
           "approved",
-          "history"
+          "history",
+          "page",
+          "pageTitle"
         ],
         "type": "object",
         "properties": {
@@ -10554,6 +10556,16 @@
               "$ref": "#/components/schemas/ChatTurnDto"
             },
             "description": "The conversation so far, oldest first, as with a question."
+          },
+          "page": {
+            "type": "string",
+            "description": "The path of the page the person is looking at (Flipyap's chat in a corner of it), for the model's context; null: none (the chat page).",
+            "nullable": true
+          },
+          "pageTitle": {
+            "type": "string",
+            "description": "The title of that page, for the same.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
