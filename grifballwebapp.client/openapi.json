@@ -4745,6 +4745,287 @@
         }
       }
     },
+    "/me/spartan": {
+      "get": {
+        "tags": [
+          "MyProfile"
+        ],
+        "summary": "The signed-in user's Spartan: their own choice if they made one, and its render.",
+        "operationId": "GetMySpartan",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpartanProfileDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "MyProfile"
+        ],
+        "summary": "Sets the Spartan the signed-in user's profile shows, instead of the one they have equipped, and asks for its render.",
+        "operationId": "SetMySpartan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SpartanChoice"
+                  }
+                ],
+                "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default."
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "MyProfile"
+        ],
+        "summary": "Goes back to the Spartan the signed-in user has equipped in Halo Infinite.",
+        "operationId": "ClearMySpartan",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/spartan/catalog": {
+      "get": {
+        "tags": [
+          "MyProfile"
+        ],
+        "summary": "What the render service can render: the cores, their pieces by region, the coatings and visors.",
+        "operationId": "GetSpartanCatalog",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpartanCatalog"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/spartan/render": {
+      "post": {
+        "tags": [
+          "MyProfile"
+        ],
+        "summary": "Asks for the render of the signed-in user's Spartan (again); the render job makes it within minutes.",
+        "operationId": "RenderMySpartan",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}/spartan/{name}": {
+      "get": {
+        "tags": [
+          "MyProfile"
+        ],
+        "summary": "A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.",
+        "operationId": "GetUserSpartanFile",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "model/gltf-binary": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/theme": {
       "get": {
         "tags": [
@@ -18331,6 +18612,214 @@
           }
         },
         "additionalProperties": false
+      },
+      "SpartanCatalog": {
+        "required": [
+          "coatings",
+          "cores",
+          "pendingCores",
+          "visors"
+        ],
+        "type": "object",
+        "properties": {
+          "cores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpartanCatalogCore"
+            }
+          },
+          "coatings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pendingCores": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "What the render service says a loadout may name. GrifballWebApp.Application.Spartan.SpartanCatalog.PendingCores are still being prepared there."
+      },
+      "SpartanCatalogCore": {
+        "required": [
+          "name",
+          "regions"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpartanCatalogRegion"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "SpartanCatalogPiece": {
+        "required": [
+          "name",
+          "permutation"
+        ],
+        "type": "object",
+        "properties": {
+          "permutation": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A piece a core can wear in a region: GrifballWebApp.Application.Spartan.SpartanCatalogPiece.Name is what a loadout's armor names it, null for the pieces (some kits) reached only by ids."
+      },
+      "SpartanCatalogRegion": {
+        "required": [
+          "key",
+          "kind",
+          "pieces",
+          "region"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "region": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pieces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpartanCatalogPiece"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A region of a core. GrifballWebApp.Application.Spartan.SpartanCatalogRegion.Kind is REGION (named by GrifballWebApp.Application.Spartan.SpartanCatalogRegion.Key in a loadout's armor) or KIT (a kit's own regions, reached by ids)."
+      },
+      "SpartanChoice": {
+        "required": [
+          "armor",
+          "coating",
+          "core",
+          "parts",
+          "visor"
+        ],
+        "type": "object",
+        "properties": {
+          "core": {
+            "type": "string"
+          },
+          "armor": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpartanPartChoice"
+            },
+            "nullable": true
+          },
+          "coating": {
+            "type": "string",
+            "nullable": true
+          },
+          "visor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default."
+      },
+      "SpartanPartChoice": {
+        "required": [
+          "permutation",
+          "region"
+        ],
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "permutation": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A piece by the game's ids, for the pieces that have no name."
+      },
+      "SpartanProfileDto": {
+        "required": [
+          "choice",
+          "files",
+          "hasEquippedSet",
+          "renderError",
+          "renderState",
+          "renderedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "choice": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SpartanChoice"
+              }
+            ],
+            "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default.",
+            "nullable": true
+          },
+          "hasEquippedSet": {
+            "type": "boolean"
+          },
+          "renderState": {
+            "type": "string",
+            "nullable": true
+          },
+          "renderedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "renderError": {
+            "type": "string",
+            "nullable": true
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "What a user's Spartan stands at: their own choice if they made one, and the render of it."
       },
       "Stage": {
         "required": [
