@@ -170,7 +170,7 @@ public static partial class RecordedGameParser
             SwordKills = Int(row, c.Sword),
             BallKills = Int(row, c.Ball),
             CarrierKills = Int(row, c.Stops),
-        }).Where(p => p.Gamertag.Length > 0 && !SeasonStatsParser.IsTotalsRow(p.Gamertag)).ToList();
+        }).Where(p => p.Gamertag.Length > 0).ToList();
         var teams = block.Rows.GroupBy(row => Side(c.TeamOf(row))).OrderBy(s => s.Key).Select(s => new RecordedTeamInput
         {
             Side = s.Key,
@@ -252,7 +252,7 @@ public static partial class RecordedGameParser
             if (named && !sideOf.TryGetValue(first, out side))
                 sideOf[first] = side = sideOf.Count + 1;
             var gamertag = ArchiveCells.Gamertag(rawPlayer).Gamertag;
-            if (gamertag.Length == 0 || SeasonStatsParser.IsTotalsRow(gamertag) || !Played(row, played, kills, deaths))
+            if (gamertag.Length == 0 || !Played(row, played, kills, deaths))
                 continue;
             players.Add(new RecordedPlayerInput
             {

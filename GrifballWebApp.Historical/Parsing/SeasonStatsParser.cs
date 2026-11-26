@@ -472,7 +472,7 @@ public static partial class SeasonStatsParser
             if (IsTotalsRow(rawName) || IsRepeatingHeader(rawName, null))
                 continue;
             var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(rawName);
-            if (gamertag.Length == 0 || IsTotalsRow(gamertag))
+            if (gamertag.Length == 0)
                 continue;
             var team = teams.GetValueOrDefault(HistoricalKeys.Normalize(gamertag)) ?? inferredTeam;
             var player = Player(row, hdr.Cols, gamertag, team, tradeNote, roleNote, 1);
