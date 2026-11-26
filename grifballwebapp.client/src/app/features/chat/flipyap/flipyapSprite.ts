@@ -17,66 +17,68 @@ const COLOURS: Readonly<Record<string, string>> = {
   a: '#e6a82a', // gold armour
   d: '#b27818', // gold armour, shaded
   h: '#ffd35c', // gold armour, lit
-  g: '#4a4a54', // charcoal armour
-  G: '#6d6d79', // charcoal armour, lit
+  g: '#5a5a68', // charcoal armour
+  G: '#7e7e8c', // charcoal armour, lit
   e: '#8a8a96', // face
   E: '#a9a9b5', // face, lit
+  m: '#2c2c36', // rebreather mask
+  M: '#555563', // rebreather mask, lit
   w: '#ffffff', // eye
-  k: '#23232b', // pupil and grille
+  k: '#15131c', // pupil
   v: '#8fd0ff', // rebreather vents
 };
 
-/** Flipyap's left half, top to bottom: each row's sixteen letters are mirrored to make the right half. */
-const HALF: readonly string[] = [
-  '................',
-  '................',
-  '...............o',
-  '..............oC',
-  '.............oaC',
-  '.............oaC',
-  '............oaCC',
-  '............oaCC',
-  '...........oaCCc',
-  '...........oaCCc',
-  '..........oaCCcc',
-  '..........oaCCcc',
-  '.........oaCCccc',
-  '.......ooggggggg',
-  '......oggggggGGG',
-  '.....oggeeeeEEEE',
-  '.....ogeeewkEEEE',
-  '.....ogeeeeEEEEE',
-  '.....ogggkgkgkgk',
-  '......oggggggggg',
-  '....oooggggggggg',
-  '...ogggoaaahaaaa',
-  '...ogGgoaaaaaaaa',
-  '...ogggoaadaaaaa',
-  '....ogoaaaaaaaaa',
-  '....oooddddddddd',
-  '.......ogggggggg',
-  '......ogggkggggo',
-  '......ogGggggggo',
-  '.....ooggggggggo',
-  '.....ooooooooooo',
-  '................',
+/** A row of the drawing: <letters> start at column <x> ('.' leaves a gap). */
+const at = (x: number, letters: string): string => '.'.repeat(x) + letters;
+
+/** Flipyap facing left, top to bottom: the cone leaning back, the face and rebreather at the front, one arm forward. */
+const IDLE: readonly string[] = [
+  '',
+  '',
+  at(20, 'oo'),
+  at(19, 'oCao'),
+  at(18, 'oCCao'),
+  at(17, 'oCCCao'),
+  at(16, 'oCCCcao'),
+  at(15, 'oCCCccao'),
+  at(14, 'oCCCcccao'),
+  at(13, 'oCCCccccao'),
+  at(12, 'oCCCcccccao'),
+  at(11, 'ooggggggggo'),
+  at(9, 'ogggggggggggGo'),
+  at(8, 'oEEEEeggggggggGo'),
+  at(8, 'okwEEegggggggggo'),
+  at(7, 'ommmMmegggggggggo'),
+  at(7, 'ommkMkmgggggggggo'),
+  at(7, 'ommmmmmgggggggggo'),
+  at(8, 'ooommmgggggggggo'),
+  at(10, 'ooogggggggggo'),
+  at(8, 'ooggggggggggggggo'),
+  at(6, 'oggGoaaahaaaaggggggo'),
+  at(5, 'ogggGoaaaaaaaaggggggo'),
+  at(5, 'ogggGoaaadaaaaggggggo'),
+  at(5, 'ogGgoaaaaaaaaagggggo'),
+  at(6, 'oggodddddddddddddo'),
+  at(8, 'ooggggggggggggo'),
+  at(8, 'ogGggo..oggggo'),
+  at(7, 'oggggo...ogGggo'),
+  at(5, 'oggggggo...oggggo'),
+  at(5, 'oooooooo...oooooo'),
+  '',
 ];
 
-/** The rows of a frame that differ from his resting face (row number, left half). */
+/** The rows of a frame that differ from his resting face (row number, row). */
 const FRAME_ROWS: Readonly<Record<FlipyapFrame, Readonly<Record<number, string>>>> = {
   idle: {},
-  blink: { 16: '.....ogeekkkEEEE' },
-  talk: { 18: '.....ogggvvvvvvv' },
-  held: { 16: '.....ogeewwwEEEE' },
+  blink: { 14: at(8, 'okkEEegggggggggo') },
+  talk: { 16: at(7, 'ovvvvvmgggggggggo') },
+  held: { 14: at(8, 'owwEEegggggggggo') },
 };
 
 function pixels(frame: FlipyapFrame): SpritePixel[] {
   const changes = FRAME_ROWS[frame];
-  return HALF.flatMap((half, y) => {
-    const left = changes[y] ?? half;
-    return [...(left + [...left].reverse().join(''))].flatMap((letter, x) =>
-      letter === '.' ? [] : [{ x, y, fill: COLOURS[letter] }]);
-  });
+  return IDLE.flatMap((idle, y) =>
+    [...(changes[y] ?? idle)].flatMap((letter, x) => (letter === '.' ? [] : [{ x, y, fill: COLOURS[letter] }])));
 }
 
 /** Every frame's filled pixels, drawn once (a sprite is small: 32 by 32). */

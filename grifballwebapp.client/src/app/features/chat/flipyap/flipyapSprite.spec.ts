@@ -1,4 +1,4 @@
-import { FRAMES, SPRITE_SIZE, type FlipyapFrame, type SpritePixel } from './flipyapSprite';
+import { FRAMES, SPRITE_SIZE, type FlipyapFrame } from './flipyapSprite';
 
 describe('flipyapSprite', () => {
   const frames: FlipyapFrame[] = ['idle', 'blink', 'talk', 'held'];
@@ -14,16 +14,8 @@ describe('flipyapSprite', () => {
     }
   });
 
-  it('is the same on both sides', () => {
-    for (const frame of frames) {
-      const at = new Map(FRAMES[frame].map((p: SpritePixel) => [`${p.x},${p.y}`, p.fill]));
-      for (const { x, y, fill } of FRAMES[frame])
-        expect(at.get(`${SPRITE_SIZE - 1 - x},${y}`)).withContext(`${frame} ${x},${y}`).toBe(fill);
-    }
-  });
-
-  it('blinks with the eyes (row 16), talks with the rebreather vents (row 18), and is held with wide eyes (row 16): the rest stays', () => {
-    const changes = { blink: [16], talk: [18], held: [16] } as const;
+  it('blinks with the eye (row 14), talks with the rebreather vents (row 16), and is held with a wide eye (row 14): the rest stays', () => {
+    const changes = { blink: [14], talk: [16], held: [14] } as const;
     for (let y = 0; y < SPRITE_SIZE; y++) {
       for (const frame of ['blink', 'talk', 'held'] as const)
         expect(rows(frame, y) === rows('idle', y)).withContext(`${frame} row ${y}`).toBe(!(changes[frame] as readonly number[]).includes(y));
