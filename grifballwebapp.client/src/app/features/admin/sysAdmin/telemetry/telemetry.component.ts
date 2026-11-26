@@ -7,6 +7,7 @@ import type { LogEntryDto, SpanDto, TraceDto } from '@api/models';
 import { problemText } from '@shared/errorText';
 import { formatValue, LineChartComponent } from './lineChart.component';
 import { LogsQuery, MetricsQuery, TelemetryStore, TracesQuery } from './telemetry.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 export type TelemetryTab = 'overview' | 'logs' | 'traces';
 
@@ -64,7 +65,7 @@ export function msText(ms: number): string {
  */
 @Component({
   selector: 'app-telemetry',
-  imports: [RouterLink, DatePipe, DecimalPipe, KeyValuePipe, LineChartComponent],
+  imports: [RouterLink, DatePipe, DecimalPipe, KeyValuePipe, LineChartComponent, SkeletonComponent],
   templateUrl: './telemetry.component.html',
   styleUrl: './telemetry.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

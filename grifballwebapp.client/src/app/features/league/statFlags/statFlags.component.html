@@ -10,7 +10,7 @@
   </p>
 
   @if (loading()) {
-  <p class="hud-empty" role="status">Loading stat flags...</p>
+  <app-skeleton label="stat flags" shape="table" [count]="6" [columns]="5" />
   }
 
   @if (error()) {

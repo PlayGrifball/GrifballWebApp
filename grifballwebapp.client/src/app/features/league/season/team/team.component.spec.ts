@@ -85,10 +85,11 @@ describe('TeamComponent', () => {
 
   afterEach(() => http.verify());
 
-  function load(t: TeamDto | null, matches: MatchDto[]): void {
+  async function load(t: TeamDto | null, matches: MatchDto[]): Promise<void> {
     fixture.detectChanges();
     http.expectOne('/api/teams/7').flush(t);
     http.expectOne('/api/teams/7/matches').flush(matches);
+    await fixture.whenStable();
     fixture.detectChanges();
   }
 
@@ -97,9 +98,9 @@ describe('TeamComponent', () => {
   const rows = () => Array.from(el().querySelectorAll('tr.mat-mdc-row'))
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
 
-  it("shows the team's availability to those signed in", () => {
+  it("shows the team's availability to those signed in", async () => {
     const editor = () => fixture.debugElement.query(By.directive(StubTeamAvailability))?.componentInstance as StubTeamAvailability | undefined;
-    load(team, []);
+    await load(team, []);
     expect(editor()).toBeUndefined();
 
     account.isLoggedIn.set(true);
@@ -107,8 +108,8 @@ describe('TeamComponent', () => {
     expect(editor()!.teamID()).toBe(7);
   });
 
-  it('drops the previous team, and its title, while another loads, and cancels its requests', () => {
-    load(team, []);
+  it('drops the previous team, and its title, while another loads, and cancels its requests', async () => {
+    await load(team, []);
     expect(document.title).toContain('Red Team');
 
     fixture.componentRef.setInput('teamID', 8);
@@ -124,21 +125,22 @@ describe('TeamComponent', () => {
     expect(matchesRequest.cancelled).toBeTrue();
     http.expectOne('/api/teams/9').flush(null);
     http.expectOne('/api/teams/9/matches').flush([]);
+    await fixture.whenStable();
   });
 
-  it("offers a calendar feed of the team's matches", () => {
-    load(team, []);
+  it("offers a calendar feed of the team's matches", async () => {
+    await load(team, []);
     const feed = fixture.debugElement.query(By.directive(CalendarSubscribeComponent)).componentInstance as CalendarSubscribeComponent;
     expect(feed.path()).toBe('teams/7/calendar.ics');
   });
 
-  it("offers no calendar feed for a team of a season not announced yet (staff see it), whose feed is a 404", () => {
-    load({ ...team, season: seasonInfo(1, { hasEnded: false, isPublic: false }) }, []);
+  it("offers no calendar feed for a team of a season not announced yet (staff see it), whose feed is a 404", async () => {
+    await load({ ...team, season: seasonInfo(1, { hasEnded: false, isPublic: false }) }, []);
     expect(fixture.debugElement.query(By.directive(CalendarSubscribeComponent))).toBeNull();
   });
 
-  it('shows the team name, record, remaining matches and roster', () => {
-    load(team, []);
+  it('shows the team name, record, remaining matches and roster', async () => {
+    await load(team, []);
     const text = el().textContent!;
 
     expect(component.team()).toEqual(team);
@@ -149,45 +151,49 @@ describe('TeamComponent', () => {
     expect(roster).toEqual(['C Captain Grif Captain', 'S Simmons R2']);
   });
 
-  it("links to the franchise's history across seasons, by the team's ID", () => {
-    load({ ...team, teamName: 'Trophy Hunters' }, []);
+  it("links to the franchise's history across seasons, by the team's ID", async () => {
+    await load({ ...team, teamName: 'Trophy Hunters' }, []);
     const link = fixture.debugElement.query(By.css('a.team-history-link'));
 
     expect(link.injector.get(RouterLink).urlTree!.toString()).toBe('/history/team/7');
   });
 
-  it('has no history link before the team has loaded', () => {
+  it('has no history link before the team has loaded, and skeletons for its roster and matches', async () => {
     fixture.detectChanges();
     expect(el().querySelector('a.team-history-link')).toBeNull();
+    expect(Array.from(el().querySelectorAll('app-skeleton')).map(s => s.textContent!.trim())).toEqual(['Loading the roster…', 'Loading matches…']);
     http.expectOne('/api/teams/7').flush(null);
     http.expectOne('/api/teams/7/matches').flush([]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el().querySelector('app-skeleton')).toBeNull();
   });
 
-  it("lists the team's VODs", () => {
-    load(team, []);
+  it("lists the team's VODs", async () => {
+    await load(team, []);
     const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;
     expect(vods.scope()).toBe('team');
     expect(vods.id()).toBe(7);
   });
 
-  it('shows a player without a gamertag (no Xbox account linked) without breaking the page', () => {
-    load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: null!, draftCaptainOrder: null, draftRound: 1, isCaptain: false, region: null }] }, []);
+  it('shows a player without a gamertag (no Xbox account linked) without breaking the page', async () => {
+    await load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: null!, draftCaptainOrder: null, draftRound: 1, isCaptain: false, region: null }] }, []);
     const roster = Array.from(el().querySelectorAll('.team-player')).map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
     expect(roster).toEqual(['? Unknown Spartan R1']);
   });
 
-  it("shows a player's region on the roster", () => {
-    load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: 'Sarge', draftCaptainOrder: null, draftRound: 1, isCaptain: false, region: 'East North America' }] }, []);
+  it("shows a player's region on the roster", async () => {
+    await load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: 'Sarge', draftCaptainOrder: null, draftRound: 1, isCaptain: false, region: 'East North America' }] }, []);
     expect(el().querySelector('.team-player__region')!.textContent!.trim()).toBe('East North America');
   });
 
-  it('hides the remaining-matches line when none are left', () => {
-    load({ ...team, tbd: 0 }, []);
+  it('hides the remaining-matches line when none are left', async () => {
+    await load({ ...team, tbd: 0 }, []);
     expect(el().textContent).not.toContain('matches need to be played');
   });
 
-  it('shows scores, TBD and N/A results in the schedule', () => {
-    load(team, [
+  it('shows scores, TBD and N/A results in the schedule', async () => {
+    await load(team, [
       match({ seasonMatchID: 1 }),
       match({ seasonMatchID: 2, result: null, score: null, otherScore: null, otherResult: null }),
       match({ seasonMatchID: 3, result: 'Won', score: null, otherScore: null, otherResult: 'Forfeit' }),
@@ -203,8 +209,8 @@ describe('TeamComponent', () => {
     expect(r[0][3]).toMatch(/^4\/1\/26, 7:00\sPM$/);
   });
 
-  it('shows a won playoff bye as a win against BYE, without a team link', () => {
-    load(team, [match({ seasonMatchID: 5, score: null, otherScore: null, otherResult: 'Bye', otherTeamID: null, otherTeamName: null })]);
+  it('shows a won playoff bye as a win against BYE, without a team link', async () => {
+    await load(team, [match({ seasonMatchID: 5, score: null, otherScore: null, otherResult: 'Bye', otherTeamID: null, otherTeamName: null })]);
     const urls = fixture.debugElement.query(By.css('table')).queryAll(By.directive(RouterLink))
       .map(d => d.injector.get(RouterLink).urlTree!.toString());
 
@@ -212,28 +218,29 @@ describe('TeamComponent', () => {
     expect(urls).toEqual(['/seasonmatch/5']);
   });
 
-  it('links to the opposing team and the match page', () => {
-    load(team, [match({ seasonMatchID: 99, otherTeamID: 20 })]);
+  it('links to the opposing team and the match page', async () => {
+    await load(team, [match({ seasonMatchID: 99, otherTeamID: 20 })]);
     const urls = fixture.debugElement.query(By.css('table')).queryAll(By.directive(RouterLink))
       .map(d => d.injector.get(RouterLink).urlTree!.toString());
 
     expect(urls).toEqual(['/season/2/team/20', '/seasonmatch/99']);
   });
 
-  it('reloads when the team changes', () => {
-    load(team, []);
+  it('reloads when the team changes', async () => {
+    await load(team, []);
     fixture.componentRef.setInput('teamID', 8);
     fixture.detectChanges();
 
     http.expectOne('/api/teams/8').flush({ ...team, teamName: 'Other' });
     http.expectOne('/api/teams/8/matches').flush([]);
+    await fixture.whenStable();
     fixture.detectChanges();
     expect(el().querySelector('h1')!.textContent).toBe('Other');
     expect(stats().teamID()).toBe(8);
   });
 
-  it("gives the stats table the team and its season, and titles it only when the team has stats", () => {
-    load(team, []);
+  it("gives the stats table the team and its season, and titles it only when the team has stats", async () => {
+    await load(team, []);
     expect(stats().seasonID()).toBe(2);
     expect(stats().teamID()).toBe(7);
     expect(el().querySelector('#team-stats')).toBeNull();
@@ -243,22 +250,32 @@ describe('TeamComponent', () => {
     expect(el().querySelector('#team-stats')!.textContent).toBe('Player stats');
   });
 
-  it('shows the empty match table for a season still going', () => {
-    load(team, []);
+  it('says the matches could not be loaded, not that none were recorded', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/teams/7').flush({ ...team, season: seasonInfo(1) });
+    http.expectOne('/api/teams/7/matches').flush(null, { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el().querySelector('[role="alert"]')!.textContent).toContain("The matches couldn't be loaded.");
+    expect(el().textContent).not.toContain("weren't recorded");
+  });
+
+  it('shows the empty match table for a season still going', async () => {
+    await load(team, []);
     expect(el().querySelector('app-data-notice')).toBeNull();
     expect(el().querySelector('table[mat-table]')).not.toBeNull();
   });
 
-  it("says an ended season's matches were not recorded, without a spreadsheet, in place of an empty table", () => {
-    load({ ...team, season: seasonInfo(1) }, []);
+  it("says an ended season's matches were not recorded, without a spreadsheet, in place of an empty table", async () => {
+    await load({ ...team, season: seasonInfo(1) }, []);
     expect(el().querySelector('app-data-notice')!.textContent).toContain("Match results weren't recorded for this season.");
     expect(el().querySelector('app-data-notice a')).toBeNull();
     expect(el().querySelector('table[mat-table]')).toBeNull();
     expect(el().querySelector('app-backfilled-banner')).toBeNull();
   });
 
-  it('shows each match time as the date pipe showed the API value', () => {
-    load(team, [match({})]);
+  it('shows each match time as the date pipe showed the API value', async () => {
+    await load(team, [match({})]);
 
     expect(component.matches()[0].scheduledTime instanceof DateTime).toBeTrue();
     expect(rows()[0]).toContain(new DatePipe('en-US', 'UTC').transform('2026-04-01T19:00:00Z', 'short')!);
@@ -275,8 +292,8 @@ describe('TeamComponent', () => {
       ],
     };
 
-    it('shows the banner, the record from the spreadsheet, its titles and captain, and no draft rounds', () => {
-      load(historical, []);
+    it('shows the banner, the record from the spreadsheet, its titles and captain, and no draft rounds', async () => {
+      await load(historical, []);
       expect(el().querySelector('app-backfilled-banner a')!.getAttribute('href')).toBe(url);
       expect(el().textContent).toContain('From the source spreadsheet');
       expect(el().textContent).toContain('Pro champions');
@@ -284,23 +301,23 @@ describe('TeamComponent', () => {
       expect(roster).toEqual(['C Captain R Captain', 'R Runner']);
     });
 
-    it("shows its players' stats under a heading when it has some", () => {
-      load(historical, []);
+    it("shows its players' stats under a heading when it has some", async () => {
+      await load(historical, []);
       stats().hasRows.set(true);
       fixture.detectChanges();
       expect(el().querySelector('#team-stats')).not.toBeNull();
       expect(el().querySelector('app-season-player-stats')!.classList).toContain('team-stats--shown');
     });
 
-    it('says the matches were not recorded, with the spreadsheet, in place of an empty table', () => {
-      load(historical, []);
+    it('says the matches were not recorded, with the spreadsheet, in place of an empty table', async () => {
+      await load(historical, []);
       expect(el().querySelector('app-data-notice')!.textContent).toContain("Match results weren't recorded");
       expect(el().querySelector('app-data-notice a')!.getAttribute('href')).toBe(url);
       expect(el().querySelector('table[mat-table]')).toBeNull();
     });
 
-    it('shows the matches it does have as usual', () => {
-      load(historical, [match({})]);
+    it('shows the matches it does have as usual', async () => {
+      await load(historical, [match({})]);
       expect(el().querySelector('app-data-notice')).toBeNull();
       expect(rows()).toHaveSize(1);
     });

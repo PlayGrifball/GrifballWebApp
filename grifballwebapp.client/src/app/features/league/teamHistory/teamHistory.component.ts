@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import type { TeamHistoryDto, TeamHistorySeasonDto, TeamPagePlayerDto } from '@api/models';
 import { describePage, PageDescription, plural } from '@shared/pageMeta';
 import { TeamHistoryStore } from './teamHistory.store';
@@ -23,7 +24,7 @@ export function describeTeamHistory(history: TeamHistoryDto): PageDescription {
  */
 @Component({
   selector: 'app-team-history',
-  imports: [RouterModule],
+  imports: [RouterModule, SkeletonComponent],
   templateUrl: './teamHistory.component.html',
   styleUrl: './teamHistory.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

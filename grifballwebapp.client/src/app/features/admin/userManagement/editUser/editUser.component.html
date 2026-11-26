@@ -4,6 +4,13 @@
     <h1 class="hud-title hud-title--md">Edit User <a [routerLink]="['/profile', model().userID]">{{model().userID}}</a></h1>
   </div>
 
+  @if (firstLoad()) {
+  <app-skeleton label="the user" shape="block" height="560px" />
+  } @else if (failed()) {
+  <p class="hud-empty hud-empty--error" role="alert">The user couldn't be loaded. Refresh the page to try again.</p>
+  } @else if (!found()) {
+  <p class="hud-empty">No such user.</p>
+  } @else {
   <form class="hud-form" #userForm="ngForm" (ngSubmit)="onSubmit()">
     <section class="hud-panel hud-form-group" aria-labelledby="eu-account">
       <h2 id="eu-account" class="hud-kicker">Account</h2>
@@ -73,6 +80,7 @@
       </button>
     </div>
   </form>
+  }
 
   @if (model().userID) {
   <section class="hud-section hud-panel hud-panel--soft">

@@ -136,16 +136,19 @@ describe('SignupFormComponent', () => {
     expect(el.querySelector('a.hud-more')!.getAttribute('href')).toBe('/season/5/signups');
   });
 
-  it('keeps the page hidden until the signup and its timeslots are in', () => {
+  it('shows a skeleton in place of the form until the signup and its timeslots are in', () => {
     setup('5');
     fixture.detectChanges();
     expect(component.loaded()).toBeFalse();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-skeleton')).not.toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-availability-table')).toBeNull();
     httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
     expect(component.loaded()).toBeFalse();
     httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush('x', { status: 500, statusText: 'Server Error' });
     expect(component.loaded()).toBeTrue();
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-skeleton')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-availability-table')).not.toBeNull();
   });
 
   it('shows the page at once without a season, and after an existing signup or a failure', () => {

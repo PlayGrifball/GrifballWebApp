@@ -111,6 +111,18 @@ describe('TelemetryComponent', () => {
     await settle();
   }
 
+  it('holds the page, then the overview, with skeletons while they load', async () => {
+    create();
+    const skeleton = () => text(el().querySelector('app-skeleton'));
+    expect(skeleton()).toBe('Loading telemetry…');
+    (await request('/api/telemetry/status')).flush(allOn);
+    const answer = await request('/api/telemetry/metrics');
+    expect(skeleton()).toBe('Loading metrics…');
+    answer.flush(metrics);
+    await settle();
+    expect(el().querySelector('app-skeleton')).toBeNull();
+  });
+
   it('charts the overview and lists the busiest routes', async () => {
     create();
     await open();

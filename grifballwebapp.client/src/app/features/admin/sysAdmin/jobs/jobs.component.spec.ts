@@ -258,6 +258,9 @@ describe('JobsComponent', () => {
       http.expectNone('/api/jobs');
       jasmine.clock().tick(1);
       fixture.detectChanges();
+      // While it reads again: still the error, not a skeleton flashing in its place
+      expect(text(el().querySelector('[role=alert]'))).toBe("The jobs couldn't be loaded.");
+      expect(el().querySelector('app-skeleton')).toBeNull();
       http.expectOne('/api/jobs').flush(overview([job('historical-refresh')]));
       await Promise.resolve();
       fixture.detectChanges();

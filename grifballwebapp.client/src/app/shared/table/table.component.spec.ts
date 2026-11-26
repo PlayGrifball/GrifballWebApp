@@ -194,6 +194,32 @@ describe('TableComponent API responses', () => {
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
   const pending = () => httpMock.expectOne(r => r.url.startsWith('/api/test'));
 
+  it('holds the rows with a skeleton while the first page loads', async () => {
+    const skeleton = () => (fixture.nativeElement as HTMLElement).querySelector('app-skeleton');
+    expect(skeleton()!.textContent).toContain('Loading rows');
+    expect(text()).not.toContain('No results found');
+    pending().flush({ totalCount: 0, results: [] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(skeleton()).toBeNull();
+  });
+
+  it('shows no skeleton again once answered, even with no rows, and at most ten rows of one', async () => {
+    const skeleton = () => (fixture.nativeElement as HTMLElement).querySelector('app-skeleton');
+    component.pageSize.set(100);
+    fixture.detectChanges();
+    expect(skeleton()!.querySelectorAll('.skeleton__bar')).toHaveSize(10 * 2);
+    httpMock.match(r => r.url.startsWith('/api/test')).filter(r => !r.cancelled).forEach(r => r.flush({ totalCount: 0, results: [] }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    // Another filter: "No results found." stays until it answers, rather than 100 rows of skeleton
+    fixture.componentRef.setInput('filters', [{ column: 'name', value: 'x' }]);
+    fixture.detectChanges();
+    expect(skeleton()).toBeNull();
+    pending().flush({ totalCount: 0, results: [] });
+    await fixture.whenStable();
+  });
+
   it('renders rows on success', async () => {
     pending().flush({ totalCount: 2, results: [{ id: 1, name: 'alpha' }, { id: 2, name: 'beta' }] });
     await fixture.whenStable();

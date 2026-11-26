@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, effect, input, signal, TemplateRef, contentChildren, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, signal, TemplateRef, contentChildren, untracked } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { getPaginationResource, PaginationParams } from '../getPaginationResource';
+import { SkeletonComponent } from '../skeleton/skeleton.component';
 import { PaginationResult } from '../paginationResult';
 import { Observable } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
@@ -19,6 +20,7 @@ import { rowEnterAnimation } from '../rowEnterAnimation';
     RouterModule,
     MatButtonModule,
     NgTemplateOutlet,
+    SkeletonComponent,
   ],
   templateUrl: './table.component.html',
   styleUrl: './table.component.scss',
@@ -70,6 +72,9 @@ export class TableComponent<T, R = T> {
     }, () => this.filters(), this.parseRow);
   x = this.paginationResource.resource;
   current = this.paginationResource.current;
+  /** The first page is on its way: a skeleton of (at most ten of) its rows. */
+  readonly firstLoad = this.paginationResource.firstLoad;
+  readonly skeletonRows = computed(() => Math.min(this.pageSize(), 10));
 }
 
 export interface Column<T> {

@@ -1,4 +1,4 @@
-<div class="hud-page" [class.hud-waiting]="waiting()">
+<div class="hud-page">
   <div class="hud-page-head">
     <span class="hud-kicker">&gt; Every season</span>
     <h1 class="hud-title">Seasons</h1>
@@ -47,6 +47,9 @@
     </label>
   </div>
 
+  @if (waiting()) {
+    <app-skeleton label="seasons" shape="cards" [count]="6" height="170px" cardWidth="440px" />
+  }
   <ul class="seasons-list">
     @for (s of shown(); track s.seasonID) {
       <li class="season-card hud-panel" [class.season-card--current]="!s.hasEnded" [attr.data-game]="s.gameVersionSlug">

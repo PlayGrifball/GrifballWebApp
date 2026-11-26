@@ -49,14 +49,15 @@ describe('SeasonAvailabilityComponent', () => {
 
   afterEach(() => http.verify());
 
-  function init(options: AvailabilityOption[] = []): void {
+  async function init(options: AvailabilityOption[] = []): Promise<void> {
     fixture.detectChanges();
     http.expectOne('/api/seasons/14/availability').flush(options);
+    await fixture.whenStable();
     fixture.detectChanges();
   }
 
-  it('loads the season availability and renders one row per timeslot', () => {
-    init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
+  it('loads the season availability and renders one row per timeslot', async () => {
+    await init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
 
     expect(component.options().map(o => o.dayOfWeek)).toEqual(['Monday', 'Tuesday']);
     const deleteButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
@@ -64,8 +65,8 @@ describe('SeasonAvailabilityComponent', () => {
     expect(deleteButtons).toHaveSize(2);
   });
 
-  it("shows the season's scheduling rules under its timeslots", () => {
-    init();
+  it("shows the season's scheduling rules under its timeslots", async () => {
+    await init();
     expect(fixture.debugElement.query(By.directive(StubSchedulingRules)).componentInstance.seasonID()).toBe(14);
   });
 
@@ -81,8 +82,8 @@ describe('SeasonAvailabilityComponent', () => {
     expect(component.checkboxes.every(c => c.isChecked)).toBeTrue();
   });
 
-  it('bulk-generates a slot per checked day at each interval between start and end', () => {
-    init([option('Monday', 'old')]);
+  it('bulk-generates a slot per checked day at each interval between start and end', async () => {
+    await init([option('Monday', 'old')]);
     component.start = DateTime.fromObject({ hour: 19 });
     component.end = DateTime.fromObject({ hour: 20 });
     component.minutes = 30;
@@ -97,8 +98,8 @@ describe('SeasonAvailabilityComponent', () => {
     ]);
   });
 
-  it('produces no slots when no days are checked', () => {
-    init();
+  it('produces no slots when no days are checked', async () => {
+    await init();
     component.start = DateTime.fromObject({ hour: 19 });
     component.end = DateTime.fromObject({ hour: 21 });
     component.checkboxes.forEach(c => c.isChecked = false);
@@ -107,8 +108,8 @@ describe('SeasonAvailabilityComponent', () => {
     expect(component.options()).toEqual([]);
   });
 
-  it('adds a blank slot at the top and deletes slots by index', () => {
-    init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
+  it('adds a blank slot at the top and deletes slots by index', async () => {
+    await init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
 
     component.add();
     expect(component.options()).toHaveSize(3);
@@ -118,8 +119,8 @@ describe('SeasonAvailabilityComponent', () => {
     expect(component.options().map(o => o.dayOfWeek)).toEqual(['', 'Tuesday']);
   });
 
-  it('saves the timeslots for the season', () => {
-    init([option('Monday', '19:00:00')]);
+  it('saves the timeslots for the season', async () => {
+    await init([option('Monday', '19:00:00')]);
     component.saveChanges();
 
     const req = http.expectOne('/api/seasons/14/availability');
@@ -129,16 +130,17 @@ describe('SeasonAvailabilityComponent', () => {
     expect(snackBar.open).toHaveBeenCalledWith('Saved');
   });
 
-  it('reports a failure to save', () => {
-    init();
+  it('reports a failure to save', async () => {
+    await init();
     component.saveChanges();
     http.expectOne('/api/seasons/14/availability').flush('x', { status: 400, statusText: 'Bad Request' });
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to save');
   });
 
-  it('renders the loaded timeslots, without a manual detectChanges', async () => {
-    await fixture.whenStable();
+  it('renders the loaded timeslots, without a manual detectChanges after them', async () => {
+    // Not whenStable before the answer: a resource still loading keeps the app unstable
+    fixture.detectChanges();
     http.expectOne('/api/seasons/14/availability').flush([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
     await fixture.whenStable();
 
@@ -147,8 +149,8 @@ describe('SeasonAvailabilityComponent', () => {
     expect(deleteButtons).toHaveSize(2);
   });
 
-  it('replaces an option when its day is changed, leaving the loaded objects alone', () => {
-    init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
+  it('replaces an option when its day is changed, leaving the loaded objects alone', async () => {
+    await init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
     const loaded = component.options();
 
     component.setOption(1, { dayOfWeek: 'Friday' });

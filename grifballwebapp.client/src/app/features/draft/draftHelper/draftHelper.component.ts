@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { DecimalPipe, PercentPipe } from '@angular/common';
 import type { DraftTimeslot } from '@api/models';
 import { DraftHelperStore } from './draftHelper.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /**
  * The draft helper beside the board: the picks suggested for the team on deck (each with its score and why) and the pool in
@@ -9,7 +10,7 @@ import { DraftHelperStore } from './draftHelper.store';
  */
 @Component({
   selector: 'app-draft-helper',
-  imports: [DecimalPipe, PercentPipe],
+  imports: [DecimalPipe, PercentPipe, SkeletonComponent],
   templateUrl: './draftHelper.component.html',
   styleUrl: './draftHelper.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,13 +25,11 @@ export class DraftHelperComponent {
 
   readonly pool = this.store.pool;
   readonly suggestions = this.store.suggestions;
+  readonly firstLoad = this.store.firstLoad;
 
   constructor() {
-    effect(() => {
-      const seasonID = this.seasonID();
-      this.draftKey();
-      untracked(() => this.store.load(seasonID));
-    });
+    this.store.seasonID.use(this.seasonID);
+    this.store.draftKey.use(this.draftKey);
   }
 
   /** "Mon 20:00, Tue 21:30": the timeslots in league time, as the season offers them. */

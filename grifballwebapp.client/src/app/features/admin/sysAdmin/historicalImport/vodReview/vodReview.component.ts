@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import type { LinkVodRequest, VodReviewDto } from '@api/models';
 import { VodReviewStore } from './vodReview.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /** What the matcher suggested for a VOD, "Spring League 2024 · Alpha, Bravo · its match", or null for nothing. */
 export function suggestion(vod: VodReviewDto): string | null {
@@ -18,7 +19,7 @@ export function suggestion(vod: VodReviewDto): string | null {
  */
 @Component({
   selector: 'app-vod-review',
-  imports: [DatePipe, MatCheckboxModule],
+  imports: [DatePipe, MatCheckboxModule, SkeletonComponent],
   templateUrl: './vodReview.component.html',
   styleUrl: './vodReview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

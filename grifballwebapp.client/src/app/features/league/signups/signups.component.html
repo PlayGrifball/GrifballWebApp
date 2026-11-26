@@ -8,6 +8,10 @@
 
 @if (noSignups()) {
 <app-data-notice message="Signups weren't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
+} @else if (firstLoad()) {
+<app-skeleton label="signups" shape="table" [count]="10" [columns]="5" />
+} @else if (failed()) {
+<p class="hud-empty hud-empty--error" role="alert">The signups couldn't be loaded. Refresh the page to try again.</p>
 } @else {
 <span class="hud-label">{{signUps().length}} signed up</span>
 

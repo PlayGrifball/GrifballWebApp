@@ -2,11 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, input, OnInit, inject } f
 import { ExcelFormComponent } from './excelForm/excelForm.component';
 import type { SheetDto } from '@api/models';
 import { ExcelStore } from './excel.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-excel',
   imports: [
     ExcelFormComponent,
+    SkeletonComponent,
   ],
   templateUrl: './excel.component.html',
   styleUrl: './excel.component.scss',
@@ -28,6 +30,8 @@ export class ExcelComponent implements OnInit {
     const given = this.given();
     return given ? [given] : this.store.defaults();
   });
+  /** Waiting for the default sheets (none are named): a skeleton until they arrive. */
+  readonly waiting = computed(() => !this.given() && !this.store.loaded());
 
   ngOnInit(): void {
     if (!this.given())

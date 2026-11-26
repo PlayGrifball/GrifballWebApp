@@ -8,6 +8,7 @@ import { ErrorMessageComponent } from '@shared/validation/errorMessage.component
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import type { HaloInfiniteMode, HaloStatusDto } from '@api/models';
 import { InfiniteClientStore } from './infiniteClient.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 export type HaloMode = HaloInfiniteMode;
 
@@ -24,6 +25,7 @@ export type HaloStatus = HaloStatusDto;
         MatButtonModule,
         ErrorMessageComponent,
         RouterLink,
+        SkeletonComponent,
     ],
     templateUrl: './infiniteClient.component.html',
     styleUrl: './infiniteClient.component.scss',

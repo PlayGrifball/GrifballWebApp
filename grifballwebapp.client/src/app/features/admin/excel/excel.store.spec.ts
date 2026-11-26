@@ -18,10 +18,12 @@ describe('ExcelStore', () => {
   it('loads the default sheets, and keeps none when they fail', () => {
     const log = spyOn(console, 'error');
     expect(store.defaults()).toEqual([]);
+    expect(store.loaded()).toBeFalse();
     store.loadDefaults();
     http.expectOne('/api/sheets/default').flush('x', { status: 500, statusText: 'Server Error' });
     expect(store.defaults()).toEqual([]);
     expect(log).toHaveBeenCalled();
+    expect(store.loaded()).toBeTrue();
 
     store.loadDefaults();
     http.expectOne('/api/sheets/default').flush([{ name: 'Sheet 1', spreadsheetID: 'a', sheetName: 'One' }]);

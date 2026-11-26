@@ -1,7 +1,7 @@
 import { map, Observable } from "rxjs";
 import { rxResource } from "@angular/core/rxjs-interop";
 import { PaginationResult } from "./paginationResult";
-import { linkedSignal, ResourceRef } from "@angular/core";
+import { computed, linkedSignal, ResourceRef } from "@angular/core";
 import { Filter } from "./table/table.component";
 
 /** One page's request, built from the table's own filter and whatever extra column filters it has. */
@@ -72,9 +72,13 @@ export function getPaginationResource<T, R = T>(
         },
     });
 
+    // The first page is on its way: nothing has been answered yet (a later page keeps the last one shown meanwhile)
+    const firstLoad = computed(() => resource.status() === 'loading' && current() === PAGINATION_RESPONSE_DEFAULT);
+
     return {
     resource: resource,
     current: current,
+    firstLoad: firstLoad,
     };
 }
 

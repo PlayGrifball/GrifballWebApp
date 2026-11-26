@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { UserMergeDto } from '@api/models';
 import { MergesStore } from './merges.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /** How each trigger reads in the list. */
 const TRIGGER_LABELS: Record<string, string> = {
@@ -23,7 +24,7 @@ const TRIGGER_LABELS: Record<string, string> = {
  */
 @Component({
   selector: 'app-merges',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, SkeletonComponent],
   templateUrl: './merges.component.html',
   styleUrl: './merges.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

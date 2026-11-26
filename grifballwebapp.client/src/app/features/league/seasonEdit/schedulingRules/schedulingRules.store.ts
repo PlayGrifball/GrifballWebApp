@@ -2,15 +2,28 @@ import { inject, Injectable, signal } from '@angular/core';
 import type { SeasonSchedulingRulesDto } from '@api/models';
 import { SchedulingService } from '@api/services/scheduling.service';
 import { errorText } from '@shared/errorText';
+import { rxResource } from '@angular/core/rxjs-interop';
+import { resourceView } from '@shared/resourceView';
+import { StoreInput } from '@shared/storeInput';
 
 /** A season's scheduling rules, as staff change them. One per editor (the component provides it). */
 @Injectable()
 export class SchedulingRulesStore {
   private readonly api = inject(SchedulingService);
 
-  private readonly _rules = signal<SeasonSchedulingRulesDto | null>(null);
-  /** The season's rules (the league's defaults until changed); null until loaded. */
-  readonly rules = this._rules.asReadonly();
+  /** The season (the component's input): another drops the request still on its way. */
+  readonly seasonID = new StoreInput<number>();
+
+  private readonly loaded = resourceView(rxResource({
+    params: () => this.seasonID.value(),
+    stream: ({ params: seasonID }) => this.api.getSchedulingRules({ seasonID }),
+  }), null);
+  /** The season's rules (the league's defaults until changed); null until loaded, or when they could not be. */
+  readonly rules = this.loaded.value;
+  /** The rules are on their way: a skeleton holds their place. */
+  readonly firstLoad = this.loaded.firstLoad;
+  /** They could not be read: the page says so. */
+  readonly failed = this.loaded.failed;
   private readonly _saving = signal(false);
   readonly saving = this._saving.asReadonly();
   /** The last save went through. */
@@ -20,17 +33,13 @@ export class SchedulingRulesStore {
   private readonly _error = signal<string | null>(null);
   readonly error = this._error.asReadonly();
 
-  load(seasonID: number): void {
-    this.api.getSchedulingRules({ seasonID }).subscribe({ next: rules => this._rules.set(rules), error: () => this._rules.set(null) });
-  }
-
   save(seasonID: number, rules: SeasonSchedulingRulesDto): void {
     this._saving.set(true);
     this._saved.set(false);
     this._error.set(null);
     this.api.changeSchedulingRules({ seasonID, body: rules }).subscribe({
       next: () => {
-        this._rules.set(rules);
+        this.loaded.set(rules);
         this._saved.set(true);
         this._saving.set(false);
       },

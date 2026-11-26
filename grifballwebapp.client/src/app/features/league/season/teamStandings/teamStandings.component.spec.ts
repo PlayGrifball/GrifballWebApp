@@ -105,11 +105,14 @@ describe('TeamStandingsComponent', () => {
   it('logs and leaves the table empty when the request fails', async () => {
     const log = spyOn(console, 'error');
     fixture.detectChanges();
-    // Not "no standings" while they load
+    // Not "no standings" while they load: a skeleton under the header
     expect(fixture.componentInstance.loaded()).toBeFalse();
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No standings yet.');
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-skeleton')).not.toBeNull();
     http.expectOne('/api/seasons/2/standings').flush('x', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-skeleton')).toBeNull();
 
     expect(log).toHaveBeenCalledWith('Failed to load the standings', jasmine.anything());
     expect(fixture.componentInstance.loaded()).toBeTrue();

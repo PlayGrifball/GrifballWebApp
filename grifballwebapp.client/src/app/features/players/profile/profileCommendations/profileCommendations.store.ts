@@ -17,7 +17,7 @@ export class ProfileCommendationsStore {
     stream: ({ params }) => this.api.getCommendations({ userID: params }),
   }), null);
 
-  readonly loading = this.commendations.isLoading;
+  readonly loading = this.commendations.firstLoad;
   /** The player's commendations; null until loaded, or when they failed to. */
   readonly data = this.commendations.value;
   readonly failed = this.commendations.failed;

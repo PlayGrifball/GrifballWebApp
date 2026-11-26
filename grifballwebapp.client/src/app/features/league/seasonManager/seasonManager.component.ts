@@ -7,6 +7,7 @@ import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
 import { ToDatePipe } from '@shared/toDate.pipe';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { AppLog } from '@core/telemetry/appLog';
 @Component({
     selector: 'app-season-manager',
@@ -16,6 +17,7 @@ import { AppLog } from '@core/telemetry/appLog';
         MatButtonModule,
         ToDatePipe,
         DatePipe,
+        SkeletonComponent,
     ],
     templateUrl: './seasonManager.component.html',
     styleUrl: './seasonManager.component.scss',

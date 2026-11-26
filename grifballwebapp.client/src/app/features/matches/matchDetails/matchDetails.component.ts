@@ -3,6 +3,7 @@ import { ProfilePictureComponent } from '@shared/profilePicture/profilePicture.c
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { ToDatePipe } from '@shared/toDate.pipe';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
 import { formatSeconds, MatchDetailsDto, MatchDetailsTeamDto } from './matchDetailsDto';
 import { MatchDetailsStore } from './matchDetails.store';
@@ -45,7 +46,7 @@ export function describeMatch(match: MatchDetailsDto): PageDescription {
  */
 @Component({
   selector: 'app-match-details',
-  imports: [ProfilePictureComponent, RouterModule, DatePipe, DecimalPipe, ToDatePipe],
+  imports: [ProfilePictureComponent, RouterModule, DatePipe, DecimalPipe, ToDatePipe, SkeletonComponent],
   templateUrl: './matchDetails.component.html',
   styleUrl: './matchDetails.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { BuildService } from '@api/services/build.service';
 import { SiteFooterComponent } from './siteFooter.component';
@@ -19,6 +19,13 @@ describe('SiteFooterComponent', () => {
 
   const create = () => TestBed.createComponent(SiteFooterComponent);
   const text = (f: ComponentFixture<SiteFooterComponent>) => (f.nativeElement as HTMLElement).textContent!;
+
+  it('holds the line of who is online until its code has loaded', async () => {
+    const fixture = create();
+    const [online] = await fixture.getDeferBlocks();
+    await online.render(DeferBlockState.Placeholder);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.site-footer__online')).not.toBeNull();
+  });
 
   it('loads the commit hash and date on creation', () => {
     const date = new Date('2024-01-15T10:30:00Z');

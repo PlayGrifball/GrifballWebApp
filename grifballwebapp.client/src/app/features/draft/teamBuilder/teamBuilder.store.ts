@@ -34,8 +34,15 @@ export class TeamBuilderStore {
   readonly captainLocked = signal(true);
   readonly teams = signal<TeamResponseDto[]>([]);
   readonly playerPool = signal<TeamsPlayerDto[]>([]);
-  /** Whether the shown season's teams and pool are in (false from {@link show} until they load). */
-  readonly loaded = signal(false);
+  /**
+   * Where the shown season's draft is: on its way (from show), in (read, or pushed with a live change), or failed (the
+   * draft, or which season is current) with nothing in. A failed reload of a draft that is in keeps it shown.
+   */
+  private readonly state = signal<'loading' | 'loaded' | 'failed'>('loading');
+  /** The shown season's teams and pool are in. */
+  readonly loaded = computed(() => this.state() === 'loaded');
+  /** Loaded, or failed: the page's skeletons go either way. */
+  readonly settled = computed(() => this.state() !== 'loading');
 
   // Every reload goes through here; a newer one cancels the one still loading (see load).
   private readonly reloads = new Subject<void>();
@@ -93,7 +100,9 @@ export class TeamBuilderStore {
       if (teams !== undefined && pool !== undefined) {
         this.teams.set(teams);
         this.playerPool.set(pool);
-        this.loaded.set(true);
+        this.state.set('loaded');
+      } else if (this.state() !== 'loaded') {
+        this.state.set('failed');
       }
       if (locked !== undefined)
         this.captainLocked.set(locked);
@@ -114,7 +123,7 @@ export class TeamBuilderStore {
     this._shownSeasonID.set(seasonID);
     this.teams.set([]);
     this.playerPool.set([]);
-    this.loaded.set(false);
+    this.state.set('loading');
     this.captainLocked.set(true);
     if (seasonID === 0) {
       this.seasons.getCurrentSeasonId()
@@ -124,6 +133,7 @@ export class TeamBuilderStore {
             this._shownSeasonID.set(result);
             this.load();
           },
+          error: () => this.state.set('failed'),
         });
     }
     else {
@@ -161,7 +171,7 @@ export class TeamBuilderStore {
     this.taken++;
     this.teams.set(draft.teams);
     this.playerPool.set(draft.pool);
-    this.loaded.set(true);
+    this.state.set('loaded');
     this.captainLocked.set(draft.captainsLocked);
     return true;
   }

@@ -1,8 +1,10 @@
-import { effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import type { GameVersionOptionDto, LeagueOptionDto } from '@api/models';
 import { EventOrganizerService } from '@api/services/event-organizer.service';
 import { StoreInput } from '@shared/storeInput';
-import { whileCurrent } from '@shared/whileCurrent';
+import { resourceView } from '@shared/resourceView';
+import { tap } from 'rxjs';
 import type { SeasonSettings } from '../api/seasonSettings';
 import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
 import { AppLog } from '@core/telemetry/appLog';
@@ -20,9 +22,20 @@ export class SeasonEditStore {
   /** The route's season (0: a new one): the component's input. */
   readonly seasonID = new StoreInput<number>();
 
-  /** The season as it was loaded; null for a new one, while it loads, or when there is no such season. */
-  private readonly _season = signal<SeasonSettings | null>(null);
-  readonly season = this._season.asReadonly();
+  /** The season to edit, loaded again for each season of the route (none for a new one): another drops the request still on its way. */
+  private readonly loaded = resourceView(rxResource({
+    params: () => {
+      const seasonID = this.seasonID.value();
+      return seasonID && seasonID > 0 ? seasonID : undefined;
+    },
+    stream: ({ params: seasonID }) => this.api.getSeason(seasonID).pipe(tap({ error: e => this.log.error('Failed to load the season', e) })),
+  }), null);
+  /** The season as it was loaded; null for a new one, while it loads, when there is no such season, or when it failed. */
+  readonly season = this.loaded.value;
+  /** The season to edit is on its way: the form is a skeleton. */
+  readonly firstLoad = this.loaded.firstLoad;
+  /** The season could not be loaded: the page says so, rather than offering a new season's form in its place. */
+  readonly failed = this.loaded.failed;
 
   /** The games and leagues a season can have (empty if they fail to load). */
   private readonly _gameVersions = signal<GameVersionOptionDto[]>([]);
@@ -32,14 +45,6 @@ export class SeasonEditStore {
   /** Every season, for "Copy from" (empty if it fails to load). */
   private readonly _seasons = signal<SeasonSettings[]>([]);
   readonly seasons = this._seasons.asReadonly();
-
-  constructor() {
-    effect(() => {
-      const seasonID = this.seasonID.value();
-      if (seasonID !== undefined)
-        untracked(() => this.load(seasonID));
-    });
-  }
 
   /** Loads what the selects offer. Without them their selects are empty; the rest of the form still works. */
   loadOptions(): void {
@@ -63,14 +68,5 @@ export class SeasonEditStore {
       next: seasonID => saved(seasonID),
       error: result => this.log.error('Failed to save the season', result),
     });
-  }
-
-  private load(seasonID: number): void {
-    this._season.set(null);
-    if (seasonID > 0) {
-      this.api.getSeason(seasonID)
-        .pipe(whileCurrent(seasonID, this.seasonID.value))
-        .subscribe({ next: season => this._season.set(season) });
-    }
   }
 }

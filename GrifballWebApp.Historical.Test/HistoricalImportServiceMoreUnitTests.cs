@@ -48,12 +48,12 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
         Player("Alpha One", team: "Alpha"), Player("Alpha Two", team: "Alpha"), Player("Beta One", team: "Beta"));
 
     private static RecordedGameInput Game(string key, (string Gamertag, int Side)[] players, string gameVersion = "halo3", bool isPlayoffs = false,
-        bool isScrim = false, string? waypointMatchId = null, int sides = 2, string seasonKey = CupKey) => new()
+        bool isScrim = false, string? waypointMatchId = null, int sides = 2, string seasonKey = CupKey, DateTime? playedAt = null) => new()
     {
         SeasonSourceId = seasonKey,
         SourceKey = key,
         GameVersion = gameVersion,
-        PlayedAt = CupPlayedAt,
+        PlayedAt = playedAt ?? CupPlayedAt,
         IsPlayoffs = isPlayoffs,
         IsScrim = isScrim,
         WaypointMatchId = waypointMatchId,
@@ -1364,4 +1364,37 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     }
 
     private static readonly string[] ExpectedNonTotalPlayers = ["Alpha One", "Average Joe"];
+
+    [Test]
+    public async Task Import_APlayoffGameBecomesAScrim_WhenALaterSeriesIsFedByIt_RemovesBothSlotsWithoutAnError()
+    {
+        // Alpha beats Beta, then Alpha plays Gamma: the second slot's home side is "the winner of the first"
+        HistoricalArchiveInput Playoffs(bool firstIsScrim) => new()
+        {
+            Seasons = new UnifiedArchive
+            {
+                Seasons = [Entry("MCC Cup 2016", "halo3", "AGLA", false,
+                    Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta"), Player("Gamma One", team: "Gamma"))],
+            },
+            RecordedGames =
+            [
+                Game("cup#1", [("Alpha One", 1), ("Beta One", 2)], isPlayoffs: true, isScrim: firstIsScrim),
+                Game("cup#2", [("Alpha One", 1), ("Gamma One", 2)], isPlayoffs: true, playedAt: CupPlayedAt.AddDays(1)),
+            ],
+        };
+        await _service.Import(Playoffs(false));
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.SeasonMatches.CountAsync(m => m.BracketMatch != null), Is.EqualTo(2));
+
+        var report = await _service.Import(Playoffs(true));
+
+        Context.ChangeTracker.Clear();
+        var slots = await Context.SeasonMatches.Include(m => m.BracketMatch).Where(m => m.BracketMatch != null).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(slots, Has.Count.EqualTo(1), "The scrim's series is gone; the one it fed is drawn again, a first round");
+            Assert.That(slots[0].BracketMatch!.HomeTeamPreviousMatchBracketInfoID, Is.Null);
+        }
+    }
 }

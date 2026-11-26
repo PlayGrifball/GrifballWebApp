@@ -18,6 +18,7 @@ import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialo
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { ToDatePipe } from '@shared/toDate.pipe';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
 import { provideDatePickers } from '@shared/datePickers';
 import { conflictText, ScheduleListStore } from './scheduleList.store';
@@ -41,6 +42,7 @@ import { conflictText, ScheduleListStore } from './scheduleList.store';
         DatePipe,
         DecimalPipe,
         CalendarSubscribeComponent,
+        SkeletonComponent,
     ],
     providers: [provideDatePickers(), ScheduleListStore],
     changeDetection: ChangeDetectionStrategy.OnPush

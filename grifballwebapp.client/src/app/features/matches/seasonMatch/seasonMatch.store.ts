@@ -49,8 +49,12 @@ export class SeasonMatchStore {
   readonly awayRoster = computed(() => this.awayLoaded().players ?? []);
   /** The match and both rosters are in: the page is shown then, in one go, so the rosters do not
    * push the score and the rest down as they arrive. */
-  readonly ready = computed(() => this.pageLoaded()
+  private readonly rostersIn = computed(() => this.pageLoaded()
     && isLoaded(this.homeLoaded(), this.homeTeamID()) && isLoaded(this.awayLoaded(), this.awayTeamID()));
+  /** Shown once in, it stays: a reload that brings another team (a playoff slot filled) fills its roster in place
+   * rather than swapping the lobby for a skeleton. Another match starts over. */
+  private readonly lobbyShown = signal(false);
+  readonly ready = computed(() => this.lobbyShown() || this.rostersIn());
 
   private readonly _possibleMatches = signal<PossibleMatchDto[]>([]);
   readonly possibleMatches = this._possibleMatches.asReadonly();
@@ -83,6 +87,8 @@ export class SeasonMatchStore {
     this.seasonMatchID = seasonMatchID;
     this.shownID.set(seasonMatchID);
     this._seasonMatch.set(null);
+    this._pageLoaded.set(false);
+    this.lobbyShown.set(false);
     const page = this.reload();
     this.getPossibleMatches();
     this.getPullStatus();
@@ -97,20 +103,38 @@ export class SeasonMatchStore {
         next: result => {
           this._seasonMatch.set(result);
           this._pageLoaded.set(true);
+          this.noteIfIn();
         },
-        error: () => this._pageLoaded.set(true),
+        error: () => {
+          this._pageLoaded.set(true);
+          this.noteIfIn();
+        },
       });
   }
 
   private loadRoster(teamID: number | null, roster: WritableSignal<Roster>): void {
     roster.set({ teamID, players: teamID === null ? [] : null });
-    if (teamID === null)
+    if (teamID === null) {
+      this.noteIfIn();
       return;
+    }
     this.teamService.team({ teamID }).pipe(nullWhenNotFound())
       .subscribe({
-        next: team => roster.set({ teamID, players: team?.players ?? [] }),
-        error: () => roster.set({ teamID, players: [] }),
+        next: team => {
+          roster.set({ teamID, players: team?.players ?? [] });
+          this.noteIfIn();
+        },
+        error: () => {
+          roster.set({ teamID, players: [] });
+          this.noteIfIn();
+        },
       });
+  }
+
+  /** The match and its rosters are in: the lobby is shown, and stays shown for this match (see ready). */
+  private noteIfIn(): void {
+    if (this.rostersIn())
+      this.lobbyShown.set(true);
   }
 
   private getPossibleMatches(): void {

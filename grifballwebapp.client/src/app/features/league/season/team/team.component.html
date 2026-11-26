@@ -2,7 +2,7 @@
 
     <div class="hud-page-head">
         <a class="hud-kicker team-kicker" [routerLink]="['/season', seasonID()]">&gt; {{team()?.season?.seasonName ?? 'Season'}} · Team roster</a>
-        <h1 class="hud-title">{{team()?.teamName}}</h1>
+        <h1 class="hud-title">@if (team(); as t) {<ng-container>{{t.teamName}}</ng-container>} @else {&nbsp;}</h1>
         @if (team()) {
             <a class="team-history-link hud-text-link" [routerLink]="['/history', 'team', teamID()]">Franchise history across seasons</a>
             @if (team()!.season.isPublic) {
@@ -19,6 +19,9 @@
 
     <div class="team-layout">
         <aside class="hud-section team-side">
+            @if (teamFirstLoad()) {
+            <app-skeleton label="the roster" [count]="8" />
+            } @else {
             <div class="team-record hud-panel hud-panel--chamfer">
                 <span class="hud-label">Record</span>
                 <span class="team-record__value">{{team()?.wins}} - {{team()?.losses}}</span>
@@ -55,6 +58,7 @@
             @if (signedIn() && team() && !team()!.season.isHistorical && !team()!.season.hasEnded) {
                 <app-team-availability [teamID]="teamID()" />
             }
+            }
         </aside>
 
         <section class="hud-section team-matches" aria-labelledby="team-matches">
@@ -65,7 +69,11 @@
             <app-season-player-stats #stats class="team-stats" [class.team-stats--shown]="stats.hasRows()" [seasonID]="seasonID()" [teamID]="teamID()" />
 
             <h2 id="team-matches" class="hud-h2">Matches</h2>
-            @if (noMatches()) {
+            @if (matchesFirstLoad()) {
+                <app-skeleton label="matches" shape="table" [count]="6" [columns]="5" />
+            } @else if (matchesFailed()) {
+                <p class="hud-empty hud-empty--error" role="alert">The matches couldn't be loaded. Refresh the page to try again.</p>
+            } @else if (noMatches()) {
                 <app-data-notice message="Match results weren't recorded for this season." [sourceUrl]="team()?.season?.historicalSourceUrl" />
             } @else {
             <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->

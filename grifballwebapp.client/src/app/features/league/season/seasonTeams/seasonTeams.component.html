@@ -45,7 +45,7 @@
   </div>
 
   @if (loading()) {
-    <div class="teams-loading hud-muted">Loading teams and rosters...</div>
+    <app-skeleton label="teams and rosters" shape="cards" [count]="6" height="260px" cardWidth="440px" />
   } @else if (error()) {
     <div class="hud-empty">{{ error() }}</div>
   } @else if (teams().length === 0) {

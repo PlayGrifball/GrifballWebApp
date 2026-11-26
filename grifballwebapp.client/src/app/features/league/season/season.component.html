@@ -1,5 +1,8 @@
-<div class="hud-page" [class.hud-waiting]="!ready()">
+<div class="hud-page">
 
+  @if (!ready()) {
+    <app-skeleton label="the season" [count]="4" />
+  } @else {
   <div class="season-head">
     <div class="hud-page-head">
       <span class="hud-kicker">&gt; {{kicker()}}</span>
@@ -38,9 +41,9 @@
   @if (phases().length > 0 && !summary()?.hasEnded) {
     <app-season-phase-bar [steps]="phases()" />
   }
-
   @if (summary()?.isHistorical) {
     <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" [sources]="summary()?.historicalSourceLinks" [eraLabel]="eraLabel()" />
+  }
   }
 
   <app-season-tabs [seasonID]="shownSeasonID()" [active]="view()" />
@@ -58,7 +61,14 @@
         } @else if (noMatches()) {
           <app-data-notice message="The match schedule wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
-          <app-schedule-list [seasonID]="shownSeasonID()" [feedPublic]="summary()?.isPublic ?? false" />
+          <!-- Its code (and the organizers' date-time pickers) loads after the page's; the server still renders it -->
+          @defer (on immediate; hydrate on immediate) {
+            <app-schedule-list [seasonID]="shownSeasonID()" [feedPublic]="summary()?.isPublic ?? false" />
+          } @placeholder {
+            <app-skeleton label="the schedule" shape="cards" [count]="4" height="180px" cardWidth="400px" />
+          } @error {
+            <app-data-notice message="The schedule couldn't load. Reload the page to try again." />
+          }
         }
       </section>
     }
@@ -68,7 +78,14 @@
         @if (noBracket()) {
           <app-data-notice message="The playoff bracket wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
-          <app-playoff-bracket [seasonID]="shownSeasonID()" [champions]="summary()?.champions" [hasEnded]="!!summary()?.hasEnded" (bracketChanged)="getSummary()" />
+          <!-- Its code (and the organizers' dialogs) loads after the page's; the server still renders it -->
+          @defer (on immediate; hydrate on immediate) {
+            <app-playoff-bracket [seasonID]="shownSeasonID()" [champions]="summary()?.champions" [hasEnded]="!!summary()?.hasEnded" (bracketChanged)="getSummary()" />
+          } @placeholder {
+            <app-skeleton label="the bracket" shape="block" height="360px" />
+          } @error {
+            <app-data-notice message="The bracket couldn't load. Reload the page to try again." />
+          }
         }
       </section>
     }
@@ -82,17 +99,22 @@
           @if (noBracket()) {
             <app-data-notice message="The bracket wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
           } @else {
-            <app-playoff-bracket [seasonID]="shownSeasonID()" />
+            @defer (on immediate; hydrate on immediate) {
+              <app-playoff-bracket [seasonID]="shownSeasonID()" />
+            } @placeholder {
+              <app-skeleton label="the bracket" shape="block" height="360px" />
+            } @error {
+              <app-data-notice message="The bracket couldn't load. Reload the page to try again." />
+            }
           }
         </section>
       } @else {
       <div class="season-overview">
         <section class="hud-section season-overview__standings" aria-labelledby="season-standings">
           <h2 id="season-standings" class="hud-h2">Standings</h2>
-          <app-team-standings #standings [seasonID]="shownSeasonID()" />
+          <app-team-standings [seasonID]="shownSeasonID()" />
         </section>
-        <!-- Below the standings on phones: shown once they are in, so they do not push it down. -->
-        <aside class="hud-section season-overview__week" aria-labelledby="season-week" [class.hud-waiting]="!standings.loaded()">
+        <aside class="hud-section season-overview__week" aria-labelledby="season-week">
           <h2 id="season-week" class="hud-h2">This week</h2>
           @if (noMatches()) {
             <app-data-notice message="Match results weren't recorded for this season." />

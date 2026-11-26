@@ -6,7 +6,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
 import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import type { SeasonChampionDto } from '@api/models';
-import { Component } from '@angular/core';
+import { Component, ApplicationRef } from '@angular/core';
 import { LateLeagueQueueComponent } from '../lateLeague';
 import { noMaterialAnimations } from '@shared/testing/noMaterialAnimations';
 
@@ -64,17 +64,19 @@ describe('HomeComponent', () => {
     expect(component.pageNumber()).toBe(1);
   });
 
-  it('should fetch current and future events on init', () => {
+  it('should fetch current and future events on init', async () => {
     const mockEvents = [
       { seasonID: 1, name: 'Event 1', start: '2024-01-01', end: '2024-01-31', eventType: 'Season' as const },
       { seasonID: 2, name: 'Event 2', start: '2024-02-01', end: '2024-02-28', eventType: 'Draft' as const }
     ];
 
-    component.ngOnInit();
+    TestBed.tick();
 
     const req = httpTestingController.expectOne('/api/events');
     expect(req.request.method).toBe('GET');
     req.flush(mockEvents);
+    httpTestingController.match(r => r.url === '/api/seasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+    await TestBed.inject(ApplicationRef).whenStable();
 
     expect(component.currentAndFutureEvents()).toEqual(mockEvents);
   });
@@ -126,7 +128,7 @@ describe('HomeComponent paginator and sort wiring', () => {
     expect(req.request.params.get('pageNumber')).toBe('1');
     expect(req.request.params.has('sortColumn')).toBeFalse();
     req.flush(page(['Season 1', 'Season 2'], 12));
-    fixture.detectChanges();
+    await settle();
 
     expect(component.total()).toBe(12);
     expect(component.pastSeasons().map(e => e.seasonName)).toEqual(['Season 1', 'Season 2']);
@@ -241,21 +243,27 @@ describe('Home page events', () => {
     });
 
     const el = () => fixture.nativeElement as HTMLElement;
-    const load = (events: Event[]) => {
+    const load = async (events: Event[]) => {
       fixture.detectChanges();
       http.expectOne('/api/events').flush(events);
       http.match(r => r.url === '/api/seasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      await fixture.whenStable();
+      fixture.detectChanges();
+    };
+    /** A task later: the answers given are in (no whenStable while another is still on its way). */
+    const answered = async () => {
+      await new Promise(resolve => setTimeout(resolve));
       fixture.detectChanges();
     };
 
-    it('has no hero panel without events', () => {
-      load([]);
+    it('has no hero panel without events', async () => {
+      await load([]);
       expect(fixture.componentInstance.hero()).toBeNull();
       expect(el().querySelector('app-season-phase-bar')).toBeNull();
     });
 
-    it('puts the featured season in the hero with its calls to action, and every event in a card', () => {
-      load([season, signup, draft]);
+    it('puts the featured season in the hero with its calls to action, and every event in a card', async () => {
+      await load([season, signup, draft]);
       expect(el().querySelector('h1')!.textContent).toBe('Spring');
       expect(el().querySelector('.hud-kicker')!.textContent).toContain('Signups online');
       const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => [a.textContent!.trim(), a.getAttribute('href')]);
@@ -268,9 +276,9 @@ describe('Home page events', () => {
       expect(cards[2].textContent).toContain('Objective 03');
     });
 
-    it('offers Sign up only while the featured signups are open, not before they open', () => {
+    it('offers Sign up only while the featured signups are open, not before they open', async () => {
       const upcoming = ev('Signup', '2026-03-15T00:00:00Z', '2026-03-20T00:00:00Z');
-      load([upcoming]);
+      await load([upcoming]);
       expect(el().querySelector('.hud-kicker')!.textContent).toContain('Signups incoming');
       const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim());
       expect(actions).toEqual(['View roster']);
@@ -280,32 +288,34 @@ describe('Home page events', () => {
       expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Sign up', 'View roster']);
     });
 
-    it('offers the draft or the season when that is the featured event', () => {
-      load([draft]);
+    it('offers the draft or the season when that is the featured event', async () => {
+      await load([draft]);
       expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Watch the draft', 'Season overview']);
       // The draft board, not the read-only rosters page
       expect(el().querySelector('.home-hero__actions a')!.getAttribute('href')).toBe('/season/4/draft');
     });
 
-    it('offers the season and its schedule when the season is the featured event', () => {
-      load([later]);
+    it('offers the season and its schedule when the season is the featured event', async () => {
+      await load([later]);
       const links = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.getAttribute('href'));
       expect(links).toEqual(['/season/4', '/season/4?tab=schedule']);
     });
 
-    it('keeps the page hidden until the events are in, then shows it', () => {
+    it('shows skeletons for the hero and the past seasons until each is in', async () => {
       fixture.detectChanges();
-      const page = () => el().querySelector('.hud-page')!;
-      expect(page().classList).toContain('hud-waiting');
+      const skeletons = () => Array.from(el().querySelectorAll('app-skeleton')).map(s => s.textContent!.trim());
+      expect(skeletons()).toEqual(['Loading the current season…', 'Loading objectives…', 'Loading past seasons…']);
       http.expectOne('/api/events').flush('x', { status: 500, statusText: 'Server Error' });
-      http.match(r => r.url === '/api/seasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
-      fixture.detectChanges();
-      expect(page().classList).not.toContain('hud-waiting');
+      await answered();
+      expect(skeletons()).toEqual(['Loading past seasons…']);
       expect(el().textContent).toContain('There are no current or upcoming events');
+      http.match(r => r.url === '/api/seasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      await answered();
+      expect(skeletons()).toEqual([]);
     });
 
-    it('says so when there are no events', () => {
-      load([]);
+    it('says so when there are no events', async () => {
+      await load([]);
       expect(el().textContent).toContain('There are no current or upcoming events');
       expect(el().querySelector('a.hud-card')).toBeNull();
     });

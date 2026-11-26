@@ -1,7 +1,9 @@
-<div class="hud-page" [class.hud-waiting]="!eventsLoaded()">
+<div class="hud-page">
 
   <section class="home-hero hud-panel hud-panel--chamfer-lg" aria-labelledby="home-hero-title">
-    @if (hero(); as hero) {
+    @if (eventsFirstLoad()) {
+      <app-skeleton label="the current season" [count]="4" />
+    } @else if (hero(); as hero) {
       @let event = hero.event;
       <span class="hud-kicker">&gt; {{hero.kicker}}</span>
       <h1 id="home-hero-title" class="hud-title hud-title--xl"><a class="home-hero__title-link" [routerLink]="['/season', event.seasonID]">{{event.name}}</a></h1>
@@ -37,7 +39,9 @@
 
   <app-late-league-queue />
 
-  @if (currentAndFutureEvents().length > 0) {
+  @if (eventsFirstLoad()) {
+    <app-skeleton label="objectives" shape="cards" [count]="3" height="130px" />
+  } @else if (currentAndFutureEvents().length > 0) {
     <section class="hud-section" aria-labelledby="home-objectives">
       <h2 id="home-objectives" class="hud-h2">Objectives</h2>
       <div class="hud-grid">
@@ -116,6 +120,11 @@
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row [animate.enter]="rowEnter()" *matRowDef="let row; columns: displayedColumns;"></tr>
       </table>
+      @if (pastSeasonsFirstLoad()) {
+        <app-skeleton label="past seasons" shape="table" [header]="false" [count]="10" [columns]="4" />
+      } @else if (pastSeasonsFailed()) {
+        <p class="hud-empty hud-empty--error" role="alert">The past seasons couldn't be loaded. Refresh the page to try again.</p>
+      }
       <mat-paginator [pageSizeOptions]="[10, 20, 100]" showFirstLastButtons [length]="total()"
                      aria-label="Select page" />
     </div>

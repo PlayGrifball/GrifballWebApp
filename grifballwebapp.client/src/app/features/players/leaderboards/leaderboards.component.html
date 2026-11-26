@@ -1,4 +1,4 @@
-<div class="hud-page" [class.hud-waiting]="!loaded()">
+<div class="hud-page">
   <div class="hud-page-head">
     <span class="hud-kicker">&gt; Every season</span>
     <h1 class="hud-title">Leaderboards</h1>
@@ -21,7 +21,7 @@
   @if (spotlight(); as s) {
     <app-player-spotlight [player]="s" [board]="board()" (boardChange)="board.set($event)" (closed)="clearSpotlight()" />
   } @else if (spotlightLoading()) {
-    <p class="hud-empty">Searching all-time records...</p>
+    <app-skeleton label="all-time records" shape="block" height="200px" />
   } @else if (spotlightError(); as err) {
     <p class="hud-empty hud-empty--error" role="alert">{{ err }}</p>
   }
@@ -90,5 +90,7 @@
     </div>
   } @else if (loaded()) {
     <p class="hud-muted">The leaderboards couldn't be loaded.</p>
+  } @else {
+    <app-skeleton label="the leaderboards" shape="table" [count]="10" [columns]="4" />
   }
 </div>

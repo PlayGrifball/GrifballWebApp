@@ -2,6 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import type { CommendationDto, ProfileCommendationsDto } from '@api/models';
 import { ProfileCommendationsStore } from './profileCommendations.store';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 // Re-exported for this page's own spec, which imports them from here (kept, to not churn an unrelated import).
 export type { CommendationDto, ProfileCommendationsDto };
@@ -17,7 +18,7 @@ export function tierProgress(c: CommendationDto): number {
 /** A player's commendations on their profile: their most earned Halo Infinite medals, each with its tier and the way to the next. */
 @Component({
   selector: 'app-profile-commendations',
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, SkeletonComponent],
   templateUrl: './profileCommendations.component.html',
   styleUrl: './profileCommendations.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

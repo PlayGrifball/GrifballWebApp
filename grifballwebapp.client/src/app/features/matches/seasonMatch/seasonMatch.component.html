@@ -1,6 +1,9 @@
 @let match = seasonMatch();
-<div class="hud-page" [class.hud-waiting]="!store.ready()">
+<div class="hud-page">
 
+  @if (!store.ready()) {
+    <app-skeleton label="the match" shape="block" height="420px" />
+  } @else {
   <div class="lobby-head">
     <div class="hud-page-head">
       <a class="hud-kicker lobby-head__season" [routerLink]="['/season', match?.seasonID]">&gt; {{match?.seasonName ?? 'Season'}} · {{match?.isPlayoff ? 'Playoffs' : 'Regular season'}}</a>
@@ -21,11 +24,13 @@
       <span>There is an active reschedule request for this match. Request ID: {{ match?.activeRescheduleRequestId }}</span>
     </div>
   }
+  }
 
   @if (isStaff()) {
     <app-stat-flags-notice [seasonMatchID]="seasonMatchID()" />
   }
 
+  @if (store.ready()) {
   <section class="lobby" aria-label="Teams and score">
     <div class="lobby-team lobby-team--home">
       @if (match?.homeTeamResult === 'Bye') {
@@ -82,6 +87,7 @@
       }
     </div>
   </section>
+  }
 
   <app-vod-list scope="seasonMatch" [id]="seasonMatchID()" />
 
@@ -105,7 +111,9 @@
         }
       </div>
 
-      @if (!match?.reportedGames?.length) {
+      @if (!store.pageLoaded()) {
+        <app-skeleton label="games played" shape="table" [count]="6" [columns]="6" />
+      } @else if (!match?.reportedGames?.length) {
         <p class="hud-empty">There are no reported games for this season match</p>
       } @else if (activeScoreboard(); as board) {
         <div class="lobby-scoreboard">
@@ -210,16 +218,14 @@
     </div>
     }
     <h3 class="hud-label">Enter Match ID</h3>
-    <form class="app-form lobby-admin__form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
-      <mat-form-field appearance="outline" class="app-full-width">
-        <mat-label>Match ID</mat-label>
-        <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
-        <app-error-message [control]="reportMatchForm.controls['MatchID']" />
-      </mat-form-field>
-      <button mat-flat-button [disabled]="!reportMatchForm.form.valid || busy()">
-        Submit
-      </button>
-    </form>
+    <!-- Its code (a form field, forms, validation) loads after the page's, for commissioners only; the server still renders it -->
+    @defer (on immediate; hydrate on immediate) {
+    <app-report-match-form [(matchID)]="matchID" [busy]="busy()" (submitted)="onSubmit($event)" />
+    } @placeholder {
+    <app-skeleton label="the match ID form" shape="block" height="72px" />
+    } @error {
+    <app-data-notice message="The match ID form couldn't load. Reload the page to try again." />
+    }
     @if (placingReport() === matchID) {
     <ng-container *ngTemplateOutlet="slotChoice" />
     }
@@ -269,7 +275,7 @@
     </div>
     @switch (store.possibleMatchesState()) {
     @case ('loading') {
-    <p class="hud-muted" role="status">Looking for games…</p>
+    <app-skeleton label="games for these teams" shape="cards" [count]="2" height="200px" cardWidth="320px" />
     }
     @case ('error') {
     <p class="hud-muted" role="alert">Could not look for games right now.</p>

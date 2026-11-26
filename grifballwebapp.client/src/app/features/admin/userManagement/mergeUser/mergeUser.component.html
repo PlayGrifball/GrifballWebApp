@@ -11,6 +11,8 @@
       <app-search-box [(value)]="mergeFromId" type="number" label="User ID" />
       @if (mergeFromFailed()) {
         <p class="merge-error" role="alert">Failed to load user.</p>
+      } @else if (mergeFromLoading()) {
+        <app-skeleton label="the user" [count]="6" />
       } @else {
         <app-user-detail [user]="mergeFromUser()" />
       }
@@ -20,6 +22,8 @@
       <app-search-box [(value)]="mergeToId" type="number" label="User ID" />
       @if (mergeToFailed()) {
         <p class="merge-error" role="alert">Failed to load user.</p>
+      } @else if (mergeToLoading()) {
+        <app-skeleton label="the user" [count]="6" />
       } @else {
         <app-user-detail [user]="mergeToUser()" />
       }

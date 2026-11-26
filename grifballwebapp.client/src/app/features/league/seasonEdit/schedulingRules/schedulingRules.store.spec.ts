@@ -1,5 +1,6 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { SeasonSchedulingRulesDto } from '@api/models';
 import { SchedulingRulesStore } from './schedulingRules.store';
@@ -17,10 +18,26 @@ describe('SchedulingRulesStore', () => {
 
   afterEach(() => http.verify());
 
-  it("loads the season's rules", () => {
-    store.load(3);
+  const settle = () => TestBed.inject(ApplicationRef).whenStable();
+
+  it("loads the season's rules, with a first load meanwhile", async () => {
+    store.seasonID.use(signal(3));
+    TestBed.tick();
+    expect(store.firstLoad()).toBeTrue();
     http.expectOne({ method: 'GET', url: '/api/seasons/3/scheduling-rules' }).flush(rules);
+    await settle();
+    expect(store.firstLoad()).toBeFalse();
     expect(store.rules()).toEqual(rules);
+  });
+
+  it('fails, with no rules and no skeleton, when they cannot be read', async () => {
+    store.seasonID.use(signal(3));
+    TestBed.tick();
+    http.expectOne('/api/seasons/3/scheduling-rules').flush(null, { status: 500, statusText: 'Server Error' });
+    await settle();
+    expect(store.firstLoad()).toBeFalse();
+    expect(store.failed()).toBeTrue();
+    expect(store.rules()).toBeNull();
   });
 
   it('saves them, and says so', () => {
@@ -32,6 +49,7 @@ describe('SchedulingRulesStore', () => {
     expect(store.saving()).toBeFalse();
     expect(store.saved()).toBeTrue();
     expect(store.error()).toBeNull();
+    expect(store.rules()!.minPlayersAvailable).toBe(3);
   });
 
   it("keeps the server's reason when it refuses", () => {

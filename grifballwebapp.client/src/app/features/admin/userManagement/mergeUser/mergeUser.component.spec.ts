@@ -44,6 +44,10 @@ describe('MergeUserComponent', () => {
     fixture.componentRef.setInput('fromInput', 1);
     fixture.componentRef.setInput('toInput', 2);
     fixture.detectChanges();
+    // Not "User not found." while they load
+    fixture.detectChanges();
+    expect(el().querySelectorAll('app-skeleton')).toHaveSize(2);
+    expect(el().textContent).not.toContain('User not found.');
     httpMock.expectOne('/api/users/1').flush(user(1));
     httpMock.expectOne('/api/users/2').flush(user(2));
     await fixture.whenStable();

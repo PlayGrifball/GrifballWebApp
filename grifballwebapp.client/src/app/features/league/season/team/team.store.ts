@@ -1,9 +1,11 @@
-import { effect, inject, Injectable, signal } from '@angular/core';
-import type { TeamDto, TeamLiveDto, TeamPageMatchDto } from '@api/models';
+import { computed, inject, Injectable } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
+import type { TeamLiveDto, TeamPageMatchDto } from '@api/models';
 import { TeamService } from '@api/services/team.service';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { fromApiDate } from '@shared/apiDates';
 import { StoreInput } from '@shared/storeInput';
+import { resourceView } from '@shared/resourceView';
 import { DateTime } from 'luxon';
 import { map } from 'rxjs';
 import { liveData, liveReload } from '@core/live/liveReload';
@@ -37,57 +39,47 @@ export class TeamStore {
   /** The team's season: the component's input (another one loads the team again). */
   readonly seasonID = new StoreInput<number>();
 
-  private readonly _team = signal<TeamDto | null>(null);
-  readonly team = this._team.asReadonly();
-  private readonly _matches = signal<MatchDto[]>([]);
-  readonly matches = this._matches.asReadonly();
-  /** The matches have loaded: a backfilled or ended season without any says so. */
-  private readonly _matchesLoaded = signal(false);
-  readonly matchesLoaded = this._matchesLoaded.asReadonly();
-  /** Bumped by a live change: the team loaded again, in place. */
-  private readonly changes = signal(0);
+  /** The team and its season, once both are known: another drops the requests still on their way. */
+  private readonly shown = computed(() => {
+    const teamID = this.teamID.value();
+    const seasonID = this.seasonID.value();
+    return teamID === undefined ? undefined : { teamID, seasonID };
+  });
+
+  private readonly loadedTeam = resourceView(rxResource({
+    params: () => this.shown(),
+    stream: ({ params }) => this.api.team({ teamID: params.teamID }).pipe(nullWhenNotFound()),
+  }), null);
+  /** The team; null while it loads, when there is no such team, or when it failed. */
+  readonly team = this.loadedTeam.value;
+  /** The team is on its way: the roster is a skeleton. */
+  readonly teamFirstLoad = this.loadedTeam.firstLoad;
+
+  private readonly loadedMatches = resourceView(rxResource({
+    params: () => this.shown(),
+    stream: ({ params }) => this.api.matches({ teamID: params.teamID }).pipe(map(m => m.map(parseTeamMatch))),
+  }), []);
+  /** The team's matches; none while they load, or when they failed (see matchesFailed). */
+  readonly matches = this.loadedMatches.value;
+  /** The matches are on their way: the table is a skeleton. */
+  readonly matchesFirstLoad = this.loadedMatches.firstLoad;
+  /** The matches could not be read: the page says so, never that none were recorded. */
+  readonly matchesFailed = this.loadedMatches.failed;
+  /** The matches are in (read, or pushed with a live change): a backfilled or ended season without any says so. */
+  readonly matchesLoaded = this.loadedMatches.hasValue;
 
   constructor() {
-    // Another team: nothing of the previous one stays (its name would title the page), and its requests are cancelled
-    // so a late answer can't land on this one. A live change loads the same team again, keeping it shown meanwhile.
-    let shown: string | undefined;
-    effect(onCleanup => {
-      const teamID = this.teamID.value();
-      const seasonID = this.seasonID.value();
-      this.changes();
-      if (teamID === undefined)
-        return;
-      if (shown !== `${teamID}:${seasonID}`) {
-        shown = `${teamID}:${seasonID}`;
-        this._team.set(null);
-        this._matchesLoaded.set(false);
-      }
-      const team = this.api.team({ teamID }).pipe(nullWhenNotFound()).subscribe({
-        next: v => this._team.set(v),
-      });
-      const matches = this.api.matches({ teamID }).pipe(map(m => m.map(parseTeamMatch))).subscribe({
-        next: v => {
-          this._matches.set(v);
-          this._matchesLoaded.set(true);
-        },
-      });
-      onCleanup(() => {
-        team.unsubscribe();
-        matches.unsubscribe();
-      });
-    });
     // A result, a roster change, a rename: the team and its matches as they are now come with it, in place
     liveData<TeamLiveDto>(() => {
       const teamID = this.teamID.value();
       return teamID ? [LiveTopics.team(teamID)] : [];
     }, team => {
       if (team.teamID === this.teamID.value()) {
-        this._team.set(team.team ?? null);
-        this._matches.set(team.matches.map(parseTeamMatch));
-        this._matchesLoaded.set(true);
+        this.loadedTeam.set(team.team ?? null);
+        this.loadedMatches.set(team.matches.map(parseTeamMatch));
       }
       return true;
-    }, () => this.changes.update(n => n + 1));
+    }, () => this.reload());
     // What team:N doesn't hear: its season edited, scheduled or announced, its champions (the title badges), an opponent
     // renamed (the matches name it). The season's teams page topic does, so a change there reads the team again (its data
     // is that page's, not this one's). The alternative: the server tells each of the season's teams' topics of those
@@ -95,6 +87,12 @@ export class TeamStore {
     liveReload(() => {
       const seasonID = this.seasonID.value();
       return seasonID ? [LiveTopics.teams(seasonID)] : [];
-    }, () => this.changes.update(n => n + 1));
+    }, () => this.reload());
+  }
+
+  /** Reads the team and its matches again, in place: what is shown stays until the answers come. */
+  private reload(): void {
+    this.loadedTeam.reload();
+    this.loadedMatches.reload();
   }
 }

@@ -1,5 +1,6 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SeasonAvailabilityStore } from './seasonAvailability.store';
@@ -20,14 +21,26 @@ describe('SeasonAvailabilityStore', () => {
 
   afterEach(() => http.verify());
 
-  it("loads the season's timeslots, and says when it cannot", () => {
-    store.load(14);
-    http.expectOne({ method: 'GET', url: '/api/seasons/14/availability' }).flush([{ dayOfWeek: 'Monday', time: '19:00:00' }]);
-    expect(store.timeslots()).toEqual([{ dayOfWeek: 'Monday', time: '19:00:00' }]);
+  const settle = () => TestBed.inject(ApplicationRef).whenStable();
 
-    store.load(14);
+  it("loads the season's timeslots, with a first load meanwhile", async () => {
+    store.seasonID.use(signal(14));
+    TestBed.tick();
+    expect(store.firstLoad()).toBeTrue();
+    http.expectOne({ method: 'GET', url: '/api/seasons/14/availability' }).flush([{ dayOfWeek: 'Monday', time: '19:00:00' }]);
+    await settle();
+    expect(store.firstLoad()).toBeFalse();
+    expect(store.timeslots()).toEqual([{ dayOfWeek: 'Monday', time: '19:00:00' }]);
+  });
+
+  it('says when it cannot load them, and fails rather than waiting', async () => {
+    store.seasonID.use(signal(14));
+    TestBed.tick();
     http.expectOne('/api/seasons/14/availability').flush('x', { status: 500, statusText: 'Server Error' });
+    await settle();
     expect(snackBar.open).toHaveBeenCalledWith('Failed to get season availability');
+    expect(store.firstLoad()).toBeFalse();
+    expect(store.failed()).toBeTrue();
   });
 
   it('saves the timeslots, and says how it went', () => {

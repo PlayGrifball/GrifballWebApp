@@ -86,11 +86,13 @@ describe('resourceView', () => {
     TestBed.tick();
     // Angular's reloading: no longer "error", but the error it had is still there until the retry answers
     expect(view.failed()).toBeFalse();
+    expect(view.failing()).toBeTrue();
     expect(view.error()!.message).toBe('down');
     answers[1].next([5]);
     answers[1].complete();
     await settle();
     expect(view.error()).toBeUndefined();
+    expect(view.failing()).toBeFalse();
 
     view.reload();
     TestBed.tick();
@@ -115,5 +117,33 @@ describe('resourceView', () => {
     expect(view.hasValue()).toBeTrue();
     expect(view.isLoading()).toBeFalse();
     expect(answers).toHaveSize(1);
+  });
+
+  it('is a first load (a skeleton) only while there is nothing to show: not idle, and not while reloading', async () => {
+    const { params, view, answers } = setUp();
+    TestBed.tick();
+    expect(view.firstLoad()).toBeFalse();
+    params.set(1);
+    TestBed.tick();
+    expect(view.firstLoad()).toBeTrue();
+    answers[0].next([1]);
+    answers[0].complete();
+    await settle();
+    expect(view.firstLoad()).toBeFalse();
+
+    view.reload();
+    TestBed.tick();
+    expect(view.firstLoad()).toBeFalse();
+    answers[1].next([2]);
+    answers[1].complete();
+    await settle();
+
+    // Other parameters: what was shown is for something else
+    params.set(2);
+    TestBed.tick();
+    expect(view.firstLoad()).toBeTrue();
+    answers[2].error(new Error('down'));
+    await settle();
+    expect(view.firstLoad()).toBeFalse();
   });
 });

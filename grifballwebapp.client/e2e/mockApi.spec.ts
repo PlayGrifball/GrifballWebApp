@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { operationRoutes, pathMatches, type Operation } from './apiOperations.mts';
-import { mockRoutes, type Role } from './mockApi.mts';
+import { mockResponse, mockRoutes, type Role } from './mockApi.mts';
 
 // The mock API's routes against the generated client (src/generated/api, from openapi.json): each route answers the
 // operation it names (its answer type-checked by tsconfig.e2e.json), at a URL that operation's path matches. A route
@@ -27,3 +27,12 @@ for (const role of ['anon', 'player', 'admin'] as Role[]) {
     expect(wrong).toEqual([]);
   });
 }
+
+test("gives every player and account a picture, so no page it serves logs a missing one, and answers an unknown path not at all", () => {
+  for (const path of ['/api/users/101/profile-picture', '/api/xbox-accounts/2535400000000010/profile-picture']) {
+    const picture = mockResponse('anon', path);
+    expect(picture?.status).toBe(200);
+    expect(picture?.contentType).toBe('image/svg+xml');
+  }
+  expect(mockResponse('anon', '/api/users/101/halo-emblem')).toBeUndefined();
+});

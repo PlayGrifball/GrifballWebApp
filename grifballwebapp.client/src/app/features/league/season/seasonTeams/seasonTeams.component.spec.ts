@@ -192,6 +192,19 @@ describe('SeasonTeamsComponent', () => {
     expect(component.loading()).toBeFalse();
   });
 
+  it('shows a skeleton in place of the teams while they load', () => {
+    const teams = new Subject<SeasonTeamDto[]>();
+    api.getSeasonTeams.and.returnValue(teams);
+    component.loadData(8);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-skeleton')!.textContent).toContain('Loading teams and rosters');
+    teams.next(mockTeams);
+    fixture.detectChanges();
+    expect(el.querySelector('app-skeleton')).toBeNull();
+    expect(el.textContent).toContain('Orange Crush');
+  });
+
   it('ignores a route without a season', () => {
     api.getSeasonTeams.calls.reset();
     params.next(convertToParamMap({}));

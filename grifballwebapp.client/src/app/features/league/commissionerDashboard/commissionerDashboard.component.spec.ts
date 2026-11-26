@@ -251,7 +251,7 @@ describe('CommissionerDashboardComponent', () => {
 
   it('renders the dashboard once it arrives, without a manual detectChanges', async () => {
     await fixture.whenStable();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Loading dashboard data...');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Loading dashboard data…');
 
     httpTestingController.expectOne('/api/commissioner-dashboard').flush({
       pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [],
@@ -260,7 +260,7 @@ describe('CommissionerDashboardComponent', () => {
     await fixture.whenStable();
 
     const text = (fixture.nativeElement as HTMLElement).textContent!;
-    expect(text).not.toContain('Loading dashboard data...');
+    expect(text).not.toContain('Loading dashboard data…');
     expect((fixture.nativeElement as HTMLElement).querySelector('.metric-value')?.textContent?.trim()).toBe('4');
   });
 

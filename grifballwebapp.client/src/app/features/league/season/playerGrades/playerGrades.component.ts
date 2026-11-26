@@ -5,6 +5,7 @@ import type { LetterDto } from '@api/models';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 import { PlayerGradesStore } from './playerGrades.store';
 
 @Component({
@@ -14,6 +15,7 @@ import { PlayerGradesStore } from './playerGrades.store';
         MatTableModule,
         DataNoticeComponent,
         RouterLink,
+        SkeletonComponent,
     ],
     providers: [DecimalPipe, PlayerGradesStore],
     templateUrl: './playerGrades.component.html',

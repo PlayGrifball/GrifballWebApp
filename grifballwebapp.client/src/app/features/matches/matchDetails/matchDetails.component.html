@@ -13,7 +13,7 @@
 
   @switch (state()) {
     @case ('loading') {
-      <p class="hud-muted" role="status">Loading the match…</p>
+      <app-skeleton label="the match" shape="block" height="520px" />
     }
     @case ('notFound') {
       <p class="hud-empty">This match has not been pulled from Halo Infinite.</p>

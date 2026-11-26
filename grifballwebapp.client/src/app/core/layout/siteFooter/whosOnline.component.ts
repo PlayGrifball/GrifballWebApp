@@ -41,6 +41,8 @@ import { counted, presenceLabel, STAFF_AREA } from './presencePages';
     }
   `,
   styles: `
+    /* The summary's line is kept while the hub has said nothing yet, so the count doesn't push the footer down */
+    :host { display: block; min-height: 44px; }
     .whos-online {
       font-family: var(--hud-font-mono);
       font-size: 13px;

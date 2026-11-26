@@ -74,14 +74,14 @@ describe('TeamHistoryComponent', () => {
 
   it('asks for the franchise by one of its teams and waits until it has it', async () => {
     fixture.detectChanges();
-    expect(el().querySelector('.hud-page')!.classList).toContain('hud-waiting');
+    expect(el().querySelector('app-skeleton')).not.toBeNull();
     expect(el().querySelector('h1')!.textContent).toBe('Team history');
     expect(el().querySelector('.hud-kicker')!.textContent).toBe('> Franchise history');
 
     request().flush(history);
     await settle();
     expect(component.loaded()).toBeTrue();
-    expect(el().querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
+    expect(el().querySelector('app-skeleton')).toBeNull();
   });
 
   it("shows the franchise's latest name and all-time totals", async () => {

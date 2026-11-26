@@ -32,8 +32,9 @@ describe('StatFlagsComponent', () => {
 
   afterEach(() => http.verify());
 
-  it('loads the open flags on init', () => {
+  it('loads the open flags on init, with a skeleton meanwhile', () => {
     expect(component.loading()).toBeTrue();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-skeleton')!.textContent).toContain('Loading stat flags');
     http.expectOne('/api/stat-flags').flush([flag]);
     expect(component.loading()).toBeFalse();
     expect(component.flags()).toEqual([flag]);

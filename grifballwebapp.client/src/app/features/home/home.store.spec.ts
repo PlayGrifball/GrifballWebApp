@@ -1,8 +1,9 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { seasonInfo } from '@shared/testing/seasonInfo.stub';
-import { HomeStore } from './home.store';
+import { HomeStore, type PastSeasonsPage } from './home.store';
 import type { SeasonsLiveDto } from '@api/models';
 import { LiveService, type LiveMessage } from '@core/live/live.service';
 import { LIVE_RELOAD_MS, LIVE_SPREAD_MS } from '@core/live/liveReload';
@@ -44,117 +45,89 @@ describe('HomeStore', () => {
 
   afterEach(() => http.verify());
 
-  it('is done with the events even when they fail', () => {
-    store.loadEvents();
-    http.expectOne('/api/events').flush('x', { status: 500, statusText: 'Server Error' });
-    expect(store.eventsLoaded()).toBeTrue();
-    expect(store.events()).toEqual([]);
-  });
+  const settle = () => TestBed.inject(ApplicationRef).whenStable();
+  const pastSeason = (id: number) => ({ ...seasonInfo(id, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] });
 
-  it('loads the current and coming events', () => {
+  it('loads the current and coming events, a skeleton meanwhile', async () => {
     const events = [{ seasonID: 1, name: 'Test Event', start: '2024-01-01', end: '2024-01-31', eventType: 'Signup' as const }];
-    store.loadEvents();
+    TestBed.tick();
+    expect(store.eventsFirstLoad()).toBeTrue();
     const req = http.expectOne('/api/events');
     expect(req.request.method).toBe('GET');
     req.flush(events);
+    await settle();
     expect(store.events()).toEqual(events);
-    expect(store.eventsLoaded()).toBeTrue();
+    expect(store.eventsFirstLoad()).toBeFalse();
   });
 
-  describe('loadPastSeasons', () => {
-    it('should make GET request with pagination parameters', (done) => {
-      const mockResult = {
-        results: [
-          { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
-        ],
-        totalCount: 1,
-        pageNumber: 1,
-        pageSize: 10
-      };
+  it('is done with the events, showing none, when they fail', async () => {
+    TestBed.tick();
+    http.expectOne('/api/events').flush('x', { status: 500, statusText: 'Server Error' });
+    await settle();
+    expect(store.eventsFirstLoad()).toBeFalse();
+    expect(store.events()).toEqual([]);
+  });
 
-      store.loadPastSeasons(10, 1, undefined, undefined).subscribe({
-        next: (result) => {
-          expect(result).toEqual(mockResult);
-          expect(store.total()).toBe(1);
-          expect(store.pastSeasons()).toEqual(mockResult.results);
-          done();
-        }
-      });
-
-      const req = http.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('pageSize') === '10' &&
-        request.params.get('pageNumber') === '1'
-      );
-      expect(req.request.method).toBe('GET');
-      req.flush(mockResult);
+  describe('past seasons', () => {
+    beforeEach(async () => {
+      TestBed.tick();
+      http.expectOne('/api/events').flush([]);
+      await settle();
     });
 
-    it('should include sort parameters when provided', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 1,
-        pageSize: 10
-      };
+    function show(page: PastSeasonsPage): void {
+      store.page.use(signal(page));
+      TestBed.tick();
+    }
 
-      store.loadPastSeasons(10, 1, 'asc', 'seasonName').subscribe({
-        next: () => done()
-      });
-
-      const req = http.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('sortDirection') === 'Asc' &&
-        request.params.get('sortColumn') === 'seasonName'
-      );
-      expect(req.request.method).toBe('GET');
-      req.flush(mockResult);
+    it('asks for the page, unsorted, as index.html fetches the first early, and shows it', async () => {
+      show({ pageSize: 10, pageNumber: 1 });
+      expect(store.pastSeasonsFirstLoad()).toBeTrue();
+      const req = http.expectOne(r => r.url === '/api/seasons');
+      expect(req.request.urlWithParams).toBe('/api/seasons?ended=true&pageNumber=1&pageSize=10');
+      req.flush({ results: [pastSeason(3)], totalCount: 1 });
+      await settle();
+      expect(store.pastSeasons().map(s => s.seasonID)).toEqual([3]);
+      expect(store.total()).toBe(1);
+      expect(store.pastSeasonsFirstLoad()).toBeFalse();
     });
 
-    it('should not include sort parameters when not provided', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 1,
-        pageSize: 10
-      };
-
-      store.loadPastSeasons(10, 1, undefined, undefined).subscribe({
-        next: result => {
-          expect(result).toEqual(mockResult);
-          done();
-        }
-      });
-
-      const req = http.expectOne((request) => {
-        return request.url === '/api/seasons' &&
-               !request.params.has('sortDirection') &&
-               !request.params.has('sortColumn');
-      });
-      req.flush(mockResult);
-    });
-
-    it('asks for a page sorted descending', () => {
-      store.loadPastSeasons(25, 3, 'desc', 'seasonName').subscribe();
+    it('asks for a page sorted descending', async () => {
+      show({ pageSize: 25, pageNumber: 3, sortDirection: 'desc', sortColumn: 'seasonName' });
       const req = http.expectOne(r => r.url === '/api/seasons');
       expect(req.request.params.get('pageSize')).toBe('25');
       expect(req.request.params.get('pageNumber')).toBe('3');
       expect(req.request.params.get('sortDirection')).toBe('Desc');
+      expect(req.request.params.get('sortColumn')).toBe('seasonName');
       req.flush({ results: [], totalCount: 0 });
+      await settle();
     });
 
-    it('keeps the page shown, and stays usable, when a page fails', () => {
-      const shown = { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] };
-      store.loadPastSeasons(10, 1, undefined, undefined).subscribe();
-      http.expectOne(r => r.url === '/api/seasons').flush({ results: [shown], totalCount: 11 });
+    it('keeps the page shown while the next loads, and when it fails', async () => {
+      const page = signal<PastSeasonsPage>({ pageSize: 10, pageNumber: 1 });
+      store.page.use(page);
+      TestBed.tick();
+      http.expectOne(r => r.url === '/api/seasons').flush({ results: [pastSeason(3)], totalCount: 11 });
+      await settle();
 
-      const failed = jasmine.createSpy('failed');
-      // A failure must not reach the paging stream: it would end it, and the table would page no more
-      store.loadPastSeasons(10, 2, undefined, undefined).subscribe({ error: failed });
+      page.set({ pageSize: 10, pageNumber: 2 });
+      TestBed.tick();
+      expect(store.pastSeasons().map(s => s.seasonID)).toEqual([3]);
+      expect(store.pastSeasonsFirstLoad()).toBeFalse();
       http.expectOne(r => r.url === '/api/seasons').flush(null, { status: 500, statusText: 'Server Error' });
-      expect(failed).not.toHaveBeenCalled();
-      expect(store.pastSeasons()).toEqual([shown]);
+      await settle();
+      expect(store.pastSeasons().map(s => s.seasonID)).toEqual([3]);
       expect(store.total()).toBe(11);
+      expect(store.pastSeasonsFailed()).toBeFalse();
+    });
+
+    it('fails, with no rows and no skeleton, when the first page cannot be read', async () => {
+      show({ pageSize: 10, pageNumber: 1 });
+      http.expectOne(r => r.url === '/api/seasons').flush(null, { status: 500, statusText: 'Server Error' });
+      await settle();
+      expect(store.pastSeasonsFirstLoad()).toBeFalse();
+      expect(store.pastSeasonsFailed()).toBeTrue();
+      expect(store.pastSeasons()).toEqual([]);
     });
   });
 
@@ -169,25 +142,35 @@ describe('HomeStore', () => {
     });
     afterEach(() => jasmine.clock().uninstall());
 
-    it('shows the events pushed with a change to the seasons, with no request', () => {
+    it('shows the events pushed with a change to the seasons, with no request of its own', () => {
+      const first = http.expectOne('/api/events');
       expect(live.active).toEqual([['seasons']]);
       live.send({ topic: 'seasons', data: pushed });
       expect(store.events()).toEqual(pushed.events);
-      expect(store.eventsLoaded()).toBeTrue();
+      expect(store.eventsFirstLoad()).toBeFalse();
       jasmine.clock().tick(LIVE_RELOAD_MS + LIVE_SPREAD_MS);
+      TestBed.tick();
       http.expectNone('/api/events');
+      if (!first.cancelled)
+        first.flush(pushed.events);
     });
 
-    it('loads the events again on a change without data, once it has them', () => {
+    it('loads the events again on a change without data, once it has them', async () => {
+      const first = http.expectOne('/api/events');
       live.send({ topic: 'seasons' });
       jasmine.clock().tick(LIVE_RELOAD_MS);
+      TestBed.tick();
       http.expectNone('/api/events');
 
-      store.loadEvents();
-      http.expectOne('/api/events').flush([]);
+      first.flush([]);
+      // The value comes a microtask after the answer (the clock is mocked: no whenStable)
+      await Promise.resolve();
+      TestBed.tick();
       live.send({ topic: 'seasons' });
       jasmine.clock().tick(LIVE_RELOAD_MS);
+      TestBed.tick();
       http.expectOne('/api/events').flush(pushed.events);
+      await Promise.resolve();
       expect(store.events()).toEqual(pushed.events);
     });
   });

@@ -173,10 +173,12 @@ describe('PlayerGradesComponent', () => {
     // Nothing of season 7 while season 8's load
     expect(component.letters()).toEqual([]);
     expect(component.showTable()).toBeFalse();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-skeleton')).not.toBeNull();
 
     const other = { ...grade, gamertag: 'Simmons' };
     httpTestingController.expectOne('/api/seasons/8/grades').flush({ totals: [], perMinutes: [], letters: [other] });
     fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-skeleton')).toBeNull();
     expect(component.letters()).toEqual([other]);
     expect(page().querySelector('app-season-tabs a')!.getAttribute('href')).toBe('/season/8');
   });

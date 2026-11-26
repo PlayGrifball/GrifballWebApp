@@ -37,6 +37,9 @@ export class MergeUserStore {
   /** A lookup failed (not a 404: that is no such user). */
   readonly fromFailed = this.from.failed;
   readonly toFailed = this.to.failed;
+  /** A user is on the way: their details are a skeleton until then. */
+  readonly fromLoading = this.from.firstLoad;
+  readonly toLoading = this.to.firstLoad;
 
   // Disables the button while a merge is in flight, so a double click cannot send a second request.
   private readonly _submitting = signal(false);

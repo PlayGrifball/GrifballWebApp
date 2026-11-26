@@ -193,7 +193,7 @@ test.describe('session', () => {
     try {
       const html = withoutScripts(await (await http.get(`/seasonmatch/${seasonMatchID}`)).text());
       expect(html).toContain('Possible Matches');
-      expect(html).toContain('Looking for games');
+      expect(html).toContain('Loading games for these teams');
     } finally {
       await http.dispose();
     }
@@ -202,7 +202,7 @@ test.describe('session', () => {
     const section = page.locator('section.lobby-possibles');
     await expect(section.getByRole('heading', { name: 'Possible Matches' })).toBeVisible();
     // Then the list, none, or (previews have no Halo Infinite credentials) the search failing; never stuck
-    await expect(section).not.toContainText('Looking for games', { timeout: 60_000 });
+    await expect(section).not.toContainText('Loading games for these teams', { timeout: 60_000 });
     await expect(section).toContainText(/No games found for these teams yet\.|Could not look for games right now\.|: \d+ - \d+/);
     // Reporting a game is for the organizers
     await expect(section.getByRole('button', { name: 'SUBMIT' })).toHaveCount(0);

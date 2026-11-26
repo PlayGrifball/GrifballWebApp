@@ -11,6 +11,8 @@ import { WhosOnlineComponent } from './whosOnline.component';
     <footer class="site-footer">
       @defer (on idle) {
         <app-whos-online />
+      } @placeholder {
+        <div class="site-footer__online"></div>
       }
       <a class="site-footer__build" href="https://github.com/PlayGrifball/GrifballWebApp">
         BUILD {{commitDate() | date:'short'}} {{commitHash()}}
@@ -25,6 +27,8 @@ import { WhosOnlineComponent } from './whosOnline.component';
       padding: 16px var(--hud-gutter) 24px;
       border-top: 1px solid var(--hud-hairline);
     }
+    /* Holds the line who's online takes, until its code has loaded (and on the server, which draws no live data) */
+    .site-footer__online { min-height: 44px; }
     .site-footer__build {
       display: inline-flex;
       align-items: center;

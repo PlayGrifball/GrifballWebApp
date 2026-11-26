@@ -101,6 +101,14 @@ describe('LateLeagueComponent', () => {
     expect(fixture.debugElement.query(d => d.name === 'app-late-league-queue').componentInstance.showLink()).toBeFalse();
   });
 
+  it('holds the stats and the archive with skeletons until they arrive', async () => {
+    fixture.detectChanges();
+    expect(section('late-league-queue').querySelector('app-skeleton')).not.toBeNull();
+    expect(section('late-league-seasons').querySelector('app-skeleton')).not.toBeNull();
+    await lists({ gameCount: 0, voteDecidedGameCount: 0, players: [] }, []);
+    expect(el().querySelector('section app-skeleton')).toBeNull();
+  });
+
   it('says when the queue or the archive has nothing yet', async () => {
     fixture.detectChanges();
     await lists({ gameCount: 0, voteDecidedGameCount: 0, players: [] }, []);

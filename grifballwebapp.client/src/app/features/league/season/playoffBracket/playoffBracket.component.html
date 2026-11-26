@@ -8,7 +8,12 @@
 @if(loaded() && !hasBracket()) {
   <p class="hud-empty">No bracket created</p>
 }
-<div class="bracket-box" [hidden]="!hasBracket()">
+@if (waiting()) {
+  <app-skeleton label="the bracket" shape="block" height="360px" />
+}
+<!-- While the viewer draws, the box is laid out (it measures it) but out of the flow and unseen: the skeleton above holds
+     the place it takes once drawn, so nothing moves down when the skeleton goes -->
+<div class="bracket-box" [class.bracket-box--drawing]="waiting()" [hidden]="!hasBracket()">
   <!-- Drawn by brackets-viewer; scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
   <div class="brackets-viewer" tabindex="0" role="region" aria-label="Playoff bracket"></div> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
 </div>

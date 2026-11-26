@@ -425,10 +425,12 @@ public class ArchiveSeasonTests
 
     /// <summary>
     /// Seasons whose draft is in a workbook of its own (#604): SML21 Ammy's board (two captains per team, no Team Name row)
-    /// and SML20 Reach PC's blocks ("Captain", then "Round One" ... "Round Five").
+    /// and SML20 Reach PC's blocks ("Captain", then "Round One" ... "Round Five"). SML25 Pro (#604): the luxe workbook's Draft Pro S6 board, its snake picks numbered
+    /// (a captain the stats spell another way: Snipezz, Cosmos).
     /// </summary>
     [TestCase("Summer League 2021 (Amateur)", 9, 27)]
     [TestCase("Summer League 2020 (Reach PC)", 6, 20)]
+    [TestCase("Summer League 2025 (Classic Pro)", 6, 15)]
     public async Task ADraftWorkbooksSeason_HasEachTeamsCaptainAndPicks(string seasonName, int teams, int picks)
     {
         await using var context = Archive.NewContext();

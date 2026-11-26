@@ -22,6 +22,10 @@
     </div>
   </section>
 
+  @if (!mode() && checking()) {
+    <app-skeleton label="the client's status" shape="block" height="220px" />
+  }
+
   @if (mode() === 'Gateway') {
     <section class="hud-panel hud-form-group" aria-labelledby="ic-gateway">
       <h2 id="ic-gateway" class="hud-kicker">Gateway status</h2>
