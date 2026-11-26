@@ -131,7 +131,7 @@ public static partial class RosterParser
             if (sheet.Cell(r, 0).Trim().Equals("Goals:", StringComparison.OrdinalIgnoreCase))
             {
                 var gamertag = sheet.Cell(r - 1, 0).Trim();
-                if (!SeasonStatsParser.IsTotalsLabel(gamertag))
+                if (!gamertag.StartsWith("Total", StringComparison.OrdinalIgnoreCase))
                     teams.Add(gamertag, team);
             }
         }
@@ -148,7 +148,7 @@ public static partial class RosterParser
         public void Add(string? gamertag, string? team)
         {
             var clean = DraftParser.Player(gamertag);
-            if (clean.Length == 0 || SeasonStatsParser.IsTotalsLabel(clean) || string.IsNullOrWhiteSpace(team))
+            if (clean.Length == 0 || string.IsNullOrWhiteSpace(team))
                 return;
             clean = NamedPlayer(clean);
             team = config?.TeamName(team.Trim()) ?? team.Trim();

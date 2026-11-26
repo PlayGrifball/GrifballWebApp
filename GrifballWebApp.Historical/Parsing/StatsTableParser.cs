@@ -149,8 +149,6 @@ public static partial class StatsTableParser
             skipped.NoGamertag++;
             return;
         }
-        if (SeasonStatsParser.IsTotalsLabel(gamertag))
-            return;
         var team = Value(row, at.TeamName) ?? (teamRow is null ? null : Value(teamRow, teams!.Value.Column));
         var key = (canonicalIds[seasonId], Number(row, at.Playoffs) == 1, division);
         if (!groups.TryGetValue(key, out var lines))

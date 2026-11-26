@@ -255,16 +255,9 @@ public static partial class GamesTableParser
                 var (sa, sb) = (Int(row, scoreA), Int(row, scoreB));
                 var players = lines.ByGame.GetValueOrDefault(match) ?? [];
                 result.Games.Add(Game(key, match, [a, b], [(Outcome(sa, sb), sa), (Outcome(sb, sa), sb)],
-                    Distinct(MatchLines(players, columns, side))));
+                    Distinct(players.Select(p => Value(p, columns.Gamertag) is { } gamertag ? columns.Line(p, gamertag, Int(p, side) ?? 0) : null).OfType<RecordedPlayerInput>())));
             }
             CountStray(lines, listed);
-        }
-
-        private static IEnumerable<RecordedPlayerInput> MatchLines(IEnumerable<string[]> players, LineColumns columns, int side)
-        {
-            foreach (var p in players)
-                if (Value(p, columns.Gamertag) is { } gamertag && !SeasonStatsParser.IsTotalsLabel(gamertag))
-                    yield return columns.Line(p, gamertag, Int(p, side) ?? 0);
         }
 
         /// <summary>gb_teamstats' columns.</summary>
@@ -420,7 +413,7 @@ public static partial class GamesTableParser
             var columns = c.Line;
             var team = Value(row, c.Of.Team);
             var gamertag = Value(row, columns.Gamertag) ?? c.Gamertags.ById.GetValueOrDefault(Value(row, c.Gamertags.RowKey) ?? "");
-            if (gamertag is null || SeasonStatsParser.IsTotalsLabel(gamertag) || (team != teamA && team != teamB))
+            if (gamertag is null || (team != teamA && team != teamB))
             {
                 _strayLines++;
                 return null;
@@ -495,7 +488,7 @@ public static partial class GamesTableParser
             // The lines spell a team's name as they like ("Four Guys One Ball" of "Four guys one ball")
             var team = Value(row, c.Of.Team);
             var (isWinner, isLoser) = (string.Equals(team, winner, StringComparison.OrdinalIgnoreCase), string.Equals(team, loser, StringComparison.OrdinalIgnoreCase));
-            if (Value(row, c.Line.Gamertag) is not { } gamertag || SeasonStatsParser.IsTotalsLabel(gamertag) || (!isWinner && !isLoser))
+            if (Value(row, c.Line.Gamertag) is not { } gamertag || (!isWinner && !isLoser))
             {
                 _strayLines++;
                 return null;
