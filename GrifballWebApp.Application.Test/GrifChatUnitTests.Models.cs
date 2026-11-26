@@ -578,6 +578,10 @@ public partial class GrifChatUnitTests
         => Assert.That(GrifTools.Chat, Does.Contain("list_seasons"), "A season tool refused names list_seasons");
 
     [Test]
+    public void Chat_TheShortList_CanReadAGamesStats_ForTheGamesItsOtherToolsList()
+        => Assert.That(GrifTools.Chat, Does.Contain("get_game"), "get_recent_games and get_season_match list match IDs; only get_game reads their kills, deaths and medals");
+
+    [Test]
     public void Allowed_InAVoiceChannel_IsPublic_ButEachAskersOwnModels()
     {
         var chat = ChatWithModels(new FakeModel());
