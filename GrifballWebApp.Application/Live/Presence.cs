@@ -23,12 +23,18 @@ public sealed record PresenceSnapshot(int Online, int Members, int Guests, IRead
         var guests = all.Count(t => t.UserID is null);
         var pages = all
             .GroupBy(t => t.Path, StringComparer.Ordinal)
-            .Select(page => new PresencePage(page.Key, page.Select(t => t.Subject).FirstOrDefault(s => s is not null), page.Count(t => t.UserID is null), [.. page
-                .Where(t => t.UserID is not null)
-                .DistinctBy(t => t.UserID)
-                .Select(t => new PresenceMember(t.UserID!.Value, t.Name))
-                .OrderBy(m => m.Name ?? "", StringComparer.OrdinalIgnoreCase)
-                .ThenBy(m => m.UserID)]))
+            .Select(page => new PresencePage(
+                page.Key,
+                // Tabs can disagree (one recorded before a rename, one after, on different processes): the
+                // ordinal-first of their subjects, never whichever tab's exchange happened to come back first.
+                page.Select(t => t.Subject).Where(s => s is not null).OrderBy(s => s, StringComparer.Ordinal).FirstOrDefault(),
+                page.Count(t => t.UserID is null),
+                [.. page
+                    .Where(t => t.UserID is not null)
+                    .DistinctBy(t => t.UserID)
+                    .Select(t => new PresenceMember(t.UserID!.Value, t.Name))
+                    .OrderBy(m => m.Name ?? "", StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(m => m.UserID)]))
             .OrderByDescending(p => p.Members.Count + p.Guests)
             .ThenBy(p => p.Path, StringComparer.Ordinal)
             .ToList();

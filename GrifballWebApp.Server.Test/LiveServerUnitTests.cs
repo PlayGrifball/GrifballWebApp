@@ -140,7 +140,7 @@ public class LiveServerUnitTests : SqliteGrifballContextFixture
         context.ConnectionId.Returns("conn");
         context.Items.Returns(new Dictionary<object, object?>());
         var visibility = new SeasonVisibility(Db);
-        var hub = new LiveHub(new LiveTopicAccess(visibility, Db), new HubUser(), _watchers, tracker, new PresencePages(visibility, Db)) { Context = context };
+        var hub = new LiveHub(new LiveTopicAccess(visibility, Db), new HubUser(), _watchers, tracker, new PresencePages(visibility, Db), NullLogger<LiveHub>.Instance) { Context = context };
 
         var returned = await hub.Viewing("/seasonmanager?tab=2");
         await tracker.SendAsync();

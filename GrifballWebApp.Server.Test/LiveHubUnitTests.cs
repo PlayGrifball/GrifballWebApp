@@ -1,3 +1,4 @@
+using System.Data.Common;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Live;
@@ -9,9 +10,12 @@ using GrifballWebApp.Server.Live;
 using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
@@ -61,7 +65,7 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         context.ConnectionId.Returns("conn");
         context.Items.Returns(new Dictionary<object, object?>());
         var visibility = new SeasonVisibility(Db);
-        return new LiveHub(new LiveTopicAccess(visibility, Db), user, _watchers, Tracker(), new PresencePages(visibility, Db)) { Context = context };
+        return new LiveHub(new LiveTopicAccess(visibility, Db), user, _watchers, Tracker(), new PresencePages(visibility, Db), NullLogger<LiveHub>.Instance) { Context = context };
     }
 
     private string[] Watching(string topic) => [.. _watchers.Of(topic).Select(w => $"{w.ConnectionID}:{w.Viewer}")];
@@ -454,9 +458,20 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
     public async Task AHiddenSeasonsPages_AndItsMatches_AreTheStaffArea_APublicOnesThemselves()
     {
         var hidden = await HiddenSeason();
-        var match = await AddSeasonMatch(hidden, await AddTeam(hidden, "Home"), await AddTeam(hidden, "Away"));
+        var hiddenHome = await AddTeam(hidden, "Home");
+        var match = await AddSeasonMatch(hidden, hiddenHome, await AddTeam(hidden, "Away"));
+        var hiddenGame = GrifballWebApp.Domain.Halo.Match.Seed(Guid.NewGuid(), startTime: Now);
+        Db.Matches.Add(hiddenGame);
+        match.AddGame(hiddenGame, 1);
         var shown = await AddSeason("Shown");
-        var shownMatch = await AddSeasonMatch(shown, await AddTeam(shown, "Home"), await AddTeam(shown, "Away"));
+        var shownHome = await AddTeam(shown, "Home");
+        var shownMatch = await AddSeasonMatch(shown, shownHome, await AddTeam(shown, "Away"));
+        var shownGame = GrifballWebApp.Domain.Halo.Match.Seed(Guid.NewGuid(), startTime: Now);
+        Db.Matches.Add(shownGame);
+        shownMatch.AddGame(shownGame, 1);
+        var freeGame = GrifballWebApp.Domain.Halo.Match.Seed(Guid.NewGuid(), startTime: Now);
+        Db.Matches.Add(freeGame);
+        await Db.SaveChangesAsync();
         var pages = new PresencePages(new SeasonVisibility(Db), Db);
 
         using (Assert.EnterMultipleScope())
@@ -464,9 +479,59 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
             Assert.That(await pages.Shown($"/season/{hidden.SeasonID}/draft"), Is.EqualTo(PresenceSnapshot.StaffArea));
             Assert.That(await pages.Shown($"/seasonmatch/{match.SeasonMatchID}"), Is.EqualTo(PresenceSnapshot.StaffArea));
             Assert.That(await pages.Shown("/seasonmatch/99999"), Is.EqualTo(PresenceSnapshot.StaffArea), "no such match");
+            Assert.That(await pages.Shown($"/history/team/{hiddenHome.TeamID}"), Is.EqualTo(PresenceSnapshot.StaffArea));
+            Assert.That(await pages.Shown($"/match/{hiddenGame.MatchID}"), Is.EqualTo(PresenceSnapshot.StaffArea));
             Assert.That(await pages.Shown($"/season/{shown.SeasonID}/draft"), Is.EqualTo($"/season/{shown.SeasonID}/draft"));
             Assert.That(await pages.Shown($"/seasonmatch/{shownMatch.SeasonMatchID}"), Is.EqualTo($"/seasonmatch/{shownMatch.SeasonMatchID}"));
+            Assert.That(await pages.Shown($"/history/team/{shownHome.TeamID}"), Is.EqualTo($"/history/team/{shownHome.TeamID}"));
+            Assert.That(await pages.Shown($"/match/{shownGame.MatchID}"), Is.EqualTo($"/match/{shownGame.MatchID}"));
+            Assert.That(await pages.Shown($"/match/{freeGame.MatchID}"), Is.EqualTo($"/match/{freeGame.MatchID}"), "a game of no season match");
             Assert.That(await pages.Shown("/leaderboards"), Is.EqualTo("/leaderboards"));
+        }
+    }
+
+    /// <summary>Counts the queries a <see cref="GrifballContext"/> runs (every one SELECTs: a reader, even <c>Any</c>'s).</summary>
+    private sealed class QueryCounter : DbCommandInterceptor
+    {
+        public int Count;
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result)
+        {
+            Count++;
+            return base.ReaderExecuting(command, eventData, result);
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData,
+            InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            Count++;
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
+    }
+
+    [Test]
+    public async Task ShownThenSubject_OfATeamHistoryPage_AreOneQueryEach_TheVisibilityFilterNotASeparateRoundTrip()
+    {
+        var season = await AddSeason("Season 5");
+        var reds = await AddTeam(season, "Reds");
+        await Db.SaveChangesAsync();
+        var counter = new QueryCounter();
+        var countedDb = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(DatabaseProvider.Sqlite, Db.Database.GetConnectionString()!)
+            .AddInterceptors(counter).Options);
+        var pages = new PresencePages(new SeasonVisibility(countedDb), countedDb);
+
+        var shown = await pages.Shown($"/history/team/{reds.TeamID}");
+        var queriesForShown = counter.Count;
+        var subject = await pages.Subject(shown);
+        var queriesForSubject = counter.Count - queriesForShown;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(shown, Is.EqualTo($"/history/team/{reds.TeamID}"));
+            Assert.That(subject, Is.EqualTo("Reds (Season 5)"));
+            Assert.That(queriesForShown, Is.EqualTo(1), "Shown's own visibility check (CanSeeTeam): one query");
+            Assert.That(queriesForSubject, Is.EqualTo(1), "Subject's name lookup: the visibility filter built into it, not a second round trip for Public()");
         }
     }
 
@@ -523,6 +588,30 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
             Assert.That(await pages.Subject($"/match/{game.MatchID}"), Is.Null);
             Assert.That(await pages.Subject($"/season/{hidden.SeasonID}"), Is.Null);
             Assert.That(await pages.Subject($"/seasonmatch/{match.SeasonMatchID}"), Is.Null);
+        }
+    }
+
+    [Test]
+    public async Task Viewing_ASubjectLookupThatFails_StillUpdatesPresence_WithNoSubject()
+    {
+        var visibility = new SeasonVisibility(Db);
+        var pages = Substitute.ForPartsOf<PresencePages>(visibility, Db);
+        pages.Subject(Arg.Any<string>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("the name lookup is down"));
+        var context = Substitute.For<HubCallerContext>();
+        context.ConnectionId.Returns("conn");
+        context.Items.Returns(new Dictionary<object, object?>());
+        var log = new FakeLogger<LiveHub>();
+        var tracker = Tracker();
+        var hub = new LiveHub(new LiveTopicAccess(visibility, Db), new HubUser(), _watchers, tracker, pages, log) { Context = context };
+
+        await hub.Viewing("/profile/1");
+        await tracker.SendAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(tracker.Current.Pages.Single().Path, Is.EqualTo("/profile/1"), "the page still updated");
+            Assert.That(tracker.Current.Pages.Single().Subject, Is.Null, "no subject, rather than failing the call");
+            Assert.That(log.Collector.GetSnapshot().Select(r => r.Level), Does.Contain(LogLevel.Warning), "logged, not swallowed silently");
         }
     }
 

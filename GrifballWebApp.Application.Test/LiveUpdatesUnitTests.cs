@@ -254,6 +254,29 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
             Is.EqualTo(new[] { ("/profile/3", (string?)"Grunt Padre"), ("/leaderboards", null) }));
     }
 
+    [Test]
+    public void Presence_APagesTabsNameDifferentSubjects_TheOrdinalFirstWins_NotWhicheverTabCameFirst()
+    {
+        // "Zed" is listed before "Amy" (one tab recorded before a rename, say), but the pick is deterministic and
+        // must not depend on the tabs' order.
+        var fromTheEarlierTab = PresenceSnapshot.Of(
+        [
+            new PresenceTab("a", null, null, "/profile/3", "Zed"),
+            new PresenceTab("b", null, null, "/profile/3", "Amy"),
+        ]);
+        var fromTheLaterTab = PresenceSnapshot.Of(
+        [
+            new PresenceTab("b", null, null, "/profile/3", "Amy"),
+            new PresenceTab("a", null, null, "/profile/3", "Zed"),
+        ]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(fromTheEarlierTab.Pages.Single().Subject, Is.EqualTo("Amy"));
+            Assert.That(fromTheLaterTab.Pages.Single().Subject, Is.EqualTo("Amy"), "the same subject whichever tab's exchange came back first");
+        }
+    }
+
     [TestCase("draft:5", ExpectedResult = true)]
     [TestCase("season:5", ExpectedResult = true)]
     [TestCase("bracket:5", ExpectedResult = true)]
