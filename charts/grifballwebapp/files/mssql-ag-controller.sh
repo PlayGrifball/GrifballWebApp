@@ -6,7 +6,7 @@ PW_SQL=${SA_PASSWORD//\'/\'\'}
 q() {
   local out rc
   out=$("$SQLCMD" -C -S "$1" -U sa -P "$SA_PASSWORD" -y 0 -b -l 10 -Q "SET NOCOUNT ON; $2" 2>&1); rc=$?
-  if [ $rc -ne 0 ]; then echo "$out" >&2; return $rc; fi
+  if [[ $rc -ne 0 ]]; then echo "$out" >&2; return $rc; fi
   # -y 0 keeps long values whole (and prints no header); -h -1 can't go with it.
   printf '%s\n' "$out" | sed 's/[[:space:]]*$//; s/^[[:space:]]*//' | sed '/^$/d'
 }
@@ -16,7 +16,7 @@ pods() { seq 0 $((REPLICAS - 1)); }
 label() {
   wget -q -O /dev/null --ca-certificate=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
     --header="Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-    --header="Content-Type: application/merge-patch+json" --method=PATCH \
+    --header="Content-Type: application/merge-patch+json" --method=PATCH --max-redirect=0 \
     --body-data="{\"metadata\":{\"labels\":{\"$LABEL\":\"$2\"}}}" \
     "https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/pods/$1"
 }
@@ -30,15 +30,15 @@ reconcile() {
     h=$(host "$i")
     if q "$h" "SELECT 1" >/dev/null; then up+=("$i"); fi
   done
-  [ ${#up[@]} -eq 0 ] && { echo "no SQL Server is up"; return; }
+  [[ ${#up[@]} -eq 0 ]] && { echo "no SQL Server is up"; return; }
 
   # Certificate: made once, then copied to every replica; it authenticates the mirroring endpoints.
   local src="" have
   for i in "${up[@]}"; do
-    [ "$(q "$(host "$i")" "SELECT COUNT(*) FROM sys.certificates WHERE name = 'ag_cert'")" = 1 ] && { src=$i; break; }
+    [[ "$(q "$(host "$i")" "SELECT COUNT(*) FROM sys.certificates WHERE name = 'ag_cert'")" = 1 ]] && { src=$i; break; }
   done
-  if [ -z "$src" ]; then
-    [ "${up[0]}" = 0 ] || { echo "waiting for $STS-0 to make the certificate"; return; }
+  if [[ -z "$src" ]]; then
+    [[ "${up[0]}" = 0 ]] || { echo "waiting for $STS-0 to make the certificate"; return; }
     q "$(host 0)" "IF NOT EXISTS (SELECT 1 FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##') CREATE MASTER KEY ENCRYPTION BY PASSWORD = '$PW_SQL'; CREATE CERTIFICATE ag_cert WITH SUBJECT = 'availability group', EXPIRY_DATE = '2099-01-01'" || return
     src=0
   fi
@@ -46,7 +46,7 @@ reconcile() {
   for i in "${up[@]}"; do
     h=$(host "$i")
     have=$(q "$h" "SELECT COUNT(*) FROM sys.certificates WHERE name = 'ag_cert'")
-    if [ "$have" != 1 ]; then
+    if [[ "$have" != 1 ]]; then
       cert=$(cert_hex "$(host "$src")"); key=$(key_hex "$(host "$src")")
       q "$h" "IF NOT EXISTS (SELECT 1 FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##') CREATE MASTER KEY ENCRYPTION BY PASSWORD = '$PW_SQL'; CREATE CERTIFICATE ag_cert FROM BINARY = $cert WITH PRIVATE KEY (BINARY = $key, DECRYPTION BY PASSWORD = '$PW_SQL')" || return
     fi
@@ -61,15 +61,15 @@ GRANT CONNECT ON ENDPOINT::Hadr_endpoint TO ag_login" || return
     replicas="$replicas${replicas:+, }N'$STS-$i' WITH (ENDPOINT_URL = N'TCP://$(host "$i"):5022', AVAILABILITY_MODE = $MODE, FAILOVER_MODE = MANUAL, SEEDING_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = ALL))"
   done
   for i in "${up[@]}"; do
-    [ "$(q "$(host "$i")" "SELECT COUNT(*) FROM sys.availability_groups WHERE name = '$AG'")" = 1 ] && exists=1
+    [[ "$(q "$(host "$i")" "SELECT COUNT(*) FROM sys.availability_groups WHERE name = '$AG'")" = 1 ]] && exists=1
   done
-  if [ -z "$exists" ]; then
-    [ "${up[0]}" = 0 ] || return
+  if [[ -z "$exists" ]]; then
+    [[ "${up[0]}" = 0 ]] || return
     q "$(host 0)" "CREATE AVAILABILITY GROUP [$AG] WITH (CLUSTER_TYPE = NONE) FOR REPLICA ON $replicas" || return
   fi
   for i in "${up[@]}"; do
     h=$(host "$i")
-    if [ "$(q "$h" "SELECT COUNT(*) FROM sys.availability_groups WHERE name = '$AG'")" != 1 ]; then
+    if [[ "$(q "$h" "SELECT COUNT(*) FROM sys.availability_groups WHERE name = '$AG'")" != 1 ]]; then
       q "$h" "ALTER AVAILABILITY GROUP [$AG] JOIN WITH (CLUSTER_TYPE = NONE)" || continue
     fi
     q "$h" "ALTER AVAILABILITY GROUP [$AG] GRANT CREATE ANY DATABASE" >/dev/null
@@ -82,22 +82,22 @@ GRANT CONNECT ON ENDPOINT::Hadr_endpoint TO ag_login" || return
   for i in "${up[@]}"; do
     role=$(q "$(host "$i")" "SELECT role_desc FROM sys.dm_hadr_availability_replica_states WHERE is_local = 1")
     roleOf[$i]=$role
-    if [ "$role" = PRIMARY ]; then primary=$i; primaries=$((primaries + 1)); fi
+    if [[ "$role" = PRIMARY ]]; then primary=$i; primaries=$((primaries + 1)); fi
   done
-  if [ "$primaries" -gt 1 ]; then
+  if [[ "$primaries" -gt 1 ]]; then
     echo "split brain: $primaries primaries; demote all but one with ALTER AVAILABILITY GROUP [$AG] SET (ROLE = SECONDARY)"
     for i in "${up[@]}"; do label "$STS-$i" conflict; done
     return
   fi
   for i in "${up[@]}"; do
-    if [ "${roleOf[$i]}" = PRIMARY ]; then label "$STS-$i" primary; else label "$STS-$i" secondary; fi
+    if [[ "${roleOf[$i]}" = PRIMARY ]]; then label "$STS-$i" primary; else label "$STS-$i" secondary; fi
   done
-  [ -z "$primary" ] && { echo "no primary"; return; }
+  [[ -z "$primary" ]] && { echo "no primary"; return; }
   local ph; ph=$(host "$primary")
 
   # A secondary's databases stop after a failover until they're resumed.
   for i in "${up[@]}"; do
-    [ "$i" = "$primary" ] && continue
+    [[ "$i" = "$primary" ]] && continue
     for db in $(q "$(host "$i")" "SELECT DB_NAME(database_id) FROM sys.dm_hadr_database_replica_states WHERE is_local = 1 AND is_suspended = 1"); do
       echo "Resuming $db on $STS-$i"
       q "$(host "$i")" "ALTER DATABASE [$db] SET HADR RESUME" >/dev/null
@@ -115,10 +115,10 @@ GRANT CONNECT ON ENDPOINT::Hadr_endpoint TO ag_login" || return
   local rows name sid hash
   rows=$(q "$ph" "SELECT name + '|' + CONVERT(varchar(max), sid, 1) + '|' + CONVERT(varchar(max), password_hash, 1) FROM sys.sql_logins WHERE name NOT LIKE '##%' AND name <> 'sa' AND password_hash IS NOT NULL")
   for i in "${up[@]}"; do
-    [ "$i" = "$primary" ] && continue
+    [[ "$i" = "$primary" ]] && continue
     h=$(host "$i")
     while IFS='|' read -r name sid hash; do
-      [ -z "$name" ] && continue
+      [[ -z "$name" ]] && continue
       q "$h" "IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'$name') CREATE LOGIN [$name] WITH PASSWORD = $hash HASHED, SID = $sid, CHECK_POLICY = OFF; ELSE ALTER LOGIN [$name] WITH PASSWORD = $hash HASHED" >/dev/null
     done <<< "$rows"
     for r in $(q "$ph" "SELECT r.name + '|' + m.name FROM sys.server_role_members rm JOIN sys.server_principals r ON r.principal_id = rm.role_principal_id JOIN sys.server_principals m ON m.principal_id = rm.member_principal_id WHERE m.type = 'S' AND m.name NOT LIKE '##%' AND m.name <> 'sa'"); do
