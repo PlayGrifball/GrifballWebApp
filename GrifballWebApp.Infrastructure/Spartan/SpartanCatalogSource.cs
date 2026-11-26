@@ -31,8 +31,8 @@ public sealed class SpartanCatalogSource(InfiniteSpartanRenderClient client, IMe
     }
 
     internal static Application.Spartan.SpartanCatalog Map(PlayGrifball.InfiniteSpartanRender.Client.SpartanCatalog catalog) => new(
-        [.. catalog.Cores.Select(c => new SpartanCatalogCore(c.Name,
-            [.. c.Regions.Select(r => new SpartanCatalogRegion(r.Kind, r.Key, r.Region,
+        [.. catalog.Cores.Select(c => new Application.Spartan.SpartanCatalogCore(c.Name,
+            [.. c.Regions.Select(r => new Application.Spartan.SpartanCatalogRegion(r.Kind, r.Key, r.Region,
                 [.. r.Pieces.Select(p => new Application.Spartan.SpartanCatalogPiece(p.Permutation, p.Name))]))]))],
         [.. catalog.Coatings],
         [.. catalog.Visors],
