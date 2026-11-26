@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261126140124_AddUserSpartan")]
-    partial class AddUserSpartan
+    [Migration("20261126140745_AddXboxUserArmorAndSpartans")]
+    partial class AddXboxUserArmorAndSpartans
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace GrifballWebApp.Migrations.Sqlite.Migrations
 {
     /// <inheritdoc />
-    public partial class AddUserSpartan : Migration
+    public partial class AddXboxUserArmorAndSpartans : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -74,6 +74,52 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "XboxUserArmor",
+                schema: "Xbox",
+                columns: table => new
+                {
+                    XboxUserID = table.Column<long>(type: "INTEGER", nullable: false),
+                    CheckedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    Status = table.Column<int>(type: "INTEGER", nullable: false),
+                    Error = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true, collation: "NOCASE"),
+                    ChangedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    CoreId = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    CorePath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    ThemePath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    CoatingPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    HelmetPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    VisorPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    GlovePath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    HelmetAttachmentPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    ChestAttachmentPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    KneePadPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    LeftShoulderPadPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    RightShoulderPadPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    HipAttachmentPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    WristAttachmentPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    ArmorFxPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    MythicFxPath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    ActionPosePath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    StancePath = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    BodyType = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    LeftArm = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    RightArm = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    LeftLeg = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
+                    RightLeg = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_XboxUserArmor", x => x.XboxUserID);
+                    table.ForeignKey(
+                        name: "FK_XboxUserArmor_XboxUsers_XboxUserID",
+                        column: x => x.XboxUserID,
+                        principalSchema: "Xbox",
+                        principalTable: "XboxUsers",
+                        principalColumn: "XboxUserID",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "UserSpartanFiles",
                 schema: "Xbox",
                 columns: table => new
@@ -107,6 +153,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 table: "UserSpartansHistory",
                 columns: new[] { "UserId", "PeriodEnd" });
 
+            migrationBuilder.CreateIndex(
+                name: "IX_XboxUserArmor_CheckedAt",
+                schema: "Xbox",
+                table: "XboxUserArmor",
+                column: "CheckedAt");
+
             migrationBuilder.Sql("""
                 CREATE TRIGGER "UserSpartans_History_Update" AFTER UPDATE ON "UserSpartans" FOR EACH ROW BEGIN
                     INSERT INTO "UserSpartansHistory" ("ChoiceJson", "PeriodStart", "UpdatedAt", "UserId", "PeriodEnd") VALUES (OLD."ChoiceJson", OLD."PeriodStart", OLD."UpdatedAt", OLD."UserId", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
@@ -136,6 +188,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
             migrationBuilder.DropTable(
                 name: "UserSpartansHistory",
+                schema: "Xbox");
+
+            migrationBuilder.DropTable(
+                name: "XboxUserArmor",
                 schema: "Xbox");
 
             migrationBuilder.DropTable(

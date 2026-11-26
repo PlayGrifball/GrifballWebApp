@@ -12,6 +12,7 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { DeploymentHistoryComponent } from './deploymentHistory/deploymentHistory.component';
 import { LinkedAccountsComponent } from '@shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
+import { ProfileSpartanComponent } from './profileSpartan/profileSpartan.component';
 import { AccessTokensComponent } from './accessTokens/accessTokens.component';
 import { ThemeComponent } from '@core/layout/theme/theme.component';
 import { ServiceRecordComponent } from './serviceRecord/serviceRecord.component';
@@ -59,6 +60,7 @@ export function describeProfile(profile: ProfileStatsDto): PageDescription | nul
     DeploymentHistoryComponent,
     LinkedAccountsComponent,
     ProfileIdentityComponent,
+    ProfileSpartanComponent,
     AccessTokensComponent,
     ThemeComponent,
     ServiceRecordComponent,

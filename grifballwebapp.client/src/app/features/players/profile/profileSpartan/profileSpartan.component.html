@@ -1,0 +1,79 @@
+<section aria-labelledby="spartan-heading">
+  <h2 id="spartan-heading" class="hud-h2">Your Spartan</h2>
+
+  @if (profile(); as p) {
+    <p class="hud-muted">
+      @if (p.choice) {
+        Showing the Spartan you chose.
+      } @else if (p.hasEquippedSet) {
+        Showing the set you have equipped in Halo Infinite.
+      } @else {
+        No equipped set is known for your account yet; choose a Spartan below.
+      }
+      @switch (p.renderState) {
+        @case ('Requested') { It is waiting to render. }
+        @case ('Rendering') { It is rendering. }
+        @case ('Failed') { The last render failed: {{p.renderError}} }
+        @case ('Done') { Rendered {{p.renderedAt | date: 'medium'}}. }
+      }
+    </p>
+
+    <div class="spartan-files">
+      @if (hasFile('neutral-body')) { <img [src]="fileUrl('neutral-body')" alt="Your Spartan, full body" width="350" height="500"> }
+      @if (hasFile('stance-body')) { <img [src]="fileUrl('stance-body')" alt="Your Spartan in your stance" width="350" height="500"> }
+      @if (hasFile('neutral-head')) { <img [src]="fileUrl('neutral-head')" alt="Your Spartan's helmet" width="350" height="500"> }
+    </div>
+    @if (hasFile('neutral-glb')) {
+      <p><a [href]="fileUrl('neutral-glb')" download>Download the 3D model</a>@if (hasFile('stance-glb')) { · <a [href]="fileUrl('stance-glb')" download>in your stance</a> }</p>
+    }
+
+    <div class="spartan-actions">
+      <button type="button" class="hud-btn" (click)="edit()" [disabled]="busy()">Choose a Spartan</button>
+      <button type="button" class="hud-btn" (click)="render()" [disabled]="busy()">Render again</button>
+      @if (p.choice) {
+        <button type="button" class="hud-btn" (click)="reset()" [disabled]="busy()">Use my equipped set</button>
+      }
+    </div>
+  }
+
+  @if (editing()) {
+    @if (catalog(); as c) {
+      <form class="spartan-form" (submit)="$event.preventDefault(); save()">
+        <label for="spartan-core">Core</label>
+        <select id="spartan-core" #coreSelect [value]="core()" (change)="setCore(coreSelect.value)">
+          <option value="">Choose a core</option>
+          @for (core of cores(); track core.name) { <option [value]="core.name">{{core.name}}</option> }
+        </select>
+
+        @for (region of regions(); track region.key) {
+          <label [for]="'spartan-' + region.key">{{region.key}}</label>
+          <select [id]="'spartan-' + region.key" #pieceSelect [value]="armor()[region.key] ?? ''" (change)="setPiece(region.key, pieceSelect.value)">
+            <option value="">Default</option>
+            @for (piece of region.pieces; track piece.permutation) {
+              @if (piece.name) { <option [value]="piece.name">{{piece.name}}</option> }
+            }
+          </select>
+        }
+
+        <label for="spartan-coating">Coating</label>
+        <select id="spartan-coating" #coatingSelect [value]="coating()" (change)="coating.set(coatingSelect.value)">
+          <option value="">Default</option>
+          @for (coating of c.coatings; track coating) { <option [value]="coating">{{coating}}</option> }
+        </select>
+
+        <label for="spartan-visor">Visor</label>
+        <select id="spartan-visor" #visorSelect [value]="visor()" (change)="visor.set(visorSelect.value)">
+          <option value="">Default</option>
+          @for (visor of c.visors; track visor) { <option [value]="visor">{{visor}}</option> }
+        </select>
+
+        <div class="spartan-actions">
+          <button type="submit" class="hud-btn" [disabled]="!core() || busy()">Save</button>
+          <button type="button" class="hud-btn" (click)="cancel()">Cancel</button>
+        </div>
+      </form>
+    } @else {
+      <p class="hud-muted">Loading what you can choose from…</p>
+    }
+  }
+</section>
