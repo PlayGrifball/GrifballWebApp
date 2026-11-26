@@ -218,16 +218,14 @@
     </div>
     }
     <h3 class="hud-label">Enter Match ID</h3>
-    <form class="app-form lobby-admin__form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
-      <mat-form-field appearance="outline" class="app-full-width">
-        <mat-label>Match ID</mat-label>
-        <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
-        <app-error-message [control]="reportMatchForm.controls['MatchID']" />
-      </mat-form-field>
-      <button mat-flat-button [disabled]="!reportMatchForm.form.valid || busy()">
-        Submit
-      </button>
-    </form>
+    <!-- Its code (a form field, forms, validation) loads after the page's, for commissioners only; the server still renders it -->
+    @defer (on immediate; hydrate on immediate) {
+    <app-report-match-form [(matchID)]="matchID" [busy]="busy()" (submitted)="onSubmit($event)" />
+    } @placeholder {
+    <app-skeleton label="the match ID form" shape="block" height="72px" />
+    } @error {
+    <app-data-notice message="The match ID form couldn't load. Reload the page to try again." />
+    }
     @if (placingReport() === matchID) {
     <ng-container *ngTemplateOutlet="slotChoice" />
     }

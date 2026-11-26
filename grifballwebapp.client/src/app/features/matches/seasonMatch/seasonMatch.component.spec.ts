@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import { DatePipe } from '@angular/common';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 import { describeSeasonMatch, SeasonMatchComponent } from './seasonMatch.component';
 import { PULL_POLL_MS } from './seasonMatch.store';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -16,6 +16,7 @@ import type { PossibleMatchDto, PossiblePlayerDto } from '@api/models';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { StubVodListComponent } from '@shared/vodList/vodList.stub';
 import type { OnDemandJobStatusDto } from '@api/models';
+import { renderDeferBlocks } from '@shared/testing/renderDeferBlocks';
 
 /** Manual entry is tested on its own (manualGames.component.spec.ts): here a stub, which asks for nothing. */
 @Component({ selector: 'app-manual-games', template: '' })
@@ -1174,9 +1175,11 @@ describe('SeasonMatchComponent reporting', () => {
     httpMock.expectNone(r => r.method === 'POST');
   });
 
-  it('only accepts a GUID as a match id', async () => {
+  it("reports a game by its match id, only a GUID, once the form's code is in", async () => {
     load(page());
     await fixture.whenStable();
+    // The form is a @defer block: drawn as the browser draws it once its code is in
+    await renderDeferBlocks(fixture);
     const input = (fixture.nativeElement as HTMLElement).querySelector('input[name="MatchID"]') as HTMLInputElement;
     const submit = button('Submit')!;
 
@@ -1190,6 +1193,13 @@ describe('SeasonMatchComponent reporting', () => {
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     expect(submit.disabled).toBeFalse();
+  });
+
+  it('shows a notice in place of the match id form, not nothing, if its chunk fails to load', async () => {
+    load(page());
+    await fixture.whenStable();
+    await renderDeferBlocks(fixture, DeferBlockState.Error);
+    expect(text()).toContain("The match ID form couldn't load. Reload the page to try again.");
   });
 });
 

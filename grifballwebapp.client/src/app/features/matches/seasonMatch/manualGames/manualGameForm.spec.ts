@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import type { GameVersionOptionDto, TeamPagePlayerDto } from '@api/models';
 import { ReportedGameDto } from '../seasonMatchPageDto';
-import { defaultGameVersion, formLines, gameSource, INFINITE_GAME_VERSION_ID, ManualGameForm, toLocalInput, toRequest } from './manualGameForm';
+import { defaultGameVersion, emptyForm, formLines, gameSource, INFINITE_GAME_VERSION_ID, isFormValid, ManualGameForm, toLocalInput, toRequest } from './manualGameForm';
 
 describe('manualGameForm', () => {
   it('says where a game came from: Waypoint (a match ID) first, else by hand, else recorded', () => {
@@ -64,5 +64,15 @@ describe('manualGameForm', () => {
     ]);
     expect(lines[0]).toEqual(jasmine.objectContaining({ kills: 9, goals: 2, score: 2 }));
     expect(formLines(null, [], [roster(3, 'Tucker')]).map(l => l.played)).toEqual([false]);
+  });
+
+  it("is valid with both scores in, at least 0 and different, and a new game's place picked", () => {
+    const form = (changes: Partial<ManualGameForm>) => ({ ...emptyForm(), ...changes });
+    expect(isFormValid(form({ homeTeamScore: 2, awayTeamScore: 1 }), 7)).toBeTrue();
+    expect(isFormValid(form({ homeTeamScore: 2, awayTeamScore: 2 }), 7)).withContext('a tie').toBeFalse();
+    expect(isFormValid(form({ homeTeamScore: null, awayTeamScore: 1 }), 7)).withContext('no home score').toBeFalse();
+    expect(isFormValid(form({ homeTeamScore: -1, awayTeamScore: 1 }), 7)).withContext('below 0').toBeFalse();
+    expect(isFormValid(form({ homeTeamScore: 2, awayTeamScore: 1 }), 'new')).withContext('no place picked').toBeFalse();
+    expect(isFormValid(form({ homeTeamScore: 2, awayTeamScore: 1, slot: 'new' }), 'new')).toBeTrue();
   });
 });

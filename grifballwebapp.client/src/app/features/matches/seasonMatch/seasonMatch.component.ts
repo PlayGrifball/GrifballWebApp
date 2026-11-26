@@ -6,13 +6,8 @@ import { RouterModule } from '@angular/router';
 import { SeasonMatchPageDto } from './seasonMatchPageDto';
 import { MatchAction, SeasonMatchStore } from './seasonMatch.store';
 import { BoxScoreComponent } from './boxScore/boxScore.component';
-import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
-import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { FormsModule } from '@angular/forms';
-import { MatInputModule } from '@angular/material/input';
-import { RegexMatchValidValidatorDirective } from '@shared/validation/directives/regexMatchValidValidatorDirective.directive';
+import { ReportMatchFormComponent } from './reportMatchForm/reportMatchForm.component';
 import type { PossiblePlayerDto } from '@api/models';
 import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '@core/auth/account.service';
@@ -20,13 +15,13 @@ import { Observable } from 'rxjs';
 
 import { ToDatePipe } from '@shared/toDate.pipe';
 import { errorText } from '@shared/errorText';
-import { provideDatePickers } from '@shared/datePickers';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { ManualGamesComponent } from './manualGames/manualGames.component';
 import { GameSlot, slotChoices } from './manualGames/manualGameForm';
 import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
 import { StatFlagsNoticeComponent } from './statFlagsNotice/statFlagsNotice.component';
 import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
+import { DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
 
 export const actionPrompts: Record<MatchAction, string> = {
   HomeForfeit: 'The home team forfeits and the away team wins.',
@@ -113,13 +108,8 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
     imports: [
         ProfilePictureComponent,
         RouterModule,
-        FormsModule,
-        MatInputModule,
-        MatFormFieldModule,
         MatButtonModule,
-        ErrorMessageComponent,
-        RegexMatchValidValidatorDirective,
-        MtxDatetimepickerModule,
+        ReportMatchFormComponent,
         MatTableModule,
         ToDatePipe,
         VodListComponent,
@@ -129,10 +119,11 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
         NgTemplateOutlet,
         StatFlagsNoticeComponent,
         SkeletonComponent,
+        DataNoticeComponent,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
-    providers: [provideDatePickers(), SeasonMatchStore],
+    providers: [SeasonMatchStore],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonMatchComponent {
@@ -265,8 +256,6 @@ export class SeasonMatchComponent {
   ];
 
   matchID: string = "";
-  regex: string = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$`;
-  regexErrorMessage: string = "Must be a valid GUID";
 
   constructor() {
     describePage(() => {

@@ -106,6 +106,8 @@ describe('PlayoffBracketComponent behaviour', () => {
     fixture.detectChanges();
     expect(text()).not.toContain('No bracket created'); // not known yet
     expect(text()).toContain('Loading the bracket');
+    // Laid out for the viewer, but out of the flow and unseen while it draws: it takes the skeleton's place, not the space under it
+    const box = () => (fixture.nativeElement as HTMLElement).querySelector('.bracket-box')!;
     const data = viewerData([{ id: 1, name: 'Alpha' }]);
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush(data);
     await fixture.whenStable();
@@ -120,6 +122,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(component.drawn()).toBeTrue();
     expect(text()).toContain('BYE = auto-advance');
     expect(text()).not.toContain('Loading the bracket');
+    expect(box().classList).not.toContain('bracket-box--drawing');
   });
 
   it('leaves no skeleton waiting when the viewer fails to draw the bracket, and says so', async () => {
@@ -145,6 +148,8 @@ describe('PlayoffBracketComponent behaviour', () => {
     void component.render(data);
     await Promise.resolve();
     expect(component.waiting()).toBeTrue();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.bracket-box')!.classList).toContain('bracket-box--drawing');
   });
 
   it("loads the new season's bracket when the season changes, showing none of the previous one meanwhile", async () => {

@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 import { input, output, signal, WritableSignal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -20,6 +20,7 @@ import { StubDeploymentHistoryComponent } from './deploymentHistory/deploymentHi
 import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
 import { StubProfileCommendationsComponent } from './profileCommendations/profileCommendations.stub';
 import { By } from '@angular/platform-browser';
+import { renderDeferBlocks } from '@shared/testing/renderDeferBlocks';
 
 // The linked-accounts section loads its own data; its behaviour is covered by its own spec.
 @Component({ selector: 'app-linked-accounts', template: '<p>linked accounts</p>' })
@@ -36,6 +37,10 @@ class ProfileIdentityStubComponent {
 // And the access tokens section (accessTokens.component.spec.ts).
 @Component({ selector: 'app-access-tokens', template: '<p>access tokens</p>' })
 class AccessTokensStubComponent {}
+
+
+/** The owner's settings are a @defer block: drawn as the browser draws them once their code is in. */
+const renderDeferred = (fixture: ComponentFixture<unknown>): Promise<void> => renderDeferBlocks(fixture);
 
 describe('ProfileComponent', () => {
   let fixture: ComponentFixture<ProfileComponent>;
@@ -621,14 +626,25 @@ describe('ProfileComponent linked accounts', () => {
     expect(el.querySelector('app-service-record')).toBeNull();
   });
 
-  it('shows the linked accounts on your own profile', () => {
+  it('shows the linked accounts on your own profile', async () => {
     personID.set(21);
-    expect(render().querySelector('app-linked-accounts')).not.toBeNull();
+    const page = render();
+    await renderDeferred(fixture);
+    expect(page.querySelector('app-linked-accounts')).not.toBeNull();
   });
 
-  it("hides them on someone else's profile", () => {
+  it("hides them on someone else's profile", async () => {
     personID.set(4);
-    expect(render().querySelector('app-linked-accounts')).toBeNull();
+    const page = render();
+    await renderDeferred(fixture);
+    expect(page.querySelector('app-linked-accounts')).toBeNull();
+  });
+
+  it('shows a notice in place of the owner settings, not nothing, if their chunk fails to load', async () => {
+    personID.set(21);
+    const page = render();
+    await renderDeferBlocks(fixture, DeferBlockState.Error);
+    expect(page.querySelector('app-data-notice')!.textContent).toContain("Your settings couldn't load. Reload the page to try again.");
   });
 });
 
@@ -687,9 +703,10 @@ describe('ProfileComponent: region and identity', () => {
     expect(render(null).querySelector('.profile-region')).toBeNull();
   });
 
-  it('shows the region and past gamertag claims on your own profile, and reloads when they change', () => {
+  it('shows the region and past gamertag claims on your own profile, and reloads when they change', async () => {
     personID.set(21);
     const page = render('Central North America');
+    await renderDeferred(fixture);
     const identity = fixture.debugElement.query(d => d.componentInstance instanceof ProfileIdentityStubComponent);
     expect(page.querySelector('app-profile-identity')).not.toBeNull();
     expect((identity.componentInstance as ProfileIdentityStubComponent).regionID()).toBe(2);
@@ -697,9 +714,11 @@ describe('ProfileComponent: region and identity', () => {
     http.expectOne('/api/users/21/stats').flush(null);
   });
 
-  it("hides them on someone else's profile", () => {
+  it("hides them on someone else's profile", async () => {
     personID.set(4);
-    expect(render(null).querySelector('app-profile-identity')).toBeNull();
+    const page = render(null);
+    await renderDeferred(fixture);
+    expect(page.querySelector('app-profile-identity')).toBeNull();
   });
 
   it('links a sysadmin to editing the user', () => {

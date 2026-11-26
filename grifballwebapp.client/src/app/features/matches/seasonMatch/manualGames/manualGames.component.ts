@@ -1,15 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output } from '@angular/core';
 import { outputFromObservable } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import type { TeamPagePlayerDto } from '@api/models';
 import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
-import { decidedOtherwise, defaultGameVersion, emptyForm, formLines, ManualGameForm, slotChoices, toLocalInput } from './manualGameForm';
+import { decidedOtherwise, defaultGameVersion, emptyForm, formLines, isFormValid, ManualGameForm, slotChoices, toLocalInput } from './manualGameForm';
 import { ManualGamesStore } from './manualGames.store';
+import { ManualGameEditorComponent } from './manualGameEditor.component';
+import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
 /**
  * Manual match entry on the match page: a commissioner enters a game by hand (the stat bot or Halo Infinite's stats
@@ -19,7 +16,7 @@ import { ManualGamesStore } from './manualGames.store';
  */
 @Component({
   selector: 'app-manual-games',
-  imports: [FormsModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatSelectModule],
+  imports: [MatButtonModule, ManualGameEditorComponent, SkeletonComponent],
   templateUrl: './manualGames.component.html',
   styleUrl: './manualGames.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -128,9 +125,7 @@ export class ManualGamesComponent {
 
   /** The scores are in and differ (the side with the higher one won); a new game's place in the series is picked. */
   formValid(): boolean {
-    const { homeTeamScore: home, awayTeamScore: away } = this.form;
-    return home != null && away != null && home >= 0 && away >= 0 && home !== away
-      && (this.editing() !== 'new' || this.form.slot !== null);
+    return isFormValid(this.form, this.editing());
   }
 
   /** Sends the game in the form; done, manual entry is idle and the page reloads; refused, it stays with why. */
