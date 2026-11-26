@@ -82,7 +82,7 @@ internal sealed class UserThemeServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public async Task Set_RefusesATheme_WithPartsMissing_AsABodyWithoutThemeFieldsIs()
+    public async Task Set_RefusesAThemeWithAColourMissing_AndTakesOneWithNoEra()
     {
         await AddUser();
 
@@ -101,7 +101,8 @@ internal sealed class UserThemeServiceUnitTests : ApplicationDbContextTests
         }
     }
 
-${1}()
+    [Test]
+    public async Task Set_SaysThereIsNoSuchUser()
     {
         Assert.That(await _service.Set(99, Theme()), Is.EqualTo(SetThemeResult.NoSuchUser));
     }
@@ -117,7 +118,8 @@ ${1}()
 
         Assert.That(await _service.Get(1), Is.Null);
     }
-${1}
+    [Test]
+    public async Task Get_IsNull_ForStoredTextThatIsNoTheme()
     {
         Context.Users.Add(User.Seed(userName: "alice", id: 1));
         await Context.SaveChangesAsync();
