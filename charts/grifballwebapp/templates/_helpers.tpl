@@ -618,3 +618,13 @@ Secret (secretName/secretKey), so both read the one Secret. Empty secretName: no
   value: {{ $value | quote }}
 {{- end }}
 {{- end }}
+
+{{/* The label the availability group's controller sets on each SQL Server pod (primary or secondary), which the SQL Server Services select on. */}}
+{{- define "grif.mssqlRoleLabel" -}}
+grif.playgrifball.com/mssql-role
+{{- end }}
+
+{{/* "true" with the chart's SQL Server running as an availability group (mssql.availabilityGroup). */}}
+{{- define "grif.mssqlAG" -}}
+{{- if and (include "grif.bundled" .) (not (include "grif.postgres" .)) .Values.mssql.availabilityGroup.enabled }}true{{ end -}}
+{{- end }}

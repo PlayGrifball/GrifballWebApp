@@ -4,10 +4,20 @@
 {{- if and $m.enabled (not (include "grif.postgres" .)) (not (include "grif.sqlite" .)) }}
 {{- $download := .Values.database.logins.app.nativeBackups }}
 {{- $conf := or $m.tls.secretName $download }}
+{{- $ag := $m.availabilityGroup }}
+{{- $agOn := $ag.enabled }}
 {{- if not $m.acceptEula }}
 {{- fail "mssql.acceptEula must be true to run SQL Server (you accept its EULA); or set mssql.enabled false and database.host" }}
 {{- end }}
-{{- if not $m.persistence.existingClaim }}
+{{- if $agOn }}
+{{- if or (lt (int $ag.replicas) 2) (gt (int $ag.replicas) 9) }}
+{{- fail "mssql.availabilityGroup.replicas must be 2 to 9" }}
+{{- end }}
+{{- if or $m.persistence.existingClaim $m.backup.existingClaim $m.backup.nfs.server }}
+{{- fail "mssql.availabilityGroup gives each replica its own volumes: mssql.persistence.existingClaim, mssql.backup.existingClaim and mssql.backup.nfs can't be used" }}
+{{- end }}
+{{- end }}
+{{- if and (not $agOn) (not $m.persistence.existingClaim) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -32,7 +42,7 @@ spec:
 ---
 {{- end }}
 {{- with $m.backup }}
-{{- if and .enabled (not .existingClaim) }}
+{{- if and .enabled (not .existingClaim) (not $agOn) }}
 {{- if .nfs.server }}
 # Not namespaced: named after the namespace, so each release's export is its own.
 apiVersion: v1
@@ -98,6 +108,9 @@ spec:
   type: ClusterIP
   selector:
     app: grif-mssql
+    {{- if $agOn }}
+    {{ include "grif.mssqlRoleLabel" $ }}: primary
+    {{- end }}
   ports:
     - name: sql
       port: {{ $m.service.port }}
@@ -121,6 +134,9 @@ spec:
   type: LoadBalancer
   selector:
     app: grif-mssql
+    {{- if $agOn }}
+    {{ include "grif.mssqlRoleLabel" $ }}: primary
+    {{- end }}
   ports:
     - name: sql
       port: {{ .port }}
@@ -129,26 +145,65 @@ spec:
 {{- end }}
 {{- end }}
 apiVersion: apps/v1
-kind: Deployment
+kind: {{ ternary "StatefulSet" "Deployment" $agOn }}
 metadata:
   name: grif-mssql
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: mssql
-    {{- with include "grif.onDemandLabels" (dict "root" . "component" "mssql" "replicas" 1) | trim }}{{ . | nindent 4 }}{{ end }}
+    {{- with include "grif.onDemandLabels" (dict "root" . "component" "mssql" "replicas" (ternary (int $ag.replicas) 1 $agOn)) | trim }}{{ . | nindent 4 }}{{ end }}
   annotations:
     argocd.argoproj.io/sync-wave: "-2"
 spec:
-  {{- with include "grif.replicas" (dict "root" . "component" "mssql" "replicas" 1) }}
+  {{- with include "grif.replicas" (dict "root" . "component" "mssql" "replicas" (ternary (int $ag.replicas) 1 $agOn)) }}
   {{ . }}
   {{- end }}
   selector:
     matchLabels:
       app: grif-mssql
+  {{- if $agOn }}
+  serviceName: {{ $ag.headlessServiceName }}
+  # Every replica starts at once: the group is made once they're all up, and none waits on another's start.
+  podManagementPolicy: Parallel
+  volumeClaimTemplates:
+    - metadata:
+        name: mssql-data
+        {{- with $m.persistence.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- toYaml $m.persistence.accessModes | nindent 10 }}
+        resources:
+          requests:
+            storage: {{ $m.persistence.size }}
+        {{- with $m.persistence.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+    {{- if $m.backup.enabled }}
+    - metadata:
+        name: backup
+        {{- with $m.backup.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- toYaml $m.backup.accessModes | nindent 10 }}
+        resources:
+          requests:
+            storage: {{ $m.backup.size }}
+        {{- with $m.backup.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+    {{- end }}
+  {{- else }}
   # Stop the old SQL Server before starting the new one: a ReadWriteOnce volume allows every pod on
   # the same node, so a rolling update could run two instances on one set of database files.
   strategy:
     type: Recreate
+  {{- end }}
   template:
     metadata:
       labels:
@@ -240,9 +295,17 @@ spec:
           ports:
             - name: sql
               containerPort: 1433
+            {{- if $agOn }}
+            - name: hadr
+              containerPort: 5022
+            {{- end }}
           env:
             - name: ACCEPT_EULA
               value: "Y"
+            {{- if $agOn }}
+            - name: MSSQL_ENABLE_HADR
+              value: "1"
+            {{- end }}
             {{- with $m.edition }}
             - name: MSSQL_PID
               value: {{ . | quote }}
@@ -300,6 +363,7 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
       volumes:
+        {{- if not $agOn }}
         - name: mssql-data
           persistentVolumeClaim:
             claimName: {{ $m.persistence.existingClaim | default $m.persistence.claimName }}
@@ -307,6 +371,7 @@ spec:
         - name: backup
           persistentVolumeClaim:
             claimName: {{ $m.backup.existingClaim | default $m.backup.claimName }}
+        {{- end }}
         {{- end }}
         - name: tmp
           emptyDir: {}

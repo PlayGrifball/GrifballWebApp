@@ -1,0 +1,208 @@
+{{- /* The SQL Server availability group's parts (mssql.availabilityGroup): the Services between and to the replicas, and the controller that keeps the group going. The replicas themselves are mssql.yaml's StatefulSet. */}}
+{{- if include "grif.mssqlAG" . }}
+{{- $m := .Values.mssql }}
+{{- $ag := $m.availabilityGroup }}
+{{- $c := $ag.controller }}
+{{- $roleLabel := include "grif.mssqlRoleLabel" . }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $ag.headlessServiceName }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  # Each replica's own name (grif-mssql-0.<this>), which the group's endpoints use. Published before a
+  # replica is ready, so the others can find it while the group forms.
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: grif-mssql
+  ports:
+    - name: sql
+      port: 1433
+      targetPort: sql
+    - name: hadr
+      port: 5022
+      targetPort: hadr
+---
+{{- if $ag.readOnlyService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $ag.readOnlyService.name }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  type: ClusterIP
+  selector:
+    app: grif-mssql
+    {{ $roleLabel }}: secondary
+  ports:
+    - name: sql
+      port: {{ $m.service.port }}
+      targetPort: sql
+---
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grif-mssql-ag
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql-ag
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: grif-mssql-ag
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql-ag
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+rules:
+  # The role label on the SQL Server pods, and nothing else.
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: grif-mssql-ag
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql-ag
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: grif-mssql-ag
+subjects:
+  - kind: ServiceAccount
+    name: grif-mssql-ag
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grif-mssql-ag
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql-ag
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+data:
+  controller.sh: |
+    {{- .Files.Get "files/mssql-ag-controller.sh" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-mssql-ag
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql-ag
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grif-mssql-ag
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: grif-mssql-ag
+        {{- include "grif.podLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mssql-ag
+        {{- with $c.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # A new script restarts it.
+        checksum/script: {{ .Files.Get "files/mssql-ag-controller.sh" | sha256sum }}
+        {{- with $c.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: grif-mssql-ag
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $m.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: controller
+          image: {{ include "grif.image" (ternary $c.image $m.image (ne (toString $c.image.repository) "")) }}
+          imagePullPolicy: {{ $m.image.pullPolicy }}
+          command: ["bash", "/script/controller.sh"]
+          env:
+            - name: STS
+              value: grif-mssql
+            - name: SVC
+              value: {{ $ag.headlessServiceName | quote }}
+            - name: REPLICAS
+              value: {{ $ag.replicas | quote }}
+            - name: AG
+              value: {{ $ag.name | quote }}
+            - name: MODE
+              value: {{ $ag.availabilityMode | quote }}
+            - name: LABEL
+              value: {{ $roleLabel | quote }}
+            - name: INTERVAL
+              value: {{ $c.intervalSeconds | quote }}
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: SA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "grif.secretName" (dict "secretName" $m.saPassword.secretName "root" .) }}
+                  key: {{ $m.saPassword.key }}
+          {{- with $c.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: script
+              mountPath: /script
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: script
+          configMap:
+            name: grif-mssql-ag
+        - name: tmp
+          emptyDir: {}
+      nodeSelector:
+        {{- toYaml $m.nodeSelector | nindent 8 }}
+      {{- with $m.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

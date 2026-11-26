@@ -622,6 +622,44 @@
         "image": { "$ref": "#/definitions/image" },
         "edition": { "type": "string" },
         "saPassword": { "$ref": "#/definitions/secretKeyRef" },
+        "availabilityGroup": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "replicas": { "type": "integer", "minimum": 2, "maximum": 9 },
+            "name": { "type": "string", "minLength": 1 },
+            "availabilityMode": { "enum": ["SYNCHRONOUS_COMMIT", "ASYNCHRONOUS_COMMIT"] },
+            "headlessServiceName": { "type": "string", "minLength": 1 },
+            "readOnlyService": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "name": { "type": "string", "minLength": 1 }
+              }
+            },
+            "controller": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "image": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "repository": { "type": "string" },
+                    "tag": { "type": ["string", "number"] },
+                    "digest": { "type": "string" }
+                  }
+                },
+                "intervalSeconds": { "type": "integer", "minimum": 1 },
+                "resources": { "$ref": "#/definitions/k8sObject" },
+                "podAnnotations": { "$ref": "#/definitions/stringMap" },
+                "podLabels": { "$ref": "#/definitions/stringMap" }
+              }
+            }
+          }
+        },
         "tls": {
           "type": "object",
           "additionalProperties": false,
@@ -976,6 +1014,7 @@
           "additionalProperties": false,
           "properties": {
             "loadBalancerFrom": { "$ref": "#/definitions/peers" },
+            "apiServerTo": { "$ref": "#/definitions/peers" },
             "extraIngress": { "$ref": "#/definitions/rules" },
             "extraEgress": { "$ref": "#/definitions/rules" }
           }

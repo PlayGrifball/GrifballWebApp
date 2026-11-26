@@ -1,0 +1,160 @@
+suite: mssql availability group
+templates:
+  - templates/mssql.yaml
+  - templates/mssql-ag.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+  mssql.availabilityGroup.enabled: true
+tests:
+  - it: runs the replicas as a StatefulSet with a volume each and HADR on
+    template: templates/mssql.yaml
+    documentSelector:
+      path: kind
+      value: StatefulSet
+    asserts:
+      - equal: { path: spec.replicas, value: 2 }
+      - equal: { path: spec.serviceName, value: sqlserver-replicas }
+      - equal: { path: spec.podManagementPolicy, value: Parallel }
+      - equal: { path: "spec.volumeClaimTemplates[0].metadata.name", value: mssql-data }
+      - equal: { path: "spec.volumeClaimTemplates[1].metadata.name", value: backup }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: MSSQL_ENABLE_HADR, value: "1" }
+      - contains:
+          path: "spec.template.spec.containers[0].ports"
+          content: { name: hadr, containerPort: 5022 }
+      - notContains:
+          path: spec.template.spec.volumes
+          content: { name: mssql-data }
+          any: true
+      - isNull: { path: spec.strategy }
+
+  - it: has no shared data or backup claim, and no Deployment
+    template: templates/mssql.yaml
+    asserts:
+      - hasDocuments: { count: 2 }
+      - isKind: { of: Service }
+        documentIndex: 0
+      - isKind: { of: StatefulSet }
+        documentIndex: 1
+
+  - it: points the service at the primary and the read-only one at the secondaries
+    template: templates/mssql.yaml
+    documentSelector:
+      path: metadata.name
+      value: sqlserver
+    asserts:
+      - equal: { path: "spec.selector[\"grif.playgrifball.com/mssql-role\"]", value: primary }
+
+  - it: reads from the secondaries
+    template: templates/mssql-ag.yaml
+    documentSelector:
+      path: metadata.name
+      value: sqlserver-ro
+    asserts:
+      - equal: { path: "spec.selector[\"grif.playgrifball.com/mssql-role\"]", value: secondary }
+
+  - it: gives the replicas a headless Service published before they're ready
+    template: templates/mssql-ag.yaml
+    documentSelector:
+      path: metadata.name
+      value: sqlserver-replicas
+    asserts:
+      - equal: { path: spec.clusterIP, value: None }
+      - equal: { path: spec.publishNotReadyAddresses, value: true }
+
+  - it: limits the controller to labelling pods
+    template: templates/mssql-ag.yaml
+    documentSelector:
+      path: kind
+      value: Role
+    asserts:
+      - equal: { path: "rules[0].resources", value: [pods] }
+      - equal: { path: "rules[0].verbs", value: [get, patch] }
+
+  - it: passes the controller its settings and the SA password
+    template: templates/mssql-ag.yaml
+    set:
+      mssql.availabilityGroup.replicas: 3
+      mssql.availabilityGroup.name: dev
+      mssql.availabilityGroup.availabilityMode: ASYNCHRONOUS_COMMIT
+    documentSelector:
+      path: kind
+      value: Deployment
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: REPLICAS, value: "3" }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: AG, value: dev }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: MODE, value: ASYNCHRONOUS_COMMIT }
+      - equal: { path: "spec.template.spec.containers[0].command", value: [bash, /script/controller.sh] }
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: "^mcr.microsoft.com/mssql/server:" }
+
+  - it: carries the script
+    template: templates/mssql-ag.yaml
+    documentSelector:
+      path: kind
+      value: ConfigMap
+    asserts:
+      - matchRegex: { path: "data[\"controller.sh\"]", pattern: "CLUSTER_TYPE = NONE" }
+
+  - it: lets the replicas talk to each other and the controller reach them
+    template: templates/networkpolicy.yaml
+    documentSelector:
+      path: metadata.name
+      value: grif-mssql
+    asserts:
+      - contains:
+          path: "spec.ingress[0].from"
+          content: { podSelector: { matchLabels: { app: grif-mssql-ag } } }
+      - contains:
+          path: "spec.ingress[1].ports"
+          content: { protocol: TCP, port: 5022 }
+      - contains:
+          path: spec.egress
+          content:
+            to: [{ podSelector: { matchLabels: { app: grif-mssql } } }]
+            ports: [{ protocol: TCP, port: 1433 }, { protocol: TCP, port: 5022 }]
+
+  - it: lets the controller reach the API server named
+    template: templates/networkpolicy.yaml
+    set:
+      networkPolicy.mssql.apiServerTo: [{ ipBlock: { cidr: 10.0.0.1/32 } }]
+    documentSelector:
+      path: metadata.name
+      value: grif-mssql-ag
+    asserts:
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 443 }, { protocol: TCP, port: 6443 }]
+            to: [{ ipBlock: { cidr: 10.0.0.1/32 } }]
+
+  - it: fails with fewer than two replicas
+    template: templates/mssql.yaml
+    set:
+      mssql.availabilityGroup.replicas: 1
+    asserts:
+      - failedTemplate: {}
+
+  - it: fails with a shared claim
+    template: templates/mssql.yaml
+    set:
+      mssql.persistence.existingClaim: mine
+    asserts:
+      - failedTemplate:
+          errorPattern: each replica its own volumes
+
+  - it: is not rendered with PostgreSQL
+    template: templates/mssql-ag.yaml
+    set:
+      database.provider: postgres
+    asserts:
+      - hasDocuments: { count: 0 }
