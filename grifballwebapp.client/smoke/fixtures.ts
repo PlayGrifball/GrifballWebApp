@@ -19,6 +19,12 @@ export const KNOWN_PREVIEW_NOISE: { pattern: RegExp; why: string }[] = [
     pattern: /stopped during negotiation|Failed to start the connection/,
     why: 'SignalR first-connect negotiation restart',
   },
+  {
+    // The toolbar shows the signed-in user's Xbox picture; a user with none answers 404, which is how it knows to
+    // show their initials, and the browser logs the failed request.
+    pattern: /status of 404.*\/api\/users\/\d+\/profile-picture/,
+    why: 'a user without a picture',
+  },
 ];
 
 export interface ConsoleErrors {
