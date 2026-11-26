@@ -7,6 +7,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Historical;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
 using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Infrastructure.Spartan;
 using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Infrastructure.Redis;
 using GrifballWebApp.Server.Chat;
@@ -115,6 +116,8 @@ public class Program
 
         // IHaloInfiniteClient: the Halo gateway (default) or the app's own sign-in (HaloInfinite:Mode Direct).
         builder.AddHaloInfinite(haloSettings, retryDelayCalculator);
+
+        builder.Services.AddSpartanRender(builder.Configuration);
 
         // Last: drops the hosted services this role doesn't run (the workers' and the discord process's).
         builder.Services.ApplyAppRole(role);
