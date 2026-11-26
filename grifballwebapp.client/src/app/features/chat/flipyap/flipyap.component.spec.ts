@@ -135,7 +135,7 @@ describe('FlipyapComponent', () => {
   it('says hello once per tab, and not again once he is opened', () => {
     jasmine.clock().install();
     create();
-    expect(el().querySelector('.flipyap__greeting')!.textContent).toContain('Ask me about the league');
+    expect(el().querySelector('.flipyap__greeting')!.textContent).toContain('Flipyap know the league');
     expect(el().querySelector('.flipyap__greeting')!.hasAttribute('role')).withContext('a status role would answer the page\'s own status lookups').toBeFalse();
 
     jasmine.clock().tick(GREETING_FOR_MS);

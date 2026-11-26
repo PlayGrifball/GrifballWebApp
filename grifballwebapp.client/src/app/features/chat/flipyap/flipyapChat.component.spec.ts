@@ -76,7 +76,7 @@ describe('FlipyapChatComponent', () => {
 
   it('puts the cursor in the question box, and asks a signed-out visitor to name the player', () => {
     expect(document.activeElement).toBe(textarea());
-    expect(text()).toContain('Ask me about seasons');
+    expect(text()).toContain('Ask Flipyap about seasons');
     expect(text()).toContain("I don't know who you are");
 
     isLoggedIn.set(true);

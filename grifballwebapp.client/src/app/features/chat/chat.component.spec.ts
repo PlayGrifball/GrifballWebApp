@@ -93,7 +93,7 @@ describe('ChatComponent', () => {
 
     answer().subscriber.next('The Grifs.');
     fixture.detectChanges();
-    expect(turns()).toEqual([['You', 'Who won?'], ['Grif', 'The Grifs.']]);
+    expect(turns()).toEqual([['You', 'Who won?'], ['Flipyap', 'The Grifs.']]);
 
     answer().subscriber.complete();
     fixture.detectChanges();
@@ -150,7 +150,7 @@ describe('ChatComponent', () => {
     button('Stop')!.click();
     fixture.detectChanges();
     expect(answer().disposed).toBeTrue();
-    expect(turns()).toEqual([['You', 'Who won?'], ['Grif', 'The ']]);
+    expect(turns()).toEqual([['You', 'Who won?'], ['Flipyap', 'The ']]);
 
     button('New conversation')!.click();
     fixture.detectChanges();

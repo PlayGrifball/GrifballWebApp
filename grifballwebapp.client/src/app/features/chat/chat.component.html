@@ -1,25 +1,25 @@
 <div class="hud-page hud-page--narrow chat">
   <div class="hud-page-head">
-    <span class="hud-kicker">&gt; Ask the league</span>
+    <span class="hud-kicker">&gt; Ask Flipyap</span>
     <h1 class="hud-title">Chat</h1>
   </div>
 
   <p class="chat__intro">
-    Ask about seasons, standings, teams, players and matches: the chat looks them up, as the Discord bot does. It can get
-    things wrong, so check the pages it points you to.
+    Wawawa! Flipyap is an Unggoy, and he know the league. Ask about seasons, standings, teams, players and matches: he look
+    them up. Flipyap can get things wrong, so check the pages he point you to.
     @if (!signedIn()) {
-      Signed out, it doesn't know who you are: name the player you mean, or <a routerLink="/login">log in</a>.
+      Signed out, Flipyap no know who you are! Name the player you mean, or <a routerLink="/login">log in</a>.
     }
   </p>
 
   <section class="chat__log hud-panel" role="log" aria-label="Conversation" [attr.aria-busy]="asking()">
     @for (turn of turns(); track $index) {
       <div class="chat__turn" [class.chat__turn--bot]="turn.fromBot">
-        <span class="chat__who">{{ turn.fromBot ? 'Grif' : 'You' }}</span>
+        <span class="chat__who">{{ turn.fromBot ? 'Flipyap' : 'You' }}</span>
         <p class="chat__text">{{ turn.text }}</p>
       </div>
     } @empty {
-      <p class="chat__empty">No questions yet. Try "Who won the last season?"</p>
+      <p class="chat__empty">Wawawa! No questions yet. Try "Who won the last season?"</p>
     }
   </section>
 

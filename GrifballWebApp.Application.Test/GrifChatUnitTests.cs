@@ -348,7 +348,7 @@ public partial class GrifChatUnitTests
         {
             Assert.That(discord[0], Is.EqualTo("You are a Discord bot, and all messages must stay under the 2000-character limit."));
             Assert.That(discord[^1], Is.EqualTo("The bot also has slash commands; /help lists them."));
-            Assert.That(site[0], Does.StartWith("You are the chat on the Grifball league's website"));
+            Assert.That(site[0], Does.StartWith("You are Flipyap, an Unggoy"));
             // In private, the line about the tools that change data too
             Assert.That(site[1..^1], Is.EqualTo(discord[1..^1].Append(GrifChat.PrivateLine)));
             Assert.That(direct, Is.EqualTo(discord[..^1].Append(GrifChat.PrivateLine).Append(discord[^1])));

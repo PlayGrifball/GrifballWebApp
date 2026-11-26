@@ -13,9 +13,9 @@
       </div>
     } @empty {
       <p class="flipyap-chat__empty">
-        Ask me about seasons, standings, teams, players and matches. I can get things wrong, so check the pages I point you to.
+        Wawawa! Ask Flipyap about seasons, standings, teams, players and matches. Flipyap can get things wrong, so check the pages he point you to.
         @if (!signedIn()) {
-          Signed out, I don't know who you are: name the player you mean.
+          Signed out, Flipyap no know who you are! Name the player you mean.
         }
       </p>
     }
@@ -23,7 +23,7 @@
 
   @if (waiting(); as action) {
     <div class="flipyap-chat__confirm" role="group" aria-label="A change waiting for you">
-      <p class="flipyap-chat__text">This waits for you: {{ action.description }}</p>
+      <p class="flipyap-chat__text">Flipyap wait for you: {{ action.description }}</p>
       <div class="flipyap-chat__actions">
         <button class="hud-btn hud-btn--primary" type="button" (click)="confirm(true)" [disabled]="asking()">Confirm</button>
         <button class="hud-btn" type="button" (click)="confirm(false)" [disabled]="asking()">Cancel</button>
