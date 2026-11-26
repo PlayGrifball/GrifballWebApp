@@ -19,13 +19,19 @@
   gap: 12px;
 }
 
+// Both at least 44px square: a finger's tap target
 .flipyap-chat__full {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
   margin-left: auto;
   font-size: 13px;
 }
 
 .flipyap-chat__close {
-  min-width: 36px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0 8px;
   font-size: 20px;
   line-height: 1;
