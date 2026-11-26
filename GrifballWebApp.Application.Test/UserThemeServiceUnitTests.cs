@@ -87,11 +87,15 @@ internal sealed class UserThemeServiceUnitTests : ApplicationDbContextTests
         await AddUser();
 
         var noColour = await _service.Set(1, new UserThemeDto { Era = null!, Font = "Roboto", Primary = null!, Secondary = "#fff", Tertiary = "#fff", Neutral = "#fff", NeutralVariant = "#fff", Error = "#fff" });
+        var noEra = await _service.Set(1, new UserThemeDto { Era = null!, Font = "Roboto", Primary = "#fff", Secondary = "#fff", Tertiary = "#fff", Neutral = "#fff", NeutralVariant = "#fff", Error = "#fff" });
+        var noColourOnly = await _service.Set(1, new UserThemeDto { Era = "", Font = "Roboto", Primary = null!, Secondary = "#fff", Tertiary = "#fff", Neutral = "#fff", NeutralVariant = "#fff", Error = "#fff" });
         var nothing = await _service.Set(1, null!);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(noColour, Is.EqualTo(SetThemeResult.Invalid));
+            Assert.That(noColourOnly, Is.EqualTo(SetThemeResult.Invalid));
+            Assert.That(noEra, Is.EqualTo(SetThemeResult.Set));
             Assert.That(nothing, Is.EqualTo(SetThemeResult.Invalid));
             Assert.That(UserThemeService.IsValid(null), Is.False);
         }
