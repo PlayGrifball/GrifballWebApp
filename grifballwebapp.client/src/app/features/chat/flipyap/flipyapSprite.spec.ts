@@ -14,8 +14,8 @@ describe('flipyapSprite', () => {
     }
   });
 
-  it('blinks with the eye (row 14), talks with the rebreather vents (row 16), and is held with a wide eye (row 14): the rest stays', () => {
-    const changes = { blink: [14], talk: [16], held: [14] } as const;
+  it('blinks with the eyes (rows 6 and 7), talks with the rebreather vents (row 9), and is held with red eyes (row 6): the rest stays', () => {
+    const changes = { blink: [6, 7], talk: [9], held: [6] } as const;
     for (let y = 0; y < SPRITE_SIZE; y++) {
       for (const frame of ['blink', 'talk', 'held'] as const)
         expect(rows(frame, y) === rows('idle', y)).withContext(`${frame} row ${y}`).toBe(!(changes[frame] as readonly number[]).includes(y));
