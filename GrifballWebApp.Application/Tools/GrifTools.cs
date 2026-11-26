@@ -153,6 +153,12 @@ public static class GrifTools
     /// </summary>
     public static readonly string[] Every = [.. All.SelectMany(set => Methods(set.Type)).Select(Name)];
 
+    /// <summary>
+    /// Every tool but staff's (<see cref="Staff"/>): for a chat in public (a Discord channel) with a model that picks well from a long list
+    /// (EveryTool); each is still only for the roles it names.
+    /// </summary>
+    public static readonly string[] EveryPublic = [.. Every.Except(Staff.SelectMany(Methods).Select(Name))];
+
     /// <summary>The roles that may use a tool: its method's [ToolRoles], else its class's; none, anyone may.</summary>
     public static IReadOnlyList<string> Roles(MethodInfo method)
         => (method.GetCustomAttribute<ToolRolesAttribute>() ?? method.DeclaringType!.GetCustomAttribute<ToolRolesAttribute>())?.Roles ?? [];

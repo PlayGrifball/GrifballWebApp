@@ -614,7 +614,7 @@ user's spend on Claude is counted a month and stopped at `Chat:MonthlyLimit` (`b
 default); replies started at the same moment in different pods (backend replicas, the Discord bot) can each spend what
 is left, so the limit can be overshot by at most one reply a pod (ten model calls of at most 16,000 output tokens each). `Chat:Models` (`backend.config`) replaces the list: each model's `Id`, `Name`, `Provider` (`Ollama` or
 `Anthropic`), `Model`, `Roles` (none: anyone) and `SignedIn` (also narrows it to anyone signed in, whatever their roles) and `Price` (US dollars per million tokens: `Input`, `Output`, `CacheWrite`,
-`CacheRead`; none: free), `MaxOutputTokens` and `EveryTool` (in private, every tool the caller's roles allow rather than the chat's short list; the Claude defaults have it), in order. The backend's HTTPS egress (`networkPolicy.backend.httpsTo`) already reaches
+`CacheRead`; none: free), `MaxOutputTokens` and `EveryTool` (every tool the caller's roles allow, staff's only in private, rather than the chat's short list; the Claude defaults have it), in order. The backend's HTTPS egress (`networkPolicy.backend.httpsTo`) already reaches
 Anthropic's API.
 For a cap across every environment together, give the key a workspace of its own in Anthropic's console with a monthly
 spend limit: once Anthropic refuses for it, the chats say the paid models have used this month's budget (not that they

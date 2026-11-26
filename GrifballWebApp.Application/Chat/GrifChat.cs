@@ -71,14 +71,14 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
 
     /// <summary>
     /// The names of the tools <paramref name="model"/> is given here, each only to a caller its roles allow (<see cref="GrifTools.AIFunctions"/>):
-    /// in public, <see cref="GrifTools.Chat"/> whatever the model; in private, every tool (<see cref="GrifTools.Every"/>) when it picks
-    /// well from a long list (<see cref="ChatModelOption.EveryTool"/>), else <see cref="GrifTools.PrivateChat"/>.
+    /// when it picks well from a long list (<see cref="ChatModelOption.EveryTool"/>) every tool (<see cref="GrifTools.Every"/>, in public without
+    /// staff's: <see cref="GrifTools.EveryPublic"/>), else <see cref="GrifTools.Chat"/> in public and <see cref="GrifTools.PrivateChat"/> in private.
     /// </summary>
     public IReadOnlyCollection<string> ToolsFor(ChatModelOption model)
     {
-        if (InPublic)
-            return GrifTools.Chat;
-        return model.EveryTool ? GrifTools.Every : GrifTools.PrivateChat;
+        if (model.EveryTool)
+            return InPublic ? GrifTools.EveryPublic : GrifTools.Every;
+        return InPublic ? GrifTools.Chat : GrifTools.PrivateChat;
     }
 }
 
