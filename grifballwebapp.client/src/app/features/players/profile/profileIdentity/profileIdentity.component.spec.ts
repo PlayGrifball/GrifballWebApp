@@ -90,6 +90,23 @@ describe('ProfileIdentityComponent', () => {
     expect(changed).toBe(1);
   });
 
+  it("offers the Spartan's headshot first, and it is what shows by default", async () => {
+    http.expectOne(claimsUrl).flush([]);
+    await settle();
+    const select = el().querySelector<HTMLSelectElement>('#pi-picture')!;
+    const options = Array.from(select.options).map(o => [o.value, o.textContent!.trim()]);
+    expect(options[0]).toEqual(['Spartan', "My Spartan's headshot"]);
+    expect(select.selectedOptions[0].value).toBe('Spartan');
+    select.value = 'Emblem';
+    select.dispatchEvent(new Event('change'));
+    http.expectOne('/api/me/profile-picture').flush(null, { status: 204, statusText: 'No Content' });
+    select.value = 'Spartan';
+    select.dispatchEvent(new Event('change'));
+    const save = http.expectOne('/api/me/profile-picture');
+    expect(save.request.body).toEqual({ profilePicture: 'Spartan' });
+    save.flush(null, { status: 204, statusText: 'No Content' });
+  });
+
   it('puts the picture select back to what is saved when saving fails', async () => {
     fixture.componentRef.setInput('profilePicture', 'GamerPicture');
     http.expectOne(claimsUrl).flush([]);
