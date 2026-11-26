@@ -46,7 +46,7 @@ public class SpartanCatalogSourceTests
 
         Assert.That(catalog, Is.Not.Null);
         var region = catalog!.Cores.Single().Regions.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(region.Key, Is.EqualTo("helmet"));
             Assert.That(region.Region, Is.EqualTo(100));
@@ -54,7 +54,7 @@ public class SpartanCatalogSourceTests
             Assert.That(catalog.Coatings, Is.EqualTo(new List<string> { "111" }));
             Assert.That(catalog.Visors, Is.EqualTo(new List<string> { "Plain" }));
             Assert.That(catalog.PendingCores, Is.EqualTo(new List<string> { "Chimera" }));
-        });
+        }
     }
 
     [Test]
@@ -78,11 +78,11 @@ public class SpartanCatalogSourceTests
         var first = await source.Get();
         var second = await source.Get();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first, Is.Null);
             Assert.That(second, Is.Null);
-        });
+        }
         Assert.That(handler.Calls, Is.EqualTo(2));
     }
 
