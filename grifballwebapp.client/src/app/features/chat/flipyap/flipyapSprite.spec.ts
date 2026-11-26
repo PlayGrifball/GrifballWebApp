@@ -1,7 +1,7 @@
 import { FRAMES, SPRITE_SIZE, type FlipyapFrame, type SpritePixel } from './flipyapSprite';
 
 describe('flipyapSprite', () => {
-  const frames: FlipyapFrame[] = ['idle', 'blink', 'talk'];
+  const frames: FlipyapFrame[] = ['idle', 'blink', 'talk', 'held'];
   const rows = (frame: FlipyapFrame, y: number) => FRAMES[frame].filter(p => p.y === y).map(p => `${p.x}${p.fill}`).join();
 
   it('draws each frame inside its grid, with a colour for every pixel', () => {
@@ -22,10 +22,11 @@ describe('flipyapSprite', () => {
     }
   });
 
-  it('blinks with the eyes (row 5) and talks with the mouth (row 8): the rest stays', () => {
+  it('blinks with the eyes (row 5), talks with the mouth (row 8), and is held with wide eyes and an open mouth (rows 6 and 8): the rest stays', () => {
     for (let y = 0; y < SPRITE_SIZE; y++) {
       expect(rows('blink', y) === rows('idle', y)).withContext(`blink row ${y}`).toBe(y !== 5);
       expect(rows('talk', y) === rows('idle', y)).withContext(`talk row ${y}`).toBe(y !== 8);
+      expect(rows('held', y) === rows('idle', y)).withContext(`held row ${y}`).toBe(y !== 6 && y !== 8);
     }
   });
 });

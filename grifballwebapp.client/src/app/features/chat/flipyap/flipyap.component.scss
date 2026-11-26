@@ -1,29 +1,52 @@
 :host { display: contents; }
 
+// The box is the pet; the chat and the greeting hang off it, above him (below, in the top half of the window)
 .flipyap {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
   z-index: 50;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-  // Only what is drawn takes clicks: the corner around it is the page's
-  pointer-events: none;
+  width: 64px;
+  height: 64px;
 }
 
 .flipyap__chat,
-.flipyap__greeting,
-.flipyap__pet { pointer-events: auto; }
+.flipyap__greeting {
+  position: absolute;
+  right: 0;
+  bottom: 72px;
+}
+
+.flipyap--start .flipyap__chat,
+.flipyap--start .flipyap__greeting {
+  right: auto;
+  left: 0;
+}
+
+.flipyap--below .flipyap__chat,
+.flipyap--below .flipyap__greeting {
+  top: 72px;
+  bottom: auto;
+}
 
 .flipyap__chat {
   width: min(380px, calc(100vw - 32px));
 }
 
+// On a phone the chat is a sheet along the bottom, wherever he stands
+@media (max-width: 560px) {
+  .flipyap__chat {
+    position: fixed;
+    top: auto;
+    right: 16px;
+    bottom: 88px;
+    left: 16px;
+    width: auto;
+  }
+}
+
 .flipyap__greeting {
   margin: 0;
   padding: 6px 10px;
+  width: max-content;
   max-width: 220px;
   font-size: 14px;
   color: var(--hud-heading);
@@ -36,7 +59,10 @@
   width: 64px;
   height: 64px;
   padding: 0;
-  cursor: pointer;
+  cursor: grab;
+  // A drag moves him, not the page
+  touch-action: none;
+  user-select: none;
   background: transparent;
   border: 0;
   border-radius: 8px;
@@ -52,10 +78,18 @@
 
 .flipyap__pet--hop { animation: flipyap-hop 0.4s steps(4, jump-none); }
 
+// In the hand he dangles: a bigger shadow, and he swings
+.flipyap__pet--held {
+  cursor: grabbing;
+  filter: drop-shadow(0 8px 0 rgb(0 0 0 / 25%));
+  animation: flipyap-dangle 0.5s steps(2, jump-none) infinite;
+}
+
 .flipyap__sprite {
   display: block;
   width: 100%;
   height: 100%;
+  pointer-events: none;
 }
 
 @keyframes flipyap-bob {
@@ -66,7 +100,13 @@
   50% { transform: translateY(-14px); }
 }
 
+@keyframes flipyap-dangle {
+  0% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .flipyap__pet,
-  .flipyap__pet--hop { animation: none; }
+  .flipyap__pet--hop,
+  .flipyap__pet--held { animation: none; }
 }

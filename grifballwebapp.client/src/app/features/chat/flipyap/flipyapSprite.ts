@@ -5,7 +5,7 @@ export interface SpritePixel {
   readonly fill: string;
 }
 
-export type FlipyapFrame = 'idle' | 'blink' | 'talk';
+export type FlipyapFrame = 'idle' | 'blink' | 'talk' | 'held';
 
 export const SPRITE_SIZE = 16;
 
@@ -48,6 +48,7 @@ const FRAME_ROWS: Readonly<Record<FlipyapFrame, Readonly<Record<number, string>>
   idle: {},
   blink: { 5: '...oasss' },
   talk: { 8: '...oassr' },
+  held: { 6: '...oawws', 8: '...oasmm' },
 };
 
 function pixels(frame: FlipyapFrame): SpritePixel[] {
@@ -64,4 +65,5 @@ export const FRAMES: Readonly<Record<FlipyapFrame, readonly SpritePixel[]>> = {
   idle: pixels('idle'),
   blink: pixels('blink'),
   talk: pixels('talk'),
+  held: pixels('held'),
 };

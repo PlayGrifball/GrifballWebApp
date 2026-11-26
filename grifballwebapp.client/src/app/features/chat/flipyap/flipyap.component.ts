@@ -13,6 +13,25 @@ export const TALK_BEAT_MS = 180;
 export const GREETING_FOR_MS = 8000;
 /** Where the tab remembers that Flipyap has said hello: once per tab is enough. */
 export const GREETED_STORAGE_KEY = 'flipyap-greeted';
+/** Where he was put down, kept for the next visit. */
+export const POSITION_STORAGE_KEY = 'flipyap-position';
+/** How far a press must move before it is a drag and not a click. */
+export const DRAG_THRESHOLD_PX = 4;
+/** His distance from the window's right and bottom edges before anyone moves him. */
+export const CORNER_MARGIN_PX = 16;
+
+interface Offset {
+  readonly x: number;
+  readonly y: number;
+}
+
+interface Drag {
+  readonly pointerId: number;
+  readonly startX: number;
+  readonly startY: number;
+  readonly from: Offset;
+  moved: boolean;
+}
 
 /**
  * Flipyap, an Unggoy in pixel art who sits in the bottom right corner of the site and answers questions about the league:
@@ -25,13 +44,15 @@ export const GREETED_STORAGE_KEY = 'flipyap-greeted';
   templateUrl: 'flipyap.component.html',
   styleUrl: 'flipyap.component.scss',
   imports: [FlipyapChatComponent],
-  host: { '(keydown.escape)': 'close()' },
+  host: { '(keydown.escape)': 'close()', '(window:resize)': 'keepOnScreen()' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FlipyapComponent {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
+  /** The box he stands in: still while he bobs and swings, so it is what stays inside the window. */
+  private readonly box = viewChild<ElementRef<HTMLElement>>('box');
   private readonly pet = viewChild<ElementRef<HTMLButtonElement>>('pet');
   private readonly chat = viewChild(FlipyapChatComponent);
 
@@ -53,7 +74,20 @@ export class FlipyapComponent {
   private readonly mouthOpen = signal(false);
   private readonly reducedMotion = this.isBrowser && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  readonly margin = CORNER_MARGIN_PX;
+  /** How far he has been moved from the corner, to the right (x) and down (y): both zero or less in a window he fits. */
+  readonly offset = signal<Offset>({ x: 0, y: 0 });
+  /** He is in the user's hand. */
+  readonly held = signal(false);
+  /** In the top or left half of the window, the chat opens below him or to his right, where there is room. */
+  readonly nearTop = signal(false);
+  readonly nearLeft = signal(false);
+  private drag: Drag | null = null;
+  private suppressClick = false;
+
   readonly frame = computed<FlipyapFrame>(() => {
+    if (this.held())
+      return 'held';
     if (this.talking())
       return this.reducedMotion || this.mouthOpen() ? 'talk' : 'idle';
     return this.blinking() ? 'blink' : 'idle';
@@ -76,10 +110,14 @@ export class FlipyapComponent {
       if (!this.reducedMotion)
         this.blinkNowAndThen();
       this.greetOnce();
+      this.restorePosition();
     });
   }
 
   toggle(): void {
+    // The click that ends a drag is not a tap
+    if (this.suppressClick)
+      return;
     this.greeting.set(false);
     this.hop();
     if (this.open())
@@ -102,6 +140,79 @@ export class FlipyapComponent {
 
   onTalking(talking: boolean): void {
     this.talking.set(talking);
+  }
+
+  onPointerDown(event: PointerEvent): void {
+    if (event.button !== 0)
+      return;
+    this.drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, from: this.offset(), moved: false };
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  onPointerMove(event: PointerEvent): void {
+    const drag = this.drag;
+    if (drag?.pointerId !== event.pointerId)
+      return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX)
+        return;
+      drag.moved = true;
+      this.held.set(true);
+    }
+    this.moveTo(drag.from.x + dx, drag.from.y + dy);
+  }
+
+  /** Puts him down where he is: a drag keeps its place, and its click is not a tap. */
+  onPointerEnd(event: PointerEvent): void {
+    const drag = this.drag;
+    if (drag?.pointerId !== event.pointerId)
+      return;
+    this.drag = null;
+    if (!drag.moved)
+      return;
+    this.held.set(false);
+    this.hop();
+    this.suppressClick = true;
+    this.later(() => (this.suppressClick = false), 0);
+    try {
+      localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(this.offset()));
+    } catch {
+      // Storage off: he is back in the corner next visit
+    }
+  }
+
+  /** The window changed size: he is pulled back in if it left him outside. */
+  keepOnScreen(): void {
+    const { x, y } = this.offset();
+    this.moveTo(x, y);
+  }
+
+  /** Moves him to the offset, or as near it as keeps all of him in the window. */
+  private moveTo(x: number, y: number): void {
+    const box = this.box()?.nativeElement;
+    if (!box)
+      return;
+    const rect = box.getBoundingClientRect();
+    const now = this.offset();
+    const clamp = (delta: number, low: number, high: number) => Math.min(Math.max(delta, low), high);
+    const dx = clamp(x - now.x, -rect.left, innerWidth - rect.right);
+    const dy = clamp(y - now.y, -rect.top, innerHeight - rect.bottom);
+    this.offset.set({ x: now.x + dx, y: now.y + dy });
+    this.nearLeft.set(rect.left + dx + rect.width / 2 < innerWidth / 2);
+    this.nearTop.set(rect.top + dy + rect.height / 2 < innerHeight / 2);
+  }
+
+  private restorePosition(): void {
+    try {
+      const kept: unknown = JSON.parse(localStorage.getItem(POSITION_STORAGE_KEY) ?? 'null');
+      const { x, y } = (kept ?? {}) as Partial<Offset>;
+      if (typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y))
+        this.moveTo(x, y);
+    } catch {
+      // Nothing kept, or not his position: he stays in the corner
+    }
   }
 
   private hop(): void {
