@@ -726,6 +726,9 @@ public static partial class SeasonStatsParser
     [GeneratedRegex("total|average|subtotal|team stats", RegexOptions.IgnoreCase)]
     private static partial Regex TotalsRow();
 
+    public static bool IsTotalsLabel(string? value)
+        => !string.IsNullOrWhiteSpace(value) && System.Text.RegularExpressions.Regex.IsMatch(ArchiveCells.HeaderKey(value).TrimEnd(':'), @"^(?:(?:grand|sub|team)?(?:total|average)s?(?:kills|deaths|games|stats)?|teamstats)(?:\([^)]*\))?$");
+
     [GeneratedRegex(@"^\d+\s*-\s*\d+$")]
     private static partial Regex RecordCell();
 
