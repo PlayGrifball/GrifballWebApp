@@ -343,12 +343,17 @@ public partial class GrifChatUnitTests
         var anonymous = new FakeModel([Text("Hi")]);
         await Ask(Chat(anonymous), "Hello", ToolCaller.Anonymous, ChatHost.Site);
         var signedOut = anonymous.Options.Single()!.Instructions!;
+        var signedInModel = new FakeModel([Text("Hi")]);
+        await Ask(Chat(signedInModel), "Hello", new ToolCaller(1, []) { SignedIn = true }, ChatHost.Site);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(signedOut, Does.Contain("Frontier"));
             Assert.That(signedOut, Does.Contain("/login"));
+            Assert.That(signedInModel.Options.Single()!.Instructions, Does.Not.Contain("Frontier"), "A signed-in person isn't told to log in");
             Assert.That(GrifChat.Instructions(ChatHost.Site), Does.Not.Contain("Frontier"), "The host itself says nothing of it: only a signed-out caller is told");
+            Assert.That(GrifChat.Instructions(GrifChat.WithPage(ChatHost.WithSignedOut(ChatHost.Site), "/season/12", null)).Split('\n')[^1], Does.StartWith("The person is looking at the site's page /season/12"), "The page line stays last");
+            Assert.That(GrifChat.Instructions(GrifChat.WithPage(ChatHost.WithSignedOut(ChatHost.Site), "/season/12", null)), Does.Contain("Frontier"));
             Assert.That(GrifChat.Instructions(ChatHost.Discord), Does.Not.Contain("Frontier"));
             Assert.That(ChatHost.WithSignedOut(ChatHost.Discord), Is.EqualTo(ChatHost.Discord), "Only the site has a login to point to");
         }

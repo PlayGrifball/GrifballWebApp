@@ -5,7 +5,7 @@ export interface ChatPart {
 }
 
 const id = '\\d{1,9}';
-const guid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+const guid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 
 /**
  * The site's pages a reply may link to: the ones `get_site_link` gives (UrlService), and no other path, so words the model
@@ -17,7 +17,7 @@ const pages = [
 ];
 
 // Not part of a longer word, address or path: nothing before it but a space or opening mark, nothing after it that continues it
-const sitePath = new RegExp(`(?<![\\w/:.-])/(?:${pages.join('|')})(?![\\w/-])`, 'gi');
+const sitePath = new RegExp(`(?<![\\w/:.-])/(?:${pages.join('|')})(?![\\w/-])`, 'g');
 
 /** <paramref name="text"/> split into plain text and the site's pages it names, in order. */
 export function chatParts(text: string): ChatPart[] {

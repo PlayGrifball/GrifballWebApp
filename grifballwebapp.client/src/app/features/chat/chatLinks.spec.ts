@@ -21,7 +21,7 @@ describe('chatParts', () => {
   });
 
   it('does not link a path the site has no page for, part of a longer word or address, or the end of a longer path', () => {
-    for (const text of ['/admin/12', '/sysadmin/jobs', 'https://grif.test/season/12', 'x/season/12', '/season/12/secret', '/season/abc', '/seasonsfoo', '/profile/3/edit', '/season/12/team']) {
+    for (const text of ['/admin/12', '/sysadmin/jobs', 'https://grif.test/season/12', 'x/season/12', '/season/12/secret', '/season/abc', '/seasonsfoo', '/profile/3/edit', '/season/12/team', '/Season/12', '/Leaderboards']) {
       expect(chatParts(text).some(p => p.link)).withContext(text).toBeFalse();
     }
   });

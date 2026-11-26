@@ -64,7 +64,10 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
 
     /// <summary><paramref name="host"/> told its person isn't signed in (<see cref="SignedOutLine"/>); <paramref name="host"/> itself for any host but the site's, which has the login.</summary>
     public static ChatHost WithSignedOut(ChatHost host)
-        => host.Name == Site.Name ? host with { More = $"{host.More}\n{SignedOutLine}" } : host;
+        => host.Name == Site.Name ? host with { SignedOut = true } : host;
+
+    /// <summary>Whether the person isn't signed in (<see cref="WithSignedOut"/>): <see cref="GrifChat.Instructions"/> adds <see cref="SignedOutLine"/> ahead of <see cref="More"/>, so the page line stays last.</summary>
+    public bool SignedOut { get; init; }
 
     /// <summary>
     /// Whether a change the model asks for runs at once, as a read does (true), or waits for the person's yes (false,
@@ -221,7 +224,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
 
     /// <summary>The model's instructions on <paramref name="host"/>: in private, with <see cref="PrivateLine"/>.</summary>
     public static string Instructions(ChatHost host)
-        => string.Join('\n', Shared.Prepend(host.About).Concat(Private(host)).Append(host.More));
+        => string.Join('\n', Shared.Prepend(host.About).Concat(Private(host)).Concat(host.SignedOut ? new[] { ChatHost.SignedOutLine } : Array.Empty<string>()).Append(host.More));
 
     /// <summary>The longest page path and page title <see cref="WithPage"/> keeps.</summary>
     public const int MaxPageLength = 200;
