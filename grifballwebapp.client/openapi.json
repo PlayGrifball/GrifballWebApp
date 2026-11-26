@@ -4778,7 +4778,7 @@
           }
         }
       },
-      "put": {
+      "post": {
         "tags": [
           "MyTheme"
         ],

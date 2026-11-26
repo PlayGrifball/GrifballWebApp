@@ -34,7 +34,7 @@ public class MyThemeController : ControllerBase
     }
 
     /// <summary>Saves the signed-in user's theme.</summary>
-    [HttpPut("me/theme", Name = "SetMyTheme")]
+    [HttpPost("me/theme", Name = "SetMyTheme")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]

@@ -14,7 +14,7 @@ export interface SetMyTheme$Params {
 }
 
 export function setMyTheme(http: HttpClient, rootUrl: string, params?: SetMyTheme$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
-  const rb = new RequestBuilder(rootUrl, setMyTheme.PATH, 'put');
+  const rb = new RequestBuilder(rootUrl, setMyTheme.PATH, 'post');
   if (params) {
     rb.body(params.body, 'application/json');
   }
