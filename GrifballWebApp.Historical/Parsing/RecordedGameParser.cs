@@ -119,21 +119,28 @@ public static partial class RecordedGameParser
             }
             if (k is null)
                 continue;
-            var stampText = c.Stamp < 0 ? null : Cell(row, c.Stamp).Trim();
-            var playedAt = Timestamp(stampText);
-            var time = Int(row, c.GameTime);
-            var side = c.TeamOf(row).Trim();
-            if (current is null || StartsAnotherGame(current, playedAt, name, side, time))
-            {
-                current = new GameRows { FirstRow = r, PlayedAt = playedAt, TimestampText = playedAt is null ? null : stampText, GameTime = time, Playoffs = playoffs };
-                blocks.Add(current);
-            }
-            current.Rows.Add(row);
-            current.Players.Add(name);
-            current.Sides.Add(side);
-            current.LastSide = side;
+            current = Place(blocks, current, (r, row, name), c, playoffs);
         }
         return blocks;
+    }
+
+    private static GameRows Place(List<GameRows> blocks, GameRows? current, (int Index, string[] Row, string Name) line, CarnageColumns c, bool playoffs)
+    {
+        var (index, row, name) = line;
+        var stampText = c.Stamp < 0 ? null : Cell(row, c.Stamp).Trim();
+        var playedAt = Timestamp(stampText);
+        var time = Int(row, c.GameTime);
+        var side = c.TeamOf(row).Trim();
+        if (current is null || StartsAnotherGame(current, playedAt, name, side, time))
+        {
+            current = new GameRows { FirstRow = index, PlayedAt = playedAt, TimestampText = playedAt is null ? null : stampText, GameTime = time, Playoffs = playoffs };
+            blocks.Add(current);
+        }
+        current.Rows.Add(row);
+        current.Players.Add(name);
+        current.Sides.Add(side);
+        current.LastSide = side;
+        return current;
     }
 
     private static bool IsSummaryOrHeader(string name, string? team)
