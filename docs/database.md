@@ -563,7 +563,7 @@ erDiagram
     }
     Users ||--o| XuidLookups : "UserID"
     XboxUsers ||--o{ PastGamertags : "XboxUserID"
-    XboxUsers ||--o| XboxUserArmor : "XboxUserID"
+    XboxUsers ||--o{ XboxUserArmor : "XboxUserID"
     XboxUsers ||--o{ XboxUserImages : "XboxUserID"
 ```
 
