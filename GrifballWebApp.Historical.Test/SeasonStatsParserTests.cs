@@ -730,6 +730,12 @@ public class SeasonStatsParserTests
         Assert.That(records.Counts.Values.Single(), Is.EqualTo((1, 1, 0)), "Only Ace's game is counted");
     }
 
+    [TestCase("Total")] [TestCase("Totals:")] [TestCase("Average")] [TestCase("Averages")] [TestCase("Subtotal")] [TestCase("Subtotals")] [TestCase("Team Stats")] [TestCase("Total Stats Regular Season")]
+    public void IsTotalsLabel_AnExactSummaryLabel_IsTrue(string label) => Assert.That(SeasonStatsParser.IsTotalsLabel(label), Is.True);
+
+    [TestCase("Totalitarian")] [TestCase("Average Joe")] [TestCase("")] [TestCase(null)]
+    public void IsTotalsLabel_APlayerOrBlank_IsFalse(string? label) => Assert.That(SeasonStatsParser.IsTotalsLabel(label), Is.False);
+
     private static readonly string[] OnlyRegresser = ["Regresser"];
 
     private static readonly string[] SideBySideExpectedPlayers = ["Regresser", "Totalitarian"];
