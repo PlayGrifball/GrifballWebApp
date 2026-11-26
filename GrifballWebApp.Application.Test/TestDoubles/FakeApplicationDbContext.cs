@@ -100,6 +100,7 @@ internal sealed class FakeApplicationDbContext :
     public DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; } = null!;
     public DbSet<XuidLookup> XuidLookups { get; set; } = null!;
     public DbSet<XboxUserImage> XboxUserImages { get; set; } = null!;
+    public DbSet<XboxUserArmor> XboxUserArmor { get; set; } = null!;
     public DbSet<HistoricalSource> HistoricalSources { get; set; } = null!;
     public DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; } = null!;
     public DbSet<UserMerge> UserMerges { get; set; } = null!;
@@ -178,6 +179,7 @@ internal sealed class FakeApplicationDbContext :
         builder.ApplyConfiguration(new HistoricalImportJobConfiguration());
         builder.ApplyConfiguration(new XuidLookupConfiguration());
         builder.ApplyConfiguration(new XboxUserImageConfiguration());
+        builder.ApplyConfiguration(new XboxUserArmorConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceSnapshotConfiguration());
         builder.ApplyConfiguration(new HistoricalImportSettingsConfiguration());
