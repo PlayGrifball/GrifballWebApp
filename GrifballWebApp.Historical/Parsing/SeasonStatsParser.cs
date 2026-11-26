@@ -336,7 +336,7 @@ public static partial class SeasonStatsParser
             return null;
         }
         var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(rawGamertag);
-        if (gamertag.Length == 0 || IsTotalsRow(gamertag))
+        if (gamertag.Length == 0)
         {
             currentTeam = null;
             return null;
