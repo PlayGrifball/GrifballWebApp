@@ -238,6 +238,51 @@ public class XboxArmorTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task Run_WithTheRealDelay_ChecksEveryAccountInTurn()
+    {
+        await PlayerAsync(Day, inEvent: false);
+        await PlayerAsync(Day.AddDays(1), inEvent: false);
+        _halo.EconomyPlayerPublicCustomization(Arg.Any<string>()).Returns(Ok(Armor()));
+        var source = new XboxArmorSource(Context, _halo, Options.Create(new XboxArmorOptions { CallsPerMinute = 60_000 }), _time, _throttle);
+
+        var report = await source.RunAsync();
+
+        Assert.That(report.Stored, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task Run_AnErrorWithoutACode_IsRecordedAsNoAnswer()
+    {
+        await PlayerAsync(Day, inEvent: false);
+        _halo.EconomyPlayerPublicCustomization(Arg.Any<string>()).Returns(Error(0));
+
+        await Source().RunAsync();
+
+        Assert.That((await Context.XboxUserArmor.AsNoTracking().SingleAsync()).Error, Is.EqualTo("Halo gave no answer"));
+    }
+
+    [Test]
+    public async Task Run_ALongErrorMessage_IsCutTo200Characters()
+    {
+        await PlayerAsync(Day, inEvent: false);
+        _halo.EconomyPlayerPublicCustomization(Arg.Any<string>()).Returns<HaloApiResultContainer<CustomizationData, HaloApiErrorContainer>>(_ => throw new HttpRequestException(new string('x', 300)));
+
+        await Source().RunAsync();
+
+        Assert.That((await Context.XboxUserArmor.AsNoTracking().SingleAsync()).Error, Has.Length.EqualTo(200));
+    }
+
+    [Test]
+    public void TheJob_RunsEveryFiveMinutes_StartingInFour()
+    {
+        var now = new DateTimeOffset(2026, 11, 24, 12, 0, 0, TimeSpan.Zero);
+
+        var trigger = (Quartz.ISimpleTrigger)XboxArmorJob.Definition.DefaultSchedule(Quartz.TriggerBuilder.Create(), now).Build();
+
+        Assert.That((trigger.RepeatInterval, trigger.StartTimeUtc), Is.EqualTo((TimeSpan.FromMinutes(5), now.AddMinutes(4))));
+    }
+
+    [Test]
     public async Task Run_ThrottledWithoutAWait_WaitsAMinute()
     {
         await PlayerAsync(Day, inEvent: false);
