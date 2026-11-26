@@ -384,7 +384,7 @@ public partial class GrifChatUnitTests
     public void WithPage_UnicodeLineAndParagraphSeparatorsAndFormatCharacters_AreRemoved_LikeControlCharacters()
     {
         // U+2028 LINE SEPARATOR, U+2029 PARAGRAPH SEPARATOR, U+200B ZERO WIDTH SPACE (a format character)
-        var host = GrifChat.WithPage(ChatHost.Site, "/season/12", "Spring 2026 Finals​!");
+        var host = GrifChat.WithPage(ChatHost.Site, "/season/12", "Spring\u20282026\u2029Finals\u200B!");
         var last = GrifChat.Instructions(host).Split('\n')[^1];
 
         Assert.That(last, Does.Contain("whose title is \"Spring2026Finals!\""));
