@@ -54,17 +54,22 @@ public class LinkToolsUnitTests
 
     [Test]
     public void TheSiteChat_GivesPathsOnTheSite_ButTheOtherHostsDoNot()
-        => Assert.Multiple(() =>
+    {
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Chat.ChatHost.Site.RelativeLinks, Is.True);
             Assert.That(Chat.ChatHost.Discord.RelativeLinks, Is.False);
             Assert.That(Chat.ChatHost.DiscordVoice.RelativeLinks, Is.False);
-        });
+        }
+    }
 
     [Test]
     public void TheChatToolsIncludeGetSiteLink_AndTheSitePromptTellsTheModelToUseIt()
     {
-        Assert.That(GrifTools.Chat, Does.Contain("get_site_link"));
-        Assert.That(Chat.ChatHost.Site.More, Does.Contain("get_site_link"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(GrifTools.Chat, Does.Contain("get_site_link"));
+            Assert.That(Chat.ChatHost.Site.More, Does.Contain("get_site_link"));
+        }
     }
 }

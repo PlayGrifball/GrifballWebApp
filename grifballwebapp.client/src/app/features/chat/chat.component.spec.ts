@@ -112,7 +112,7 @@ describe('ChatComponent', () => {
     const link = el().querySelector<HTMLAnchorElement>('[role="log"] a')!;
     expect(link.getAttribute('href')).toBe('/season/12');
     expect(link.textContent).toBe('/season/12');
-    expect(el().querySelectorAll('[role="log"] a').length).toBe(1);
+    expect(el().querySelectorAll('[role="log"] a')).toHaveSize(1);
     expect(turns()).toEqual([['You', 'Where?'], ['Flipyap', 'See /season/12 and /admin/1.']]);
   });
 
