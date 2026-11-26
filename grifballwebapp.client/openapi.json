@@ -4852,40 +4852,6 @@
         }
       }
     },
-    "/me/spartan/clear": {
-      "post": {
-        "tags": [
-          "MyProfile"
-        ],
-        "summary": "Goes back to the Spartan the signed-in user has equipped in Halo Infinite.",
-        "operationId": "ClearMySpartan",
-        "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content"
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/spartan/catalog": {
       "get": {
         "tags": [
@@ -4916,6 +4882,40 @@
           },
           "503": {
             "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/spartan/clear": {
+      "post": {
+        "tags": [
+          "MyProfile"
+        ],
+        "summary": "Goes back to the Spartan the signed-in user has equipped in Halo Infinite.",
+        "operationId": "ClearMySpartan",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -18401,7 +18401,7 @@
                 "$ref": "#/components/schemas/ProfilePictureChoice"
               }
             ],
-            "description": "Which of a user's Xbox images stands for them on the site; the other is the fallback when the account has none of it."
+            "description": "Which image stands for a user on the site: their Spartan headshot, Halo emblem or gamer picture; the others are the fallback when it is not stored."
           }
         },
         "additionalProperties": false

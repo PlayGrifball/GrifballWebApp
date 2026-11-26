@@ -328,41 +328,6 @@ export class MyProfileService extends BaseService {
     );
   }
 
-  /** Path part for operation `clearMySpartan()` */
-  static readonly ClearMySpartanPath = '/me/spartan/clear';
-
-  /**
-   * Goes back to the Spartan the signed-in user has equipped in Halo Infinite.
-   *
-   *
-   *
-   * This method provides access to the full `HttpResponse`, allowing access to response headers.
-   * To access only the response body, use `clearMySpartan()` instead.
-   *
-   * This method doesn't expect any request body.
-   */
-  clearMySpartan$Response(params?: ClearMySpartan$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
-    const obs = clearMySpartan(this.http, this.rootUrl, params, context);
-    return obs;
-  }
-
-  /**
-   * Goes back to the Spartan the signed-in user has equipped in Halo Infinite.
-   *
-   *
-   *
-   * This method provides access only to the response body.
-   * To access the full response (for headers, for example), `clearMySpartan$Response()` instead.
-   *
-   * This method doesn't expect any request body.
-   */
-  clearMySpartan(params?: ClearMySpartan$Params, context?: HttpContext): Observable<void> {
-    const resp = this.clearMySpartan$Response(params, context);
-    return resp.pipe(
-      map((r: StrictHttpResponse<void>): void => r.body)
-    );
-  }
-
   /** Path part for operation `getSpartanCatalog()` */
   static readonly GetSpartanCatalogPath = '/spartan/catalog';
 
@@ -395,6 +360,41 @@ export class MyProfileService extends BaseService {
     const resp = this.getSpartanCatalog$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<SpartanCatalog>): SpartanCatalog => r.body)
+    );
+  }
+
+  /** Path part for operation `clearMySpartan()` */
+  static readonly ClearMySpartanPath = '/me/spartan/clear';
+
+  /**
+   * Goes back to the Spartan the signed-in user has equipped in Halo Infinite.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `clearMySpartan()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  clearMySpartan$Response(params?: ClearMySpartan$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+    const obs = clearMySpartan(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Goes back to the Spartan the signed-in user has equipped in Halo Infinite.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `clearMySpartan$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  clearMySpartan(params?: ClearMySpartan$Params, context?: HttpContext): Observable<void> {
+    const resp = this.clearMySpartan$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<void>): void => r.body)
     );
   }
 

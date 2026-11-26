@@ -221,10 +221,10 @@ export type { GetMySpartan$Params as GetMySpartan$Params } from './fn/my-profile
 export { getMySpartan as getMySpartan } from './fn/my-profile/get-my-spartan';
 export type { SetMySpartan$Params as SetMySpartan$Params } from './fn/my-profile/set-my-spartan';
 export { setMySpartan as setMySpartan } from './fn/my-profile/set-my-spartan';
-export type { ClearMySpartan$Params as ClearMySpartan$Params } from './fn/my-profile/clear-my-spartan';
-export { clearMySpartan as clearMySpartan } from './fn/my-profile/clear-my-spartan';
 export type { GetSpartanCatalog$Params as GetSpartanCatalog$Params } from './fn/my-profile/get-spartan-catalog';
 export { getSpartanCatalog as getSpartanCatalog } from './fn/my-profile/get-spartan-catalog';
+export type { ClearMySpartan$Params as ClearMySpartan$Params } from './fn/my-profile/clear-my-spartan';
+export { clearMySpartan as clearMySpartan } from './fn/my-profile/clear-my-spartan';
 export type { RenderMySpartan$Params as RenderMySpartan$Params } from './fn/my-profile/render-my-spartan';
 export { renderMySpartan as renderMySpartan } from './fn/my-profile/render-my-spartan';
 export type { GetUserSpartanFile$Png$Params as GetUserSpartanFile$Png$Params } from './fn/my-profile/get-user-spartan-file-png';
