@@ -124,13 +124,42 @@ describe('ThemePersistence', () => {
     expect(api.setMyTheme).not.toHaveBeenCalled();
   });
 
-  it('sends this device\'s theme up when the account has none', async () => {
+  it('does not send this device\'s theme to an account that has none (it may be another person\'s)', async () => {
     localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(saved));
     personID.set(1);
     create();
     TestBed.tick();
-    await until(() => api.setMyTheme.calls.count() > 0);
-    expect(api.setMyTheme).toHaveBeenCalledOnceWith({ body: saved });
+    await until(() => api.getMyTheme.calls.count() > 0);
+    await pause(30);
+    expect(api.setMyTheme).not.toHaveBeenCalled();
+    expect(theming.settings()).toEqual(saved);
+  });
+
+  it('does not keep or save a half-typed colour', async () => {
+    personID.set(1);
+    create();
+    TestBed.tick();
+    await until(() => api.getMyTheme.calls.count() > 0);
+    theming.applySettings({ ...saved, primary: '#12' });
+    TestBed.tick();
+    jasmine.clock().tick(THEME_SAVE_DELAY_MS * 2);
+    await pause(30);
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+    expect(api.setMyTheme).not.toHaveBeenCalled();
+  });
+
+  it('drops a pending save when the player signs out', async () => {
+    personID.set(1);
+    create();
+    TestBed.tick();
+    await until(() => api.getMyTheme.calls.count() > 0);
+    theming.applySettings(saved);
+    TestBed.tick();
+    personID.set(null);
+    TestBed.tick();
+    jasmine.clock().tick(THEME_SAVE_DELAY_MS * 2);
+    await pause(30);
+    expect(api.setMyTheme).not.toHaveBeenCalled();
   });
 
   it('ignores stored text that is not JSON', () => {
