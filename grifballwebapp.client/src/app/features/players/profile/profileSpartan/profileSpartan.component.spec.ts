@@ -112,12 +112,17 @@ describe('ProfileSpartanComponent', () => {
   });
 
   it('shows only the files that exist, from the user\'s own URLs', async () => {
-    await load(profile({ files: ['neutral-body', 'neutral-glb', 'stance-glb'] }));
+    await load(profile({ files: ['neutral-body', 'neutral-glb', 'stance-glb'], renderedAt: '2026-11-20T10:00:00Z' }));
     const images = Array.from(el().querySelectorAll('img'));
     expect(images).toHaveSize(1);
-    expect(images[0].getAttribute('src')).toBe('/api/users/21/spartan/neutral-body');
+    expect(images[0].getAttribute('src')).toBe('/api/users/21/spartan/neutral-body?v=2026-11-20T10%3A00%3A00Z');
     const links = Array.from(el().querySelectorAll('a')).map(a => a.getAttribute('href'));
-    expect(links).toEqual(['/api/users/21/spartan/neutral-glb', '/api/users/21/spartan/stance-glb']);
+    expect(links).toEqual(['/api/users/21/spartan/neutral-glb?v=2026-11-20T10%3A00%3A00Z', '/api/users/21/spartan/stance-glb?v=2026-11-20T10%3A00%3A00Z']);
+  });
+
+  it('leaves the version out of the addresses while nothing has rendered', async () => {
+    await load(profile({ files: ['neutral-body'] }));
+    expect(el().querySelector('img')!.getAttribute('src')).toBe('/api/users/21/spartan/neutral-body');
   });
 
   it('shows no images or downloads when nothing has rendered', async () => {

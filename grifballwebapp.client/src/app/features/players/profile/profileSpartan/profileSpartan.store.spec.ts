@@ -36,6 +36,24 @@ describe('ProfileSpartanStore', () => {
     expect(store.profile()).toEqual(profile);
   });
 
+  it('looks again every half minute while a render is waiting, and stops when it is done', () => {
+    jasmine.clock().install();
+    try {
+      store.load();
+      http.expectOne(stateUrl).flush({ ...profile, renderState: 'Requested' });
+      jasmine.clock().tick(29_000);
+      http.expectNone(stateUrl);
+      jasmine.clock().tick(1_000);
+      http.expectOne(stateUrl).flush({ ...profile, renderState: 'Rendering' });
+      jasmine.clock().tick(30_000);
+      http.expectOne(stateUrl).flush(profile);
+      jasmine.clock().tick(60_000);
+      http.expectNone(stateUrl);
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
   it('says when the Spartan cannot be loaded', () => {
     store.load();
     http.expectOne(stateUrl).flush(...refused);

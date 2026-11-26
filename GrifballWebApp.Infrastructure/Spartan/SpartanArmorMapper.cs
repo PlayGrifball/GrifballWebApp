@@ -10,6 +10,12 @@ namespace GrifballWebApp.Infrastructure.Spartan;
 /// <summary>An equipped set as the render service names it, and the stance of the equipped action pose (null when it has none).</summary>
 public sealed record MappedSpartan(SpartanChoice Choice, int? Stance);
 
+/// <summary>Halo did not give an answer to use (a passing problem); <see cref="Wait"/> is how long it asked to be left alone.</summary>
+public sealed class HaloAnswerException(string message, TimeSpan? wait = null) : HttpRequestException(message)
+{
+    public TimeSpan? Wait { get; } = wait;
+}
+
 /// <summary>
 /// Turns what an Xbox account has equipped (Halo's item paths) into a Spartan the render service can render: an item's title
 /// is the name of its piece, a coating's style id is its coating, an action pose's stance id is its stance. Each item is asked
@@ -54,16 +60,19 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
             if (title is null)
                 continue;
             foreach (var key in RegionsOf(core, title, slot.Hints))
-                pieces[key] = title;
+                pieces.TryAdd(key, title);
         }
 
         string? coating = null;
         if ((await ItemOf(armor.CoatingPath, ct))?.StyleId is int style && catalog.Coatings.Contains(style.ToString(), StringComparer.Ordinal))
             coating = style.ToString();
-        var stance = (await ItemOf(armor.ActionPosePath, ct))?.StanceId;
+        var stance = await StanceOf(armor, ct);
 
         return new MappedSpartan(new SpartanChoice(core.Name, pieces, null, coating), stance);
     }
+
+    /// <summary>The stance of the armor row's action pose, or null when it has none. Throws when Halo failed.</summary>
+    public async Task<int?> StanceOf(XboxUserArmor armor, CancellationToken ct) => (await ItemOf(armor.ActionPosePath, ct))?.StanceId;
 
     /// <summary>The keys of the core's regions that have a piece named <paramref name="title"/>, narrowed by what the slot is called when several do.</summary>
     internal static IReadOnlyList<string> RegionsOf(SpartanCatalogCore core, string title, string[] hints)
@@ -81,7 +90,7 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
             if (narrowed.Count > 0)
                 return narrowed;
         }
-        return candidates;
+        return [];
     }
 
     private async Task<Item?> ItemOf(string? path, CancellationToken ct)
@@ -94,9 +103,9 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
         await Delay(Gap, ct);
         var response = await halo.GameCmsGetItem(path, string.Empty);
         if (response.Error is { Code: 429 } limited)
-            throw new InvalidOperationException($"Halo is throttling (wait {WaitOf(limited)})");
+            throw new HaloAnswerException($"Halo is throttling (wait {WaitOf(limited)})", WaitOf(limited));
         if (response.Result is null && response.Error is not { Code: 404 })
-            throw new InvalidOperationException(response.Error is { Code: not 0 } e ? $"Halo answered {e.Code} for {path}" : $"Halo gave no answer for {path}");
+            throw new HaloAnswerException(response.Error is { Code: not 0 } e ? $"Halo answered {e.Code} for {path}" : $"Halo gave no answer for {path}");
         var item = response.Result is { } r ? ItemOfResult(r) : null;
         cache.Set("spartan-item:" + path, item, ItemLifetime);
         return item;

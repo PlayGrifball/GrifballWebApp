@@ -1,15 +1,22 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { inject, Injectable, signal } from '@angular/core';
+import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { SpartanCatalog, SpartanChoice, SpartanProfileDto } from '@api/models';
 import { MyProfileService } from '@api/services/my-profile.service';
 import { problemText } from '@shared/errorText';
+
+const pollEvery = 30_000;
 
 /** The signed-in user's Spartan: what shows (their choice or their equipped set), the render service's catalog to choose from, and the render. One per panel. */
 @Injectable()
 export class ProfileSpartanStore {
   private readonly api = inject(MyProfileService);
   private readonly snackBar = inject(MatSnackBar);
+  private pollTimer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.pollTimer));
+  }
 
   private readonly _profile = signal<SpartanProfileDto | null>(null);
   readonly profile = this._profile.asReadonly();
@@ -20,9 +27,19 @@ export class ProfileSpartanStore {
 
   load(): void {
     this.api.getMySpartan().subscribe({
-      next: profile => this._profile.set(profile),
+      next: profile => {
+        this._profile.set(profile);
+        this.pollWhileWaiting(profile);
+      },
       error: (error: HttpErrorResponse) => this.snackBar.open(problemText(error, "Couldn't load your Spartan."), 'Close'),
     });
+  }
+
+  /** A render that is asked for or running finishes without the page doing anything: look again until it has. */
+  private pollWhileWaiting(profile: SpartanProfileDto): void {
+    clearTimeout(this.pollTimer);
+    if (profile.renderState === 'Requested' || profile.renderState === 'Rendering')
+      this.pollTimer = setTimeout(() => this.load(), pollEvery);
   }
 
   loadCatalog(): void {

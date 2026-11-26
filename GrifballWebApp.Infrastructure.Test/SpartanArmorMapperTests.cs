@@ -226,13 +226,14 @@ public class SpartanArmorMapperTests
         _halo.GameCmsGetItem("cores/mk7.json", string.Empty).Returns(Failed(429, TimeSpan.FromSeconds(90)));
         _halo.GameCmsGetItem("cores/other.json", string.Empty).Returns(Failed(429));
 
-        var asked = await Assert.ThrowsAsync<InvalidOperationException>(() => Mapper().Map(Armor(), Catalog, CancellationToken.None));
-        var none = await Assert.ThrowsAsync<InvalidOperationException>(() => Mapper().Map(Armor(a => a.CorePath = "cores/other.json"), Catalog, CancellationToken.None));
+        var asked = await Assert.ThrowsAsync<HaloAnswerException>(() => Mapper().Map(Armor(), Catalog, CancellationToken.None));
+        var none = await Assert.ThrowsAsync<HaloAnswerException>(() => Mapper().Map(Armor(a => a.CorePath = "cores/other.json"), Catalog, CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(asked.Message, Is.EqualTo("Halo is throttling (wait 00:01:30)"));
             Assert.That(none.Message, Is.EqualTo("Halo is throttling (wait 00:01:00)"));
+            Assert.That((asked.Wait, none.Wait), Is.EqualTo(((TimeSpan?)TimeSpan.FromSeconds(90), (TimeSpan?)TimeSpan.FromMinutes(1))));
         }
     }
 
@@ -242,8 +243,8 @@ public class SpartanArmorMapperTests
         _halo.GameCmsGetItem("cores/mk7.json", string.Empty).Returns(Failed(500));
         _halo.GameCmsGetItem("cores/none.json", string.Empty).Returns(Failed(0));
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Mapper().Map(Armor(), Catalog, CancellationToken.None));
-        var nothing = await Assert.ThrowsAsync<InvalidOperationException>(() => Mapper().Map(Armor(a => a.CorePath = "cores/none.json"), Catalog, CancellationToken.None));
+        var error = await Assert.ThrowsAsync<HaloAnswerException>(() => Mapper().Map(Armor(), Catalog, CancellationToken.None));
+        var nothing = await Assert.ThrowsAsync<HaloAnswerException>(() => Mapper().Map(Armor(a => a.CorePath = "cores/none.json"), Catalog, CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {
@@ -251,6 +252,33 @@ public class SpartanArmorMapperTests
             Assert.That(nothing.Message, Is.EqualTo("Halo gave no answer for cores/none.json"));
             Assert.That(_cache.TryGetValue("spartan-item:cores/mk7.json", out _), Is.False);
         }
+    }
+
+    [Test]
+    public async Task APieceThatFitsOnlyAnotherSlotsRegion_DoesNotReplaceThePieceThatSlotFilled()
+    {
+        Serve("cores/mk7.json", Found("Mark VII"));
+        Serve("h.json", Found("Aviator"));
+        Serve("a.json", Found("Eaglestrike"));
+
+        var mapped = await Mapper().Map(Armor(a =>
+        {
+            a.HelmetPath = "h.json";
+            a.HelmetAttachmentPath = "a.json";
+        }), Catalog, CancellationToken.None);
+
+        Assert.That(mapped!.Choice.Armor, Is.EqualTo(new Dictionary<string, string> { ["helmet"] = "Aviator" }));
+    }
+
+    [Test]
+    public async Task TheStanceOfAnArmor_IsThatOfItsPose_OrNone()
+    {
+        Serve("p.json", Found(stance: 12));
+
+        var stance = await Mapper().StanceOf(Armor(a => a.ActionPosePath = "p.json"), CancellationToken.None);
+        var none = await Mapper().StanceOf(Armor(), CancellationToken.None);
+
+        Assert.That((stance, none), Is.EqualTo(((int?)12, (int?)null)));
     }
 
     private static readonly SpartanCatalogCore TwoHelmets = new("C",
@@ -268,7 +296,7 @@ public class SpartanArmorMapperTests
         {
             Assert.That(SpartanArmorMapper.RegionsOf(TwoHelmets, "Same", ["helmet", "attach"]), Is.EqualTo(new List<string> { "helmet_attach" }));
             Assert.That(SpartanArmorMapper.RegionsOf(TwoHelmets, "Same", ["helmet"]), Is.EqualTo(new List<string> { "helmet", "helmet_attach" }));
-            Assert.That(SpartanArmorMapper.RegionsOf(TwoHelmets, "Same", ["wrist"]), Is.EqualTo(new List<string> { "helmet", "helmet_attach", "chest" }));
+            Assert.That(SpartanArmorMapper.RegionsOf(TwoHelmets, "Same", ["wrist"]), Is.Empty, "a guess between regions is worse than the default piece");
             Assert.That(SpartanArmorMapper.RegionsOf(TwoHelmets, "Absent", ["helmet"]), Is.Empty);
         }
     }

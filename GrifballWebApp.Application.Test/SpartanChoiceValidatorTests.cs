@@ -17,6 +17,17 @@ public class SpartanChoiceValidatorTests
     private static IReadOnlyList<string> Check(SpartanChoice choice) => SpartanChoiceValidator.Validate(choice, Catalog);
 
     [Test]
+    public void ANullOrEmptyPieceName_IsRefused_EvenWhereARegionHasANamelessPiece()
+    {
+        var catalog = new SpartanCatalog(
+            [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, null), new(2, "Eaglestrike")])])], [], []);
+
+        var problems = SpartanChoiceValidator.Validate(new SpartanChoice("Mark VII", new Dictionary<string, string> { ["helmet"] = null!, ["x"] = "" }), catalog);
+
+        Assert.That(problems, Is.EqualTo(new List<string> { "The region 'helmet' of 'Mark VII' has no piece ''", "The core 'Mark VII' has no region 'x'" }));
+    }
+
+    [Test]
     public void ACoreAlone_IsAccepted() => Assert.That(Check(new SpartanChoice("Mark VII")), Is.Empty);
 
     [Test]

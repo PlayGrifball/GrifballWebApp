@@ -52,6 +52,9 @@ public sealed class SpartanRenderSource(
     TimeProvider time,
     XboxArmorThrottle throttle)
 {
+    /// <summary>Users who show their equipped set and have no render row yet are queued this many at a time.</summary>
+    private const int NewRendersPerRun = 100;
+
     private readonly SpartanRenderOptions _options = options.Value;
 
     public async Task<SpartanRenderReport> RunAsync(CancellationToken ct = default)
@@ -93,24 +96,39 @@ public sealed class SpartanRenderSource(
         return report;
     }
 
-    /// <summary>A render of the equipped set is asked for again when the armor job saw the set change since it.</summary>
+    /// <summary>
+    /// Renders are asked for the users who show their equipped set and have none yet, and again when the armor job saw the set
+    /// change since the last one (a failed render too: its problem may have been the set).
+    /// </summary>
     private async Task<int> AskAgainForChangedSetsAsync(CancellationToken ct)
     {
         var now = time.GetUtcNow().UtcDateTime;
+        var missing = await context.Users
+            .Where(u => u.XboxUserID != null && !context.UserSpartanRenders.Any(r => r.UserId == u.Id)
+                && context.XboxUserArmor.Any(a => a.XboxUserID == u.XboxUserID && a.Status != XboxUserArmorStatus.NotFound && a.CoreId != null))
+            .OrderBy(u => u.Id)
+            .Select(u => u.Id)
+            .Take(NewRendersPerRun)
+            .ToListAsync(ct);
+        foreach (var userId in missing)
+            context.UserSpartanRenders.Add(new UserSpartanRender { UserId = userId, State = UserSpartanRenderState.Requested, RequestedAt = now });
+
         var stale = await context.UserSpartanRenders
-            .Where(r => r.State == UserSpartanRenderState.Done && r.RenderedAt != null)
             .Where(r => !context.UserSpartans.Any(s => s.UserId == r.UserId))
-            .Where(r => context.Users.Any(u => u.Id == r.UserId
-                && context.XboxUserArmor.Any(a => a.XboxUserID == u.XboxUserID && a.ChangedAt > r.RenderedAt)))
+            .Where(r => (r.State == UserSpartanRenderState.Done && r.RenderedAt != null
+                    && context.Users.Any(u => u.Id == r.UserId && context.XboxUserArmor.Any(a => a.XboxUserID == u.XboxUserID && a.ChangedAt > r.RenderedAt)))
+                || (r.State == UserSpartanRenderState.Failed
+                    && context.Users.Any(u => u.Id == r.UserId && context.XboxUserArmor.Any(a => a.XboxUserID == u.XboxUserID
+                        && a.Status != XboxUserArmorStatus.NotFound && a.CoreId != null && a.ChangedAt > r.RequestedAt))))
             .ToListAsync(ct);
         foreach (var render in stale)
         {
             render.State = UserSpartanRenderState.Requested;
             render.RequestedAt = now;
         }
-        if (stale.Count > 0)
+        if (missing.Count + stale.Count > 0)
             await context.SaveChangesAsync(ct);
-        return stale.Count;
+        return missing.Count + stale.Count;
     }
 
     private enum Outcome { Done, Failed, Retry }
@@ -121,93 +139,156 @@ public sealed class SpartanRenderSource(
         var asked = render.RequestedAt;
         try
         {
-            var (choice, stance, problem) = await WhatToRenderAsync(render.UserId, catalog, ct);
-            if (choice is null)
-                return await FailAsync(render, problem ?? "There is no Spartan to render", ct);
-
-            var key = KeyOf(choice, stance);
-            var have = await context.UserSpartanFiles.CountAsync(f => f.UserId == render.UserId, ct);
-            if (render.LoadoutKey == key && have == (stance is null ? 3 : 6))
-            {
-                render.State = UserSpartanRenderState.Done;
-                render.RenderedAt = time.GetUtcNow().UtcDateTime;
-                render.Error = null;
-                await context.SaveChangesAsync(ct);
-                return Outcome.Done;
-            }
-
-            render.State = UserSpartanRenderState.Rendering;
-            await context.SaveChangesAsync(ct);
-
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(_options.Timeout);
-            var files = await MakeFilesAsync(choice, stance, timeout.Token);
-
-            await using var transaction = await context.Database.BeginTransactionAsync(ct);
-            await context.UserSpartanFiles.Where(f => f.UserId == render.UserId).ExecuteDeleteAsync(ct);
-            foreach (var tracked in context.ChangeTracker.Entries<UserSpartanFile>().Where(e => e.Entity.UserId == render.UserId).ToList())
-                tracked.State = EntityState.Detached;
-            foreach (var (name, file) in files)
-                context.UserSpartanFiles.Add(new UserSpartanFile { UserId = render.UserId, Name = name, ContentType = file.ContentType, Content = file.Content });
-            await context.SaveChangesAsync(ct);
-
-            // A choice made while this rendered asks again: the update only finishes the request this render began from
-            var renderedAt = time.GetUtcNow().UtcDateTime;
-            await context.UserSpartanRenders.Where(r => r.UserId == render.UserId).ExecuteUpdateAsync(u => u
-                .SetProperty(r => r.State, r => r.RequestedAt == asked ? UserSpartanRenderState.Done : UserSpartanRenderState.Requested)
-                .SetProperty(r => r.RenderedAt, renderedAt)
-                .SetProperty(r => r.LoadoutKey, key)
-                .SetProperty(r => r.Error, (string?)null), ct);
-            await transaction.CommitAsync(ct);
-            await context.Entry(render).ReloadAsync(ct);
-            return Outcome.Done;
+            return await MakeAsync(render, asked, catalog, ct);
         }
         catch (HttpRequestException e) when (!ct.IsCancellationRequested)
         {
-            return await RetryLaterAsync(render, e.Message, ct);
+            if (e is HaloAnswerException { Wait: { } wait })
+                throttle.Wait(time.GetUtcNow(), wait);
+            return await RetryLaterAsync(render, asked, e.Message, ct);
         }
-        catch (Exception e) when (!ct.IsCancellationRequested && e is not DbUpdateException)
+        catch (DbUpdateException e)
         {
-            return await FailAsync(render, e is OperationCanceledException ? "The render took too long" : e.Message, ct);
+            // What did not save must not ride along with the next user's save, and this render must not stay Rendering
+            foreach (var entry in context.ChangeTracker.Entries().Where(x => x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToList())
+                entry.State = EntityState.Detached;
+            return await RetryLaterAsync(render, asked, e.InnerException?.Message ?? e.Message, ct);
+        }
+        catch (Exception e) when (!ct.IsCancellationRequested)
+        {
+            return await FailAsync(render, asked, e is OperationCanceledException ? "The render took too long" : e.Message, ct);
         }
     }
 
-    // A passing problem is not the user's to fix: the render waits its turn again instead of being marked failed
-    private async Task<Outcome> RetryLaterAsync(UserSpartanRender render, string error, CancellationToken ct)
+    private async Task<Outcome> MakeAsync(UserSpartanRender render, DateTime asked, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
+    {
+        var (choice, stance, problem, passing) = await WhatToRenderAsync(render.UserId, catalog, ct);
+        if (choice is null)
+            return await NothingToRenderAsync(render, asked, problem ?? "There is no Spartan to render", passing, ct);
+
+        var key = KeyOf(choice, stance);
+        var have = await context.UserSpartanFiles.CountAsync(f => f.UserId == render.UserId, ct);
+        if (render.LoadoutKey == key && have == (stance is null ? 3 : 6))
+        {
+            render.State = UserSpartanRenderState.Done;
+            render.RenderedAt = time.GetUtcNow().UtcDateTime;
+            render.Error = null;
+            await context.SaveChangesAsync(ct);
+            return Outcome.Done;
+        }
+
+        render.State = UserSpartanRenderState.Rendering;
+        await context.SaveChangesAsync(ct);
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(_options.Timeout);
+        var files = await MakeFilesAsync(choice, stance, timeout.Token);
+
+        await using var transaction = await context.Database.BeginTransactionAsync(ct);
+        await DeleteFilesAsync(render.UserId, ct);
+        foreach (var (name, file) in files)
+            context.UserSpartanFiles.Add(new UserSpartanFile { UserId = render.UserId, Name = name, ContentType = file.ContentType, Content = file.Content });
+        await context.SaveChangesAsync(ct);
+
+        // A choice made while this rendered asks again: the update only finishes the request this render began from
+        var renderedAt = time.GetUtcNow().UtcDateTime;
+        await context.UserSpartanRenders.Where(r => r.UserId == render.UserId).ExecuteUpdateAsync(u => u
+            .SetProperty(r => r.State, r => r.RequestedAt == asked ? UserSpartanRenderState.Done : UserSpartanRenderState.Requested)
+            .SetProperty(r => r.RenderedAt, renderedAt)
+            .SetProperty(r => r.LoadoutKey, key)
+            .SetProperty(r => r.Error, (string?)null), ct);
+        await transaction.CommitAsync(ct);
+        await context.Entry(render).ReloadAsync(ct);
+        return Outcome.Done;
+    }
+
+    private async Task<Outcome> NothingToRenderAsync(UserSpartanRender render, DateTime asked, string problem, bool passing, CancellationToken ct)
+    {
+        if (passing)
+            return await RetryLaterAsync(render, asked, problem, ct);
+        // Without a choice or a known set the pictures shown would be an old Spartan's
+        if (!await context.UserSpartans.AnyAsync(s => s.UserId == render.UserId, ct))
+            await DeleteFilesAsync(render.UserId, ct);
+        return await FailAsync(render, asked, problem, ct);
+    }
+
+    private async Task DeleteFilesAsync(int userId, CancellationToken ct)
+    {
+        await context.UserSpartanFiles.Where(f => f.UserId == userId).ExecuteDeleteAsync(ct);
+        foreach (var tracked in context.ChangeTracker.Entries<UserSpartanFile>().Where(e => e.Entity.UserId == userId).ToList())
+            tracked.State = EntityState.Detached;
+    }
+
+    // A passing problem is not the user's to fix: the render waits its turn again instead of being marked failed. Like Fail, it
+    // only settles the request this render began from: one made while it ran stands.
+    private async Task<Outcome> RetryLaterAsync(UserSpartanRender render, DateTime asked, string error, CancellationToken ct)
     {
         var now = time.GetUtcNow();
-        var wait = throttle.Remaining(now) is { } remaining && remaining > _options.RetryAfter ? remaining : _options.RetryAfter;
-        render.State = UserSpartanRenderState.Requested;
-        render.RequestedAt = now.UtcDateTime + wait;
-        render.Error = error.Length > 500 ? error[..500] : error;
-        await context.SaveChangesAsync(ct);
+        var until = now.UtcDateTime + (throttle.Remaining(now) is { } remaining && remaining > _options.RetryAfter ? remaining : _options.RetryAfter);
+        var text = Cut(error);
+        await context.UserSpartanRenders.Where(r => r.UserId == render.UserId && r.RequestedAt == asked)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(r => r.State, UserSpartanRenderState.Requested)
+                .SetProperty(r => r.RequestedAt, until)
+                .SetProperty(r => r.Error, text), ct);
+        await ReloadAsync(render, ct);
         return Outcome.Retry;
     }
 
-    private async Task<Outcome> FailAsync(UserSpartanRender render, string error, CancellationToken ct)
+    private async Task<Outcome> FailAsync(UserSpartanRender render, DateTime asked, string error, CancellationToken ct)
     {
-        render.State = UserSpartanRenderState.Failed;
-        render.Error = error.Length > 500 ? error[..500] : error;
-        await context.SaveChangesAsync(ct);
+        var text = Cut(error);
+        await context.UserSpartanRenders.Where(r => r.UserId == render.UserId && r.RequestedAt == asked)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(r => r.State, UserSpartanRenderState.Failed)
+                .SetProperty(r => r.Error, text), ct);
+        await ReloadAsync(render, ct);
         return Outcome.Failed;
     }
 
-    private async Task<(SpartanChoice? Choice, int? Stance, string? Problem)> WhatToRenderAsync(int userId, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
+    private static string Cut(string error) => error.Length > 500 ? error[..500] : error;
+
+    private async Task ReloadAsync(UserSpartanRender render, CancellationToken ct)
+    {
+        if (context.Entry(render).State != EntityState.Detached)
+            await context.Entry(render).ReloadAsync(ct);
+    }
+
+    private sealed record Plan(SpartanChoice? Choice, int? Stance, string? Problem = null, bool Passing = false);
+
+    private async Task<Plan> WhatToRenderAsync(int userId, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
     {
         var xuid = await context.Users.Where(u => u.Id == userId).Select(u => u.XboxUserID).FirstOrDefaultAsync(ct);
         var armor = xuid is long id ? await context.XboxUserArmor.AsNoTracking().FirstOrDefaultAsync(a => a.XboxUserID == id && a.Status != XboxUserArmorStatus.NotFound && a.CoreId != null, ct) : null;
         var json = await context.UserSpartans.Where(s => s.UserId == userId).Select(s => s.ChoiceJson).FirstOrDefaultAsync(ct);
 
-        var equipped = armor is null ? null : await mapper.Map(armor, catalog, ct);
         if (json is null)
         {
+            if (armor is null)
+                return new(null, null, "No equipped Spartan is known for this account yet");
+            var equipped = await mapper.Map(armor, catalog, ct);
             return equipped is null
-                ? (null, null, armor is null ? "No equipped Spartan is known for this account yet" : "The render service does not have the equipped core yet")
-                : (equipped.Choice, equipped.Stance, null);
+                ? new(null, null, "The render service does not have the equipped core yet", Passing: true)
+                : new(equipped.Choice, equipped.Stance);
         }
         var choice = JsonSerializer.Deserialize<SpartanChoice>(json, SpartanService.Json)!;
         var problems = SpartanChoiceValidator.Validate(choice, catalog);
-        return problems.Count > 0 ? (null, null, string.Join("; ", problems)) : (choice, equipped?.Stance, null);
+        return problems.Count > 0 ? new(null, null, string.Join("; ", problems)) : new(choice, await StanceOfAsync(armor, ct));
+    }
+
+    // The user's own Spartan needs nothing from Halo but the stance they have equipped: without it, only the neutral pose is made
+    private async Task<int?> StanceOfAsync(XboxUserArmor? armor, CancellationToken ct)
+    {
+        if (armor is null)
+            return null;
+        try
+        {
+            return await mapper.StanceOf(armor, ct);
+        }
+        catch (HttpRequestException) when (!ct.IsCancellationRequested)
+        {
+            return null;
+        }
     }
 
     private async Task<Dictionary<string, SpartanFileDto>> MakeFilesAsync(SpartanChoice choice, int? stance, CancellationToken ct)

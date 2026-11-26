@@ -331,7 +331,7 @@ public class SpartanRenderTests : SqliteContextFixture
     }
 
     [Test]
-    public async Task AnEquippedCoreTheRenderServiceLacks_FailsWithThatSaid()
+    public async Task AnEquippedCoreTheRenderServiceLacks_WaitsToTryAgain_WithThatSaid()
     {
         var (userId, xuid) = await UserAsync();
         await EquipAsync(xuid);
@@ -339,7 +339,152 @@ public class SpartanRenderTests : SqliteContextFixture
 
         await Source().RunAsync();
 
-        Assert.That((await RenderOf(userId)).Error, Is.EqualTo("The render service does not have the equipped core yet"));
+        var render = await RenderOf(userId);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(render.Error, Is.EqualTo("The render service does not have the equipped core yet"));
+            Assert.That((render.State, render.RequestedAt), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime.AddMinutes(10))));
+        }
+    }
+
+    [Test]
+    public async Task AUserWhoShowsTheirEquippedSet_AndHasNoRenderYet_IsQueuedAndRendered()
+    {
+        var (userId, xuid) = await UserAsync();
+        Context.UserSpartanRenders.RemoveRange(await Context.UserSpartanRenders.ToListAsync());
+        await Context.SaveChangesAsync();
+        await EquipAsync(xuid);
+        Serve("cores/mk7.json", "Mark VII");
+        Serve("poses/p.json", stance: 77);
+
+        var report = await Source().RunAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Marked, report.Done), Is.EqualTo((1, 1)));
+            Assert.That((await RenderOf(userId)).State, Is.EqualTo(UserSpartanRenderState.Done));
+            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(6));
+        }
+    }
+
+    [Test]
+    public async Task AUserWithNoEquippedSetAndNoRender_IsNotQueued()
+    {
+        await UserAsync();
+        Context.UserSpartanRenders.RemoveRange(await Context.UserSpartanRenders.ToListAsync());
+        await Context.SaveChangesAsync();
+
+        var report = await Source().RunAsync();
+
+        Assert.That((report.Marked, report.Waiting), Is.EqualTo((0, 0)));
+    }
+
+    [Test]
+    public async Task HaloThrottling_WhileMappingTheEquippedSet_PutsTheRenderBack_AndHoldsTheThrottle()
+    {
+        var (userId, xuid) = await UserAsync();
+        await EquipAsync(xuid);
+        _halo.GameCmsGetItem("cores/mk7.json", string.Empty).Returns(new HaloApiResultContainer<InGameItem, HaloApiErrorContainer>(
+            null!, new HaloApiErrorContainer { Code = 429, RetryAfter = TimeSpan.FromMinutes(30) }));
+
+        var report = await Source().RunAsync();
+
+        var render = await RenderOf(userId);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Failed, report.Retrying), Is.EqualTo((0, 1)));
+            Assert.That((render.State, render.RequestedAt), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime.AddMinutes(30))));
+            Assert.That(_throttle.Remaining(Start), Is.EqualTo(TimeSpan.FromMinutes(30)));
+        }
+    }
+
+    [Test]
+    public async Task AUsersOwnChoice_IsRenderedWhileHaloIsDown_WithoutTheirStance()
+    {
+        var (userId, xuid) = await UserAsync(Choice);
+        await EquipAsync(xuid);
+        _halo.GameCmsGetItem("poses/p.json", string.Empty).Returns(new HaloApiResultContainer<InGameItem, HaloApiErrorContainer>(
+            null!, new HaloApiErrorContainer { Code = 503 }));
+
+        var report = await Source().RunAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Done, report.Failed, report.Retrying), Is.EqualTo((1, 0, 0)));
+            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(3));
+            await _halo.DidNotReceive().GameCmsGetItem("cores/mk7.json", string.Empty);
+        }
+    }
+
+    [Test]
+    public async Task AFailureWhileStoringTheFiles_PutsTheRenderBack_AndTheNextUserStillRenders()
+    {
+        var (first, _) = await UserAsync(Choice);
+        var (second, _) = await UserAsync(Choice);
+        await Context.Database.ExecuteSqlRawAsync("CREATE TRIGGER no_files BEFORE INSERT ON UserSpartanFiles WHEN NEW.UserId = " + first + " BEGIN SELECT RAISE(ABORT, 'boom'); END");
+
+        var report = await Source().RunAsync();
+
+        var render = await RenderOf(first);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Done, report.Retrying), Is.EqualTo((1, 1)));
+            Assert.That((render.State, render.RequestedAt), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime.AddMinutes(10))));
+            Assert.That(await FileNamesOf(first), Is.Empty);
+            Assert.That(await FileNamesOf(second), Has.Count.EqualTo(3));
+        }
+    }
+
+    [Test]
+    public async Task AFailure_DoesNotOverwriteARequestMadeWhileItRendered()
+    {
+        _service.FailWith = HttpStatusCode.BadRequest;
+        var (userId, _) = await UserAsync(Choice);
+        var newer = Start.UtcDateTime.AddMinutes(1);
+        _service.OnRequest = () =>
+        {
+            var render = Context.UserSpartanRenders.Single();
+            render.State = UserSpartanRenderState.Requested;
+            render.RequestedAt = newer;
+            Context.SaveChanges();
+        };
+
+        var report = await Source().RunAsync();
+
+        var after = await RenderOf(userId);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Failed, Is.EqualTo(1));
+            Assert.That((after.State, after.RequestedAt), Is.EqualTo((UserSpartanRenderState.Requested, newer)));
+        }
+    }
+
+    [Test]
+    public async Task ClearingTheChoice_WithNoEquippedSet_RemovesTheOldPictures()
+    {
+        var (userId, _) = await UserAsync();
+        Context.UserSpartanFiles.Add(new UserSpartanFile { UserId = userId, Name = "neutral-body", ContentType = "image/png", Content = [1] });
+        await Context.SaveChangesAsync();
+
+        await Source().RunAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await RenderOf(userId)).State, Is.EqualTo(UserSpartanRenderState.Failed));
+            Assert.That(await FileNamesOf(userId), Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task AChoiceTheCatalogNoLongerAllows_KeepsThePicturesItHad()
+    {
+        var (userId, _) = await UserAsync(new SpartanChoice("Gone"));
+        Context.UserSpartanFiles.Add(new UserSpartanFile { UserId = userId, Name = "neutral-body", ContentType = "image/png", Content = [1] });
+        await Context.SaveChangesAsync();
+
+        await Source().RunAsync();
+
+        Assert.That(await FileNamesOf(userId), Is.EqualTo(new List<string> { "neutral-body" }));
     }
 
     [Test]
@@ -554,6 +699,26 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That((await RenderOf(changed.UserId)).RequestedAt, Is.EqualTo(Start.UtcDateTime));
             Assert.That((await RenderOf(chosen.UserId)).State, Is.EqualTo(UserSpartanRenderState.Done));
             Assert.That((await RenderOf(unchanged.UserId)).State, Is.EqualTo(UserSpartanRenderState.Done));
+        }
+    }
+
+    [Test]
+    public async Task AFailedRender_IsAskedForAgain_WhenTheSetChangedAfterIt()
+    {
+        var failedAt = Start.UtcDateTime.AddDays(-1);
+        var later = await UserAsync(null, UserSpartanRenderState.Failed, requestedAt: failedAt);
+        await EquipAsync(later.Xuid, changedAt: failedAt.AddHours(1));
+        var earlier = await UserAsync(null, UserSpartanRenderState.Failed, requestedAt: failedAt);
+        await EquipAsync(earlier.Xuid, changedAt: failedAt.AddHours(-1));
+        _catalogs = new FakeCatalogs(null);
+
+        var report = await Source().RunAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Marked, Is.EqualTo(1));
+            Assert.That((await RenderOf(later.UserId)).State, Is.EqualTo(UserSpartanRenderState.Requested));
+            Assert.That((await RenderOf(earlier.UserId)).State, Is.EqualTo(UserSpartanRenderState.Failed));
         }
     }
 

@@ -21,7 +21,7 @@ public static class SpartanChoiceValidator
         {
             if (!named.TryGetValue(key, out var region))
                 problems.Add($"The core '{core.Name}' has no region '{key}'");
-            else if (!region.Pieces.Any(p => string.Equals(p.Name, name, StringComparison.Ordinal)))
+            else if (string.IsNullOrEmpty(name) || !region.Pieces.Any(p => string.Equals(p.Name, name, StringComparison.Ordinal)))
                 problems.Add($"The region '{key}' of '{core.Name}' has no piece '{name}'");
         }
 
