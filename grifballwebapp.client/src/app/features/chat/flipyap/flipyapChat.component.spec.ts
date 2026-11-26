@@ -6,6 +6,7 @@ import { HubConnectionBuilder, HubConnectionState, type HubConnection, type IStr
 import type { ChatActionDto, ChatConfirmDto } from '@api/models';
 import { AccountService } from '@core/auth/account.service';
 import { CHAT_STORAGE_KEY, CONFIRMED } from '../chat.store';
+import { ChatComponent } from '../chat.component';
 import { FlipyapChatComponent } from './flipyapChat.component';
 
 @Component({ template: '' })
@@ -208,6 +209,29 @@ describe('FlipyapChatComponent', () => {
 
     el().querySelector<HTMLAnchorElement>('a[href="/chat"]')!.click();
     expect(closed).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the stream going when he is left for /chat: the component goes, the shared store does not', () => {
+    type('Who won?');
+    button('Ask')!.click();
+    fixture.detectChanges();
+    answer().subscriber.next('The ');
+    fixture.detectChanges();
+
+    fixture.destroy();
+
+    expect(answer().disposed).withContext('leaving for /chat must not cancel the stream').toBeFalse();
+
+    const onChatPage = TestBed.createComponent(ChatComponent);
+    onChatPage.detectChanges();
+    const chatPageText = (onChatPage.nativeElement as HTMLElement).textContent!.replace(/\s+/g, ' ');
+    expect(chatPageText).toContain('Who won?');
+    expect(chatPageText).toContain('The ');
+
+    answer().subscriber.next('Grifs.');
+    answer().subscriber.complete();
+    onChatPage.detectChanges();
+    expect((onChatPage.nativeElement as HTMLElement).textContent).toContain('The Grifs.');
   });
 
   it('keeps the newest message in view', async () => {

@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, output } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChangeDetectionStrategy, Component, PLATFORM_ID, output, signal } from '@angular/core';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
+import { HubConnectionBuilder, HubConnectionState, type HubConnection } from '@microsoft/signalr';
+import { AccountService } from '@core/auth/account.service';
 import { BLINK_EVERY_MS, BLINK_FOR_MS, CORNER_MARGIN_PX, DRAG_THRESHOLD_PX, FlipyapComponent, GREETED_STORAGE_KEY, GREETING_FOR_MS, POSITION_STORAGE_KEY, TALK_BEAT_MS } from './flipyap.component';
 import { FlipyapChatComponent } from './flipyapChat.component';
 
@@ -36,6 +38,15 @@ describe('FlipyapComponent', () => {
     fixture.detectChanges();
   }
 
+  /** Opens the chat and lets its @defer block (manual in tests) load, as it does on its own once the chunk arrives. */
+  async function openAndLoad(): Promise<void> {
+    pet().click();
+    fixture.detectChanges();
+    for (const block of await fixture.getDeferBlocks())
+      await block.render(DeferBlockState.Complete);
+    fixture.detectChanges();
+  }
+
   /** Picks him up where he is, moves him by (dx, dy) and puts him down. */
   function dragBy(dx: number, dy: number): void {
     const rect = pet().getBoundingClientRect();
@@ -63,7 +74,7 @@ describe('FlipyapComponent', () => {
     localStorage.removeItem(POSITION_STORAGE_KEY);
   });
 
-  it('sits in the corner as a button that opens the chat, which is not made until then', () => {
+  it('sits in the corner as a button that opens the chat, which is not made until then', async () => {
     create();
 
     expect(pet().getAttribute('aria-label')).toBe('Chat with Flipyap');
@@ -71,18 +82,16 @@ describe('FlipyapComponent', () => {
     expect(el().querySelectorAll('.flipyap__sprite rect').length).toBeGreaterThan(50);
     expect(chat()).toBeNull();
 
-    pet().click();
-    fixture.detectChanges();
+    await openAndLoad();
 
     expect(pet().getAttribute('aria-expanded')).toBe('true');
     expect(chat()!.hidden).toBeFalse();
     expect(el().querySelector('app-flipyap-chat')).not.toBeNull();
   });
 
-  it('hides the chat when he is clicked again, and keeps it, so an answer goes on', () => {
+  it('hides the chat when he is clicked again, and keeps it, so an answer goes on', async () => {
     create();
-    pet().click();
-    fixture.detectChanges();
+    await openAndLoad();
     const made = stub();
 
     pet().click();
@@ -107,13 +116,12 @@ describe('FlipyapComponent', () => {
     el().remove();
   });
 
-  it('does nothing on Escape with the chat closed, and closes when the chat says it is closed', () => {
+  it('does nothing on Escape with the chat closed, and closes when the chat says it is closed', async () => {
     create();
     el().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(pet().getAttribute('aria-expanded')).toBe('false');
 
-    pet().click();
-    fixture.detectChanges();
+    await openAndLoad();
     stub().closed.emit();
     fixture.detectChanges();
     expect(pet().getAttribute('aria-expanded')).toBe('false');
@@ -174,11 +182,10 @@ describe('FlipyapComponent', () => {
     expect(fixture.componentInstance.frame()).toBe('idle');
   });
 
-  it('moves his mouth while the chat answers, and shuts it after', () => {
+  it('moves his mouth while the chat answers, and shuts it after', async () => {
     jasmine.clock().install();
     create();
-    pet().click();
-    fixture.detectChanges();
+    await openAndLoad();
 
     stub().talking.emit(true);
     fixture.detectChanges();
@@ -195,11 +202,10 @@ describe('FlipyapComponent', () => {
     expect(fixture.componentInstance.frame()).toBe('idle');
   });
 
-  it('keeps still for someone who asks for less motion: no blinking, and his mouth open while he answers', () => {
+  it('keeps still for someone who asks for less motion: no blinking, and his mouth open while he answers', async () => {
     jasmine.clock().install();
     create(true);
-    pet().click();
-    fixture.detectChanges();
+    await openAndLoad();
 
     jasmine.clock().tick(BLINK_EVERY_MS);
     expect(fixture.componentInstance.frame()).toBe('idle');
@@ -347,6 +353,58 @@ describe('FlipyapComponent', () => {
       create();
       dragBy(-50, -50);
       expect(corner()).toEqual({ right: CORNER_MARGIN_PX + 50, bottom: CORNER_MARGIN_PX + 50 });
+    });
+  });
+
+  describe('his own chat, loaded the first time he opens', () => {
+    const isLoggedIn = signal(false);
+
+    // The outer beforeEach swaps the real FlipyapChatComponent for a stub: undone here, for a real @defer load
+    beforeEach(() => TestBed.resetTestingModule());
+
+    function createReal(): void {
+      spyOn(window, 'matchMedia').and.returnValue({ matches: false } as MediaQueryList);
+      const connection = {
+        start: () => Promise.resolve(), stop: () => Promise.resolve(), on: () => undefined,
+        onreconnected: () => undefined, onclose: () => undefined,
+        stream: () => ({ subscribe: () => ({ dispose: () => undefined }) }),
+        invoke: () => Promise.resolve(null),
+        state: HubConnectionState.Connected,
+      };
+      spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
+      TestBed.configureTestingModule({
+        imports: [FlipyapComponent],
+        providers: [
+          provideRouter([{ path: 'chat', component: PageStub }, { path: '**', component: PageStub }]),
+          { provide: PLATFORM_ID, useValue: 'browser' },
+          { provide: AccountService, useValue: { isLoggedIn } },
+        ],
+      });
+      fixture = TestBed.createComponent(FlipyapComponent);
+      document.body.append(el());
+      fixture.detectChanges();
+    }
+
+    afterEach(() => el().remove());
+
+    it('is not made until he is first opened, and puts the cursor in the question box each time he reopens', async () => {
+      createReal();
+      expect(el().querySelector('app-flipyap-chat')).toBeNull();
+
+      await openAndLoad();
+
+      const question = () => el().querySelector<HTMLTextAreaElement>('textarea[aria-label="Your question"]')!;
+      expect(el().querySelector('app-flipyap-chat')).not.toBeNull();
+      expect(document.activeElement).toBe(question());
+
+      question().blur();
+      pet().click(); // closes
+      fixture.detectChanges();
+      pet().click(); // reopens: already made, no @defer wait needed this time
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(document.activeElement).withContext('reopened').toBe(question());
     });
   });
 });

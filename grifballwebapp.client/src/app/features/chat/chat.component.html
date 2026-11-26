@@ -27,8 +27,8 @@
     <div class="chat__confirm hud-panel" role="group" aria-label="A change waiting for you">
       <p class="chat__text">This waits for you: {{ action.description }}</p>
       <div class="chat__actions">
-        <button class="hud-btn hud-btn--primary" type="button" (click)="confirm(true)" [disabled]="asking()">Confirm</button>
-        <button class="hud-btn" type="button" (click)="confirm(false)" [disabled]="asking()">Cancel</button>
+        <button class="hud-btn hud-btn--primary" type="button" (click)="chat.confirm(true)" [disabled]="asking()">Confirm</button>
+        <button class="hud-btn" type="button" (click)="chat.confirm(false)" [disabled]="asking()">Cancel</button>
       </div>
     </div>
   }
@@ -70,18 +70,18 @@
     </div>
   }
 
-  <form class="chat__form" [formGroup]="form" (ngSubmit)="ask()">
+  <form class="chat__form" [formGroup]="chat.form" (ngSubmit)="chat.ask()">
     <mat-form-field appearance="outline" class="app-full-width">
       <mat-label>Your question</mat-label>
-      <textarea matInput formControlName="question" rows="3" [maxLength]="maxLength" (keydown.enter)="onEnter($event)"></textarea>
-      <mat-hint align="end">{{ form.controls.question.value.length }} / {{ maxLength }}</mat-hint>
+      <textarea matInput formControlName="question" rows="3" [maxLength]="chat.maxLength" (keydown.enter)="chat.onEnter($event)"></textarea>
+      <mat-hint align="end">{{ chat.form.controls.question.value.length }} / {{ chat.maxLength }}</mat-hint>
     </mat-form-field>
     <div class="chat__actions">
-      <button class="hud-btn hud-btn--primary" type="submit" [disabled]="asking() || form.invalid">Ask</button>
+      <button class="hud-btn hud-btn--primary" type="submit" [disabled]="asking() || chat.form.invalid">Ask</button>
       @if (asking()) {
-        <button class="hud-btn" type="button" (click)="stop()">Stop</button>
+        <button class="hud-btn" type="button" (click)="chat.stop()">Stop</button>
       }
-      <button class="hud-btn" type="button" (click)="clear()" [disabled]="asking() || turns().length === 0">New conversation</button>
+      <button class="hud-btn" type="button" (click)="chat.clear()" [disabled]="asking() || turns().length === 0">New conversation</button>
     </div>
   </form>
 </div>

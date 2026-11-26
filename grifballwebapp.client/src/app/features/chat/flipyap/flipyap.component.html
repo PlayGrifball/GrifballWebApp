@@ -1,7 +1,7 @@
 @if (!onChatPage()) {
   <div class="flipyap" #box [style.right.px]="margin - offset().x" [style.bottom.px]="margin - offset().y"
        [class.flipyap--below]="nearTop()" [class.flipyap--start]="nearLeft()">
-    @if (everOpened()) {
+    @defer (when everOpened()) {
       <div class="flipyap__chat" id="flipyap-chat" role="region" aria-label="Chat with Flipyap" [hidden]="!open()">
         <app-flipyap-chat (closed)="close()" (talking)="onTalking($event)" />
       </div>

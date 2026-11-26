@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, afterRenderEffect, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -84,6 +84,8 @@ export class FlipyapComponent {
   readonly nearLeft = signal(false);
   private drag: Drag | null = null;
   private suppressClick = false;
+  /** The chat was just opened and wants the cursor: set until it (and, its first time, its @defer chunk) exists to take it. */
+  private readonly focusPending = signal(false);
 
   readonly frame = computed<FlipyapFrame>(() => {
     if (this.held())
@@ -112,6 +114,14 @@ export class FlipyapComponent {
       this.greetOnce();
       this.restorePosition();
     });
+
+    // Focuses the question box once it exists: on the chat's first open, its @defer chunk may still be loading
+    afterRenderEffect(() => {
+      if (this.focusPending() && this.open() && this.chat()) {
+        this.chat()!.focus();
+        this.focusPending.set(false);
+      }
+    });
   }
 
   toggle(): void {
@@ -125,8 +135,7 @@ export class FlipyapComponent {
     else {
       this.everOpened.set(true);
       this.open.set(true);
-      // Already made, he only needs the cursor back in the box
-      this.chat()?.focus();
+      this.focusPending.set(true);
     }
   }
 
