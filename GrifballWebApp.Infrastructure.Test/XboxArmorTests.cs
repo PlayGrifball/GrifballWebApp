@@ -92,7 +92,7 @@ public class XboxArmorTests : SqliteContextFixture
         return xuid;
     }
 
-    private static async Task<JobRunReport> RunAsync(IJob job)
+    private static async Task<JobRunReport> RunAsync(XboxArmorJob job)
     {
         var context = Substitute.For<IJobExecutionContext>();
         await job.Execute(context);
