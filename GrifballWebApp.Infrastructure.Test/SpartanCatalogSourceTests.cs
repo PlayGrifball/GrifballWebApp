@@ -46,12 +46,15 @@ public class SpartanCatalogSourceTests
 
         Assert.That(catalog, Is.Not.Null);
         var region = catalog!.Cores.Single().Regions.Single();
-        Assert.That(region.Key, Is.EqualTo("helmet"));
-        Assert.That(region.Region, Is.EqualTo(100));
-        Assert.That(region.Pieces.Select(p => p.Name), Is.EqualTo(new List<string?> { "Mark VII", null }));
-        Assert.That(catalog.Coatings, Is.EqualTo(new List<string> { "111" }));
-        Assert.That(catalog.Visors, Is.EqualTo(new List<string> { "Plain" }));
-        Assert.That(catalog.PendingCores, Is.EqualTo(new List<string> { "Chimera" }));
+        Assert.Multiple(() =>
+        {
+            Assert.That(region.Key, Is.EqualTo("helmet"));
+            Assert.That(region.Region, Is.EqualTo(100));
+            Assert.That(region.Pieces.Select(p => p.Name), Is.EqualTo(new List<string?> { "Mark VII", null }));
+            Assert.That(catalog.Coatings, Is.EqualTo(new List<string> { "111" }));
+            Assert.That(catalog.Visors, Is.EqualTo(new List<string> { "Plain" }));
+            Assert.That(catalog.PendingCores, Is.EqualTo(new List<string> { "Chimera" }));
+        });
     }
 
     [Test]
@@ -72,8 +75,14 @@ public class SpartanCatalogSourceTests
         var handler = new Handler(() => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
         var source = Source(handler);
 
-        Assert.That(await source.Get(), Is.Null);
-        Assert.That(await source.Get(), Is.Null);
+        var first = await source.Get();
+        var second = await source.Get();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first, Is.Null);
+            Assert.That(second, Is.Null);
+        });
         Assert.That(handler.Calls, Is.EqualTo(2));
     }
 
@@ -89,7 +98,7 @@ public class SpartanCatalogSourceTests
     public async Task ACancelledAsk_StaysCancelled_InsteadOfLookingLikeADownService()
     {
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
         var source = Source(new Handler(() => throw new TaskCanceledException()));
 
         await Assert.ThrowsAsync<TaskCanceledException>(() => source.Get(cts.Token));
