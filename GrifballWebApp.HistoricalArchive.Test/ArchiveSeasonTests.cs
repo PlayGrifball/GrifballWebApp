@@ -6,7 +6,7 @@ namespace GrifballWebApp.HistoricalArchive.Test;
 /// <summary>Single seasons of the real archive whose sheets once lost teams: what they import now.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
-public class ArchiveSeasonTests
+public partial class ArchiveSeasonTests
 {
     /// <summary>
     /// The Teams tab's regular-season records, team per column, as the archive names the teams. RDG NHL's team was never
@@ -528,13 +528,19 @@ public class ArchiveSeasonTests
     private static bool LooksLikeSummaryRow(string? name)
     {
         var key = new string((name ?? "").Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
-        return System.Text.RegularExpressions.Regex.IsMatch(key, @"^(grand|sub|team)?(total|average)s?(kills|deaths|games|stats)?\d*$|^teamstats$|^totalstats");
+        return SummaryKey().IsMatch(key);
     }
 
     /// <summary>A gamertag that merely holds the word Total or Average: a player, never a summary row.</summary>
     private static bool IsPlayerWithTotalsWord(string? name)
         => !string.IsNullOrWhiteSpace(name) && !LooksLikeSummaryRow(name)
-            && System.Text.RegularExpressions.Regex.IsMatch(name, @"\b(totals?|averages?)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            && TotalsWord().IsMatch(name);
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(grand|sub|team)?(total|average)s?(kills|deaths|games|stats)?\d*$|^teamstats$|^totalstats")]
+    private static partial System.Text.RegularExpressions.Regex SummaryKey();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\b(totals?|averages?)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex TotalsWord();
 
     [Test]
     public async Task NoImportedName_IsASummaryRow_UnderAnySpelling()
