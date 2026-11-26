@@ -604,7 +604,7 @@ public partial class ArchiveSeasonTests
         await using var context = Archive.NewContext();
         var teamPlayers = (await context.Teams.AsNoTracking()
                 .Where(t => t.Season.HistoricalSourceID != null)
-                .Include(t => t.TeamPlayers).ThenInclude(p => p.User)
+                .Include(t => t.Season).Include(t => t.TeamPlayers).ThenInclude(p => p.User)
                 .ToListAsync())
             .SelectMany(t => t.TeamPlayers.Select(p => (t.Season.SeasonName, Name: p.User?.DisplayName ?? "")))
             .ToHashSet();
