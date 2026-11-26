@@ -110,6 +110,6 @@ test('the logo is vector shapes, with no picture inside', async ({ request }) =>
   const svg = body.toString("utf8");
   expect(svg).toContain('<path');
   expect(svg).not.toMatch(/<image\b|data:image\//);
-  // Bytes as served (it is about 434 kB): a re-trace that grows it notably fails here
-  expect(body.length).toBeLessThan(445_000);
+  // Bytes as served (it is about 366 kB): a re-trace that grows it notably fails here
+  expect(body.length).toBeLessThan(380_000);
 });
