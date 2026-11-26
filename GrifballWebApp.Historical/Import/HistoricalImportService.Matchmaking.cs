@@ -123,7 +123,7 @@ public partial class HistoricalImportService
         var kept = new HashSet<int>();
         foreach (var entry in group.Entries)
         {
-            foreach (var player in entry.Players.Where(p => !string.IsNullOrWhiteSpace(p.Gamertag)))
+            foreach (var player in entry.Players.Where(p => Parsing.SeasonStatsParser.IsPlayerTag(p.Gamertag)))
             {
                 var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
                 if (!kept.Add(userId))
@@ -283,7 +283,7 @@ public partial class HistoricalImportService
     private async Task<List<(RecordedPlayerInput Input, int UserId)>> RecordedPlayers(RecordedGameInput input, string key, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
     {
         var players = new List<(RecordedPlayerInput Input, int UserId)>();
-        foreach (var player in input.Players.Where(p => !string.IsNullOrWhiteSpace(p.Gamertag)))
+        foreach (var player in input.Players.Where(p => Parsing.SeasonStatsParser.IsPlayerTag(p.Gamertag)))
         {
             var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
             if (players.Any(p => p.UserId == userId))

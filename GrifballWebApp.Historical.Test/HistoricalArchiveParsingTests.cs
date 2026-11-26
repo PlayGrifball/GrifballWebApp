@@ -17,6 +17,7 @@ namespace GrifballWebApp.Historical.Test;
 [Parallelizable(ParallelScope.All)]
 public class HistoricalArchiveParsingTests
 {
+    private static readonly string[] KeptWordPlayers = ["Total Attacker", "Average Joe"];
     private static readonly string[] expected1 = ["Rayzyr", "Shadow"];
     private static readonly string[] expected2 = ["Game History: https://www.halowaypoint.com/halo-infinite/players/x"];
     private static readonly string[] expected3 = ["h3/Match_History: 1 games with only one side left out"];
@@ -885,6 +886,17 @@ public class HistoricalArchiveParsingTests
             Assert.That(PlayersListParser.Parse("x", Read(Workbook(("P", [Row("Name"), Row("a")]))).Sheet("P")!), Is.Empty, "No Gamertag column");
             Assert.That(PlayersListParser.Parse("x", Read(Workbook(("P", [Row("Gamertag")]))).Sheet("P")!), Is.Empty);
         }
+    }
+
+    [Test]
+    public void APlayersList_ASummaryRow_IsDropped_ButAGamertagContainingTheWordIsKept()
+    {
+        var sheet = Read(Workbook(("Player Masterlist", [Row("Gamertag", "Discord"),
+            Row("Total", "x"), Row("Totals:", "y"), Row("Total Attacker", "z"), Row("Average Joe", "w")]))).Sheet("Player Masterlist")!;
+
+        var players = PlayersListParser.Parse("late-league", sheet);
+
+        Assert.That(players.Select(p => p.Gamertag), Is.EqualTo(KeptWordPlayers));
     }
 
     [Test]

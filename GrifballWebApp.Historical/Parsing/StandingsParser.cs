@@ -79,8 +79,8 @@ public static partial class StandingsParser
                 break;
             var row = r;
             string Value(Field field) => columns.TryGetValue(field, out var c) ? sheet.Cell(row, c).Trim() : "";
-            var roster = players.Select(c => Gamertag(sheet.Cell(row, c))).Where(p => p.Length > 0).ToList();
-            if (name.Length > 0 && IsTeamRow(columns.Keys, Value, roster.Count > 0))
+            var roster = players.Select(c => Gamertag(sheet.Cell(row, c))).Where(p => p.Length > 0 && !SeasonStatsParser.IsTotalsLabel(p)).ToList();
+            if (name.Length > 0 && !SeasonStatsParser.IsTotalsLabel(name) && IsTeamRow(columns.Keys, Value, roster.Count > 0))
                 teams.Add(name, Value, roster);
         }
         return teams.List;
@@ -283,6 +283,8 @@ public static partial class StandingsParser
             // stats' team without it. A record's bracket, "(12-8)", is the record.
             name = string.Concat(name, string.Concat(others.Select(o => $" ({o})")));
             captain = Named(captain);
+            if (SeasonStatsParser.IsTotalsLabel(captain))
+                captain = "";
             if (!_names.Add(name))
                 return;
             var (wins, losses) = (Count(value(Field.Wins)), Count(value(Field.Losses)));

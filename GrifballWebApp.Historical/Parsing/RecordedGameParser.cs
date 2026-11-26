@@ -108,31 +108,45 @@ public static partial class RecordedGameParser
         {
             var row = sheet.Rows[r];
             var name = Cell(row, c.Player).Trim();
+            if (IsSummaryOrHeader(name, c.TeamOf(row)))
+                continue;
             var (k, d, g, gp) = (Int(row, c.Kills), Int(row, c.Deaths), Int(row, c.Goals), Int(row, c.GamesPlayed));
             // A week or playoffs marker (in the player column, or the next one), or a row of zeros
-            if (name.Length == 0 || ((k ?? 0) == 0 && (d ?? 0) == 0 && (g ?? 0) == 0 && (gp ?? 0) == 0))
+            if (name.Length == 0 || IsAllZero(k, d, g, gp))
             {
                 playoffs = PhaseOf(row) ?? playoffs;
                 continue;
             }
             if (k is null)
                 continue;
-            var stampText = c.Stamp < 0 ? null : Cell(row, c.Stamp).Trim();
-            var playedAt = Timestamp(stampText);
-            var time = Int(row, c.GameTime);
-            var side = c.TeamOf(row).Trim();
-            if (current is null || StartsAnotherGame(current, playedAt, name, side, time))
-            {
-                current = new GameRows { FirstRow = r, PlayedAt = playedAt, TimestampText = playedAt is null ? null : stampText, GameTime = time, Playoffs = playoffs };
-                blocks.Add(current);
-            }
-            current.Rows.Add(row);
-            current.Players.Add(name);
-            current.Sides.Add(side);
-            current.LastSide = side;
+            current = Place(blocks, current, (r, row, name), c, playoffs);
         }
         return blocks;
     }
+
+    private static GameRows Place(List<GameRows> blocks, GameRows? current, (int Index, string[] Row, string Name) line, CarnageColumns c, bool playoffs)
+    {
+        var (index, row, name) = line;
+        var stampText = c.Stamp < 0 ? null : Cell(row, c.Stamp).Trim();
+        var playedAt = Timestamp(stampText);
+        var time = Int(row, c.GameTime);
+        var side = c.TeamOf(row).Trim();
+        if (current is null || StartsAnotherGame(current, playedAt, name, side, time))
+        {
+            current = new GameRows { FirstRow = index, PlayedAt = playedAt, TimestampText = playedAt is null ? null : stampText, GameTime = time, Playoffs = playoffs };
+            blocks.Add(current);
+        }
+        current.Rows.Add(row);
+        current.Players.Add(name);
+        current.Sides.Add(side);
+        current.LastSide = side;
+        return current;
+    }
+
+    private static bool IsSummaryOrHeader(string name, string? team)
+        => SeasonStatsParser.IsTotalsLabel(name) || SeasonStatsParser.IsRepeatingHeader(name, team);
+
+    private static bool IsAllZero(params int?[] counts) => counts.All(n => (n ?? 0) == 0);
 
     /// <summary>A marker row's phase: whether it starts the playoffs, or null for a row that marks none.</summary>
     private static bool? PhaseOf(string[] row)
@@ -238,12 +252,13 @@ public static partial class RecordedGameParser
         {
             var row = sheet.Rows[end];
             var first = Cell(row, 0).Trim();
-            if (first.StartsWith("Totals", StringComparison.OrdinalIgnoreCase))
+            var rawPlayer = Cell(row, 1).Trim();
+            if (SeasonStatsParser.IsTotalsLabel(first) || IsSummaryOrHeader(rawPlayer, first))
                 continue;
             var named = first.Length > 0 && !first.Equals("Sub", StringComparison.OrdinalIgnoreCase);
             if (named && !sideOf.TryGetValue(first, out side))
                 sideOf[first] = side = sideOf.Count + 1;
-            var gamertag = ArchiveCells.Gamertag(Cell(row, 1)).Gamertag;
+            var gamertag = ArchiveCells.Gamertag(rawPlayer).Gamertag;
             if (gamertag.Length == 0 || !Played(row, played, kills, deaths))
                 continue;
             players.Add(new RecordedPlayerInput

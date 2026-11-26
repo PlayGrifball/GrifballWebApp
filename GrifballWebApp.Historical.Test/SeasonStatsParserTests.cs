@@ -687,5 +687,57 @@ public class SeasonStatsParserTests
         Assert.That(player.TotalSecondsPlayed, Is.EqualTo(2438m));
     }
 
+    [Test]
+    public void SideBySideFinals_TotalsRows_AreNoPlayers()
+    {
+        var playoffs = Playoffs(
+            PlayoffHeader,
+            Row("Ascended", "Regresser", 1, 1, null, 2, 30, null, 10),
+            Row("GAME 1"),
+            Row("W vs ApoPo (5-1) host", "Goals", "Kills", "Deaths"),
+            Row("Regresser", 3, 25, 5),
+            Row("Total", 3, 25, 5),
+            Row("Totals:", 3, 25, 5),
+            Row("L vs Ascended (1-5) host", "Goals", "Kills", "Deaths"),
+            Row("Totalitarian", 1, 32, 36),
+            Row("Totals", 1, 32, 36));
+
+        Assert.That(playoffs.Players.Select(p => p.Gamertag), Is.EquivalentTo(SideBySideExpectedPlayers));
+    }
+
+    [Test]
+    public void SideBySideFinals_ARepeatedHeaderAndAnAverageRow_AreNoPlayers()
+    {
+        var playoffs = Playoffs(
+            PlayoffHeader,
+            Row("Ascended", "Regresser", 1, 1, null, 2, 30, null, 10),
+            Row("GAME 1"),
+            Row("W vs ApoPo (5-1) host", "Goals", "Kills", "Deaths"),
+            Row("Player", 1, 1, 1),
+            Row("Regresser", 3, 25, 5),
+            Row("Average", 3, 25, 5));
+
+        Assert.That(playoffs.Players.Select(p => p.Gamertag), Is.EqualTo(OnlyRegresser));
+    }
+
+    [Test]
+    public void GameRecords_ATotalsRowOfTheGamesTab_IsNoPlayersGames()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Games", [Row("Outcome", "PlayerId"), Row(2, "Ace"), Row(2, "Totals"), Row(3, "")])))!;
+
+        var records = SeasonStatsParser.GameRecords("s", workbook, "Games", [])!;
+
+        Assert.That(records.Counts.Values.Single(), Is.EqualTo((1, 1, 0)), "Only Ace's game is counted");
+    }
+
+    [TestCase("Total")] [TestCase("Totals:")] [TestCase("Average")] [TestCase("Averages")] [TestCase("Subtotal")] [TestCase("Subtotals")] [TestCase("Team Stats")] [TestCase("Team Total")] [TestCase("Grand Total")] [TestCase("Subtotal (Week 1)")] [TestCase("Total Kills")] [TestCase("Total Stats Regular Season")]
+    public void IsTotalsLabel_AnExactSummaryLabel_IsTrue(string label) => Assert.That(SeasonStatsParser.IsTotalsLabel(label), Is.True);
+
+    [TestCase("Totalitarian")] [TestCase("Total Eclipse")] [TestCase("Team Totally")] [TestCase("Average Joe")] [TestCase("")] [TestCase(null)]
+    public void IsTotalsLabel_APlayerOrBlank_IsFalse(string? label) => Assert.That(SeasonStatsParser.IsTotalsLabel(label), Is.False);
+
+    private static readonly string[] OnlyRegresser = ["Regresser"];
+
+    private static readonly string[] SideBySideExpectedPlayers = ["Regresser", "Totalitarian"];
     private static readonly string[] ExpectedStatsSeasonKey = ["stats/Regular Season Stats Sheet"];
 }

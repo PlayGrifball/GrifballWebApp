@@ -569,6 +569,21 @@ public class StandingsParserTests
     }
 
     [Test]
+    public void Rows_ASummaryRowOrCell_IsDropped_ButNamesContainingTheWordAreKept()
+    {
+        var sheet = Sheet(
+            ["Team", "Captain", "Player 1", "Player 2"],
+            ["Alpha", "Total", "Total Attacker", "Totals"],
+            ["Total", "Zed", "Zed Two", ""],
+            ["Average Joe", "Joe", "Averages", "Joe Two"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Rosters" })!;
+
+        Assert.That(teams.Select(t => (t.TeamName, t.Captain, string.Join(",", t.Roster))),
+            Is.EqualTo(new[] { ("Alpha", (string?)null, "Total Attacker"), ("Average Joe", "Joe", "Joe Two") }));
+    }
+
+    [Test]
     public void Standings_ReadsMwAndMlHeaders()
     {
         var sheet = Sheet(

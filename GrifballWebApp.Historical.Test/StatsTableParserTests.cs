@@ -481,4 +481,38 @@ public class StatsTableParserTests
             }));
         }
     }
+
+    [Test]
+    public void TotalsRows_AreSkipped_WhileNamesContainingTotalStay()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "Player_Stats",
+                    Game = "halo4",
+                    SeasonColumn = "season_id",
+                    Seasons = new() { ["s1"] = new() { Name = "Season 1", Year = 2020 } },
+                },
+            ],
+        };
+        var workbook = Workbook(("Player_Stats", [
+            Row("season_id", "gamertag", "team", "games played", "goals"),
+            Row("s1", "Total", "Red", 5, 10),
+            Row("s1", "Totals", "Red", 5, 10),
+            Row("s1", "Total Stats For Players Who Subbed", "Red", 0, 0),
+            Row("s1", "Totalitarian", "Red", 5, 10),
+            Row("s1", "Total Attacker", "Red", 5, 10),
+            Row("s1", "TotalCRAZYJOE14", "Red", 5, 10),
+            Row("s1", "Average Joe", "Red", 5, 10),
+        ]));
+
+        var players = Seasons(Build(config, workbook)).Single().Players;
+
+        Assert.That(players.Select(p => p.Gamertag), Is.EqualTo(RealPlayersWithSummaryWords));
+    }
+
+    private static readonly string[] RealPlayersWithSummaryWords = ["Totalitarian", "Total Attacker", "TotalCRAZYJOE14", "Average Joe"];
 }

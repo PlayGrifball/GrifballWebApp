@@ -23,6 +23,8 @@ public class GamesTableParserTests
     private static readonly string[] InfoSheets = ["gb_teamstats", "gb_deletedgames", "h_games", "h4_pstats", "agla_playerstats", "agla_teamindex", "agla_gamesreported", "agla_deletedgames"];
     private static readonly string[] Sml11Rosters = ["Sarge, Simmons", "Church, Grif, Tucker"];
     private static readonly int[] NoLines = [0, 0];
+    private static readonly string[] ScheduleKept = ["Total Attacker", "Bee"];
+    private static readonly string[] ReportedKept = ["Average Joe", "Bee"];
     private static readonly string[] OnlyBee = ["Bee"];
 
     private static HistoricalSourceConfig CatalogConfig(string id)
@@ -452,6 +454,42 @@ public class GamesTableParserTests
     }
 
     [Test]
+    public void ScheduleAndReported_ASummaryLine_IsCountedAsStray_ButAGamertagContainingTheWordIsKept()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Tables = [new() { Sheet = "stats2", Game = "halo4", SeasonColumn = "season", Seasons = new() { ["9"] = new() { Name = "S9" } } }],
+            GameTables =
+            [
+                new() { Sheet = "schedule2", Layout = GamesTableLayout.Schedule, Stats = "stats2", PlayersSheet = "lines2" },
+                new() { Sheet = "reported", Layout = GamesTableLayout.Reported, Stats = "stats2", PlayersSheet = "rlines" },
+            ],
+        };
+        var workbook = Workbook(
+            ("stats2", [Row("season", "gamertag", "kills"), Row(9, "Nine", 1)]),
+            ("schedule2", [Row("id", "season", "teama", "teamb", "result", "win", "link"), Row(1, 9, "A", "B", "5-0", "A", "L9")]),
+            ("lines2", [
+                Row("link", "teamid", "playerid", "gamertag", "kills"),
+                Row("L9", "A", null, "Total", 1), Row("L9", "A", null, "Total Attacker", 2), Row("L9", "B", null, "Bee", 1)]),
+            ("reported", [
+                Row("index", "gameid", "winning_team", "losing_team", "game_date", "g_season", "forfeit"),
+                Row(5, 5, "Opens", "Ams", 1, 9, 0)]),
+            ("rlines", [
+                Row("gameid", "gamertag", "teamname", "kills", "playoffs"),
+                Row(5, "Totals", "Opens", 1, 0), Row(5, "Average Joe", "Opens", 3, 0), Row(5, "Bee", "Ams", 2, 0)]));
+
+        var build = Build(EdgeId, workbook, config);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Games(build, "schedule2").Single().Players.Select(p => p.Gamertag), Is.EqualTo(ScheduleKept));
+            Assert.That(Games(build, "reported").Single().Players.Select(p => p.Gamertag), Is.EqualTo(ReportedKept));
+            Assert.That(build.Warnings, Does.Contain($"{EdgeId}: schedule2: 1 player line(s) of no listed game or of neither side, skipped"));
+            Assert.That(build.Warnings, Does.Contain($"{EdgeId}: reported: 1 player line(s) of no listed game or of neither side, skipped"));
+        }
+    }
+
+    [Test]
     public void ScheduleResults_ParsesDecidedMatchesAndForfeits_SkipsUnplayed_AndIgnoresTimeOnlyDates()
     {
         var config = new HistoricalSourceConfig
@@ -557,4 +595,39 @@ public class GamesTableParserTests
                 "a date that isn't one is none");
         }
     }
+
+    [Test]
+    public void Matches_TotalsRowGamertags_AreSkipped_WhileNamesContainingTotalStay()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "Player_Stats",
+                    Game = "halo3",
+                    SeasonColumn = "season_id",
+                    Seasons = new() { ["s1"] = new() { Name = "Season 1", Year = 2010 } },
+                },
+            ],
+            GameTables = [new() { Sheet = "Matches", PlayersSheet = "Match_Players", Stats = "Player_Stats" }],
+        };
+        var workbook = Workbook(
+            ("Player_Stats", [Row("season_id", "gamertag", "team", "games played"), Row("s1", "Ace", "Blue", 1)]),
+            ("Matches", [Row("match_id", "season_id", "bungie_game_id", "is_forfeit", "team1_name", "team1_score", "team2_name", "team2_score"), Row(1, "s1", 10, 0, "Red", 5, "Blue", 3)]),
+            ("Match_Players", [
+                Row("match_id", "side", "gamertag", "kills", "deaths", "assists"),
+                Row(1, 1, "Total", 10, 5, 0),
+                Row(1, 2, "Totals", 10, 5, 0),
+                Row(1, 1, "Totalitarian", 6, 3, 1),
+                Row(1, 2, "Average Joe", 4, 2, 0),
+            ]));
+
+        var games = Games(Build("com", workbook, config), "Matches");
+
+        Assert.That(games.Single().Players.Select(p => p.Gamertag), Is.EqualTo(MatchesExpectedPlayers));
+    }
+
+    private static readonly string[] MatchesExpectedPlayers = ["Totalitarian", "Average Joe"];
 }

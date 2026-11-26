@@ -1335,6 +1335,36 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
             Assert.That(await Context.SeasonMatches.CountAsync(), Is.Zero, "A scrim is in no series");
         }
     }
+
+    [Test]
+    public async Task Import_TotalsRowGamertags_AreSkippedInStatsAndRecordedGames()
+    {
+        var season = Entry("MCC Cup 2016", "halo3", "AGLA", false,
+            Player("Alpha One", team: "Alpha"),
+            Player("Total", team: "Alpha"),
+            Player("Totals", team: "Beta"),
+            Player("Average Joe", team: "Beta"));
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [season] },
+            RecordedGames =
+            [
+                Game("cup#1", [("Alpha One", 1), ("Total", 1), ("Totals", 2), ("Average Joe", 2)]),
+            ],
+        };
+
+        var report = await _service.Import(input);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(await Context.PlayerSeasonStats.Select(p => p.Gamertag).ToListAsync(), Is.EquivalentTo(ExpectedNonTotalPlayers));
+            Assert.That(await Context.RecordedGameLines.Select(p => p.Gamertag).ToListAsync(), Is.EquivalentTo(ExpectedNonTotalPlayers));
+        }
+    }
+
+    private static readonly string[] ExpectedNonTotalPlayers = ["Alpha One", "Average Joe"];
+
     [Test]
     public async Task Import_APlayoffGameBecomesAScrim_WhenALaterSeriesIsFedByIt_RemovesBothSlotsWithoutAnError()
     {

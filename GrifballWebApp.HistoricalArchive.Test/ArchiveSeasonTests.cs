@@ -6,7 +6,7 @@ namespace GrifballWebApp.HistoricalArchive.Test;
 /// <summary>Single seasons of the real archive whose sheets once lost teams: what they import now.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
-public class ArchiveSeasonTests
+public partial class ArchiveSeasonTests
 {
     /// <summary>
     /// The Teams tab's regular-season records, team per column, as the archive names the teams. RDG NHL's team was never
@@ -499,5 +499,123 @@ public class ArchiveSeasonTests
             Assert.Ignore($"{seasonName} isn't in this copy of the archive, or has no matches");
 
         Assert.That(matches.Count(m => m != null), Is.GreaterThanOrEqualTo(dated), $"{matches.Count} matches");
+    }
+
+    [Test]
+    public async Task NoSeason_HasATotalsRowAsAPlayer()
+    {
+        await using var context = Archive.NewContext();
+        var seasonStats = (await context.PlayerSeasonStats.AsNoTracking()
+                .Select(p => new { p.Season.SeasonName, p.Gamertag })
+                .ToListAsync())
+            .Where(p => GrifballWebApp.Historical.Parsing.SeasonStatsParser.IsTotalsLabel(p.Gamertag))
+            .Select(p => $"SeasonStat {p.SeasonName}: {p.Gamertag}");
+        var matchmakingStats = (await context.MatchmakingPlayerStats.AsNoTracking()
+                .Select(p => new { p.MatchmakingSeason.Name, p.Gamertag })
+                .ToListAsync())
+            .Where(p => GrifballWebApp.Historical.Parsing.SeasonStatsParser.IsTotalsLabel(p.Gamertag))
+            .Select(p => $"MatchmakingStat {p.Name}: {p.Gamertag}");
+        var recordedGames = (await context.RecordedGameLines.AsNoTracking()
+                .Select(p => new { p.RecordedGame.SourceKey, p.Gamertag })
+                .ToListAsync())
+            .Where(p => GrifballWebApp.Historical.Parsing.SeasonStatsParser.IsTotalsLabel(p.Gamertag))
+            .Select(p => $"RecordedGame {p.SourceKey}: {p.Gamertag}");
+
+        Assert.That(seasonStats.Concat(matchmakingStats).Concat(recordedGames), Is.Empty);
+    }
+
+    /// <summary>Independent of the importer's filters on purpose: any spelling of a summary row, as letters and digits only.</summary>
+    private static bool LooksLikeSummaryRow(string? name)
+    {
+        var key = new string((name ?? "").Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+        return SummaryKey().IsMatch(key);
+    }
+
+    /// <summary>A gamertag that merely holds the word Total or Average: a player, never a summary row.</summary>
+    private static bool IsPlayerWithTotalsWord(string? name)
+        => !string.IsNullOrWhiteSpace(name) && !LooksLikeSummaryRow(name)
+            && TotalsWord().IsMatch(name);
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(grand|sub|team)?(total|average)s?(kills|deaths|games|stats)?\d*$|^teamstats$|^totalstats")]
+    private static partial System.Text.RegularExpressions.Regex SummaryKey();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\b(totals?|averages?)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex TotalsWord();
+
+    [Test]
+    public async Task NoImportedName_IsASummaryRow_UnderAnySpelling()
+    {
+        await using var context = Archive.NewContext();
+        var names = new List<string>();
+        names.AddRange((await context.PlayerSeasonStats.AsNoTracking().Select(p => new { p.Season.SeasonName, p.Gamertag }).ToListAsync())
+            .Where(p => LooksLikeSummaryRow(p.Gamertag)).Select(p => $"SeasonStat {p.SeasonName}: {p.Gamertag}"));
+        names.AddRange((await context.MatchmakingPlayerStats.AsNoTracking().Select(p => new { p.MatchmakingSeason.Name, p.Gamertag }).ToListAsync())
+            .Where(p => LooksLikeSummaryRow(p.Gamertag)).Select(p => $"MatchmakingStat {p.Name}: {p.Gamertag}"));
+        names.AddRange((await context.RecordedGameLines.AsNoTracking().Select(p => new { p.RecordedGame.SourceKey, p.Gamertag }).ToListAsync())
+            .Where(p => LooksLikeSummaryRow(p.Gamertag)).Select(p => $"RecordedGame {p.SourceKey}: {p.Gamertag}"));
+        names.AddRange((await context.Set<GrifballWebApp.Domain.Players.User>().AsNoTracking().Select(u => u.DisplayName).ToListAsync())
+            .Where(LooksLikeSummaryRow).Select(n => $"User: {n}"));
+        names.AddRange((await context.Teams.AsNoTracking().Select(t => new { t.Season.SeasonName, t.TeamName }).ToListAsync())
+            .Where(t => LooksLikeSummaryRow(t.TeamName)).Select(t => $"Team {t.SeasonName}: {t.TeamName}"));
+
+        Assert.That(names, Is.Empty);
+    }
+
+    [Test]
+    public async Task NoChampionship_HasATotalsRowAsAMember()
+    {
+        await using var context = Archive.NewContext();
+        var members = (await context.Set<GrifballWebApp.Domain.League.PlayerChampionship>().AsNoTracking()
+                .Select(c => new { c.Tier, c.GamertagUsed }).ToListAsync())
+            .Where(c => LooksLikeSummaryRow(c.GamertagUsed))
+            .Select(c => $"{c.Tier}: {c.GamertagUsed}");
+        var sourced = (Archive.Build.Input.Championships?.Champions ?? [])
+            .SelectMany(c => c.Roster.Append(c.Captain ?? "").Select(r => (c.Season, Name: r)))
+            .Where(r => LooksLikeSummaryRow(r.Name))
+            .Select(r => $"Source {r.Season}: {r.Name}");
+
+        Assert.That(members.Concat(sourced), Is.Empty);
+    }
+
+    [Test]
+    public async Task APlayerWhoseGamertagHoldsTotalOrAverage_IsKept_WhereverTheArchiveHasThem()
+    {
+        await using var context = Archive.NewContext();
+        var stats = (await context.PlayerSeasonStats.AsNoTracking().Select(p => new { p.Season.SeasonName, p.Gamertag }).ToListAsync())
+            .Where(p => IsPlayerWithTotalsWord(p.Gamertag)).ToList();
+        var recorded = (await context.RecordedGameLines.AsNoTracking().Select(p => p.Gamertag).ToListAsync())
+            .Where(IsPlayerWithTotalsWord).ToList();
+        var sourcedPlayers = Archive.Build.Input.Seasons.Seasons.SelectMany(s => s.Players.Select(p => p.Gamertag))
+            .Concat((Archive.Build.Input.RecordedGames ?? []).SelectMany(g => g.Players.Select(p => p.Gamertag)))
+            .Where(IsPlayerWithTotalsWord).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (stats.Count + recorded.Count + sourcedPlayers.Count == 0)
+            Assert.Ignore("No player's gamertag holds the word Total or Average in this copy of the archive");
+
+        var users = (await context.Set<GrifballWebApp.Domain.Players.User>().AsNoTracking().Select(u => u.DisplayName).ToListAsync())
+            .Where(n => n != null).Select(n => n!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var stat = stats.Select(s => s.Gamertag).Concat(recorded).Concat(sourcedPlayers).Distinct(StringComparer.OrdinalIgnoreCase);
+
+        Assert.That(stat.Where(n => !users.Contains(n)), Is.Empty, "Every such gamertag a table imported is a user too");
+    }
+
+    [Test]
+    public async Task APlayerWhoseGamertagHoldsTotalOrAverage_IsOnTheTeamTheirStatsSay()
+    {
+        await using var context = Archive.NewContext();
+        var teamPlayers = (await context.Teams.AsNoTracking()
+                .Where(t => t.Season.HistoricalSourceID != null)
+                .Include(t => t.Season).Include(t => t.TeamPlayers).ThenInclude(p => p.User)
+                .ToListAsync())
+            .SelectMany(t => t.TeamPlayers.Select(p => (t.Season.SeasonName, Name: p.User?.DisplayName ?? "")))
+            .ToHashSet();
+        var stats = (await context.PlayerSeasonStats.AsNoTracking()
+                .Where(p => p.Season.HistoricalSourceID != null && p.TeamID != null)
+                .Select(p => new { p.Season.SeasonName, p.Gamertag }).ToListAsync())
+            .Where(p => IsPlayerWithTotalsWord(p.Gamertag)).ToList();
+        if (stats.Count == 0)
+            Assert.Ignore("No team player's gamertag holds the word Total or Average in this copy of the archive");
+
+        Assert.That(stats.Where(s => !teamPlayers.Any(t => t.SeasonName == s.SeasonName && string.Equals(t.Name, s.Gamertag, StringComparison.OrdinalIgnoreCase)))
+            .Select(s => $"{s.SeasonName}: {s.Gamertag}"), Is.Empty, "Their season stats have a team, so the roster has them");
     }
 }

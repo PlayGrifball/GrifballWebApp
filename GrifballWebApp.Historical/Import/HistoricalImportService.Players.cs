@@ -29,7 +29,7 @@ public partial class HistoricalImportService
         await _context.StartTransactionAsync(ct);
         try
         {
-            var rows = players.Where(p => !string.IsNullOrWhiteSpace(p.Gamertag)).ToList();
+            var rows = players.Where(p => Parsing.SeasonStatsParser.IsPlayerTag(p.Gamertag)).ToList();
             var conflicting = rows.Where(p => p.DiscordUserId is not null)
                 .GroupBy(p => p.DiscordUserId!.Value)
                 .Where(g => g.Select(p => HistoricalKeys.LooseKey(p.Gamertag)).Distinct().Count() > 1)
