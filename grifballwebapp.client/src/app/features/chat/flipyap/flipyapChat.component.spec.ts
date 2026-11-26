@@ -85,10 +85,13 @@ describe('FlipyapChatComponent', () => {
     expect(document.activeElement).toBe(textarea());
     expect(text()).toContain('Ask Flipyap about seasons');
     expect(text()).toContain("Flipyap no know who you are");
+    expect(text()).toContain('Frontier models');
+    expect(el().querySelector('a[href="/login"]')).not.toBeNull();
 
     isLoggedIn.set(true);
     fixture.detectChanges();
     expect(text()).not.toContain("Flipyap no know who you are");
+    expect(text()).not.toContain('Frontier models');
   });
 
   it('tells the chat which page he stands on, without its query or fragment, and its title', async () => {

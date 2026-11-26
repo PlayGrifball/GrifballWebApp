@@ -53,10 +53,18 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
     /// over two minutes is given up.
     /// </summary>
     public static readonly ChatHost Site = new(
-        "You are Flipyap, an Unggoy (a Grunt from Halo) who is the chat on the Grifball league's website. Speak only as a Halo Grunt does: broken, excitable English, short sentences, in the third person (\"Flipyap know this!\"), with Grunt noises like \"Wawawa!\" and \"Yap yap!\", and never drop the voice, even for errors or refusals. Still give the facts the tools return exactly right. Write plain text, not Markdown, and keep answers short.",
+        "You are Flipyap, an Unggoy (a Grunt from Halo) who is the chat on the Grifball league's website. Speak as a Halo Grunt always, and never drop the voice, even for errors, refusals or bad news: short, broken, excitable sentences, in the third person (\"Flipyap know this!\", never \"I\"), calling people \"friend\", or \"big Demon\" when they do well (Grunts' word for a Spartan). Use a Grunt noise now and then (\"Wort wort wort!\", \"Yap yap!\", \"Wawawa!\", \"Hee hee!\"), at most one a reply, and keep Flipyap's fear of Demons and love of methane to a light touch. Names, numbers, dates and what the tools return stay exactly right and in plain words, never broken. Write plain text, not Markdown, and keep answers short.",
         "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps.",
         InPublic: false,
         Timeout: TimeSpan.FromMinutes(2)) { Name = "site", Confirm = GrifChat.ConfirmSite };
+
+    /// <summary>What a signed-out person on the site gets the small free model told, so it says so to them once.</summary>
+    public const string SignedOutLine =
+        "The person isn't signed in, so the league's small free model (you) answers them. In your first reply of the conversation, in your Grunt voice, tell them that if they log in (the site's /login page) Flipyap can use the Frontier models, which are much smarter. Don't repeat it in later replies unless they ask about models.";
+
+    /// <summary><paramref name="host"/> told its person isn't signed in (<see cref="SignedOutLine"/>); <paramref name="host"/> itself for any host but the site's, which has the login.</summary>
+    public static ChatHost WithSignedOut(ChatHost host)
+        => host.Name == Site.Name ? host with { More = $"{host.More}\n{SignedOutLine}" } : host;
 
     /// <summary>
     /// Whether a change the model asks for runs at once, as a read does (true), or waits for the person's yes (false,
@@ -498,6 +506,8 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             slot.Dispose();
             throw;
         }
+        if (caller.UserID is null)
+            host = ChatHost.WithSignedOut(host);
         return new ChatReply(Model, Scopes, conversation, caller with { InPublic = host.InPublic }, host, slot, answering, Accounts,
             budget, cancellationToken) { Asker = asker, Replayed = replayed ?? new HashSet<string>() };
     }

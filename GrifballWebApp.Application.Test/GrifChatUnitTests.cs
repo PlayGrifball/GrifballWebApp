@@ -86,7 +86,7 @@ public partial class GrifChatUnitTests
         {
             Assert.That(reply, Is.EqualTo(Answer));
             Assert.That(model.Requests.Single().Select(m => (m.Role, m.Text)), Is.EqualTo(new[] { (ChatRole.User, "What time is it?") }));
-            Assert.That(model.Options.Single()!.Instructions, Is.EqualTo(GrifChat.Instructions(ChatHost.Site)));
+            Assert.That(model.Options.Single()!.Instructions, Is.EqualTo(GrifChat.Instructions(ChatHost.WithSignedOut(ChatHost.Site))));
             // No account: every chat tool but the pull tools, which only some roles may use
             Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal))));
         }
@@ -335,6 +335,29 @@ public partial class GrifChatUnitTests
         clients.Available.Returns(configured);
 
         Assert.That(new GrifChat(new ChatModel(clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits, new ChatAccounts(Substitute.For<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)).Available, Is.EqualTo(configured));
+    }
+
+    [Test]
+    public async Task Start_OnTheSite_TellsASignedOutPersonToLogInForTheFrontierModels_ButNotASignedInOne()
+    {
+        var anonymous = new FakeModel([Text("Hi")]);
+        await Ask(Chat(anonymous), "Hello", ToolCaller.Anonymous, ChatHost.Site);
+        var signedOut = anonymous.Options.Single()!.Instructions!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(signedOut, Does.Contain("Frontier"));
+            Assert.That(signedOut, Does.Contain("/login"));
+            Assert.That(GrifChat.Instructions(ChatHost.Site), Does.Not.Contain("Frontier"), "The host itself says nothing of it: only a signed-out caller is told");
+            Assert.That(GrifChat.Instructions(ChatHost.Discord), Does.Not.Contain("Frontier"));
+            Assert.That(ChatHost.WithSignedOut(ChatHost.Discord), Is.EqualTo(ChatHost.Discord), "Only the site has a login to point to");
+        }
+    }
+
+    [Test]
+    public void Site_SpeaksAsAHaloGrunt_InThirdPerson_WithFactsExact()
+    {
+        Assert.That(ChatHost.Site.About, Does.Contain("Unggoy").And.Contain("third person").And.Contain("Demon").And.Contain("exactly"));
     }
 
     [Test]

@@ -73,11 +73,13 @@ describe('ChatComponent', () => {
     expect(el().querySelector('h1')!.textContent!.trim()).toBe('Chat');
     expect(text()).toContain('Name the player you mean');
     expect(el().querySelector('a[href="/login"]')).not.toBeNull();
+    expect(text()).toContain('Frontier models');
     expect(text()).toContain('No questions yet');
 
     isLoggedIn.set(true);
     fixture.detectChanges();
     expect(text()).not.toContain('Name the player you mean');
+    expect(text()).not.toContain('Frontier models');
   });
 
   it('asks with the button, empties the box, and shows the answer as it streams in', () => {

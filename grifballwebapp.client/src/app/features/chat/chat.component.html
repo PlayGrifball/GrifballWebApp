@@ -5,10 +5,11 @@
   </div>
 
   <p class="chat__intro">
-    Wawawa! Flipyap is an Unggoy, and he know the league. Ask about seasons, standings, teams, players and matches: he look
-    them up. Flipyap can get things wrong, so check the pages he point you to.
+    Wort wort wort! Flipyap is an Unggoy, and Flipyap know the league! Ask about seasons, standings, teams, players and
+    matches: Flipyap go look them up. Flipyap sometimes get things wrong, so check the pages Flipyap point you to.
     @if (!signedIn()) {
-      Signed out, Flipyap no know who you are! Name the player you mean, or <a routerLink="/login">log in</a>.
+      Signed out, Flipyap no know who you are! Name the player you mean. Or <a routerLink="/login">log in</a>, and Flipyap
+      get big brain: Frontier models!
     }
   </p>
 
@@ -19,13 +20,13 @@
         <p class="chat__text">{{ turn.text }}</p>
       </div>
     } @empty {
-      <p class="chat__empty">Wawawa! No questions yet. Try "Who won the last season?"</p>
+      <p class="chat__empty">Yap yap! No questions yet. Try "Who won the last season?"</p>
     }
   </section>
 
   @if (waiting(); as action) {
     <div class="chat__confirm hud-panel" role="group" aria-label="A change waiting for you">
-      <p class="chat__text">This waits for you: {{ action.description }}</p>
+      <p class="chat__text">Flipyap wait for you: {{ action.description }}</p>
       <div class="chat__actions">
         <button class="hud-btn hud-btn--primary" type="button" (click)="chat.confirm(true)" [disabled]="asking()">Confirm</button>
         <button class="hud-btn" type="button" (click)="chat.confirm(false)" [disabled]="asking()">Cancel</button>
