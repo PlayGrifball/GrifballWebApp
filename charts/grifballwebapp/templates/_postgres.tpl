@@ -70,7 +70,7 @@ backup_database() {
   echo "Backing up $DB_NAME to $file"
   trap 'rm -f "$file.partial"' EXIT
   pg_dump -Fc -d "$DB_NAME" -f "$file.partial"
-  pg_restore --list "$file.partial" > /dev/null
+  pg_restore -f /dev/null "$file.partial"
   mv "$file.partial" "$file"
   trap - EXIT
   echo "Backed up and verified: $file"
@@ -161,6 +161,8 @@ SQL
 {{- define "grif.pgRetentionScript" -}}
 {{ include "grif.pgBackupFilesFunction" . }}
 if [ ! -d "$BACKUP_DIR" ]; then echo "No backups in $BACKUP_DIR yet."; exit 0; fi
+# A .partial a killed or timed-out pg_dump left behind (the trap never ran); a day old is long past any running one.
+for stale in $(find "$BACKUP_DIR" -maxdepth 1 -name "${DB_NAME}_*.dump.partial" -mmin +1440); do rm -f "$stale"; echo "Deleted stale $stale"; done
 # Older than this, by the date and time in the name (the same clock and time zone that named it).
 cutoff=$(date -d "@$(( $(date +%s) - KEEP_DAYS * 86400 ))" +%Y%m%d_%H%M%S)
 # With ONE_PER_DAY, one that isn't the newest of its day goes too (the newest are first; a kept one counts as its day's).

@@ -44,7 +44,7 @@ tests:
     asserts:
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -e /work/db-exists \] \|\| \[ -e /work/db-empty \]; then echo "No database to back up."; exit 0; fi' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'file="\$BACKUP_DIR/\$\{DB_NAME\}_\$\(date \+%Y%m%d_%H%M%S\)\.dump"' }
-      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'pg_dump -Fc -d "\$DB_NAME" -f "\$file.partial"\n  pg_restore --list "\$file.partial" > /dev/null\n  mv "\$file.partial" "\$file"' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'pg_dump -Fc -d "\$DB_NAME" -f "\$file.partial"\n  pg_restore -f /dev/null "\$file.partial"\n  mv "\$file.partial" "\$file"' }
       - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: BACKUP_DIR, value: /backup/grif-x } }
       - contains: { path: "spec.template.spec.initContainers[2].volumeMounts", content: { name: backup, mountPath: /backup } }
       - contains: { path: spec.template.spec.volumes, content: { name: backup, persistentVolumeClaim: { claimName: postgres-backup-pvc } } }
@@ -109,6 +109,7 @@ tests:
       migrations.backup: { directory: /backup/mine, retention: { enabled: true, keepLast: 3, keepDays: 14 } }
     asserts:
       - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: '\[ "\$\(head -c 5 "\$1/\$name"\)" = PGDMP \]' }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: 'find "\$BACKUP_DIR" -maxdepth 1 -name "\$\{DB_NAME\}_\*.dump.partial" -mmin \+1440' }
       - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "NR > keep && \\(substr\\(\\$0, length\\(\\$0\\) - 19, 15\\) < cutoff" }
       - notMatchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "psql|sqlcmd|nc -w" }
       - equal:
