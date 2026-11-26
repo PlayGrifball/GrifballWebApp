@@ -888,6 +888,17 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void APlayersList_ASummaryRow_IsDropped_ButAGamertagContainingTheWordIsKept()
+    {
+        var sheet = Read(Workbook(("Player Masterlist", [Row("Gamertag", "Discord"),
+            Row("Total", "x"), Row("Totals:", "y"), Row("Total Attacker", "z"), Row("Average Joe", "w")]))).Sheet("Player Masterlist")!;
+
+        var players = PlayersListParser.Parse("late-league", sheet);
+
+        Assert.That(players.Select(p => p.Gamertag), Is.EqualTo(new[] { "Total Attacker", "Average Joe" }));
+    }
+
+    [Test]
     public void ARosterTable_GivesEachPlayerTheirTeam()
     {
         var sheet = Read(Workbook(("TeamInfo", [Row("Seed #", "Team Name", "Player Name", "Location"), Row("Seed 1", "Silly Kids", "Galvann (c)", "West"), Row("Seed 1", "Silly Kids", "e Jolts", "East"), Row("Seed 2", "Never Last", "Invayda Zim", "South")]))).Sheet("TeamInfo")!;

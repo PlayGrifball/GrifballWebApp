@@ -315,6 +315,42 @@ public class DraftParserTests
     }
 
     [Test]
+    public void Board_ASummaryCellAmongThePicksAndCaptains_IsNoPlayer_ButNamesContainingTheWordAreKept()
+    {
+        var sheet = Sheet(
+            ["Team Name", "Alpha", "Bravo"],
+            ["Captain", "Total", "Average Joe"],
+            ["1st Round:", "Totals", "Total Attacker"],
+            ["2nd Round:", "Dee", "Average"]);
+
+        var teams = Board(sheet, DraftOrder.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("Alpha", null, null), ("Bravo", "Average Joe", null) }));
+            Assert.That(Picks(teams), Is.EqualTo(new (string, string, int, int?)[] { ("Alpha", "Dee", 2, null), ("Bravo", "Total Attacker", 1, null) }));
+        }
+    }
+
+    [Test]
+    public void Table_ASummaryRow_IsNoPlayer_ButNamesContainingTheWordAreKept()
+    {
+        var sheet = Sheet(
+            ["Draft Order", "Team Name", "Player Name", "Location", "Draft Pick"],
+            ["1", "Alpha", "Total", "", "C1"],
+            ["1", "Alpha", "Total Attacker", "", "R1P1"],
+            ["1", "Alpha", "Totals:", "", "R2P1"]);
+
+        var teams = DraftParser.Parse(sheet, new DraftTab { Sheet = "TeamInfo", Layout = DraftLayout.Table })!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Captains(teams), Is.EqualTo(new (string, string?, int?)[] { ("Alpha", null, 1) }));
+            Assert.That(Picks(teams), Is.EqualTo(new (string, string, int, int?)[] { ("Alpha", "Total Attacker", 1, null) }));
+        }
+    }
+
+    [Test]
     public void Table_DraftOrderColumn_GivesTheTeamsOrder_TheCaptainsCodeOtherwise()
     {
         // H3 Action's TeamInfo: Draft Order on every row of the team, no captains

@@ -452,6 +452,42 @@ public class GamesTableParserTests
     }
 
     [Test]
+    public void ScheduleAndReported_ASummaryLine_IsCountedAsStray_ButAGamertagContainingTheWordIsKept()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Tables = [new() { Sheet = "stats2", Game = "halo4", SeasonColumn = "season", Seasons = new() { ["9"] = new() { Name = "S9" } } }],
+            GameTables =
+            [
+                new() { Sheet = "schedule2", Layout = GamesTableLayout.Schedule, Stats = "stats2", PlayersSheet = "lines2" },
+                new() { Sheet = "reported", Layout = GamesTableLayout.Reported, Stats = "stats2", PlayersSheet = "rlines" },
+            ],
+        };
+        var workbook = Workbook(
+            ("stats2", [Row("season", "gamertag", "kills"), Row(9, "Nine", 1)]),
+            ("schedule2", [Row("id", "season", "teama", "teamb", "result", "win", "link"), Row(1, 9, "A", "B", "5-0", "A", "L9")]),
+            ("lines2", [
+                Row("link", "teamid", "playerid", "gamertag", "kills"),
+                Row("L9", "A", null, "Total", 1), Row("L9", "A", null, "Total Attacker", 2), Row("L9", "B", null, "Bee", 1)]),
+            ("reported", [
+                Row("index", "gameid", "winning_team", "losing_team", "game_date", "g_season", "forfeit"),
+                Row(5, 5, "Opens", "Ams", 1, 9, 0)]),
+            ("rlines", [
+                Row("gameid", "gamertag", "teamname", "kills", "playoffs"),
+                Row(5, "Totals", "Opens", 1, 0), Row(5, "Average Joe", "Opens", 3, 0), Row(5, "Bee", "Ams", 2, 0)]));
+
+        var build = Build(EdgeId, workbook, config);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Games(build, "schedule2").Single().Players.Select(p => p.Gamertag), Is.EqualTo(new[] { "Total Attacker", "Bee" }));
+            Assert.That(Games(build, "reported").Single().Players.Select(p => p.Gamertag), Is.EqualTo(new[] { "Average Joe", "Bee" }));
+            Assert.That(build.Warnings, Does.Contain($"{EdgeId}: schedule2: 1 player line(s) of no listed game or of neither side, skipped"));
+            Assert.That(build.Warnings, Does.Contain($"{EdgeId}: reported: 1 player line(s) of no listed game or of neither side, skipped"));
+        }
+    }
+
+    [Test]
     public void ScheduleResults_ParsesDecidedMatchesAndForfeits_SkipsUnplayed_AndIgnoresTimeOnlyDates()
     {
         var config = new HistoricalSourceConfig

@@ -130,6 +130,19 @@ public class HistoricalPhaseCasesTests
     }
 
     [Test]
+    public void DraftSheet_ATotalsCellInAPlayerRow_IsNoPlayer()
+    {
+        var sheet = Sheet("Draft",
+            Row("Team Name", "Bears", "Beer"),
+            Row("Captain", "Cap A", "Cap B"),
+            Row("Player 2", "Totals", "P2 B"));
+
+        var teams = RosterParser.Parse(sheet);
+
+        Assert.That(teams.Keys, Is.EquivalentTo(new[] { HistoricalKeys.Normalize("Cap A"), HistoricalKeys.Normalize("Cap B"), HistoricalKeys.Normalize("P2 B") }));
+    }
+
+    [Test]
     public void DraftSheet_MoreLabelSpellings_AndRowsThatNameNoPlayers()
     {
         var sheet = Sheet("Draft",

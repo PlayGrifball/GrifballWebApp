@@ -705,6 +705,33 @@ public class SeasonStatsParserTests
         Assert.That(playoffs.Players.Select(p => p.Gamertag), Is.EquivalentTo(SideBySideExpectedPlayers));
     }
 
+    [Test]
+    public void SideBySideFinals_ARepeatedHeaderAndAnAverageRow_AreNoPlayers()
+    {
+        var playoffs = Playoffs(
+            PlayoffHeader,
+            Row("Ascended", "Regresser", 1, 1, null, 2, 30, null, 10),
+            Row("GAME 1"),
+            Row("W vs ApoPo (5-1) host", "Goals", "Kills", "Deaths"),
+            Row("Player", 1, 1, 1),
+            Row("Regresser", 3, 25, 5),
+            Row("Average", 3, 25, 5));
+
+        Assert.That(playoffs.Players.Select(p => p.Gamertag), Is.EqualTo(OnlyRegresser));
+    }
+
+    [Test]
+    public void GameRecords_ATotalsRowOfTheGamesTab_IsNoPlayersGames()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Games", [Row("Outcome", "PlayerId"), Row(2, "Ace"), Row(2, "Totals"), Row(3, "")])))!;
+
+        var records = SeasonStatsParser.GameRecords("s", workbook, "Games", [])!;
+
+        Assert.That(records.Counts.Values.Single(), Is.EqualTo((1, 1, 0)), "Only Ace's game is counted");
+    }
+
+    private static readonly string[] OnlyRegresser = ["Regresser"];
+
     private static readonly string[] SideBySideExpectedPlayers = ["Regresser", "Totalitarian"];
     private static readonly string[] ExpectedStatsSeasonKey = ["stats/Regular Season Stats Sheet"];
 }
