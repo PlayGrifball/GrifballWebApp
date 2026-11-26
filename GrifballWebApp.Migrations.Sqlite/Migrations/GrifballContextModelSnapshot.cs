@@ -6939,6 +6939,11 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<string>("Theme")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("INTEGER");
 
@@ -7114,6 +7119,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("TEXT")
                         .HasColumnName("SecurityStamp")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Theme")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Theme")
                         .UseCollation("NOCASE");
 
                     b.Property<bool?>("TwoFactorEnabled")

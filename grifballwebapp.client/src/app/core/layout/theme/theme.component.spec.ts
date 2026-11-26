@@ -1,7 +1,8 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ThemeComponent } from './theme.component';
 import { ARCHIVE_VAULT, SPARTAN_HUD, ThemingService } from '../theming.service';
-import { MatDialogRef } from '@angular/material/dialog';
+import { ThemePersistence } from '../themePersistence.service';
 
 describe('ThemeComponent', () => {
   let fixture: ComponentFixture<ThemeComponent>;
@@ -9,17 +10,31 @@ describe('ThemeComponent', () => {
 
   beforeEach(async () => {
     spyOn(console, 'debug');
-    await TestBed.configureTestingModule({ imports: [ThemeComponent] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [ThemeComponent],
+      providers: [{ provide: ThemePersistence, useValue: { restored: signal(0) } }],
+    }).compileComponents();
     theming = TestBed.inject(ThemingService);
     theming.font.set('sans-serif');
     fixture = TestBed.createComponent(ThemeComponent);
     fixture.detectChanges();
   });
 
-  it('has no Close or Done on the /theme page, outside a dialog', () => {
-    const labels = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).map(b => b.getAttribute('aria-label') ?? b.textContent!.trim());
-    expect(labels).not.toContain('Close');
-    expect(labels).not.toContain('Done');
+  it('is titled Theme, for the profile section that names it', () => {
+    expect((fixture.nativeElement as HTMLElement).querySelector('#theme-title')!.textContent!.trim()).toBe('Theme');
+  });
+
+  it('follows the font when the theme is replaced, as a saved one arriving does', () => {
+    theming.applySettings({ ...theming.settings(), font: 'Roboto' });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.font.value).toBe('Roboto');
+  });
+
+  it('rebuilds the palette editors when the account\'s saved theme arrives', () => {
+    const before = (fixture.nativeElement as HTMLElement).querySelector('app-palette');
+    TestBed.inject(ThemePersistence).restored.update(n => n + 1);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-palette')).not.toBe(before);
   });
 
   it('starts with the current font selected', () => {
@@ -68,40 +83,5 @@ describe('ThemeComponent', () => {
 
     expect(theming.primary()).toBe(SPARTAN_HUD.primary);
     expect(theming.era()).toBe(SPARTAN_HUD.era);
-  });
-});
-
-describe('ThemeComponent in the dialog', () => {
-  let fixture: ComponentFixture<ThemeComponent>;
-  let dialogRef: jasmine.SpyObj<MatDialogRef<ThemeComponent>>;
-
-  beforeEach(async () => {
-    spyOn(console, 'debug');
-    dialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
-    await TestBed.configureTestingModule({
-      imports: [ThemeComponent],
-      providers: [{ provide: MatDialogRef, useValue: dialogRef }],
-    }).compileComponents();
-    fixture = TestBed.createComponent(ThemeComponent);
-    fixture.detectChanges();
-  });
-
-  const el = () => fixture.nativeElement as HTMLElement;
-
-  it('closes from the Close button in its header, which is labelled for screen readers', () => {
-    const close = el().querySelector<HTMLButtonElement>('.theme-head button[aria-label="Close"]')!;
-    expect(close).not.toBeNull();
-    close.click();
-    expect(dialogRef.close).toHaveBeenCalledTimes(1);
-  });
-
-  it('closes from Done at the bottom', () => {
-    const done = Array.from(el().querySelectorAll<HTMLButtonElement>('.theme-foot button')).find(b => b.textContent!.trim() === 'Done')!;
-    done.click();
-    expect(dialogRef.close).toHaveBeenCalledTimes(1);
-  });
-
-  it('is titled for the dialog (ariaLabelledBy)', () => {
-    expect(el().querySelector('#theme-title')!.textContent!.trim()).toBe('Theme');
   });
 });

@@ -249,6 +249,7 @@ export type { UsePasswordResetLinkRequestDto } from './models/use-password-reset
 export type { UserMergeDetailDto } from './models/user-merge-detail-dto';
 export type { UserMergeDto } from './models/user-merge-dto';
 export type { UserResponseDto } from './models/user-response-dto';
+export type { UserThemeDto } from './models/user-theme-dto';
 export type { ViewerDataDto } from './models/viewer-data-dto';
 export type { VodDto } from './models/vod-dto';
 export type { VodLinkMatchDto } from './models/vod-link-match-dto';

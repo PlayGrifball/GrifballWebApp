@@ -8,6 +8,7 @@ import { SideBarDto } from './core/layout/sidebarDto';
 import { AccountService } from './core/auth/account.service';
 import { AppStore } from './app.store';
 import { ThemingService } from './core/layout/theming.service';
+import { ThemePersistence } from './core/layout/themePersistence.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { SiteFooterComponent } from './core/layout/siteFooter/siteFooter.component';
@@ -100,6 +101,9 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   });
 
   constructor() {
+    // The player's saved theme goes on the site from the first render, and every change is saved
+    inject(ThemePersistence);
+
     // Measuring touches the DOM, so it happens after rendering, never inside the computed layout.
     // Signing in or out swaps the header's Login button for the user chip (or back) and changes which
     // links show, so the bar is measured again once that has rendered.

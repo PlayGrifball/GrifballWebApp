@@ -2,11 +2,6 @@
   <h2 class="hud-h2" id="theme-title">Theme</h2>
   <div class="theme-head__actions">
     <button class="hud-btn" type="button" (click)="reset()">Reset to Archive Vault</button>
-    @if (dialogRef) {
-      <button mat-icon-button type="button" class="theme-close" aria-label="Close" (click)="close()">
-        <mat-icon>close</mat-icon>
-      </button>
-    }
   </div>
 </div>
 
@@ -33,7 +28,7 @@
   </mat-form-field>
 
   <!-- Re-created on a reset, so each editor starts again from the reset colour. -->
-  @for (generation of [resets()]; track generation) {
+  @for (generation of [generation()]; track generation) {
   <app-palette paletteName="primary" />
   <app-palette paletteName="secondary" />
   <app-palette paletteName="tertiary" />
@@ -42,9 +37,3 @@
   <app-palette paletteName="error" />
   }
 </div>
-
-@if (dialogRef) {
-  <div class="theme-foot">
-    <button class="hud-btn hud-btn--primary" type="button" (click)="close()">Done</button>
-  </div>
-}

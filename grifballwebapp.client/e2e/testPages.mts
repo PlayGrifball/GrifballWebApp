@@ -11,7 +11,7 @@ export const SITE = `http://localhost:${process.env.E2E_PORT ?? 4300}`;
 // The pages anyone can open. Signed in, also the user's own profile; a visitor also has the pages
 // for signing in, which a signed-in user has no use for.
 export const PUBLIC = [
-  '/', '/theme', '/season/12', '/season/12?tab=schedule', '/season/12?tab=bracket', '/season/12/signups',
+  '/', '/season/12', '/season/12?tab=schedule', '/season/12?tab=bracket', '/season/12/signups',
   '/season/13/signupForm', '/season/13/draft', '/season/12/teams', '/season/12/team/1', '/season/12/playergrades', '/seasonmatch/31',
   '/match/0f8fad5b-d9cb-469f-a165-70867728950e',
   // A Waypoint match the site has no record of (a link to it from elsewhere): its "not found"
@@ -191,13 +191,6 @@ const QUEUE_STATUS: QueueStatusDto = { count: 6, open: true, signedIn: true, has
 /** The queue panel's count of players, shown in every state but a failed load. */
 const QUEUE_COUNT = '.late-league-queue__count';
 
-async function openThemeDialog(page: Page): Promise<Locator> {
-  await page.getByRole('button', { name: 'Theme icon' }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.locator('app-tile').first()).toContainText('#');
-  return dialog;
-}
-
 /** Opens the navigation drawer from the header's menu button, which only shows where the links do not all fit. */
 async function openDrawer(page: Page): Promise<Locator | null> {
   const menuButton = page.locator('.hud-header__menu');
@@ -264,31 +257,7 @@ async function search(box: Locator, query: string, shown: Locator): Promise<Loca
 }
 
 export const OVERLAYS: Overlay[] = [
-  // The header's: the theme editor, the user's menu, the navigation drawer and the quick search
-  {
-    name: 'theme dialog', role: 'anon', path: '/', sheet: 'theme-dialog',
-    setup: openThemeDialog,
-  },
-  {
-    name: 'theme dialog, font list', role: 'anon', path: '/', sheet: 'theme-dialog',
-    setup: async page => {
-      const dialog = await openThemeDialog(page);
-      await dialog.getByRole('combobox').click();
-      const listbox = page.getByRole('listbox');
-      await expect(listbox).toBeVisible();
-      return listbox;
-    },
-  },
-  {
-    name: 'theme dialog, colour picker', role: 'anon', path: '/', sheet: 'theme-dialog',
-    setup: async page => {
-      const dialog = await openThemeDialog(page);
-      await dialog.getByRole('button', { name: 'Pick the primary colour' }).click();
-      const picker = page.locator('mtx-colorpicker-content');
-      await expect(picker).toBeVisible();
-      return picker;
-    },
-  },
+  // The header's: the user's menu, the navigation drawer and the quick search
   {
     name: 'user menu', role: 'admin', path: '/', sheet: 'home',
     setup: async page => {

@@ -39,6 +39,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         entity.Property(e => e.DisplayName).HasMaxLength(User.DisplayNameMaxLength);
         entity.Property(e => e.ProfilePicture).HasDefaultValue(ProfilePictureChoice.Emblem);
+        entity.Property(e => e.Theme).HasMaxLength(User.ThemeMaxLength);
 
         // Worked out from the user name, not stored
         entity.Ignore(e => e.IsImportPlaceholder);

@@ -241,16 +241,6 @@ test('a visitor gets no signed-in page, and nothing private', async ({ request }
   expect(html).not.toContain('MasterChief117');
 });
 
-test('the theme page is rendered on the server, with the site\'s colours', async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
-  const page = await context.newPage();
-  await page.goto(SITE + '/theme');
-  // Its editors are there before any script runs (the browser draws them again with the visitor's colours)
-  await expect(page.locator('.boot-shell')).toHaveCount(0);
-  await expect(page.locator('app-theme app-palette').first()).toBeAttached();
-  await context.close();
-});
-
 test('the server passes /api on to the backend, without its prefix', async ({ request }) => {
   const response = await request.get(SITE + '/api/seasons/current');
   expect(response.status()).toBe(200);

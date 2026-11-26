@@ -4,14 +4,13 @@ import { RenderMode, ServerRoute } from '@angular/ssr';
  * How each page is served. Rendered on the server, as whoever the visitor is: the session cookie
  * goes with the server's API calls (ServerApiBackend), so a signed-in user gets their own page
  * (their name, the commissioner tools, the admin pages) before the app's scripts have loaded. Such a
- * page is never cached (server.ts). Every page: the theme page too, drawn with the site's colours
- * (the visitor's own are in their browser), which the browser draws again with theirs (ThemeComponent
- * skips hydration); drawn only in the browser, it showed nothing until all of the app's scripts had run.
+ * page is never cached (server.ts). Every page, drawn with the site's colours (the visitor's own are in their
+ * browser, which draws the theme editor again with theirs: ThemeComponent skips hydration); drawn only in the
+ * browser, it showed nothing until all of the app's scripts had run.
  */
 export const serverRoutes: ServerRoute[] = [
   ...[
     '',
-    'theme',
     'season/:seasonID',
     'season/:seasonID/signups',
     'season/:seasonID/signupForm',

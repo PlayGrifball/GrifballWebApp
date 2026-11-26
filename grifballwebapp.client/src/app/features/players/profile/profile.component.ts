@@ -13,6 +13,7 @@ import { DeploymentHistoryComponent } from './deploymentHistory/deploymentHistor
 import { LinkedAccountsComponent } from '@shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 import { AccessTokensComponent } from './accessTokens/accessTokens.component';
+import { ThemeComponent } from '@core/layout/theme/theme.component';
 import { ServiceRecordComponent } from './serviceRecord/serviceRecord.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
@@ -59,6 +60,7 @@ export function describeProfile(profile: ProfileStatsDto): PageDescription | nul
     LinkedAccountsComponent,
     ProfileIdentityComponent,
     AccessTokensComponent,
+    ThemeComponent,
     ServiceRecordComponent,
     VodListComponent,
     ProfileCommendationsComponent,

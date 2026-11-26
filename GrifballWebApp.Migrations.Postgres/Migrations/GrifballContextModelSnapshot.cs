@@ -6717,6 +6717,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<string>("Theme")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .UseCollation("case_insensitive");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -6886,6 +6891,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text")
                         .HasColumnName("SecurityStamp")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Theme")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("Theme")
                         .UseCollation("case_insensitive");
 
                     b.Property<bool?>("TwoFactorEnabled")
