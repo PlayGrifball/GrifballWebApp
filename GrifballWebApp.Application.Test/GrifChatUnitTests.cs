@@ -383,8 +383,7 @@ public partial class GrifChatUnitTests
     [Test]
     public void WithPage_UnicodeLineAndParagraphSeparatorsAndFormatCharacters_AreRemoved_LikeControlCharacters()
     {
-        // U+2028 LINE SEPARATOR, U+2029 PARAGRAPH SEPARATOR, U+200B ZERO WIDTH SPACE (a format character): built from
-        // char values, not \u escapes, which C# itself treats as a literal newline inside a regular string (CS1010)
+        // U+2028 LINE SEPARATOR, U+2029 PARAGRAPH SEPARATOR, U+200B ZERO WIDTH SPACE (a format character)
         var title = "Spring" + (char)0x2028 + "2026" + (char)0x2029 + "Finals" + (char)0x200B + "!";
         var host = GrifChat.WithPage(ChatHost.Site, "/season/12", title);
         var last = GrifChat.Instructions(host).Split('\n')[^1];
