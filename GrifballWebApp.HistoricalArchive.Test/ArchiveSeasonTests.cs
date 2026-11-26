@@ -606,7 +606,7 @@ public partial class ArchiveSeasonTests
                 .Where(t => t.Season.HistoricalSourceID != null)
                 .Include(t => t.TeamPlayers).ThenInclude(p => p.User)
                 .ToListAsync())
-            .SelectMany(t => t.TeamPlayers.Select(p => (t.Season.SeasonName, Name: p.User.DisplayName ?? "")))
+            .SelectMany(t => t.TeamPlayers.Select(p => (t.Season.SeasonName, Name: p.User?.DisplayName ?? "")))
             .ToHashSet();
         var stats = (await context.PlayerSeasonStats.AsNoTracking()
                 .Where(p => p.Season.HistoricalSourceID != null && p.TeamID != null)
