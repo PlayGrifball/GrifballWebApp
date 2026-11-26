@@ -62,28 +62,36 @@ public partial class PresencePages(SeasonVisibility visibility, IApplicationDbCo
     public virtual async Task<string> Shown(string? path, CancellationToken ct = default)
     {
         var route = Route(path);
-        if (StaffPrefixes.Any(p => route.Equals(p, StringComparison.OrdinalIgnoreCase) || route.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase)))
+        if (IsStaffPage(route))
             return PresenceSnapshot.StaffArea;
-
         if (SeasonPage().Match(route) is { Success: true } season)
-        {
-            if (StaffSeasonPages.Contains(season.Groups[2].Value, StringComparer.OrdinalIgnoreCase))
-                return PresenceSnapshot.StaffArea;
-            return await Public(Id(season), ct) ? route : PresenceSnapshot.StaffArea;
-        }
+            return await ShownSeasonPage(route, season, ct);
         if (SeasonMatchPage().Match(route) is { Success: true } match)
             return await visibility.CanSeeSeasonMatch(Id(match), SeasonViewer.Public, ct) ? route : PresenceSnapshot.StaffArea;
         if (TeamHistoryPage().Match(route) is { Success: true } history)
             return await visibility.CanSeeTeam(Id(history), SeasonViewer.Public, ct) ? route : PresenceSnapshot.StaffArea;
         if (GamePage().Match(route) is { Success: true } game && Guid.TryParse(game.Groups[1].Value, out var matchID))
-        {
-            // No season match for this game at all (a free game): everyone's own route, same as any other page not
-            // about a season. One of a hidden season's: the staff area, same as its match (#435).
-            var seasons = visibility.Visible(SeasonViewer.Public);
-            var hidden = await context.SeasonSeriesGames.AnyAsync(g => g.MatchID == matchID && !seasons.Any(s => s.SeasonID == g.SeasonMatch.SeasonID), ct);
-            return hidden ? PresenceSnapshot.StaffArea : route;
-        }
+            return await ShownGamePage(route, matchID, ct);
         return route;
+    }
+
+    private static bool IsStaffPage(string route)
+        => StaffPrefixes.Any(p => route.Equals(p, StringComparison.OrdinalIgnoreCase) || route.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
+
+    private async Task<string> ShownSeasonPage(string route, Match season, CancellationToken ct)
+    {
+        if (StaffSeasonPages.Contains(season.Groups[2].Value, StringComparer.OrdinalIgnoreCase))
+            return PresenceSnapshot.StaffArea;
+        return await Public(Id(season), ct) ? route : PresenceSnapshot.StaffArea;
+    }
+
+    /// <summary>No season match for this game at all (a free game): everyone's own route, same as any other page not about a
+    /// season. One of a hidden season's: the staff area, same as its match (#435).</summary>
+    private async Task<string> ShownGamePage(string route, Guid matchID, CancellationToken ct)
+    {
+        var seasons = visibility.Visible(SeasonViewer.Public);
+        var hidden = await context.SeasonSeriesGames.AnyAsync(g => g.MatchID == matchID && !seasons.Any(s => s.SeasonID == g.SeasonMatch.SeasonID), ct);
+        return hidden ? PresenceSnapshot.StaffArea : route;
     }
 
     /// <summary>
