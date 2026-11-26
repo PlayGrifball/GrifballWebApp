@@ -95,10 +95,7 @@ export class ProfileSpartanComponent implements OnInit {
 
   private syncPieces(): void {
     const armor = this.form.controls.armor;
-    const keys = this.regions().map(r => r.key);
-    for (const key of Object.keys(armor.controls).filter(k => !keys.includes(k)))
-      armor.removeControl(key);
-    for (const key of keys.filter(k => !armor.contains(k)))
+    for (const key of this.regions().map(r => r.key).filter(k => !armor.contains(k)))
       armor.addControl(key, new FormControl(this.seed[key] ?? '', { nonNullable: true }));
   }
 }
