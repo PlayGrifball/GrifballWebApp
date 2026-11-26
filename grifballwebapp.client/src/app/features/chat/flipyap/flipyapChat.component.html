@@ -1,0 +1,49 @@
+<section class="flipyap-chat hud-panel">
+  <header class="flipyap-chat__head">
+    <span class="hud-kicker">&gt; Flipyap</span>
+    <a class="flipyap-chat__full" routerLink="/chat" (click)="closed.emit()">Full chat</a>
+    <button class="hud-btn flipyap-chat__close" type="button" aria-label="Close chat" (click)="closed.emit()">&times;</button>
+  </header>
+
+  <div class="flipyap-chat__log" #log role="log" aria-label="Conversation" [attr.aria-busy]="asking()">
+    @for (turn of turns(); track $index) {
+      <div class="flipyap-chat__turn" [class.flipyap-chat__turn--bot]="turn.fromBot">
+        <span class="flipyap-chat__who">{{ turn.fromBot ? 'Flipyap' : 'You' }}</span>
+        <p class="flipyap-chat__text">{{ turn.text }}</p>
+      </div>
+    } @empty {
+      <p class="flipyap-chat__empty">
+        Wawawa! Ask Flipyap about seasons, standings, teams, players and matches. Flipyap can get things wrong, so check the pages he point you to.
+        @if (!signedIn()) {
+          Signed out, Flipyap no know who you are! Name the player you mean.
+        }
+      </p>
+    }
+  </div>
+
+  @if (waiting(); as action) {
+    <div class="flipyap-chat__confirm" role="group" aria-label="A change waiting for you">
+      <p class="flipyap-chat__text">Flipyap wait for you: {{ action.description }}</p>
+      <div class="flipyap-chat__actions">
+        <button class="hud-btn hud-btn--primary" type="button" (click)="chat.confirm(true)" [disabled]="asking()">Confirm</button>
+        <button class="hud-btn" type="button" (click)="chat.confirm(false)" [disabled]="asking()">Cancel</button>
+      </div>
+    </div>
+  }
+
+  @if (error(); as error) {
+    <p class="flipyap-chat__error" role="alert">{{ error }}</p>
+  }
+
+  <form class="flipyap-chat__form" [formGroup]="chat.form" (ngSubmit)="chat.ask()">
+    <textarea #questionBox formControlName="question" rows="2" aria-label="Your question" placeholder="Ask Flipyap…"
+              [maxLength]="chat.maxLength" (keydown.enter)="chat.onEnter($event)"></textarea>
+    <div class="flipyap-chat__actions">
+      <button class="hud-btn hud-btn--primary" type="submit" [disabled]="asking() || chat.form.invalid">Ask</button>
+      @if (asking()) {
+        <button class="hud-btn" type="button" (click)="chat.stop()">Stop</button>
+      }
+      <button class="hud-btn" type="button" (click)="chat.clear()" [disabled]="asking() || turns().length === 0">New</button>
+    </div>
+  </form>
+</section>

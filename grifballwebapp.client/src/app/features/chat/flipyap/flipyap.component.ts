@@ -1,0 +1,290 @@
+import { isPlatformBrowser } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, afterRenderEffect, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router } from '@angular/router';
+import { filter, map } from 'rxjs';
+import { FlipyapChatComponent } from './flipyapChat.component';
+import { FRAMES, SPRITE_SIZE, type FlipyapFrame } from './flipyapSprite';
+
+export const BLINK_EVERY_MS = 4000;
+export const BLINK_FOR_MS = 160;
+/** How long his mouth stays open or shut while he answers. */
+export const TALK_BEAT_MS = 180;
+export const GREETING_FOR_MS = 8000;
+/** Where the tab remembers that Flipyap has said hello: once per tab is enough. */
+export const GREETED_STORAGE_KEY = 'flipyap-greeted';
+/** Where he was put down, kept for the next visit. */
+export const POSITION_STORAGE_KEY = 'flipyap-position';
+/** How far a press must move before it is a drag and not a click. */
+export const DRAG_THRESHOLD_PX = 4;
+/** His distance from the window's right and bottom edges before anyone moves him. */
+export const CORNER_MARGIN_PX = 16;
+/** His box's own width and height (flipyap.component.scss's .flipyap and .flipyap__pet, both fixed): not read from the DOM, so
+ * clamping never depends on a render that may be one (or two) pointermoves behind, or never happened at all (he is hidden on /chat). */
+export const BOX_SIZE_PX = 64;
+/** The gap between his box and the chat panel, open above or below him (flipyap.component.scss's 72px bottom/top). */
+export const CHAT_GAP_PX = 72;
+
+interface Offset {
+  readonly x: number;
+  readonly y: number;
+}
+
+interface Drag {
+  readonly pointerId: number;
+  readonly startX: number;
+  readonly startY: number;
+  readonly from: Offset;
+  moved: boolean;
+}
+
+/**
+ * Flipyap, an Unggoy in pixel art who sits in the bottom right corner of the site and answers questions about the league:
+ * the pet opens the chat. He blinks now and then and talks while an answer comes in (still, for someone who asks for less
+ * motion). The chat page has the same chat in full, so he stays off it. The chat is made when he is first opened and kept
+ * after that, so an answer goes on streaming with it closed.
+ */
+@Component({
+  selector: 'app-flipyap',
+  templateUrl: 'flipyap.component.html',
+  styleUrl: 'flipyap.component.scss',
+  imports: [FlipyapChatComponent],
+  host: { '(keydown.escape)': 'close()', '(window:resize)': 'keepOnScreen()' },
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class FlipyapComponent {
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
+  /** The box he stands in: still while he bobs and swings, so it is what stays inside the window. */
+  private readonly box = viewChild<ElementRef<HTMLElement>>('box');
+  private readonly pet = viewChild<ElementRef<HTMLButtonElement>>('pet');
+  private readonly chat = viewChild(FlipyapChatComponent);
+
+  private readonly url = toSignal(
+    this.router.events.pipe(filter(event => event instanceof NavigationEnd), map(event => event.urlAfterRedirects)),
+    { initialValue: this.router.url });
+  /** The chat page has the whole chat: Flipyap is not on it. */
+  readonly onChatPage = computed(() => this.url().split(/[?#]/)[0] === '/chat');
+
+  readonly size = SPRITE_SIZE;
+  readonly open = signal(false);
+  /** The chat has been opened once: it exists from then on. */
+  readonly everOpened = signal(false);
+  readonly greeting = signal(false);
+  readonly hopping = signal(false);
+
+  private readonly talking = signal(false);
+  private readonly blinking = signal(false);
+  private readonly mouthOpen = signal(false);
+  private readonly reducedMotion = this.isBrowser && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  readonly margin = CORNER_MARGIN_PX;
+  /** How far he has been moved from the corner, to the right (x) and down (y): both zero or less in a window he fits. */
+  readonly offset = signal<Offset>({ x: 0, y: 0 });
+  /** He is in the user's hand. */
+  readonly held = signal(false);
+  /** In the top or left half of the window, the chat opens below him or to his right, where there is room. */
+  readonly nearTop = signal(false);
+  readonly nearLeft = signal(false);
+  private drag: Drag | null = null;
+  private suppressClick = false;
+  /** The chat was just opened and wants the cursor: set until it (and, its first time, its @defer chunk) exists to take it. */
+  private readonly focusPending = signal(false);
+  /** The greeting has had its chance to show, once his box first existed to show it in. */
+  private greeted = false;
+
+  /**
+   * How tall his chat panel may be without running off the window: the room on the side it opens (above him normally, below
+   * once he is near the top), from its gap to him down to the window's own edge, with a little margin to spare. Set as a CSS
+   * custom property (flipyapChat.component.scss's max-height) so dragging him near the middle of a short window still leaves
+   * the panel's buttons on screen.
+   */
+  readonly chatRoomPx = computed(() => {
+    const windowHeight = this.isBrowser ? document.documentElement.clientHeight : 0;
+    const { y } = this.offset();
+    const boxBottom = windowHeight - this.margin + y;
+    const anchor = this.nearTop()
+      ? windowHeight - (boxBottom - BOX_SIZE_PX + CHAT_GAP_PX)
+      : boxBottom - CHAT_GAP_PX;
+    return anchor - this.margin;
+  });
+
+  readonly frame = computed<FlipyapFrame>(() => {
+    if (this.held())
+      return 'held';
+    if (this.talking())
+      return this.reducedMotion || this.mouthOpen() ? 'talk' : 'idle';
+    return this.blinking() ? 'blink' : 'idle';
+  });
+  readonly pixels = computed(() => FRAMES[this.frame()]);
+
+  constructor() {
+    // His mouth opens and shuts while he answers
+    effect(onCleanup => {
+      if (!this.isBrowser || this.reducedMotion || !this.talking())
+        return;
+      const beat = setInterval(() => this.mouthOpen.update(open => !open), TALK_BEAT_MS);
+      onCleanup(() => {
+        clearInterval(beat);
+        this.mouthOpen.set(false);
+      });
+    });
+
+    afterNextRender(() => {
+      if (!this.reducedMotion)
+        this.blinkNowAndThen();
+      // Arithmetic, not his box's rendered rect: safe even starting on /chat, where there is no box to read
+      this.restorePosition();
+    });
+
+    // The greeting bubble hangs off his box, which doesn't exist at all while he starts on /chat: it waits for his first
+    // appearance (there, once he leaves /chat), so its timed show isn't spent on a page where nothing is rendered to see it.
+    afterRenderEffect(() => {
+      if (this.box() && !this.greeted) {
+        this.greeted = true;
+        this.greetOnce();
+      }
+    });
+
+    // Focuses the question box once it exists: on the chat's first open, its @defer chunk may still be loading
+    afterRenderEffect(() => {
+      if (this.focusPending() && this.open() && this.chat()) {
+        this.chat()!.focus();
+        this.focusPending.set(false);
+      }
+    });
+  }
+
+  toggle(): void {
+    // The click that ends a drag is not a tap
+    if (this.suppressClick)
+      return;
+    this.greeting.set(false);
+    this.hop();
+    if (this.open())
+      this.close();
+    else {
+      this.everOpened.set(true);
+      this.open.set(true);
+      this.focusPending.set(true);
+    }
+  }
+
+  /** Shuts the chat (the user's button or Escape) and gives the focus back to the pet. */
+  close(): void {
+    if (!this.open())
+      return;
+    this.open.set(false);
+    this.pet()?.nativeElement.focus();
+  }
+
+  onTalking(talking: boolean): void {
+    this.talking.set(talking);
+  }
+
+  onPointerDown(event: PointerEvent): void {
+    if (event.button !== 0)
+      return;
+    this.drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, from: this.offset(), moved: false };
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  onPointerMove(event: PointerEvent): void {
+    const drag = this.drag;
+    if (drag?.pointerId !== event.pointerId)
+      return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX)
+        return;
+      drag.moved = true;
+      this.held.set(true);
+    }
+    this.moveTo(drag.from.x + dx, drag.from.y + dy);
+  }
+
+  /** Puts him down where he is: a drag keeps its place, and its click is not a tap. */
+  onPointerEnd(event: PointerEvent): void {
+    const drag = this.drag;
+    if (drag?.pointerId !== event.pointerId)
+      return;
+    this.drag = null;
+    if (!drag.moved)
+      return;
+    this.held.set(false);
+    this.hop();
+    this.suppressClick = true;
+    this.later(() => (this.suppressClick = false), 0);
+    try {
+      localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(this.offset()));
+    } catch {
+      // Storage off: he is back in the corner next visit
+    }
+  }
+
+  /** The window changed size: he is pulled back in if it left him outside. */
+  keepOnScreen(): void {
+    const { x, y } = this.offset();
+    this.moveTo(x, y);
+  }
+
+  /**
+   * Moves him to the offset, or as near it as keeps all of him in the window: by arithmetic (the window's size, his box's own
+   * fixed size, and the corner margin), never his box's rendered position. Two pointermoves in the same frame (before Angular
+   * has rendered the first) would otherwise clamp the second against a rect one move behind, letting him past the edge; on
+   * /chat there is no box to read at all, which otherwise left his saved position and a resize both unapplied until he returned.
+   */
+  private moveTo(x: number, y: number): void {
+    // The window without its scrollbars: what a fixed box is placed in
+    const { clientWidth, clientHeight } = document.documentElement;
+    const clampTo = (value: number, size: number) => Math.min(Math.max(value, this.margin + BOX_SIZE_PX - size), this.margin);
+    const nextX = clampTo(x, clientWidth);
+    const nextY = clampTo(y, clientHeight);
+    this.offset.set({ x: nextX, y: nextY });
+    this.nearLeft.set(clientWidth - this.margin + nextX - BOX_SIZE_PX / 2 < clientWidth / 2);
+    this.nearTop.set(clientHeight - this.margin + nextY - BOX_SIZE_PX / 2 < clientHeight / 2);
+  }
+
+  private restorePosition(): void {
+    try {
+      const kept: unknown = JSON.parse(localStorage.getItem(POSITION_STORAGE_KEY) ?? 'null');
+      const { x, y } = (kept ?? {}) as Partial<Offset>;
+      if (typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y))
+        this.moveTo(x, y);
+    } catch {
+      // Nothing kept, or not his position: he stays in the corner
+    }
+  }
+
+  private hop(): void {
+    this.hopping.set(true);
+    this.later(() => this.hopping.set(false), 400);
+  }
+
+  private blinkNowAndThen(): void {
+    const timer = setInterval(() => {
+      this.blinking.set(true);
+      this.later(() => this.blinking.set(false), BLINK_FOR_MS);
+    }, BLINK_EVERY_MS);
+    this.destroyRef.onDestroy(() => clearInterval(timer));
+  }
+
+  private greetOnce(): void {
+    try {
+      if (sessionStorage.getItem(GREETED_STORAGE_KEY))
+        return;
+      sessionStorage.setItem(GREETED_STORAGE_KEY, '1');
+    } catch {
+      // Storage off: he says hello on each page load
+    }
+    this.greeting.set(true);
+    this.later(() => this.greeting.set(false), GREETING_FOR_MS);
+  }
+
+  private later(action: () => void, ms: number): void {
+    const timer = setTimeout(action, ms);
+    this.destroyRef.onDestroy(() => clearTimeout(timer));
+  }
+}

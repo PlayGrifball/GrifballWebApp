@@ -53,4 +53,9 @@
 
   </mat-sidenav-container>
 
+  <!-- Flipyap, the chat's pet: once the page is idle, so he never holds up what people came for -->
+  @defer (on idle) {
+    <app-flipyap />
+  }
+
 </div>

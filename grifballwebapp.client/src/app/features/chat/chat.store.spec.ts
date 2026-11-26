@@ -78,7 +78,7 @@ describe('ChatStore', () => {
     const store = create();
 
     expect(store.ask('  Who won?  ')).toBeTrue();
-    expect(asked()).toEqual(['Ask', { question: 'Who won?', history: [], model: null, autoApprove: null }]);
+    expect(asked()).toEqual(['Ask', { question: 'Who won?', history: [], model: null, autoApprove: null, page: null, pageTitle: null }]);
     expect(store.asking()).toBeTrue();
     expect(store.turns()).toEqual([turn(false, 'Who won?'), turn(true, '')]);
 
@@ -89,7 +89,18 @@ describe('ChatStore', () => {
     expect(store.asking()).toBeFalse();
 
     store.ask('And before?');
-    expect(asked()[1]).toEqual({ question: 'And before?', history: [turn(false, 'Who won?'), turn(true, 'The Grifs.')], model: null, autoApprove: null });
+    expect(asked()[1]).toEqual({ question: 'And before?', history: [turn(false, 'Who won?'), turn(true, 'The Grifs.')], model: null, autoApprove: null, page: null, pageTitle: null });
+  });
+
+  it('sends the page the question is asked from, when there is one', () => {
+    const store = create();
+
+    store.ask('Who won?', { path: '/season/4', title: 'Spring' });
+    expect(asked()).toEqual(['Ask', { question: 'Who won?', history: [], model: null, autoApprove: null, page: '/season/4', pageTitle: 'Spring' }]);
+    answer().subscriber.complete();
+
+    store.ask('And here?', { path: '/seasons', title: '' });
+    expect(asked()[1]).toEqual(jasmine.objectContaining({ page: '/seasons', pageTitle: null }));
   });
 
   it('sends only as much history as the server reads', () => {
@@ -241,14 +252,14 @@ describe('ChatStore', () => {
       expect(connection.invoke).toHaveBeenCalledWith('Models');
       expect(store.models()).toEqual(models);
       store.ask('Who won?');
-      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: 'claude-haiku', autoApprove: null });
+      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: 'claude-haiku', autoApprove: null, page: null, pageTitle: null });
     });
 
     it('asks with no model before the models are known: the server chooses', () => {
       const store = create();
 
       store.ask('Who won?');
-      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: null, autoApprove: null });
+      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: null, autoApprove: null, page: null, pageTitle: null });
     });
 
     it('keeps the choice on the server, and asks the chosen model after', async () => {
@@ -380,7 +391,7 @@ describe('ChatStore', () => {
       expect(store.confirm(true)).toBeTrue();
 
       expect(connection.stream.calls.mostRecent().args as [string, ChatConfirmDto]).toEqual(['Confirm', {
-        actionId: 'a1', approved: true, history: [turn(false, 'Forfeit match 12'), turn(true, 'This waits for you.')],
+        actionId: 'a1', approved: true, history: [turn(false, 'Forfeit match 12'), turn(true, 'This waits for you.')], page: null, pageTitle: null,
       }]);
       expect(store.waiting()).withContext('answered: no buttons while it runs').toBeNull();
       expect(store.turns().slice(-2)).toEqual([turn(false, CONFIRMED), turn(true, '')]);
@@ -389,6 +400,14 @@ describe('ChatStore', () => {
       await new Promise(resolve => setTimeout(resolve));
       expect(store.turns().at(-1)).toEqual(turn(true, 'Done.'));
       expect(store.waiting()).toBeNull();
+    });
+
+    it('sends the page it was confirmed from, when there is one', async () => {
+      const store = await asking();
+
+      store.confirm(true, { path: '/season/4', title: 'Spring' });
+
+      expect(connection.stream.calls.mostRecent().args[1]).toEqual(jasmine.objectContaining({ page: '/season/4', pageTitle: 'Spring' }));
     });
 
     it('cancels', async () => {

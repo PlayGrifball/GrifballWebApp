@@ -279,6 +279,22 @@ export const OVERLAYS: Overlay[] = [
     setup: openDrawer,
     close: closeDrawer,
   },
+  {
+    // Flipyap's chat, opened from the pet in the corner: solid, so the page behind never shows through its words
+    name: "Flipyap's chat", role: 'anon', path: '/', sheet: 'home-signed-out',
+    setup: async page => {
+      await page.getByRole('button', { name: 'Chat with Flipyap' }).click();
+      const chat = page.getByRole('region', { name: 'Chat with Flipyap' });
+      await expect(chat).toBeVisible();
+      const panel = chat.locator('.flipyap-chat');
+      await expect(panel).toHaveCSS('background-color', /^rgb\(\d+, \d+, \d+\)$/);
+      return chat;
+    },
+    close: async page => {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('region', { name: 'Chat with Flipyap' })).toBeHidden();
+    },
+  },
   // The quick search (the header's Search button, or Ctrl+K): before anything is typed, signed out and in
   {
     name: 'quick search', role: 'anon', path: '/', sheet: 'home-signed-out',

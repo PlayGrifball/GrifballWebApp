@@ -1,0 +1,118 @@
+:host { display: block; }
+
+.flipyap-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  // Solid: the page's text must not show through the words
+  background: var(--hud-surface-container);
+  // --flipyap-chat-room: set by FlipyapComponent on its box, the room on whichever side the panel opens; the fallback is for
+  // when that ancestor isn't there (a test of this component alone)
+  max-height: min(560px, var(--flipyap-chat-room, calc(100vh - 140px)));
+  box-shadow: 0 8px 28px rgb(0 0 0 / 40%);
+}
+
+.flipyap-chat__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+// Both at least 44px square: a finger's tap target
+.flipyap-chat__full {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.flipyap-chat__close {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.flipyap-chat__log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 140px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.flipyap-chat__turn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-self: flex-end;
+  max-width: 90%;
+}
+
+.flipyap-chat__turn--bot {
+  align-self: flex-start;
+  padding-left: 8px;
+  border-left: 2px solid var(--hud-accent);
+}
+
+.flipyap-chat__who {
+  font-family: var(--hud-font-mono);
+  font-size: 12px;
+  color: var(--hud-muted);
+}
+
+// The model writes plain text: its line breaks kept
+.flipyap-chat__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--hud-heading);
+}
+
+.flipyap-chat__empty {
+  margin: 0;
+  color: var(--hud-muted);
+}
+
+.flipyap-chat__error { margin: 0; }
+
+.flipyap-chat__confirm {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--hud-hairline);
+}
+
+.flipyap-chat__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  textarea {
+    box-sizing: border-box;
+    width: 100%;
+    resize: none;
+    padding: 8px;
+    font: inherit;
+    color: var(--hud-text);
+    background: var(--hud-bg);
+    border: 1px solid var(--hud-control-outline);
+    border-radius: 4px;
+  }
+
+  textarea:focus-visible {
+    outline: 2px solid var(--hud-accent);
+    outline-offset: 1px;
+  }
+}
+
+.flipyap-chat__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

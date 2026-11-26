@@ -1,25 +1,25 @@
 <div class="hud-page hud-page--narrow chat">
   <div class="hud-page-head">
-    <span class="hud-kicker">&gt; Ask the league</span>
+    <span class="hud-kicker">&gt; Ask Flipyap</span>
     <h1 class="hud-title">Chat</h1>
   </div>
 
   <p class="chat__intro">
-    Ask about seasons, standings, teams, players and matches: the chat looks them up, as the Discord bot does. It can get
-    things wrong, so check the pages it points you to.
+    Wawawa! Flipyap is an Unggoy, and he know the league. Ask about seasons, standings, teams, players and matches: he look
+    them up. Flipyap can get things wrong, so check the pages he point you to.
     @if (!signedIn()) {
-      Signed out, it doesn't know who you are: name the player you mean, or <a routerLink="/login">log in</a>.
+      Signed out, Flipyap no know who you are! Name the player you mean, or <a routerLink="/login">log in</a>.
     }
   </p>
 
   <section class="chat__log hud-panel" role="log" aria-label="Conversation" [attr.aria-busy]="asking()">
     @for (turn of turns(); track $index) {
       <div class="chat__turn" [class.chat__turn--bot]="turn.fromBot">
-        <span class="chat__who">{{ turn.fromBot ? 'Grif' : 'You' }}</span>
+        <span class="chat__who">{{ turn.fromBot ? 'Flipyap' : 'You' }}</span>
         <p class="chat__text">{{ turn.text }}</p>
       </div>
     } @empty {
-      <p class="chat__empty">No questions yet. Try "Who won the last season?"</p>
+      <p class="chat__empty">Wawawa! No questions yet. Try "Who won the last season?"</p>
     }
   </section>
 
@@ -27,8 +27,8 @@
     <div class="chat__confirm hud-panel" role="group" aria-label="A change waiting for you">
       <p class="chat__text">This waits for you: {{ action.description }}</p>
       <div class="chat__actions">
-        <button class="hud-btn hud-btn--primary" type="button" (click)="confirm(true)" [disabled]="asking()">Confirm</button>
-        <button class="hud-btn" type="button" (click)="confirm(false)" [disabled]="asking()">Cancel</button>
+        <button class="hud-btn hud-btn--primary" type="button" (click)="chat.confirm(true)" [disabled]="asking()">Confirm</button>
+        <button class="hud-btn" type="button" (click)="chat.confirm(false)" [disabled]="asking()">Cancel</button>
       </div>
     </div>
   }
@@ -70,18 +70,18 @@
     </div>
   }
 
-  <form class="chat__form" [formGroup]="form" (ngSubmit)="ask()">
+  <form class="chat__form" [formGroup]="chat.form" (ngSubmit)="chat.ask()">
     <mat-form-field appearance="outline" class="app-full-width">
       <mat-label>Your question</mat-label>
-      <textarea matInput formControlName="question" rows="3" [maxLength]="maxLength" (keydown.enter)="onEnter($event)"></textarea>
-      <mat-hint align="end">{{ form.controls.question.value.length }} / {{ maxLength }}</mat-hint>
+      <textarea matInput formControlName="question" rows="3" [maxLength]="chat.maxLength" (keydown.enter)="chat.onEnter($event)"></textarea>
+      <mat-hint align="end">{{ chat.form.controls.question.value.length }} / {{ chat.maxLength }}</mat-hint>
     </mat-form-field>
     <div class="chat__actions">
-      <button class="hud-btn hud-btn--primary" type="submit" [disabled]="asking() || form.invalid">Ask</button>
+      <button class="hud-btn hud-btn--primary" type="submit" [disabled]="asking() || chat.form.invalid">Ask</button>
       @if (asking()) {
-        <button class="hud-btn" type="button" (click)="stop()">Stop</button>
+        <button class="hud-btn" type="button" (click)="chat.stop()">Stop</button>
       }
-      <button class="hud-btn" type="button" (click)="clear()" [disabled]="asking() || turns().length === 0">New conversation</button>
+      <button class="hud-btn" type="button" (click)="chat.clear()" [disabled]="asking() || turns().length === 0">New conversation</button>
     </div>
   </form>
 </div>

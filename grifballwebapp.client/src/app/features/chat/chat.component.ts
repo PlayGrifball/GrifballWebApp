@@ -1,13 +1,14 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
 import { AccountService } from '@core/auth/account.service';
-import { ChatStore, MAX_QUESTION_LENGTH } from './chat.store';
+import { ChatQuestionForm } from './chatQuestionForm';
+import { ChatStore } from './chat.store';
 
 /**
  * The chat page: the league's chat, as the Discord bot answers in Discord, on the site. It looks up seasons, teams,
@@ -19,7 +20,6 @@ import { ChatStore, MAX_QUESTION_LENGTH } from './chat.store';
   templateUrl: 'chat.component.html',
   styleUrl: 'chat.component.scss',
   imports: [CurrencyPipe, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule, RouterLink],
-  providers: [ChatStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatComponent {
@@ -49,22 +49,8 @@ export class ChatComponent {
     return models?.spent != null && models.limit != null ? { spent: models.spent, limit: models.limit } : null;
   });
 
-  readonly maxLength = MAX_QUESTION_LENGTH;
-  readonly form = new FormGroup({
-    question: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(MAX_QUESTION_LENGTH)] }),
-  });
-
-  /** Asks the question, and empties the box once it is asked. */
-  ask(): void {
-    if (this.form.valid && this.store.ask(this.form.controls.question.value))
-      this.form.reset();
-  }
-
-  /** Enter asks (keydown.enter: not with Shift, which starts a new line). */
-  onEnter(event: Event): void {
-    event.preventDefault();
-    this.ask();
-  }
+  /** The question box, Enter, and the confirm/stop/clear buttons: shared with Flipyap's chat (no page: this is the whole chat). */
+  readonly chat = new ChatQuestionForm(this.store);
 
   /** The user chose another model: their questions go to it, here and in a Discord DM. */
   choose(model: string): void {
@@ -79,18 +65,5 @@ export class ChatComponent {
   /** This conversation's choice kept as the user's setting, here and in a Discord DM. */
   saveAutoApprove(): void {
     void this.store.saveAutoApprove();
-  }
-
-  /** The user's answer to the change waiting for them: confirmed, it runs; cancelled, it doesn't. */
-  confirm(approved: boolean): void {
-    this.store.confirm(approved);
-  }
-
-  stop(): void {
-    this.store.stop();
-  }
-
-  clear(): void {
-    this.store.clear();
   }
 }

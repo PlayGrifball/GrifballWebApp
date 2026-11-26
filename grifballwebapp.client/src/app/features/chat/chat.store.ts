@@ -34,6 +34,12 @@ export const FAILED = "The chat couldn't answer just now: try again later.";
 export const CONFIRMED = 'Yes, do it.';
 export const CANCELLED = 'No, cancel it.';
 
+/** The page a question is asked from: its path (no query or fragment) and title. */
+export interface AskedFrom {
+  readonly path: string;
+  readonly title: string;
+}
+
 /** What SignalR puts before a HubException's message, the reason the server gives the browser. */
 const HUB_EXCEPTION = 'HubException: ';
 
@@ -71,12 +77,15 @@ function save(turns: ChatTurnDto[]): void {
 }
 
 /**
- * The chat page's conversation with the league's chat, the Discord bot's on the site: the questions and answers so far
+ * The site's one conversation with the league's chat, the Discord bot's on the site: the questions and answers so far
  * (kept in the tab's sessionStorage, and sent with each question for the model's context), the answer streaming in, and
  * why the last question failed. The hub connection is the user's (their session cookie): signed out, the chat answers as
  * it does a Discord user with no linked account. A sign-in or out starts a new conversation. Only in the browser.
+ *
+ * Root-scoped: Flipyap's corner chat and the chat page (/chat) share the one store, so an answer keeps streaming (and
+ * both views show the same conversation) when navigating between them, and only the app itself going disposes it.
  */
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class ChatStore {
   private readonly log = inject(AppLog);
   private readonly connection: HubConnection | null = isPlatformBrowser(inject(PLATFORM_ID))
@@ -143,9 +152,10 @@ export class ChatStore {
 
   /**
    * Asks `question` (trimmed), with the conversation so far: its answer streams into the conversation's last message.
+   * `page` is the page the person is looking at, for the model's context (Flipyap's chat in a corner of it); none on the chat page.
    * False when nothing was asked: no question, an answer still on its way, or no connection yet (the error says so).
    */
-  ask(question: string): boolean {
+  ask(question: string, page: AskedFrom | null = null): boolean {
     const text = question.trim();
     if (!text || this.asking() || !this.connection)
       return false;
@@ -158,21 +168,21 @@ export class ChatStore {
     const model = this.models()?.selected;
     const history = this.history();
     const autoApprove = this.conversationAutoApproveState();
-    this.stream(connection, text, hub => hub.ask({ question: text, history, model: model ?? null, autoApprove }));
+    this.stream(connection, text, hub => hub.ask({ question: text, history, model: model ?? null, autoApprove, page: page?.path ?? null, pageTitle: page?.title || null }));
     return true;
   }
 
   /**
    * The user's answer to the change waiting for it: yes does it, no cancels it. The chat's reply streams in as an answer does,
-   * after a line saying what they chose.
+   * after a line saying what they chose. `page` is the page they answered from, as with `ask`; none on the chat page.
    */
-  confirm(approved: boolean): boolean {
+  confirm(approved: boolean, page: AskedFrom | null = null): boolean {
     const waiting = this.waiting();
     if (!waiting || this.asking() || this.connection?.state !== HubConnectionState.Connected)
       return false;
     const history = this.history();
     this.stream(this.connection, approved ? CONFIRMED : CANCELLED,
-      hub => hub.confirm({ actionId: waiting.id, approved, history }));
+      hub => hub.confirm({ actionId: waiting.id, approved, history, page: page?.path ?? null, pageTitle: page?.title || null }));
     return true;
   }
 

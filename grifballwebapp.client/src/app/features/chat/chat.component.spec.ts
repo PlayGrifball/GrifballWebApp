@@ -71,13 +71,13 @@ describe('ChatComponent', () => {
 
   it('says what it is, and asks a signed-out visitor to name the player or log in', () => {
     expect(el().querySelector('h1')!.textContent!.trim()).toBe('Chat');
-    expect(text()).toContain('name the player you mean');
+    expect(text()).toContain('Name the player you mean');
     expect(el().querySelector('a[href="/login"]')).not.toBeNull();
     expect(text()).toContain('No questions yet');
 
     isLoggedIn.set(true);
     fixture.detectChanges();
-    expect(text()).not.toContain('name the player you mean');
+    expect(text()).not.toContain('Name the player you mean');
   });
 
   it('asks with the button, empties the box, and shows the answer as it streams in', () => {
@@ -86,14 +86,14 @@ describe('ChatComponent', () => {
     button('Ask')!.click();
     fixture.detectChanges();
 
-    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [], model: null, autoApprove: null });
+    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [], model: null, autoApprove: null, page: null, pageTitle: null });
     expect(textarea().value).toBe('');
     expect(button('Ask')!.disabled).toBeTrue();
     expect(el().querySelector('[role="log"]')!.getAttribute('aria-busy')).toBe('true');
 
     answer().subscriber.next('The Grifs.');
     fixture.detectChanges();
-    expect(turns()).toEqual([['You', 'Who won?'], ['Grif', 'The Grifs.']]);
+    expect(turns()).toEqual([['You', 'Who won?'], ['Flipyap', 'The Grifs.']]);
 
     answer().subscriber.complete();
     fixture.detectChanges();
@@ -150,7 +150,7 @@ describe('ChatComponent', () => {
     button('Stop')!.click();
     fixture.detectChanges();
     expect(answer().disposed).toBeTrue();
-    expect(turns()).toEqual([['You', 'Who won?'], ['Grif', 'The ']]);
+    expect(turns()).toEqual([['You', 'Who won?'], ['Flipyap', 'The ']]);
 
     button('New conversation')!.click();
     fixture.detectChanges();
@@ -221,7 +221,7 @@ describe('ChatComponent', () => {
 
     const [method, sent] = stream.calls.mostRecent().args as [string, ChatConfirmDto];
     expect(method).toBe('Confirm');
-    expect(sent).toEqual(jasmine.objectContaining({ actionId: 'a1', approved: true }));
+    expect(sent).toEqual(jasmine.objectContaining({ actionId: 'a1', approved: true, page: null, pageTitle: null }));
     expect(turns().at(-2)).toEqual(['You', CONFIRMED]);
     expect(el().querySelector('.chat__confirm')).withContext('answered').toBeNull();
   });

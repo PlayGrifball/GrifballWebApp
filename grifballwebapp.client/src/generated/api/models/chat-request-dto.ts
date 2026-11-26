@@ -25,6 +25,16 @@ export interface ChatRequestDto {
   model: string | null;
 
   /**
+   * The path of the page the person is looking at (Flipyap's chat in a corner of it), for the model's context; null: none (the chat page).
+   */
+  page: string | null;
+
+  /**
+   * The title of that page, for the same.
+   */
+  pageTitle: string | null;
+
+  /**
    * The question, at most GrifballWebApp.Application.Chat.GrifChat.MaxQuestionLength characters.
    */
   question: string;

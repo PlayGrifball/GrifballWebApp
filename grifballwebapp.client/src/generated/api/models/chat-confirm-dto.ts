@@ -22,4 +22,14 @@ export interface ChatConfirmDto {
    * The conversation so far, oldest first, as with a question.
    */
   history: Array<ChatTurnDto>;
+
+  /**
+   * The path of the page the person is looking at (Flipyap's chat in a corner of it), for the model's context; null: none (the chat page).
+   */
+  page: string | null;
+
+  /**
+   * The title of that page, for the same.
+   */
+  pageTitle: string | null;
 }
