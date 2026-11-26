@@ -327,6 +327,18 @@ public class XboxArmorTests : SqliteContextFixture
     }
 
     [Test]
+    public void Apply_AfterAFailedCheck_ThatFindsTheSameSet_IsNotAChange()
+    {
+        var row = new XboxUserArmor { XboxUserID = 1 };
+        XboxArmorSource.Apply(row, Armor(), Day);
+        row.Status = XboxUserArmorStatus.Failed;
+
+        var changed = XboxArmorSource.Apply(row, Armor(), Day.AddDays(1));
+
+        Assert.That((changed, row.Status, row.ChangedAt), Is.EqualTo((false, XboxUserArmorStatus.Found, Day)));
+    }
+
+    [Test]
     public void Apply_ALongPathOrABlankOne_IsCutOrDropped()
     {
         var row = new XboxUserArmor { XboxUserID = 1 };

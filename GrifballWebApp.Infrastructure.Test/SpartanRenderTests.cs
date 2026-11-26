@@ -112,13 +112,14 @@ public class SpartanRenderTests : SqliteContextFixture
     private readonly Service _service = new();
     private FakeCatalogs _catalogs = new(Catalog);
     private SpartanRenderOptions _options = new();
+    private readonly XboxArmorThrottle _throttle = new();
     private int _seq;
 
     private SpartanRenderSource Source()
     {
         var mapper = new SpartanArmorMapper(_halo, new MemoryCache(new MemoryCacheOptions())) { Delay = (_, _) => Task.CompletedTask };
         var client = new InfiniteSpartanRenderClient(new HttpClient(_service) { BaseAddress = new Uri("http://render.test/") });
-        return new SpartanRenderSource(Context, mapper, _catalogs, client, Options.Create(_options), _time, new XboxArmorThrottle());
+        return new SpartanRenderSource(Context, mapper, _catalogs, client, Options.Create(_options), _time, _throttle);
     }
 
     /// <summary>A user with an Xbox account, asking for a render (and with a choice when <paramref name="choice"/> is given).</summary>
@@ -390,6 +391,18 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That((render.State, render.RequestedAt), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime.AddMinutes(10))));
             Assert.That(again.Waiting, Is.Zero, "not due until the wait is over");
         }
+    }
+
+    [Test]
+    public async Task AServiceThatCannotBeReached_WhileHaloIsThrottledLonger_WaitsForTheThrottle()
+    {
+        _service.Unreachable = true;
+        _throttle.Wait(Start, TimeSpan.FromMinutes(45));
+        var (userId, _) = await UserAsync(Choice);
+
+        await Source().RunAsync();
+
+        Assert.That((await RenderOf(userId)).RequestedAt, Is.EqualTo(Start.UtcDateTime.AddMinutes(45)));
     }
 
     [Test]
