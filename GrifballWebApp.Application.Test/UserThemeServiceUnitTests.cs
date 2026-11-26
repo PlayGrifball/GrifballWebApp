@@ -119,6 +119,25 @@ internal sealed class UserThemeServiceUnitTests : ApplicationDbContextTests
         Assert.That(await _service.Get(1), Is.Null);
     }
     [Test]
+    public async Task Get_IsNull_ForStoredTextThatIsNotJson()
+    {
+        await AddUser();
+        var user = await Context.Users.SingleAsync(u => u.Id == 1);
+        user.ChooseTheme("not json");
+        await Context.SaveChangesAsync();
+
+        Assert.That(await _service.Get(1), Is.Null);
+    }
+
+    [Test]
+    public async Task Set_RefusesAColourWithATrailingNewline()
+    {
+        await AddUser();
+
+        Assert.That(await _service.Set(1, Theme("#fff\n")), Is.EqualTo(SetThemeResult.Invalid));
+    }
+
+    [Test]
     public async Task Get_IsNull_ForStoredTextThatIsNoTheme()
     {
         Context.Users.Add(User.Seed(userName: "alice", id: 1));

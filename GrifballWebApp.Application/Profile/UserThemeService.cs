@@ -36,10 +36,10 @@ public partial class UserThemeService
         _context = context;
     }
 
-    [GeneratedRegex("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")]
+    [GeneratedRegex("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\\z")]
     private static partial Regex Hex();
 
-    [GeneratedRegex("^[a-z0-9-]{0,32}$")]
+    [GeneratedRegex("^[a-z0-9-]{0,32}\\z")]
     private static partial Regex Era();
 
     /// <summary>Whether every part of the theme is one the editor can make (a stored theme is never anything else).</summary>
@@ -56,8 +56,15 @@ public partial class UserThemeService
         var stored = await _context.Users.Where(u => u.Id == userId).Select(u => u.Theme).FirstOrDefaultAsync(ct);
         if (stored is null)
             return null;
-        var theme = JsonSerializer.Deserialize<UserThemeDto>(stored, Json);
-        return IsValid(theme) ? theme : null;
+        try
+        {
+            var theme = JsonSerializer.Deserialize<UserThemeDto>(stored, Json);
+            return IsValid(theme) ? theme : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Saves the user's theme; the last one saved is the one every device shows.</summary>

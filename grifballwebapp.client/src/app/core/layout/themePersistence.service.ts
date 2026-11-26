@@ -34,7 +34,7 @@ export function parseThemeSettings(value: unknown): ThemeSettings | null {
 /**
  * Keeps the player's theme. Every change is saved on this device (localStorage, so it applies when signed out
  * and from the first paint) and, when signed in, to their account, so their other devices show it too. On
- * signing in, the account's theme wins; an account with none takes this device's (when it has one).
+ * signing in, the account's theme wins; an account with none keeps showing this device's until the player changes it.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemePersistence {
@@ -66,8 +66,8 @@ export class ThemePersistence {
       untracked(() => this.changed(settings));
     });
     effect(() => {
-      if (this.account.personID() !== null)
-        untracked(() => this.loadFromAccount());
+      const signedIn = this.account.personID() !== null;
+      untracked(() => signedIn ? this.loadFromAccount() : this.cancelSave());
     });
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
@@ -80,6 +80,8 @@ export class ThemePersistence {
     if (json === this.current)
       return;
     this.current = json;
+    if (!parseThemeSettings(settings))
+      return;
     this.writeStored(json);
     if (this.account.isLoggedIn()) {
       this.cancelSave();
@@ -97,8 +99,6 @@ export class ThemePersistence {
           this.writeStored(this.current);
           this.theming.applySettings(settings);
           this.restored.update(n => n + 1);
-        } else if (this.readStored()) {
-          this.saveToAccount(this.theming.settings());
         }
       },
       error: () => this.log.warn('Theme: could not load the saved theme'),
@@ -107,6 +107,8 @@ export class ThemePersistence {
 
   private saveToAccount(settings: ThemeSettings): void {
     this.timer = null;
+    if (!this.account.isLoggedIn())
+      return;
     void this.withApi(api => api.setMyTheme({ body: settings }).subscribe({
       error: () => this.log.warn('Theme: could not save the theme to the account'),
     }));

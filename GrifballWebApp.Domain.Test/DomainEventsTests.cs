@@ -229,6 +229,17 @@ public class DomainEventsTests
     }
 
     [Test]
+    public void User_ChoosingATheme_RaisesNothing_ItIsNotWhatTheSiteShows()
+    {
+        var user = User.Register("login");
+        Clear(user);
+
+        user.ChooseTheme("{}");
+
+        Assert.That(Events(user), Is.Empty);
+    }
+
+    [Test]
     public void User_RaisesAChangeOfWhatTheSiteShows_ARefusedLinkNothing()
     {
         var user = User.Register("login");

@@ -352,7 +352,6 @@ public class User : IdentityUser<int>, IAuditStamp, IHasDomainEvents
         if (Theme == theme)
             return false;
         Theme = theme;
-        Changed();
         return true;
     }
 
