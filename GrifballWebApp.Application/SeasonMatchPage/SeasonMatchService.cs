@@ -45,7 +45,9 @@ public partial class SeasonMatchService
     public Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, CancellationToken ct = default)
         => GetSeasonMatchPage(seasonMatchID, null, ct);
 
+    /// <param name="seasonMatchID">The season match to show.</param>
     /// <param name="userID">The signed-in user, for <see cref="SeasonMatchPageDto.CanRequestReschedule"/>; null for a visitor.</param>
+    /// <param name="ct">Cancels the lookup.</param>
     public async Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, int? userID, CancellationToken ct)
     {
         var seasonMatch = await _context.SeasonMatches

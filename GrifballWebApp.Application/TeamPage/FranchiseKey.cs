@@ -10,6 +10,7 @@ namespace GrifballWebApp.Application.TeamPage;
 /// (<see cref="Franchises.IsPlaceholderName"/>, like "Team 1" in an archived season) names no franchise: such a team is
 /// keyed by its own ID, its season's alone.
 /// </summary>
+/// <param name="LeagueID">The league the team played in.</param>
 /// <param name="Name">The normalized name; null for a placeholder name.</param>
 /// <param name="TeamID">The team's own ID, for a placeholder name only.</param>
 public readonly record struct FranchiseKey(int LeagueID, string? Name, int? TeamID)
