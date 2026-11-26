@@ -1,6 +1,6 @@
 import { PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { MyThemeService } from '@api/services/my-theme.service';
 import { UserThemeDto } from '@api/models/user-theme-dto';
 import { AccountService } from '../auth/account.service';
@@ -131,6 +131,57 @@ describe('ThemePersistence', () => {
     TestBed.tick();
     await until(() => api.setMyTheme.calls.count() > 0);
     expect(api.setMyTheme).toHaveBeenCalledOnceWith({ body: saved });
+  });
+
+  it('ignores stored text that is not JSON', () => {
+    localStorage.setItem(THEME_STORAGE_KEY, 'not json');
+    const before = create() && theming.settings();
+    expect(theming.settings()).toEqual(before);
+  });
+
+  it('still applies a change when the device will not store it', async () => {
+    spyOn(Storage.prototype, 'setItem').and.throwError('full');
+    create();
+    TestBed.tick();
+    theming.applySettings(saved);
+    TestBed.tick();
+    expect(theming.settings()).toEqual(saved);
+  });
+
+  it('logs, and keeps the theme shown, when the account\'s cannot be loaded', async () => {
+    api.getMyTheme.and.returnValue(throwError(() => new Error('down')));
+    personID.set(1);
+    create();
+    TestBed.tick();
+    await until(() => api.getMyTheme.calls.count() > 0);
+    await pause(20);
+    expect(TestBed.inject(AppLog).warn).toHaveBeenCalled();
+  });
+
+  it('logs when a change cannot be saved to the account', async () => {
+    api.setMyTheme.and.returnValue(throwError(() => new Error('down')));
+    personID.set(1);
+    create();
+    TestBed.tick();
+    await until(() => api.getMyTheme.calls.count() > 0);
+    theming.applySettings(saved);
+    TestBed.tick();
+    jasmine.clock().tick(THEME_SAVE_DELAY_MS);
+    await until(() => api.setMyTheme.calls.count() > 0);
+    await pause(20);
+    expect(TestBed.inject(AppLog).warn).toHaveBeenCalled();
+  });
+
+  it('does not call the account once destroyed', async () => {
+    personID.set(1);
+    create();
+    TestBed.tick();
+    theming.applySettings(saved);
+    TestBed.tick();
+    jasmine.clock().tick(THEME_SAVE_DELAY_MS);
+    TestBed.resetTestingModule();
+    await pause(50);
+    expect(api.setMyTheme).not.toHaveBeenCalled();
   });
 
   it('does nothing on the server render', () => {

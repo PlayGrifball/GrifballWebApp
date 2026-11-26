@@ -82,13 +82,38 @@ internal sealed class UserThemeServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public async Task Set_SaysThereIsNoSuchUser()
+    public async Task Set_RefusesATheme_WithPartsMissing_AsABodyWithoutThemeFieldsIs()
+    {
+        await AddUser();
+
+        var noColour = await _service.Set(1, new UserThemeDto { Era = null!, Font = "Roboto", Primary = null!, Secondary = "#fff", Tertiary = "#fff", Neutral = "#fff", NeutralVariant = "#fff", Error = "#fff" });
+        var nothing = await _service.Set(1, null!);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(noColour, Is.EqualTo(SetThemeResult.Invalid));
+            Assert.That(nothing, Is.EqualTo(SetThemeResult.Invalid));
+            Assert.That(UserThemeService.IsValid(null), Is.False);
+        }
+    }
+
+${1}()
     {
         Assert.That(await _service.Set(99, Theme()), Is.EqualTo(SetThemeResult.NoSuchUser));
     }
 
     [Test]
-    public async Task Get_IsNull_ForStoredTextThatIsNoTheme()
+    public async Task Get_IsNull_ForStoredJsonNull()
+    {
+        Context.Users.Add(User.Seed(userName: "alice", id: 1));
+        await Context.SaveChangesAsync();
+        var user = await Context.Users.SingleAsync(u => u.Id == 1);
+        user.ChooseTheme("null");
+        await Context.SaveChangesAsync();
+
+        Assert.That(await _service.Get(1), Is.Null);
+    }
+${1}
     {
         Context.Users.Add(User.Seed(userName: "alice", id: 1));
         await Context.SaveChangesAsync();
