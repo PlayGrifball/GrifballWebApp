@@ -5,7 +5,7 @@ namespace GrifballWebApp.Application.Stats;
 
 /// <summary>
 /// A player's totals over a run of games, a season's (<see cref="SeasonStatLine"/>) or a matchmaking season's
-/// (<see cref="MatchmakingStatLine"/>): from the games in the app, or the totals a stats sheet gives (<see cref="PlayerStatTotals"/>).
+/// (<see cref="LateLeague.MatchmakingStatLine"/>): from the games in the app, or the totals a stats sheet gives (<see cref="PlayerStatTotals"/>).
 /// Career totals add them up alike (<see cref="CareerTotals"/>).
 /// </summary>
 public abstract class StatLine
