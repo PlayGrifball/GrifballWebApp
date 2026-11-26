@@ -4,10 +4,12 @@
 import { PresenceMember } from '../models/presence-member';
 
 /**
- * A page and who is on it: the members by name, and how many guests.
+ * A page and who is on it: the members by name, and how many guests. Its subject is what it is about, by name (whose
+ * profile, which season, team or match); null for a page about nothing in particular, or nothing the public may see.
  */
 export interface PresencePage {
   guests: number;
   members: Array<PresenceMember>;
   path: string;
+  subject: string | null;
 }

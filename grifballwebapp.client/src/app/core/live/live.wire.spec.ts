@@ -198,7 +198,7 @@ async function waitFor(condition: () => boolean, what: string, timeoutMs = 5000)
 }
 
 /** Who is on the site, as the hub answers Viewing and sends it. */
-const SNAPSHOT = { online: 1, members: 0, guests: 1, pages: [{ path: '/seasons', guests: 1, members: [] }] };
+const SNAPSHOT = { online: 1, members: 0, guests: 1, pages: [{ path: '/seasons', subject: null, guests: 1, members: [] }] };
 
 /**
  * A fake hub for each test of the describe it is called in (offering these transports), and the service connected to

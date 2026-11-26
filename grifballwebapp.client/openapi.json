@@ -15406,12 +15406,17 @@
         "required": [
           "guests",
           "members",
-          "path"
+          "path",
+          "subject"
         ],
         "type": "object",
         "properties": {
           "path": {
             "type": "string"
+          },
+          "subject": {
+            "type": "string",
+            "nullable": true
           },
           "guests": {
             "type": "integer",
@@ -15425,7 +15430,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "A page and who is on it: the members by name, and how many guests."
+        "description": "A page and who is on it: the members by name, and how many guests. Its subject is what it is about, by name (whose\nprofile, which season, team or match); null for a page about nothing in particular, or nothing the public may see."
       },
       "PresenceSnapshot": {
         "required": [

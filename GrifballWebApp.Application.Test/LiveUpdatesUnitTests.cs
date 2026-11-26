@@ -240,6 +240,20 @@ internal sealed class LiveUpdatesUnitTests : ApplicationDbContextTests
         }
     }
 
+    [Test]
+    public void Presence_APage_IsAboutTheSubjectItsTabsNamed()
+    {
+        var snapshot = PresenceSnapshot.Of(
+        [
+            new PresenceTab("a", null, null, "/profile/3"),
+            new PresenceTab("b", null, null, "/profile/3", "Grunt Padre"),
+            new PresenceTab("c", null, null, "/leaderboards"),
+        ]);
+
+        Assert.That(snapshot.Pages.Select(p => (p.Path, p.Subject)),
+            Is.EqualTo(new[] { ("/profile/3", (string?)"Grunt Padre"), ("/leaderboards", null) }));
+    }
+
     [TestCase("draft:5", ExpectedResult = true)]
     [TestCase("season:5", ExpectedResult = true)]
     [TestCase("bracket:5", ExpectedResult = true)]

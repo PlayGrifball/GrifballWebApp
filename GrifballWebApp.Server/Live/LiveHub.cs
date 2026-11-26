@@ -69,7 +69,8 @@ public class LiveHub(LiveTopicAccess access, HubUser user, LiveWatchers watchers
     public async Task<PresenceSnapshot> Viewing(string path)
     {
         var shown = await pages.Shown(path, Context.ConnectionAborted);
-        await presence.Viewing(Context.ConnectionId, user.State.UserId, shown, Context.ConnectionAborted);
+        var subject = await pages.Subject(shown, Context.ConnectionAborted);
+        await presence.Viewing(Context.ConnectionId, user.State.UserId, shown, subject, Context.ConnectionAborted);
         return presence.Current;
     }
 

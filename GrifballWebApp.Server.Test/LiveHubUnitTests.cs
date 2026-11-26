@@ -470,6 +470,62 @@ public class LiveHubUnitTests : SqliteGrifballContextFixture
         }
     }
 
+    [Test]
+    public async Task Subject_NamesWhoseOrWhichPageItIs()
+    {
+        var season = await AddSeason("Season 5");
+        var reds = await AddTeam(season, "Reds");
+        var match = await AddSeasonMatch(season, reds, await AddTeam(season, "Blues"));
+        var game = GrifballWebApp.Domain.Halo.Match.Seed(Guid.NewGuid(), startTime: Now);
+        Db.Matches.Add(game);
+        match.AddGame(game, 1);
+        var user = await AddUser(41, "Grunt Padre");
+        var lateLeague = GrifballWebApp.Domain.LateLeague.MatchmakingSeason.Seed("Late League 8");
+        Db.MatchmakingSeasons.Add(lateLeague);
+        await Db.SaveChangesAsync();
+        var pages = new PresencePages(new SeasonVisibility(Db), Db);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await pages.Subject($"/profile/{user.Id}"), Is.EqualTo("Grunt Padre"));
+            Assert.That(await pages.Subject("/xbox/41"), Is.EqualTo("Grunt Padre"));
+            Assert.That(await pages.Subject($"/season/{season.SeasonID}"), Is.EqualTo("Season 5"));
+            Assert.That(await pages.Subject($"/season/{season.SeasonID}/draft"), Is.EqualTo("Season 5"));
+            Assert.That(await pages.Subject($"/seasonAvailability/{season.SeasonID}"), Is.EqualTo("Season 5"));
+            Assert.That(await pages.Subject($"/season/{season.SeasonID}/team/{reds.TeamID}"), Is.EqualTo("Reds (Season 5)"));
+            Assert.That(await pages.Subject($"/history/team/{reds.TeamID}"), Is.EqualTo("Reds (Season 5)"));
+            Assert.That(await pages.Subject($"/seasonmatch/{match.SeasonMatchID}"), Is.EqualTo("Reds vs Blues (Season 5)"));
+            Assert.That(await pages.Subject($"/reschedule-request/{match.SeasonMatchID}"), Is.EqualTo("Reds vs Blues (Season 5)"));
+            Assert.That(await pages.Subject($"/match/{game.MatchID}"), Is.EqualTo("Reds vs Blues (Season 5)"));
+            Assert.That(await pages.Subject($"/late-league/{lateLeague.MatchmakingSeasonID}"), Is.EqualTo("Late League 8"));
+            Assert.That(await pages.Subject("/profile/99999"), Is.Null, "no such user");
+            Assert.That(await pages.Subject($"/match/{Guid.NewGuid()}"), Is.Null, "a game of no season match");
+            Assert.That(await pages.Subject("/leaderboards"), Is.Null);
+            Assert.That(await pages.Subject(PresenceSnapshot.StaffArea), Is.Null);
+        }
+    }
+
+    [Test]
+    public async Task Subject_NamesNothingOfAHiddenSeason()
+    {
+        var hidden = await HiddenSeason();
+        var team = await AddTeam(hidden, "Home");
+        var match = await AddSeasonMatch(hidden, team, await AddTeam(hidden, "Away"));
+        var game = GrifballWebApp.Domain.Halo.Match.Seed(Guid.NewGuid(), startTime: Now);
+        Db.Matches.Add(game);
+        match.AddGame(game, 1);
+        await Db.SaveChangesAsync();
+        var pages = new PresencePages(new SeasonVisibility(Db), Db);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await pages.Subject($"/history/team/{team.TeamID}"), Is.Null);
+            Assert.That(await pages.Subject($"/match/{game.MatchID}"), Is.Null);
+            Assert.That(await pages.Subject($"/season/{hidden.SeasonID}"), Is.Null);
+            Assert.That(await pages.Subject($"/seasonmatch/{match.SeasonMatchID}"), Is.Null);
+        }
+    }
+
     [TestCase("/seasons?page=2#top", "/seasons")]
     [TestCase("/leaderboards/", "/leaderboards")]
     [TestCase("", "/")]
