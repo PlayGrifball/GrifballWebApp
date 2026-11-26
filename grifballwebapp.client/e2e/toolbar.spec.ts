@@ -106,8 +106,10 @@ test('the toolbar lays out its links again on signing in, at every screen size',
 test('the logo is vector shapes, with no picture inside', async ({ request }) => {
   const response = await request.get(`${SITE}/assets/grifLogo.svg`);
   expect(response.ok()).toBe(true);
-  const svg = await response.text();
+  const body = await response.body();
+  const svg = body.toString("utf8");
   expect(svg).toContain('<path');
   expect(svg).not.toMatch(/<image\b|data:image\//);
-  expect(svg.length).toBeLessThan(450_000);
+  // Bytes as served (it is about 434 kB): a re-trace that grows it notably fails here
+  expect(body.length).toBeLessThan(445_000);
 });
