@@ -7,7 +7,9 @@
   padding: 12px;
   // Solid: the page's text must not show through the words
   background: var(--hud-surface-container);
-  max-height: min(560px, calc(100vh - 140px));
+  // --flipyap-chat-room: set by FlipyapComponent on its box, the room on whichever side the panel opens; the fallback is for
+  // when that ancestor isn't there (a test of this component alone)
+  max-height: min(560px, var(--flipyap-chat-room, calc(100vh - 140px)));
   box-shadow: 0 8px 28px rgb(0 0 0 / 40%);
 }
 

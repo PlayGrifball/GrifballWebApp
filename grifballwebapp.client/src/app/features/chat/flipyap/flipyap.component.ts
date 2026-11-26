@@ -19,6 +19,11 @@ export const POSITION_STORAGE_KEY = 'flipyap-position';
 export const DRAG_THRESHOLD_PX = 4;
 /** His distance from the window's right and bottom edges before anyone moves him. */
 export const CORNER_MARGIN_PX = 16;
+/** His box's own width and height (flipyap.component.scss's .flipyap and .flipyap__pet, both fixed): not read from the DOM, so
+ * clamping never depends on a render that may be one (or two) pointermoves behind, or never happened at all (he is hidden on /chat). */
+export const BOX_SIZE_PX = 64;
+/** The gap between his box and the chat panel, open above or below him (flipyap.component.scss's 72px bottom/top). */
+export const CHAT_GAP_PX = 72;
 
 interface Offset {
   readonly x: number;
@@ -86,6 +91,24 @@ export class FlipyapComponent {
   private suppressClick = false;
   /** The chat was just opened and wants the cursor: set until it (and, its first time, its @defer chunk) exists to take it. */
   private readonly focusPending = signal(false);
+  /** The greeting has had its chance to show, once his box first existed to show it in. */
+  private greeted = false;
+
+  /**
+   * How tall his chat panel may be without running off the window: the room on the side it opens (above him normally, below
+   * once he is near the top), from its gap to him down to the window's own edge, with a little margin to spare. Set as a CSS
+   * custom property (flipyapChat.component.scss's max-height) so dragging him near the middle of a short window still leaves
+   * the panel's buttons on screen.
+   */
+  readonly chatRoomPx = computed(() => {
+    const windowHeight = this.isBrowser ? document.documentElement.clientHeight : 0;
+    const { y } = this.offset();
+    const boxBottom = windowHeight - this.margin + y;
+    const anchor = this.nearTop()
+      ? windowHeight - (boxBottom - BOX_SIZE_PX + CHAT_GAP_PX)
+      : boxBottom - CHAT_GAP_PX;
+    return anchor - this.margin;
+  });
 
   readonly frame = computed<FlipyapFrame>(() => {
     if (this.held())
@@ -111,8 +134,17 @@ export class FlipyapComponent {
     afterNextRender(() => {
       if (!this.reducedMotion)
         this.blinkNowAndThen();
-      this.greetOnce();
+      // Arithmetic, not his box's rendered rect: safe even starting on /chat, where there is no box to read
       this.restorePosition();
+    });
+
+    // The greeting bubble hangs off his box, which doesn't exist at all while he starts on /chat: it waits for his first
+    // appearance (there, once he leaves /chat), so its timed show isn't spent on a page where nothing is rendered to see it.
+    afterRenderEffect(() => {
+      if (this.box() && !this.greeted) {
+        this.greeted = true;
+        this.greetOnce();
+      }
     });
 
     // Focuses the question box once it exists: on the chat's first open, its @defer chunk may still be loading
@@ -198,21 +230,21 @@ export class FlipyapComponent {
     this.moveTo(x, y);
   }
 
-  /** Moves him to the offset, or as near it as keeps all of him in the window. */
+  /**
+   * Moves him to the offset, or as near it as keeps all of him in the window: by arithmetic (the window's size, his box's own
+   * fixed size, and the corner margin), never his box's rendered position. Two pointermoves in the same frame (before Angular
+   * has rendered the first) would otherwise clamp the second against a rect one move behind, letting him past the edge; on
+   * /chat there is no box to read at all, which otherwise left his saved position and a resize both unapplied until he returned.
+   */
   private moveTo(x: number, y: number): void {
-    const box = this.box()?.nativeElement;
-    if (!box)
-      return;
     // The window without its scrollbars: what a fixed box is placed in
     const { clientWidth, clientHeight } = document.documentElement;
-    const rect = box.getBoundingClientRect();
-    const now = this.offset();
-    const clamp = (delta: number, low: number, high: number) => Math.min(Math.max(delta, low), high);
-    const dx = clamp(x - now.x, -rect.left, clientWidth - rect.right);
-    const dy = clamp(y - now.y, -rect.top, clientHeight - rect.bottom);
-    this.offset.set({ x: now.x + dx, y: now.y + dy });
-    this.nearLeft.set(rect.left + dx + rect.width / 2 < clientWidth / 2);
-    this.nearTop.set(rect.top + dy + rect.height / 2 < clientHeight / 2);
+    const clampTo = (value: number, size: number) => Math.min(Math.max(value, this.margin + BOX_SIZE_PX - size), this.margin);
+    const nextX = clampTo(x, clientWidth);
+    const nextY = clampTo(y, clientHeight);
+    this.offset.set({ x: nextX, y: nextY });
+    this.nearLeft.set(clientWidth - this.margin + nextX - BOX_SIZE_PX / 2 < clientWidth / 2);
+    this.nearTop.set(clientHeight - this.margin + nextY - BOX_SIZE_PX / 2 < clientHeight / 2);
   }
 
   private restorePosition(): void {

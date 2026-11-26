@@ -4,7 +4,7 @@ import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
 import { HubConnectionBuilder, HubConnectionState, type HubConnection } from '@microsoft/signalr';
 import { AccountService } from '@core/auth/account.service';
-import { BLINK_EVERY_MS, BLINK_FOR_MS, CORNER_MARGIN_PX, DRAG_THRESHOLD_PX, FlipyapComponent, GREETED_STORAGE_KEY, GREETING_FOR_MS, POSITION_STORAGE_KEY, TALK_BEAT_MS } from './flipyap.component';
+import { BLINK_EVERY_MS, BLINK_FOR_MS, CHAT_GAP_PX, CORNER_MARGIN_PX, DRAG_THRESHOLD_PX, FlipyapComponent, GREETED_STORAGE_KEY, GREETING_FOR_MS, POSITION_STORAGE_KEY, TALK_BEAT_MS } from './flipyap.component';
 import { FlipyapChatComponent } from './flipyapChat.component';
 
 @Component({ selector: 'app-flipyap-chat', template: '', changeDetection: ChangeDetectionStrategy.OnPush })
@@ -312,6 +312,40 @@ describe('FlipyapComponent', () => {
       expect([rect.right, rect.bottom]).toEqual([view().clientWidth, view().clientHeight]);
     });
 
+    it('clamps by arithmetic, not his box\'s rendered rect: two moves in one frame cannot put him past the edge', () => {
+      create();
+      const rect = pet().getBoundingClientRect();
+      const x = rect.left + 10;
+      const y = rect.top + 10;
+
+      // Both dispatched before a render (no detectChanges between them, unlike the pointer() helper): a clamp that reads his
+      // box's rect, rather than computing it, would still see the first move's rect for the second
+      pet().dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: x, clientY: y, button: 0, bubbles: true }));
+      pet().dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: x - 100000, clientY: y - 100000, bubbles: true }));
+      pet().dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: x - 200000, clientY: y - 200000, bubbles: true }));
+      fixture.detectChanges();
+
+      expect(box().getBoundingClientRect().left).toBe(0);
+      expect(box().getBoundingClientRect().top).toBe(0);
+    });
+
+    describe('the chat panel\'s headroom (--flipyap-chat-room, flipyapChat.component.scss\'s max-height)', () => {
+      const room = () => Number(box().style.getPropertyValue('--flipyap-chat-room').replace('px', ''));
+
+      it('is the space above him, down to the top of the window, with margin to spare', () => {
+        create();
+        expect(room()).toBe(view().clientHeight - CORNER_MARGIN_PX * 2 - CHAT_GAP_PX);
+      });
+
+      it('is the space below him instead, once he is dragged to the top and the chat opens there', () => {
+        create();
+        dragBy(-100000, -100000);
+        expect(el().querySelector('.flipyap--below')).not.toBeNull();
+
+        expect(room()).toBe(view().clientHeight - CORNER_MARGIN_PX - CHAT_GAP_PX);
+      });
+    });
+
     it('opens the chat below and beside him in the top left, and above and beside him in the bottom right', () => {
       create();
       expect(el().querySelector('.flipyap--below, .flipyap--start')).toBeNull();
@@ -336,6 +370,19 @@ describe('FlipyapComponent', () => {
         expect(corner()).withContext(kept).toEqual({ right: CORNER_MARGIN_PX, bottom: CORNER_MARGIN_PX });
         fixture.destroy();
       }
+    });
+
+    it('starting on /chat, his saved position and the greeting wait for his first appearance, once he leaves it', async () => {
+      localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify({ x: -30, y: -20 }));
+      await TestBed.inject(Router).navigateByUrl('/chat');
+      create();
+      expect(el().querySelector('.flipyap')).withContext('no box at all on /chat').toBeNull();
+
+      await TestBed.inject(Router).navigateByUrl('/seasons');
+      fixture.detectChanges();
+
+      expect(corner()).toEqual({ right: CORNER_MARGIN_PX + 30, bottom: CORNER_MARGIN_PX + 20 });
+      expect(el().querySelector('.flipyap__greeting')).withContext('shown now, not spent while he was off /chat').not.toBeNull();
     });
 
     it('is pulled back inside when the window gets smaller than where he stands', () => {

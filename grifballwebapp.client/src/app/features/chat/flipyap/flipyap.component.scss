@@ -15,13 +15,11 @@
   bottom: 72px;
 }
 
-.flipyap--start .flipyap__chat,
 .flipyap--start .flipyap__greeting {
   right: auto;
   left: 0;
 }
 
-.flipyap--below .flipyap__chat,
 .flipyap--below .flipyap__greeting {
   top: 72px;
   bottom: auto;
@@ -29,6 +27,20 @@
 
 .flipyap__chat {
   width: min(380px, calc(100vw - 32px));
+}
+
+// Above phone width only: on a phone the chat is a bottom sheet regardless of where he stands (below), so these two
+// classes (each a single selector, same as the sheet rule's) must not be free to win there by coming later in the file
+@media (min-width: 561px) {
+  .flipyap--start .flipyap__chat {
+    right: auto;
+    left: 0;
+  }
+
+  .flipyap--below .flipyap__chat {
+    top: 72px;
+    bottom: auto;
+  }
 }
 
 // On a phone the chat is a sheet along the bottom, wherever he stands
