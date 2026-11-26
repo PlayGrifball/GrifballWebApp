@@ -363,6 +363,7 @@ public partial class GrifChatUnitTests
         {
             Assert.That(about, Does.Contain("Unggoy").And.Contain("third person").And.Contain("Demon").And.Contain("exactly"));
             Assert.That(about, Does.Contain("Every Grunt for himself"), "A line Grunts really say");
+            Assert.That(about, Does.Contain("food nipple"), "A Grunt loves his food nipple");
             // "Wort" is the Elites' war cry: the prompt may name it only to rule it out
             Assert.That(about.Replace("never the Elites' \"Wort\"", ""), Does.Not.Contain("Wort"));
         }
