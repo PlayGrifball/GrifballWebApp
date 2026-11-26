@@ -148,7 +148,7 @@ public static class GrifTools
     public static readonly string[] PrivateChat = [.. Chat, .. Staff.SelectMany(Methods).Select(Name)];
 
     /// <summary>
-    /// Every tool, as the MCP server gives them (<see cref="All"/>), each for its roles: for a chat in private with a model that picks well from
+    /// Every tool, as the MCP server gives them (<see cref="All"/>), each for its roles: for a chat in private (in public, <see cref="EveryPublic"/>) with a model that picks well from
     /// a long list (the chat model option EveryTool), so it can answer what the short list can't (every season, a Late League season).
     /// </summary>
     public static readonly string[] Every = [.. All.SelectMany(set => Methods(set.Type)).Select(Name)];

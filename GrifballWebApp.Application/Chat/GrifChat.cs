@@ -7,7 +7,8 @@ namespace GrifballWebApp.Application.Chat;
 /// <summary>
 /// A host of the chat (the Discord bot in a channel or a DM, the site): what it tells the model about itself, whether others
 /// read its replies, and how long one may take. Whether others read them is what sets the rest apart: in public (a Discord
-/// channel) the caller sees seasons as the public does and gets <see cref="GrifTools.Chat"/>; in private (a DM, the site) their
+/// channel) the caller sees seasons as the public does and gets <see cref="GrifTools.Chat"/>, or, with a model that picks well from a long
+/// list, <see cref="GrifTools.EveryPublic"/> (no staff's tools); in private (a DM, the site) their
 /// roles decide what they see, and they get <see cref="GrifTools.PrivateChat"/>, staff's tools too, each for its roles; or, with a model
 /// that picks well from a long list, every tool (<see cref="ToolsFor"/>).
 /// </summary>

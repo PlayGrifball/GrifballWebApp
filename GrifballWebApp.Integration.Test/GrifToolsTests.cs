@@ -17,6 +17,7 @@ using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Application.TeamPage;
 using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Mcp;
@@ -254,6 +255,25 @@ public class GrifToolsTests
             Assert.That(page.HomeTeamName, Is.EqualTo("Alpha"));
             await Assert.ThrowsAsync<ToolException>(() => tools.GetSeasonMatch(match.SeasonMatchID + 1000));
             await Assert.ThrowsAsync<ToolException>(() => tools.GetGame(Guid.NewGuid()));
+        }
+    }
+
+    [Test]
+    public async Task MatchTools_GetGame_IsNoGameOfASeasonNotAnnouncedYet_ToAnyoneButStaff()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var game = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, [301, 302], Outcomes.Won, [303, 304], Outcomes.Lost);
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = game.MatchID });
+        seeded.Season.AnnounceAt(null);
+        await _context.SaveChangesAsync();
+
+        var asStaff = await MatchTools(new ToolCaller(_captain.Id, ["Commissioner"])).GetGame(game.MatchID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(asStaff.MatchID, Is.EqualTo(game.MatchID), "staff set seasons up");
+            Assert.That((await Assert.ThrowsAsync<ToolException>(() => MatchTools(new ToolCaller(_captain.Id, [])).GetGame(game.MatchID)))!.Message,
+                Does.Contain("no recorded game"), "a player is told no more than for a game that was never pulled");
         }
     }
 
