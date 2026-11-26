@@ -23,6 +23,8 @@ public class GamesTableParserTests
     private static readonly string[] InfoSheets = ["gb_teamstats", "gb_deletedgames", "h_games", "h4_pstats", "agla_playerstats", "agla_teamindex", "agla_gamesreported", "agla_deletedgames"];
     private static readonly string[] Sml11Rosters = ["Sarge, Simmons", "Church, Grif, Tucker"];
     private static readonly int[] NoLines = [0, 0];
+    private static readonly string[] ScheduleKept = ["Total Attacker", "Bee"];
+    private static readonly string[] ReportedKept = ["Average Joe", "Bee"];
     private static readonly string[] OnlyBee = ["Bee"];
 
     private static HistoricalSourceConfig CatalogConfig(string id)
@@ -480,8 +482,8 @@ public class GamesTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(Games(build, "schedule2").Single().Players.Select(p => p.Gamertag), Is.EqualTo(new[] { "Total Attacker", "Bee" }));
-            Assert.That(Games(build, "reported").Single().Players.Select(p => p.Gamertag), Is.EqualTo(new[] { "Average Joe", "Bee" }));
+            Assert.That(Games(build, "schedule2").Single().Players.Select(p => p.Gamertag), Is.EqualTo(ScheduleKept));
+            Assert.That(Games(build, "reported").Single().Players.Select(p => p.Gamertag), Is.EqualTo(ReportedKept));
             Assert.That(build.Warnings, Does.Contain($"{EdgeId}: schedule2: 1 player line(s) of no listed game or of neither side, skipped"));
             Assert.That(build.Warnings, Does.Contain($"{EdgeId}: reported: 1 player line(s) of no listed game or of neither side, skipped"));
         }
