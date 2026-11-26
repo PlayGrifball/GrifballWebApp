@@ -7742,6 +7742,147 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasAnnotation("Grif:HistoryOf", "XboxUsers");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUserArmor", b =>
+                {
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ActionPosePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("ArmorFxPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("BodyType")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChestAttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("CoatingPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("CoreId")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("CorePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("GlovePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("HelmetAttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("HelmetPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("HipAttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("KneePadPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("LeftArm")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("LeftLeg")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("LeftShoulderPadPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("MythicFxPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("RightArm")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("RightLeg")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("RightShoulderPadPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("StancePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ThemePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("VisorPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("WristAttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.HasKey("XboxUserID");
+
+                    b.HasIndex("CheckedAt");
+
+                    b.ToTable("XboxUserArmor", "Xbox");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUserImage", b =>
                 {
                     b.Property<long>("XboxUserID")
@@ -9673,6 +9814,17 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 {
                     b.HasOne("GrifballWebApp.Domain.Players.XboxUser", "XboxUser")
                         .WithMany("PastGamertags")
+                        .HasForeignKey("XboxUserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("XboxUser");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUserArmor", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Players.XboxUser", "XboxUser")
+                        .WithMany()
                         .HasForeignKey("XboxUserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

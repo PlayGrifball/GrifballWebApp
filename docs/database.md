@@ -537,13 +537,16 @@ erDiagram
 
 ### Xbox
 
-Xbox users, past gamertags, XUID lookups and images (4 tables).
+Xbox users, past gamertags, XUID lookups, images and equipped armor (5 tables).
 
 ```mermaid
 erDiagram
     PastGamertags {
         int XboxGamertagHistoryID PK
         long XboxUserID FK
+    }
+    XboxUserArmor {
+        long XboxUserID PK, FK
     }
     XboxUserImages {
         long XboxUserID PK, FK
@@ -560,6 +563,7 @@ erDiagram
     }
     Users ||--o| XuidLookups : "UserID"
     XboxUsers ||--o{ PastGamertags : "XboxUserID"
+    XboxUsers ||--o| XboxUserArmor : "XboxUserID"
     XboxUsers ||--o{ XboxUserImages : "XboxUserID"
 ```
 
@@ -621,6 +625,7 @@ would only grow:
 | `Event.HistoricalSourceSnapshots` | Whole downloaded files |
 | `Xbox.XuidLookups` | The XUID lookup's retry queue (the claims it makes keep their history) |
 | `Xbox.XboxUserImages` | The gamer pictures and emblems the image jobs keep: whole images, rewritten when one changes |
+| `Xbox.XboxUserArmor` | What each account has equipped in Halo Infinite, rewritten on every change |
 
 A test (`EveryTable_KeepsHistory_ButTheBackgroundJobsBookkeeping`) fails for any other table without history. This section is about SQL Server and Postgres; SQLite keeps the same history with a few
 differences ([sqlite.md](sqlite.md)).
