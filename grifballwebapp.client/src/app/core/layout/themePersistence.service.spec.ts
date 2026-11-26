@@ -101,6 +101,7 @@ describe('ThemePersistence', () => {
     personID.set(1);
     create();
     TestBed.tick();
+    await until(() => api.getMyTheme.calls.count() > 0);
     theming.applySettings({ ...saved, primary: '#000000' });
     TestBed.tick();
     jasmine.clock().tick(THEME_SAVE_DELAY_MS / 2);

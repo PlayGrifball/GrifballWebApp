@@ -46,6 +46,7 @@ export class ThemePersistence {
 
   /** The settings (as JSON) last put on the site from storage, the account or a change, so only a new choice is saved. */
   private current = '';
+  private destroyed = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   /** Counts the times a saved theme from the account replaced the one shown: the editor starts over from it. */
@@ -68,7 +69,10 @@ export class ThemePersistence {
       if (this.account.personID() !== null)
         untracked(() => this.loadFromAccount());
     });
-    inject(DestroyRef).onDestroy(() => this.cancelSave());
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.cancelSave();
+    });
   }
 
   private changed(settings: ThemeSettings): void {
@@ -111,7 +115,8 @@ export class ThemePersistence {
   /** The account endpoints load on first use, so signed-out visitors never download them with the first page. */
   private async withApi(use: (api: MyThemeService) => void): Promise<void> {
     const { MyThemeService } = await import('@api/services/my-theme.service');
-    use(this.injector.get(MyThemeService));
+    if (!this.destroyed)
+      use(this.injector.get(MyThemeService));
   }
 
   private cancelSave(): void {
