@@ -41,7 +41,7 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
         // The page's Stop cancels it: the user may ask again at once
         return StreamAsync(caller, () => chat.StartAsync(GrifChat.History(request), request.Question, caller,
             // Changes run without asking as this conversation chose, else (null) as the user did
-            ChatHost.Site with { AutoApprove = request.AutoApprove }, Asker(caller), request.Model, cancellationToken), cancellationToken);
+            GrifChat.WithPage(ChatHost.Site with { AutoApprove = request.AutoApprove }, request.Page, request.PageTitle), Asker(caller), request.Model, cancellationToken), cancellationToken);
     }
 
     /// <summary>

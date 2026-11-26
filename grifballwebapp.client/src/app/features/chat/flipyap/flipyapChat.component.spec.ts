@@ -1,11 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { PLATFORM_ID, signal } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { Component, PLATFORM_ID, signal } from '@angular/core';
+import { Title } from '@angular/platform-browser';
+import { Router, provideRouter } from '@angular/router';
 import { HubConnectionBuilder, HubConnectionState, type HubConnection, type IStreamSubscriber } from '@microsoft/signalr';
 import type { ChatActionDto, ChatConfirmDto } from '@api/models';
 import { AccountService } from '@core/auth/account.service';
 import { CHAT_STORAGE_KEY, CONFIRMED } from '../chat.store';
 import { FlipyapChatComponent } from './flipyapChat.component';
+
+@Component({ template: '' })
+class Blank {}
 
 describe('FlipyapChatComponent', () => {
   let fixture: ComponentFixture<FlipyapChatComponent>;
@@ -58,7 +62,7 @@ describe('FlipyapChatComponent', () => {
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
     TestBed.configureTestingModule({
       imports: [FlipyapChatComponent],
-      providers: [provideRouter([]), { provide: PLATFORM_ID, useValue: 'browser' }, { provide: AccountService, useValue: { isLoggedIn } }],
+      providers: [provideRouter([{ path: '**', component: Blank }]), { provide: PLATFORM_ID, useValue: 'browser' }, { provide: AccountService, useValue: { isLoggedIn } }],
     });
     fixture = TestBed.createComponent(FlipyapChatComponent);
     closed = jasmine.createSpy('closed');
@@ -77,11 +81,28 @@ describe('FlipyapChatComponent', () => {
   it('puts the cursor in the question box, and asks a signed-out visitor to name the player', () => {
     expect(document.activeElement).toBe(textarea());
     expect(text()).toContain('Ask Flipyap about seasons');
-    expect(text()).toContain("I don't know who you are");
+    expect(text()).toContain("Flipyap no know who you are");
 
     isLoggedIn.set(true);
     fixture.detectChanges();
-    expect(text()).not.toContain("I don't know who you are");
+    expect(text()).not.toContain("Flipyap no know who you are");
+  });
+
+  it('tells the chat which page he stands on, without its query or fragment, and its title', async () => {
+    await TestBed.inject(Router).navigateByUrl('/season/12?tab=stats#top');
+    TestBed.inject(Title).setTitle('Spring 2026 - Grifball');
+    type('Who is first?');
+    button('Ask')!.click();
+    fixture.detectChanges();
+
+    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who is first?', history: [], model: null, autoApprove: null, page: '/season/12', pageTitle: 'Spring 2026 - Grifball' });
+
+    answer().subscriber.complete();
+    await TestBed.inject(Router).navigateByUrl('/leaderboards');
+    TestBed.inject(Title).setTitle('Leaderboards - Grifball');
+    type('And here?');
+    button('Ask')!.click();
+    expect(stream.calls.mostRecent().args[1]).toEqual(jasmine.objectContaining({ page: '/leaderboards', pageTitle: 'Leaderboards - Grifball' }));
   });
 
   it('asks, shows the answer as Flipyap as it streams in, and talks while it does', () => {
@@ -89,7 +110,7 @@ describe('FlipyapChatComponent', () => {
     button('Ask')!.click();
     fixture.detectChanges();
 
-    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [], model: null, autoApprove: null });
+    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [], model: null, autoApprove: null, page: '/', pageTitle: null });
     expect(textarea().value).toBe('');
     expect(talking).toHaveBeenCalledWith(true);
 

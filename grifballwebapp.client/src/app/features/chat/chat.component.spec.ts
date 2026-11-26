@@ -86,7 +86,7 @@ describe('ChatComponent', () => {
     button('Ask')!.click();
     fixture.detectChanges();
 
-    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [], model: null, autoApprove: null });
+    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [], model: null, autoApprove: null, page: null, pageTitle: null });
     expect(textarea().value).toBe('');
     expect(button('Ask')!.disabled).toBeTrue();
     expect(el().querySelector('[role="log"]')!.getAttribute('aria-busy')).toBe('true');

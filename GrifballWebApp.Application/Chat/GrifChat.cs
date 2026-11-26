@@ -210,6 +210,34 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     public static string Instructions(ChatHost host)
         => string.Join('\n', Shared.Prepend(host.About).Concat(Private(host)).Append(host.More));
 
+    /// <summary>The longest page path and page title <see cref="WithPage"/> keeps.</summary>
+    public const int MaxPageLength = 200;
+    public const int MaxPageTitleLength = 100;
+
+    /// <summary>
+    /// <paramref name="host"/> told which page the person is looking at: its path (a site address, with no query or fragment) and
+    /// title, which the browser sends and so are cleaned (control characters and quotes dropped, cut short) before the model reads
+    /// them. <paramref name="host"/> itself when there is no usable path.
+    /// </summary>
+    public static ChatHost WithPage(ChatHost host, string? page, string? title)
+    {
+        var path = Cleaned(page?.Split('?', '#')[0], MaxPageLength);
+        if (path is null || path[0] != '/')
+            return host;
+        var name = Cleaned(title, MaxPageTitleLength);
+        var titled = name is null ? "" : $" (titled \"{name}\")";
+        return host with { More = $"{host.More}\nThe person is looking at the site's page {path}{titled}: \"this\", \"here\" and \"this page\" mean it." };
+    }
+
+    /// <summary><paramref name="text"/> on one line without control characters or double quotes, at most <paramref name="max"/> long; null when nothing is left.</summary>
+    private static string? Cleaned(string? text, int max)
+    {
+        var kept = new string((text ?? "").Where(c => !char.IsControl(c) && c != '"').ToArray()).Trim();
+        if (kept.Length > max)
+            kept = kept[..max];
+        return kept.Length == 0 ? null : kept;
+    }
+
     /// <summary>What <paramref name="host"/> adds in private: changes are for when they're asked for, waiting for a yes unless approved automatically.</summary>
     private static string[] Private(ChatHost host)
     {

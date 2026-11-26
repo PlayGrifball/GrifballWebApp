@@ -90,6 +90,22 @@ public class ChatHubUnitTests
     }
 
     [Test]
+    public async Task Ask_FromAPage_TellsTheModelWhichPage()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "ok"));
+        var hub = Hub(model, new HubUserState(7, ["Player"]));
+
+        var (_, error) = await Read(await hub.Ask(Question() with { Page = "/season/12", PageTitle = "Spring 2026" }, CancellationToken.None));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.Null);
+            Assert.That(model.Options!.Instructions, Is.EqualTo(GrifChat.Instructions(GrifChat.WithPage(ChatHost.Site, "/season/12", "Spring 2026"))));
+            Assert.That(model.Options!.Instructions, Does.Contain("/season/12"));
+        }
+    }
+
+    [Test]
     public async Task Ask_SignedIn_AsksAsTheUserWithTheirRoles_InPrivate_AndStreamsTheReply()
     {
         var model = new ScriptedChatClient((TimeSpan.Zero, "Hi "), (TimeSpan.Zero, ""), (TimeSpan.Zero, "there"));

@@ -34,6 +34,12 @@ export const FAILED = "The chat couldn't answer just now: try again later.";
 export const CONFIRMED = 'Yes, do it.';
 export const CANCELLED = 'No, cancel it.';
 
+/** The page a question is asked from: its path (no query or fragment) and title. */
+export interface AskedFrom {
+  readonly path: string;
+  readonly title: string;
+}
+
 /** What SignalR puts before a HubException's message, the reason the server gives the browser. */
 const HUB_EXCEPTION = 'HubException: ';
 
@@ -143,9 +149,10 @@ export class ChatStore {
 
   /**
    * Asks `question` (trimmed), with the conversation so far: its answer streams into the conversation's last message.
+   * `page` is the page the person is looking at, for the model's context (Flipyap's chat in a corner of it); none on the chat page.
    * False when nothing was asked: no question, an answer still on its way, or no connection yet (the error says so).
    */
-  ask(question: string): boolean {
+  ask(question: string, page: AskedFrom | null = null): boolean {
     const text = question.trim();
     if (!text || this.asking() || !this.connection)
       return false;
@@ -158,7 +165,7 @@ export class ChatStore {
     const model = this.models()?.selected;
     const history = this.history();
     const autoApprove = this.conversationAutoApproveState();
-    this.stream(connection, text, hub => hub.ask({ question: text, history, model: model ?? null, autoApprove }));
+    this.stream(connection, text, hub => hub.ask({ question: text, history, model: model ?? null, autoApprove, page: page?.path ?? null, pageTitle: page?.title || null }));
     return true;
   }
 

@@ -10623,6 +10623,8 @@
           "autoApprove",
           "history",
           "model",
+          "page",
+          "pageTitle",
           "question"
         ],
         "type": "object",
@@ -10646,6 +10648,16 @@
           "autoApprove": {
             "type": "boolean",
             "description": "Whether a change the chat makes runs without asking, this conversation (GrifballWebApp.Application.Chat.ChatHost.AutoApprove); null: the user's\nsetting (M:GrifballWebApp.Application.Chat.GrifChat.AutoApproveAsync(GrifballWebApp.Application.Tools.ToolCaller,System.Threading.CancellationToken)).",
+            "nullable": true
+          },
+          "page": {
+            "type": "string",
+            "description": "The path of the page the person is looking at (Flipyap's chat in a corner of it), for the model's context; null: none (the chat page).",
+            "nullable": true
+          },
+          "pageTitle": {
+            "type": "string",
+            "description": "The title of that page, for the same.",
             "nullable": true
           }
         },

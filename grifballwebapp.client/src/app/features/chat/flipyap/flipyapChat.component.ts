@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, afterRenderEffect, effect, inject, output, viewChild } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Title } from '@angular/platform-browser';
+import { Router, RouterLink } from '@angular/router';
 import { AccountService } from '@core/auth/account.service';
-import { ChatStore, MAX_QUESTION_LENGTH } from '../chat.store';
+import { ChatStore, MAX_QUESTION_LENGTH, type AskedFrom } from '../chat.store';
 
 /**
  * Flipyap's chat, small enough for a corner of any page: the league's chat (the same as the chat page, its conversation
@@ -20,6 +21,8 @@ import { ChatStore, MAX_QUESTION_LENGTH } from '../chat.store';
 })
 export class FlipyapChatComponent {
   private readonly store = inject(ChatStore);
+  private readonly router = inject(Router);
+  private readonly title = inject(Title);
 
   readonly turns = this.store.turns;
   readonly asking = this.store.asking;
@@ -58,8 +61,13 @@ export class FlipyapChatComponent {
   }
 
   ask(): void {
-    if (this.form.valid && this.store.ask(this.form.controls.question.value))
+    if (this.form.valid && this.store.ask(this.form.controls.question.value, this.page()))
       this.form.reset();
+  }
+
+  /** The page Flipyap stands on, as the model is told it: the address without its query and fragment, and the page's title. */
+  private page(): AskedFrom {
+    return { path: this.router.url.split(/[?#]/)[0], title: this.title.getTitle() };
   }
 
   /** Enter asks (keydown.enter: not with Shift, which starts a new line). */
