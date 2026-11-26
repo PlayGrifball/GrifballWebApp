@@ -357,7 +357,15 @@ public partial class GrifChatUnitTests
     [Test]
     public void Site_SpeaksAsAHaloGrunt_InThirdPerson_WithFactsExact()
     {
-        Assert.That(ChatHost.Site.About, Does.Contain("Unggoy").And.Contain("third person").And.Contain("Demon").And.Contain("exactly"));
+        var about = ChatHost.Site.About;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(about, Does.Contain("Unggoy").And.Contain("third person").And.Contain("Demon").And.Contain("exactly"));
+            Assert.That(about, Does.Contain("Every Grunt for himself"), "A line Grunts really say");
+            // "Wort" is the Elites' war cry: the prompt may name it only to rule it out
+            Assert.That(about.Replace("never the Elites' \"Wort\"", ""), Does.Not.Contain("Wort"));
+        }
     }
 
     [Test]
