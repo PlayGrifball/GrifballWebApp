@@ -1,0 +1,20 @@
+@if (!onChatPage()) {
+  <div class="flipyap">
+    @if (everOpened()) {
+      <div class="flipyap__chat" id="flipyap-chat" role="region" aria-label="Chat with Flipyap" [hidden]="!open()">
+        <app-flipyap-chat (closed)="close()" (talking)="onTalking($event)" />
+      </div>
+    }
+    @if (greeting() && !open()) {
+      <p class="flipyap__greeting" role="status">Wawawa! Ask me about the league.</p>
+    }
+    <button #pet class="flipyap__pet" type="button" aria-label="Chat with Flipyap" aria-controls="flipyap-chat"
+            [attr.aria-expanded]="open()" [class.flipyap__pet--hop]="hopping()" (click)="toggle()">
+      <svg class="flipyap__sprite" [attr.viewBox]="'0 0 ' + size + ' ' + size" shape-rendering="crispEdges" aria-hidden="true">
+        @for (pixel of pixels(); track $index) {
+          <rect [attr.x]="pixel.x" [attr.y]="pixel.y" width="1" height="1" [attr.fill]="pixel.fill" />
+        }
+      </svg>
+    </button>
+  </div>
+}

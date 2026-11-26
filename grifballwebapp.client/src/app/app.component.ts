@@ -12,6 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { SiteFooterComponent } from './core/layout/siteFooter/siteFooter.component';
 import { AppLog } from '@core/telemetry/appLog';
+import { FlipyapComponent } from './features/chat/flipyap/flipyap.component';
 
 /** Room taken in the toolbar by the menu button when it is shown (52px button - 24px horizontal margins + up to 28px bar gap). */
 export const MENU_BUTTON_WIDTH = 56;
@@ -30,6 +31,7 @@ export const NAV_LINK_GAP = 4;
         MatButtonModule,
         MatIconModule,
         SiteFooterComponent,
+        FlipyapComponent,
     ],
     templateUrl: './app.component.html',
     styleUrl: './app.component.css',

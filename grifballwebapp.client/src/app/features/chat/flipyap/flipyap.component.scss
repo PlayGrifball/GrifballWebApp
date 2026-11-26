@@ -1,0 +1,72 @@
+:host { display: contents; }
+
+.flipyap {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  // Only what is drawn takes clicks: the corner around it is the page's
+  pointer-events: none;
+}
+
+.flipyap__chat,
+.flipyap__greeting,
+.flipyap__pet { pointer-events: auto; }
+
+.flipyap__chat {
+  width: min(380px, calc(100vw - 32px));
+}
+
+.flipyap__greeting {
+  margin: 0;
+  padding: 6px 10px;
+  max-width: 220px;
+  font-size: 14px;
+  color: var(--hud-heading);
+  background: var(--hud-surface);
+  border: 1px solid var(--hud-accent);
+  border-radius: 6px;
+}
+
+.flipyap__pet {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  // A shadow he stands on, the same shape as he is
+  filter: drop-shadow(0 3px 0 rgb(0 0 0 / 35%));
+  animation: flipyap-bob 1.2s steps(2, jump-none) infinite;
+
+  &:focus-visible {
+    outline: 2px solid var(--hud-accent);
+    outline-offset: 2px;
+  }
+}
+
+.flipyap__pet--hop { animation: flipyap-hop 0.4s steps(4, jump-none); }
+
+.flipyap__sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes flipyap-bob {
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes flipyap-hop {
+  50% { transform: translateY(-14px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flipyap__pet,
+  .flipyap__pet--hop { animation: none; }
+}
