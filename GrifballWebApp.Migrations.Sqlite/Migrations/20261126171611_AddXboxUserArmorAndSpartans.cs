@@ -206,12 +206,18 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 END;
                 """);
 
-            migrationBuilder.Sql("UPDATE \"Users\" SET \"ProfilePicture\" = 2 WHERE \"ProfilePicture\" = 0;");
+            migrationBuilder.Sql("""
+                PRAGMA ignore_check_constraints = ON;
+                UPDATE "Users" SET "ProfilePicture" = 2 WHERE "ProfilePicture" = 0;
+                PRAGMA ignore_check_constraints = OFF;
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("UPDATE \"Users\" SET \"ProfilePicture\" = 0 WHERE \"ProfilePicture\" = 2;");
+
             migrationBuilder.Sql("""
                 DROP TRIGGER IF EXISTS "UserSpartans_History_Update";
                 DROP TRIGGER IF EXISTS "UserSpartans_History_Delete";

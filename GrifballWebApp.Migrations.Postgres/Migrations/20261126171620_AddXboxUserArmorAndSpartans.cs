@@ -189,6 +189,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("UPDATE \"Auth\".\"Users\" SET \"ProfilePicture\" = 0 WHERE \"ProfilePicture\" = 2;");
+
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Xbox\".\"UserSpartans\"');");
 
             migrationBuilder.DropTable(

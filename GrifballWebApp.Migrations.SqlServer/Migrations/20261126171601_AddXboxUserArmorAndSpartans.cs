@@ -173,6 +173,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("UPDATE [Auth].[Users] SET [ProfilePicture] = 0 WHERE [ProfilePicture] = 2;");
+
             migrationBuilder.DropTable(
                 name: "UserSpartanFiles",
                 schema: "Xbox");
