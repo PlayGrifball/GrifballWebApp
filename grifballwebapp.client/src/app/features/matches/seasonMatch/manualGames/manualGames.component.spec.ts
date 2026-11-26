@@ -175,11 +175,12 @@ describe('ManualGamesComponent', () => {
 
   it("submits the rendered editor's own form to save the game, not component.save() called directly", async () => {
     createAsCommissioner();
-    button('Enter a game by hand')!.click();
-    await opened();
+    component.startAdd();
+    // Set before the editor first renders: it is an OnPush child reading the same form object, so a mutation
+    // after it has already rendered would not refresh its view (its siblings above set the form before opened() too).
     component.form.homeTeamScore = 5;
     component.form.awayTeamScore = 0;
-    fixture.detectChanges();
+    await opened();
 
     button('Save game')!.click();
     const request = httpMock.expectOne('/api/season-matches/7/manual-games');
