@@ -1,0 +1,7 @@
+# SQL Server as a clusterless availability group (mssql.availabilityGroup): three replicas, an asynchronous commit.
+mssql:
+  acceptEula: true
+  availabilityGroup:
+    enabled: true
+    replicas: 3
+    availabilityMode: ASYNCHRONOUS_COMMIT

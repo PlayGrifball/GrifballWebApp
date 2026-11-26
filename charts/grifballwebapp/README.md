@@ -285,6 +285,69 @@ the backup folder). The chart's SQL Server gets one: an emptyDir at `/var/opt/gr
 there (`DatabaseBackup__SqlServerDirectory`), overwritten each time. On an external SQL Server, set
 `allowedpathslist` yourself and point `backend.extraEnv` `DatabaseBackup__SqlServerDirectory` at that folder.
 
+### SQL Server availability group
+
+`mssql.availabilityGroup.enabled: true` runs the chart's SQL Server as two or more replicas (up to 9) in a
+[clusterless availability group](https://learn.microsoft.com/sql/database-engine/availability-groups/windows/read-scale-availability-groups)
+(`CLUSTER_TYPE = NONE`), for development: replication and failover to try out, as PostgreSQL has with
+CloudNativePG. It is not high availability. A cluster manager (Pacemaker) decides when to fail over
+automatically, and one doesn't fit a Kubernetes pod; without it **you fail over by hand**.
+
+```yaml
+mssql:
+  acceptEula: true
+  availabilityGroup:
+    enabled: true
+    replicas: 2
+```
+
+SQL Server needs Enterprise or Developer edition for this (the chart's default is Developer, which is licensed
+for non-production only). It needs the chart's own SQL Server (`mssql.enabled`) and gives each replica its own
+data and backup volumes, so `mssql.persistence.existingClaim`, `mssql.backup.existingClaim` and
+`mssql.backup.nfs` can't be used.
+
+**How it works.** `mssql.yaml` becomes a StatefulSet (`grif-mssql-0`, `-1`, ...) with `MSSQL_ENABLE_HADR=1`,
+each replica reachable by name through the headless `sqlserver-replicas` Service. A small controller
+Deployment (`grif-mssql-ag`) reruns this every `controller.intervalSeconds`, so every step is safe to repeat:
+
+1. Makes one certificate on `grif-mssql-0` and copies it to the others. It authenticates the replicas'
+   mirroring endpoints (port 5022) to each other, with no Windows domain.
+2. Creates the group on `grif-mssql-0` (the first primary) and joins the others to it; seeding is automatic.
+3. Adds every new user database to the group (full recovery model and a first full backup, which the group
+   needs). The app's migration Job creates its database on the primary, and it appears on the secondaries.
+4. Copies SQL logins, with their SIDs, passwords and server roles, to the secondaries: logins live in `master`,
+   outside the group, and a database user maps to its login by SID, so without them the app can't sign in
+   after a failover.
+5. Resumes a secondary's databases a failover left suspended.
+6. Labels each pod `grif.playgrifball.com/mssql-role: primary` or `secondary`. The `sqlserver` Service (and
+   `mssql.loadBalancer`) selects the primary, so the app follows a failover with no change; `sqlserver-ro`
+   (`readOnlyService`) selects the secondaries, for reads. With two replicas claiming to be primary (a split
+   brain) it labels none of them primary until you demote one.
+
+The controller needs only to `get` and `patch` pods in the release's namespace, and it reaches the Kubernetes
+API on 443 and 6443 (`networkPolicy.mssql.apiServerTo`, ipBlocks for the control plane, if you restrict it).
+
+**Failing over by hand**, from `grif-mssql-0` to `grif-mssql-1` (the commands wait for each other; replace `ag`
+with `mssql.availabilityGroup.name`, `grif` by default):
+
+```sh
+SQL='/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$SA_PASSWORD" -Q'
+# 1. Demote the primary. (It prints error 41104; the role changes regardless.)
+kubectl exec grif-mssql-0 -- sh -c "$SQL 'ALTER AVAILABILITY GROUP [grif] SET (ROLE = SECONDARY)'"
+# 2. Promote the other. Nothing is lost with synchronous commit, and the group was synchronized.
+kubectl exec grif-mssql-1 -- sh -c "$SQL 'ALTER AVAILABILITY GROUP [grif] FORCE_FAILOVER_ALLOW_DATA_LOSS'"
+```
+
+The controller notices within `intervalSeconds`, moves the label, and resumes the old primary's databases.
+If the primary is gone, run the second command on a surviving replica; with asynchronous commit
+(`availabilityMode: ASYNCHRONOUS_COMMIT`) that can lose the last transactions, and the old primary must be
+demoted (command 1) before it rejoins.
+
+**Not covered.** Automatic failover. A backup volume shared by the replicas: the migration Job's backup is written
+to the primary's own volume, so after a failover the earlier ones are on the other replica. Scaling `replicas`
+down: the group still lists the removed replicas, and removing them from it is by hand. The group is tested
+with two replicas and a planned failover in both directions; a lost primary is not.
+
 ### SQLite
 
 `database.provider: sqlite` runs with no database server: the database is a file,

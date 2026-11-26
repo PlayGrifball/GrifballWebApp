@@ -922,6 +922,45 @@ mssql:
     limits:
       memory: 4Gi
       cpu: "1"
+  # A group of SQL Servers instead of one: a StatefulSet of replicas, each with its own volumes, in a clusterless
+  # availability group (CLUSTER_TYPE = NONE): the primary's databases are copied to every secondary, and the
+  # service Service follows the primary. There is no Pacemaker, so no automatic failover: you fail over by hand
+  # (the README's "SQL Server availability group"). Meant for development; Developer edition is licensed for
+  # non-production only, and readable secondaries and more than one database need Enterprise (Developer has both).
+  # A controller Deployment keeps it going: it creates the group, joins replicas, adds new databases, copies SQL
+  # logins, and labels the primary. Not with an existing mssql.persistence claim, backup.nfs, or mssql.edition
+  # Express or Web.
+  availabilityGroup:
+    enabled: false
+    # Replicas (2 up to 9). Pods are named grif-mssql-0, -1, ...; the first starts as the primary.
+    replicas: 2
+    # The group's name.
+    name: grif
+    # SYNCHRONOUS_COMMIT: a commit waits for every connected secondary (no data lost on a planned failover).
+    # ASYNCHRONOUS_COMMIT: it doesn't.
+    availabilityMode: SYNCHRONOUS_COMMIT
+    # The headless Service the replicas reach each other through.
+    headlessServiceName: sqlserver-replicas
+    # A Service to the secondaries, for reads (their ALLOW_CONNECTIONS is ALL).
+    readOnlyService:
+      enabled: true
+      name: sqlserver-ro
+    controller:
+      # SQL Server's image has the tools (sqlcmd) it needs: empty uses mssql.image.
+      image:
+        repository: ""
+        tag: ""
+        digest: ""
+      # Seconds between reconciles.
+      intervalSeconds: 20
+      resources:
+        requests:
+          memory: 32Mi
+          cpu: 10m
+        limits:
+          memory: 128Mi
+      podAnnotations: {}
+      podLabels: {}
   # Creates the folders SQL Server writes outside data and backup on the data volume, owned by its
   # user (10001); with a read-only root filesystem they live there.
   initImage:
@@ -1419,6 +1458,9 @@ networkPolicy:
   mssql:
     # Who may reach the LoadBalancer (mssql.loadBalancer). Empty: anyone.
     loadBalancerFrom: []
+    # The Kubernetes API, for the availability group's controller (it labels the primary), on 443 and 6443.
+    # Empty: anywhere on those ports.
+    apiServerTo: []
     extraIngress: []
     extraEgress: []
   postgres:
