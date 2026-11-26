@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261126140858_AddXboxUserArmorAndSpartans")]
+    [Migration("20261126171620_AddXboxUserArmorAndSpartans")]
     partial class AddXboxUserArmorAndSpartans
     {
         /// <inheritdoc />
@@ -6708,7 +6708,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("ProfilePicture")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(2);
 
                     b.Property<int?>("RegionID")
                         .HasColumnType("integer");
@@ -6761,7 +6761,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.ToTable("Users", "Auth", t =>
                         {
-                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "\"ProfilePicture\" IN (0, 1)");
+                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "\"ProfilePicture\" IN (0, 1, 2)");
 
                             t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "\"RegionSource\" IS NULL OR \"RegionSource\" IN (1, 2, 3)");
 

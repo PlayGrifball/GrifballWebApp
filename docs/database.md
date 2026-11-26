@@ -537,13 +537,23 @@ erDiagram
 
 ### Xbox
 
-Xbox users, past gamertags, XUID lookups, images and equipped armor (5 tables).
+Xbox users, past gamertags, XUID lookups, images and equipped armor (8 tables).
 
 ```mermaid
 erDiagram
     PastGamertags {
         int XboxGamertagHistoryID PK
         long XboxUserID FK
+    }
+    UserSpartanFiles {
+        int UserId PK, FK
+        string Name PK
+    }
+    UserSpartanRenders {
+        int UserId PK, FK
+    }
+    UserSpartans {
+        int UserId PK, FK
     }
     XboxUserArmor {
         long XboxUserID PK, FK
@@ -561,6 +571,9 @@ erDiagram
     Users {
         external Auth
     }
+    UserSpartanRenders ||--o{ UserSpartanFiles : "UserId"
+    Users ||--o{ UserSpartanRenders : "UserId"
+    Users ||--o{ UserSpartans : "UserId"
     Users ||--o| XuidLookups : "UserID"
     XboxUsers ||--o{ PastGamertags : "XboxUserID"
     XboxUsers ||--o{ XboxUserArmor : "XboxUserID"

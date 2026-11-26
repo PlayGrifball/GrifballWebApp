@@ -14,7 +14,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
     public static readonly string KnownRegionSource = $"RegionSource IS NULL OR RegionSource IN ({ByUser}, {BySysadmin}, {ByImport})";
 
     /// <summary>Which Xbox image shows for a user is one the model knows.</summary>
-    public static readonly string KnownProfilePicture = $"ProfilePicture IN ({(int)ProfilePictureChoice.Emblem}, {(int)ProfilePictureChoice.GamerPicture})";
+    public static readonly string KnownProfilePicture = $"ProfilePicture IN ({(int)ProfilePictureChoice.Emblem}, {(int)ProfilePictureChoice.GamerPicture}, {(int)ProfilePictureChoice.Spartan})";
 
     /// <summary>A region is set with who chose it, and only then (User.ChooseRegion).</summary>
     public const string RegionHasSource = "(RegionID IS NULL AND RegionSource IS NULL) OR (RegionID IS NOT NULL AND RegionSource IS NOT NULL)";
@@ -38,7 +38,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         });
 
         entity.Property(e => e.DisplayName).HasMaxLength(User.DisplayNameMaxLength);
-        entity.Property(e => e.ProfilePicture).HasDefaultValue(ProfilePictureChoice.Emblem);
+        entity.Property(e => e.ProfilePicture).HasDefaultValue(ProfilePictureChoice.Spartan);
         entity.Property(e => e.Theme).HasMaxLength(User.ThemeMaxLength);
 
         // Worked out from the user name, not stored

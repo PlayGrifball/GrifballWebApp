@@ -13,10 +13,11 @@
   <h2 id="pi-picture-heading" class="hud-h2">Profile picture</h2>
   <label class="pi-label" for="pi-picture">What shows next to your name</label>
   <select id="pi-picture" class="pi-input" [disabled]="savingPicture()" (change)="setProfilePicture(pictureSelect)" #pictureSelect>
+    <option value="Spartan" [selected]="profilePicture() === 'Spartan'">My Spartan's headshot</option>
     <option value="Emblem" [selected]="profilePicture() === 'Emblem'">My Halo emblem</option>
     <option value="GamerPicture" [selected]="profilePicture() === 'GamerPicture'">My gamer picture</option>
   </select>
-  <p class="hud-muted">If the one you pick is missing, the other shows.</p>
+  <p class="hud-muted">If the one you pick is missing, the next shows: your Spartan's headshot, then your emblem, then your gamer picture.</p>
 </section>
 
 <section class="pi-block" aria-labelledby="pi-claim-heading">

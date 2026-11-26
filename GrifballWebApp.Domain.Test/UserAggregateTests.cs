@@ -191,8 +191,8 @@ public class UserAggregateTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(user.ProfilePicture, Is.EqualTo(ProfilePictureChoice.Emblem));
-            Assert.That(user.ChooseProfilePicture(ProfilePictureChoice.Emblem), Is.False, "Already so");
+            Assert.That(user.ProfilePicture, Is.EqualTo(ProfilePictureChoice.Spartan));
+            Assert.That(user.ChooseProfilePicture(ProfilePictureChoice.Spartan), Is.False, "Already so");
             Assert.That(user.ChooseProfilePicture(ProfilePictureChoice.GamerPicture), Is.True);
             Assert.That(user.ProfilePicture, Is.EqualTo(ProfilePictureChoice.GamerPicture));
             Assert.Throws<ArgumentOutOfRangeException>(() => user.ChooseProfilePicture((ProfilePictureChoice)9));

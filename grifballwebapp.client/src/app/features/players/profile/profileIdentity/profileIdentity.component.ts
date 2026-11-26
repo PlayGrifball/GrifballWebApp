@@ -29,7 +29,7 @@ export class ProfileIdentityComponent {
   /** The user's region now (from their profile). */
   readonly regionID = input<number | null>(null);
   /** The image shown for the user now (from their profile). */
-  readonly profilePicture = input<ProfilePictureChoice>('Emblem');
+  readonly profilePicture = input<ProfilePictureChoice>('Spartan');
   /** Something on the profile changed (the region or picture): the page reloads it. */
   readonly changed = output<void>();
 

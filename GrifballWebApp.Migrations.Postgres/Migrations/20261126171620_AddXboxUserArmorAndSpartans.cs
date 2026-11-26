@@ -11,6 +11,22 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropCheckConstraint(
+                name: "CK_Auth_Users_KnownProfilePicture",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ProfilePicture",
+                schema: "Auth",
+                table: "Users",
+                type: "integer",
+                nullable: false,
+                defaultValue: 2,
+                oldClrType: typeof(int),
+                oldType: "integer",
+                oldDefaultValue: 0);
+
             migrationBuilder.CreateTable(
                 name: "UserSpartanRenders",
                 schema: "Xbox",
@@ -141,6 +157,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.AddCheckConstraint(
+                name: "CK_Auth_Users_KnownProfilePicture",
+                schema: "Auth",
+                table: "Users",
+                sql: "\"ProfilePicture\" IN (0, 1, 2)");
+
             migrationBuilder.CreateIndex(
                 name: "IX_UserSpartanRenders_State_RequestedAt",
                 schema: "Xbox",
@@ -160,6 +182,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 column: "CheckedAt");
 
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Xbox\".\"UserSpartans\"');");
+
+            migrationBuilder.Sql("UPDATE \"Auth\".\"Users\" SET \"ProfilePicture\" = 2 WHERE \"ProfilePicture\" = 0;");
         }
 
         /// <inheritdoc />
@@ -186,6 +210,28 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             migrationBuilder.DropTable(
                 name: "UserSpartanRenders",
                 schema: "Xbox");
+
+            migrationBuilder.DropCheckConstraint(
+                name: "CK_Auth_Users_KnownProfilePicture",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ProfilePicture",
+                schema: "Auth",
+                table: "Users",
+                type: "integer",
+                nullable: false,
+                defaultValue: 0,
+                oldClrType: typeof(int),
+                oldType: "integer",
+                oldDefaultValue: 2);
+
+            migrationBuilder.AddCheckConstraint(
+                name: "CK_Auth_Users_KnownProfilePicture",
+                schema: "Auth",
+                table: "Users",
+                sql: "\"ProfilePicture\" IN (0, 1)");
         }
     }
 }

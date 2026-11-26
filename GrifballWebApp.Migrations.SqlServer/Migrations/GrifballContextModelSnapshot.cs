@@ -3950,7 +3950,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int>("ProfilePicture")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(2);
 
                     b.Property<int?>("RegionID")
                         .HasColumnType("int");
@@ -4003,7 +4003,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.ToTable("Users", "Auth", t =>
                         {
-                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "ProfilePicture IN (0, 1)");
+                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "ProfilePicture IN (0, 1, 2)");
 
                             t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "RegionSource IS NULL OR RegionSource IN (1, 2, 3)");
 

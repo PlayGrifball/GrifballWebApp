@@ -108,7 +108,7 @@ public class MyProfileController : ControllerBase
         => await _spartans.Catalog(ct) is { } catalog ? catalog : this.Refusal(StatusCodes.Status503ServiceUnavailable, CatalogDown);
 
     /// <summary>Sets the Spartan the signed-in user's profile shows, instead of the one they have equipped, and asks for its render.</summary>
-    [HttpPut("me/spartan", Name = "SetMySpartan")]
+    [HttpPost("me/spartan", Name = "SetMySpartan")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -128,7 +128,7 @@ public class MyProfileController : ControllerBase
     }
 
     /// <summary>Goes back to the Spartan the signed-in user has equipped in Halo Infinite.</summary>
-    [HttpDelete("me/spartan", Name = "ClearMySpartan")]
+    [HttpPost("me/spartan/clear", Name = "ClearMySpartan")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> ClearSpartan(CancellationToken ct)

@@ -86,27 +86,47 @@ public class XboxAccountsController : ControllerBase
     public Task<IActionResult> GetUserHaloEmblem([FromRoute] int userID, [FromServices] XboxImageService images, CancellationToken ct)
         => ImageOfUser(images, userID, XboxUserImageKind.HaloEmblem, ct);
 
-    /// <summary>The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.</summary>
+    /// <summary>The picture that stands for the account: its user's Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored.</summary>
     [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [AllowAnonymous]
     [HttpGet("xbox-accounts/{xboxUserID:long}/profile-picture", Name = "GetXboxAccountProfilePicture")]
-    public Task<IActionResult> GetProfilePicture([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
-        => ShownImage(images, xboxUserID, null, UserImageMaxAge, ct);
+    public async Task<IActionResult> GetProfilePicture([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
+        => await images.GetUserAndChoiceOfXboxAsync(xboxUserID, ct) is var (userID, choice)
+            ? await ShownImage(images, userID, xboxUserID, choice, ct)
+            : await ShownImage(images, xboxUserID, null, ct);
 
-    /// <summary>The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.</summary>
+    /// <summary>The picture that stands for a site user: their Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored or the user has no account.</summary>
     [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [AllowAnonymous]
     [HttpGet("users/{userID:int}/profile-picture", Name = "GetUserProfilePicture")]
     public async Task<IActionResult> GetUserProfilePicture([FromRoute] int userID, [FromServices] XboxImageService images, CancellationToken ct)
         => await images.GetAccountAndChoiceOfAsync(userID, ct) is var (xboxUserID, choice)
-            ? await ShownImage(images, xboxUserID, choice, UserImageMaxAge, ct)
-            : NotFoundBriefly();
+            ? await ShownImage(images, userID, xboxUserID, choice, ct)
+            : await SpartanHeadshot(images, userID, ct) is { } headshot ? headshot : NotFoundBriefly();
+
+    /// <summary>The headshot of the Spartan rendered for a site user (the neutral stance, the helmet framed); 404 until one is rendered.</summary>
+    [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    [HttpGet("users/{userID:int}/spartan-headshot", Name = "GetUserSpartanHeadshot")]
+    public async Task<IActionResult> GetUserSpartanHeadshot([FromRoute] int userID, [FromServices] XboxImageService images, CancellationToken ct)
+        => await SpartanHeadshot(images, userID, ct) is { } headshot ? headshot : NotFoundBriefly();
 
     // The choice can change, so the answer is not kept for a day even for an account
-    private async Task<IActionResult> ShownImage(XboxImageService images, long xboxUserID, ProfilePictureChoice? choice, int maxAge, CancellationToken ct)
-        => await images.GetShownKindAsync(xboxUserID, choice, ct) is { } kind ? await Image(images, xboxUserID, kind, ct, maxAge) : NotFoundBriefly();
+    private async Task<IActionResult> ShownImage(XboxImageService images, int userID, long xboxUserID, ProfilePictureChoice choice, CancellationToken ct)
+        => choice == ProfilePictureChoice.Spartan && await SpartanHeadshot(images, userID, ct) is { } headshot
+            ? headshot
+            : await ShownImage(images, xboxUserID, choice, ct);
+
+    private async Task<IActionResult> ShownImage(XboxImageService images, long xboxUserID, ProfilePictureChoice? choice, CancellationToken ct)
+        => await images.GetShownKindAsync(xboxUserID, choice, ct) is { } kind ? await Image(images, xboxUserID, kind, ct, UserImageMaxAge) : NotFoundBriefly();
+
+    private async Task<IActionResult?> SpartanHeadshot(XboxImageService images, int userID, CancellationToken ct)
+        => await images.GetSpartanHeadshotVersionAsync(userID, ct) is { } version
+            ? await Validated(version, () => images.GetSpartanHeadshotAsync(userID, ct), UserImageMaxAge)
+            : null;
 
     private async Task<IActionResult> ImageOfUser(XboxImageService images, int userID, XboxUserImageKind kind, CancellationToken ct)
         => await images.GetXboxUserIdOfAsync(userID, ct) is { } xboxUserID ? await Image(images, xboxUserID, kind, ct, UserImageMaxAge) : NotFoundBriefly();
@@ -126,10 +146,13 @@ public class XboxAccountsController : ControllerBase
         => new($"\"{DateTime.SpecifyKind(checkedAt, DateTimeKind.Utc).Ticks}\"");
 
     private async Task<IActionResult> Image(XboxImageService images, long xboxUserID, XboxUserImageKind kind, CancellationToken ct, int maxAge = AccountImageMaxAge)
+        => await images.GetCheckedAtAsync(xboxUserID, kind, ct) is { } version
+            ? await Validated(version, () => images.GetAsync(xboxUserID, kind, ct), maxAge)
+            : NotFoundBriefly();
+
+    // A picture or an emblem changes rarely, and the job checks again every couple of weeks
+    private async Task<IActionResult> Validated(DateTime version, Func<Task<XboxImageContent?>> read, int maxAge)
     {
-        if (await images.GetCheckedAtAsync(xboxUserID, kind, ct) is not { } version)
-            return NotFoundBriefly();
-        // A picture or an emblem changes rarely, and the job checks again every couple of weeks
         Response.Headers.CacheControl = $"public, max-age={maxAge}";
         var request = Request.GetTypedHeaders();
         var etag = ETagOf(version);
@@ -138,7 +161,7 @@ public class XboxAccountsController : ControllerBase
             Response.Headers.ETag = etag.ToString();
             return StatusCode(StatusCodes.Status304NotModified);
         }
-        if (await images.GetAsync(xboxUserID, kind, ct) is not { } image)
+        if (await read() is not { } image)
             return NotFound();
         var checkedAt = DateTime.SpecifyKind(image.CheckedAt, DateTimeKind.Utc);
         return File(image.Content, image.ContentType, new DateTimeOffset(checkedAt), ETagOf(image.CheckedAt));

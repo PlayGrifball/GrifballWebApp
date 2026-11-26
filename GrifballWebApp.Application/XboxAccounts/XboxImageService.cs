@@ -46,6 +46,33 @@ public class XboxImageService
         return user is null ? null : (user.XboxUserID, user.ProfilePicture);
     }
 
+    /// <summary>The site user an Xbox account is tied to and the image they chose; null when no user is tied to it.</summary>
+    public virtual async Task<(int UserID, ProfilePictureChoice Choice)?> GetUserAndChoiceOfXboxAsync(long xboxUserID, CancellationToken ct = default)
+    {
+        var user = await _context.Users.AsNoTracking().Where(u => u.XboxUserID == xboxUserID)
+            .Select(u => new { u.Id, u.ProfilePicture }).FirstOrDefaultAsync(ct);
+        return user is null ? null : (user.Id, user.ProfilePicture);
+    }
+
+    /// <summary>When the user's Spartan headshot was rendered (its version); null when there is none. Reads no bytes.</summary>
+    public virtual async Task<DateTime?> GetSpartanHeadshotVersionAsync(int userID, CancellationToken ct = default)
+        => await _context.UserSpartanFiles.AsNoTracking()
+            .Where(f => f.UserId == userID && f.Name == SpartanHeadshotName)
+            .Select(f => (DateTime?)f.Render.RenderedAt)
+            .FirstOrDefaultAsync(ct);
+
+    /// <summary>The user's rendered Spartan headshot (the neutral stance); null when there is none.</summary>
+    public virtual async Task<XboxImageContent?> GetSpartanHeadshotAsync(int userID, CancellationToken ct = default)
+    {
+        var file = await _context.UserSpartanFiles.AsNoTracking()
+            .Where(f => f.UserId == userID && f.Name == SpartanHeadshotName)
+            .Select(f => new { f.Content, f.ContentType, RenderedAt = f.Render.RenderedAt })
+            .FirstOrDefaultAsync(ct);
+        return file is null ? null : new XboxImageContent(file.Content, file.ContentType, file.RenderedAt ?? DateTime.UnixEpoch);
+    }
+
+    public const string SpartanHeadshotName = "neutral-head";
+
     /// <summary>When the account's stored image of that kind was last checked (its version); null when none is stored. Reads no bytes.</summary>
     public virtual async Task<DateTime?> GetCheckedAtAsync(long xboxUserID, XboxUserImageKind kind, CancellationToken ct = default)
         => await _context.XboxUserImages.AsNoTracking()
