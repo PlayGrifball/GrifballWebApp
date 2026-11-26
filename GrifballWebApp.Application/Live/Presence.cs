@@ -23,12 +23,18 @@ public sealed record PresenceSnapshot(int Online, int Members, int Guests, IRead
         var guests = all.Count(t => t.UserID is null);
         var pages = all
             .GroupBy(t => t.Path, StringComparer.Ordinal)
-            .Select(page => new PresencePage(page.Key, page.Count(t => t.UserID is null), [.. page
-                .Where(t => t.UserID is not null)
-                .DistinctBy(t => t.UserID)
-                .Select(t => new PresenceMember(t.UserID!.Value, t.Name))
-                .OrderBy(m => m.Name ?? "", StringComparer.OrdinalIgnoreCase)
-                .ThenBy(m => m.UserID)]))
+            .Select(page => new PresencePage(
+                page.Key,
+                // Tabs can disagree (one recorded before a rename, one after, on different processes): the
+                // ordinal-first of their subjects, never whichever tab's exchange happened to come back first.
+                page.Select(t => t.Subject).Where(s => s is not null).OrderBy(s => s, StringComparer.Ordinal).FirstOrDefault(),
+                page.Count(t => t.UserID is null),
+                [.. page
+                    .Where(t => t.UserID is not null)
+                    .DistinctBy(t => t.UserID)
+                    .Select(t => new PresenceMember(t.UserID!.Value, t.Name))
+                    .OrderBy(m => m.Name ?? "", StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(m => m.UserID)]))
             .OrderByDescending(p => p.Members.Count + p.Guests)
             .ThenBy(p => p.Path, StringComparer.Ordinal)
             .ToList();
@@ -36,13 +42,16 @@ public sealed record PresenceSnapshot(int Online, int Members, int Guests, IRead
     }
 }
 
-/// <summary>A page and who is on it: the members by name, and how many guests.</summary>
+/// <summary>
+/// A page and who is on it: the members by name, and how many guests. Its subject is what it is about, by name (whose
+/// profile, which season, team or match); null for a page about nothing in particular, or nothing the public may see.
+/// </summary>
 [TranspilationSource]
-public sealed record PresencePage(string Path, int Guests, IReadOnlyList<PresenceMember> Members);
+public sealed record PresencePage(string Path, string? Subject, int Guests, IReadOnlyList<PresenceMember> Members);
 
 /// <summary>A member on a page: the name the site shows for them (never their login name; null when they have none).</summary>
 [TranspilationSource]
 public sealed record PresenceMember(int UserID, string? Name);
 
-/// <summary>An open tab: its connection, its user (null: signed out) with their shown name, and the page it shows.</summary>
-public sealed record PresenceTab(string ConnectionID, int? UserID, string? Name, string Path);
+/// <summary>An open tab: its connection, its user (null: signed out) with their shown name, the page it shows, and what about.</summary>
+public sealed record PresenceTab(string ConnectionID, int? UserID, string? Name, string Path, string? Subject = null);

@@ -97,7 +97,7 @@ export class WhosOnlineComponent {
 
   readonly pages = computed(() => (this.snapshot()?.pages ?? []).map(page => ({
     path: page.path,
-    label: presenceLabel(page.path),
+    label: presenceLabel(page.path, page.subject),
     link: page.path !== STAFF_AREA,
     members: page.members,
     guests: page.guests,

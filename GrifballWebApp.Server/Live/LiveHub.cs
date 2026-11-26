@@ -2,6 +2,7 @@ using GrifballWebApp.Application.Live;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using TypedSignalR.Client;
 
 namespace GrifballWebApp.Server.Live;
@@ -15,7 +16,8 @@ namespace GrifballWebApp.Server.Live;
 /// (<see cref="ILiveHubClient.Presence"/>, <see cref="PresenceTracker"/>). Signed in or out; a connection is its user's (the
 /// session cookie), so the client connects again on a sign-in or out.
 /// </summary>
-public class LiveHub(LiveTopicAccess access, HubUser user, LiveWatchers watchers, PresenceTracker presence, PresencePages pages) : Hub<ILiveHubClient>, ILiveHubServer
+public class LiveHub(LiveTopicAccess access, HubUser user, LiveWatchers watchers, PresenceTracker presence, PresencePages pages, ILogger<LiveHub> logger)
+    : Hub<ILiveHubClient>, ILiveHubServer
 {
     public const string Path = "LiveHub";
 
@@ -68,8 +70,21 @@ public class LiveHub(LiveTopicAccess access, HubUser user, LiveWatchers watchers
 
     public async Task<PresenceSnapshot> Viewing(string path)
     {
+        // Shown decides the route everyone may see (a hidden season's own staff area, #435): a failure there is the
+        // caller's. Subject is cosmetic alone (the footer's label); a failed or slow name lookup must not keep the
+        // tab off the page it is really on, so it is caught here and the page is shown with no subject.
         var shown = await pages.Shown(path, Context.ConnectionAborted);
-        await presence.Viewing(Context.ConnectionId, user.State.UserId, shown, Context.ConnectionAborted);
+        string? subject;
+        try
+        {
+            subject = await pages.Subject(shown, Context.ConnectionAborted);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !Context.ConnectionAborted.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Could not name {Shown}'s subject", shown);
+            subject = null;
+        }
+        await presence.Viewing(Context.ConnectionId, user.State.UserId, shown, subject, Context.ConnectionAborted);
         return presence.Current;
     }
 
