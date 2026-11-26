@@ -19,6 +19,7 @@ using PlayGrifball.InfiniteSpartanRender.Client;
 using Quartz;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 using Surprenant.Grunt.Models.HaloInfinite;
 using User = GrifballWebApp.Domain.Players.User;
 
@@ -33,7 +34,7 @@ public class SpartanRenderTests : SqliteContextFixture
 {
     private static readonly DateTimeOffset Start = new(2026, 11, 26, 12, 0, 0, TimeSpan.Zero);
     private static readonly SpartanCatalog Catalog = new(
-        [new SpartanCatalogCore("Mark VII", [new("REGION", "helmet", 1, [new(1, "Aviator")])])], ["111"], [], []);
+        [new SpartanCatalogCore("Mark VII", [new("REGION", "helmet", 1, [new(1, "Aviator")])])], ["111"], []);
     private static readonly SpartanChoice Choice = new("Mark VII", new Dictionary<string, string> { ["helmet"] = "Aviator" });
 
     private sealed class FakeCatalogs(SpartanCatalog? catalog) : ISpartanCatalogSource
@@ -55,6 +56,7 @@ public class SpartanRenderTests : SqliteContextFixture
         public HttpStatusCode? FailWith { get; set; }
         public bool SetFails { get; set; }
         public bool Hangs { get; set; }
+        public bool Unreachable { get; set; }
         public Action? OnRequest { get; set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -62,6 +64,8 @@ public class SpartanRenderTests : SqliteContextFixture
             OnRequest?.Invoke();
             var path = request.RequestUri!.AbsolutePath;
             Requests.Add($"{request.Method} {path}");
+            if (Unreachable)
+                throw new HttpRequestException("No route to host");
             if (Hangs)
                 await Task.Delay(Timeout.Infinite, cancellationToken);
             if (FailWith is { } status)
@@ -114,7 +118,7 @@ public class SpartanRenderTests : SqliteContextFixture
     {
         var mapper = new SpartanArmorMapper(_halo, new MemoryCache(new MemoryCacheOptions())) { Delay = (_, _) => Task.CompletedTask };
         var client = new InfiniteSpartanRenderClient(new HttpClient(_service) { BaseAddress = new Uri("http://render.test/") });
-        return new SpartanRenderSource(Context, mapper, _catalogs, client, Options.Create(_options), _time);
+        return new SpartanRenderSource(Context, mapper, _catalogs, client, Options.Create(_options), _time, new XboxArmorThrottle());
     }
 
     /// <summary>A user with an Xbox account, asking for a render (and with a choice when <paramref name="choice"/> is given).</summary>
@@ -280,6 +284,7 @@ public class SpartanRenderTests : SqliteContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Done, Is.EqualTo(1));
+            Assert.That((await RenderOf(userId)).RenderedAt, Is.EqualTo(Start.UtcDateTime));
             Assert.That(_service.Requests, Is.Empty);
             Assert.That((await RenderOf(userId)).LoadoutKey, Is.EqualTo(key));
             Assert.That((await RenderOf(userId)).State, Is.EqualTo(UserSpartanRenderState.Done));
@@ -367,6 +372,39 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That(render.Error, Is.Not.Empty);
             Assert.That(await FileNamesOf(userId), Is.Empty);
         }
+    }
+
+    [Test]
+    public async Task AServiceThatCannotBeReached_PutsTheRenderBackForLater_NotFailed()
+    {
+        _service.Unreachable = true;
+        var (userId, _) = await UserAsync(Choice);
+
+        var report = await Source().RunAsync();
+        var again = await Source().RunAsync();
+
+        var render = await RenderOf(userId);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Done, report.Failed, report.Retrying), Is.EqualTo((0, 0, 1)));
+            Assert.That((render.State, render.RequestedAt), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime.AddMinutes(10))));
+            Assert.That(again.Waiting, Is.Zero, "not due until the wait is over");
+        }
+    }
+
+    [Test]
+    public async Task AnEquippedSetWhoseLastCheckFailed_IsStillRendered()
+    {
+        var (userId, xuid) = await UserAsync();
+        await EquipAsync(xuid);
+        Serve("cores/mk7.json", "Mark VII");
+        Serve("poses/p.json", stance: 77);
+        (await Context.XboxUserArmor.SingleAsync()).Status = XboxUserArmorStatus.Failed;
+        await Context.SaveChangesAsync();
+
+        var report = await Source().RunAsync();
+
+        Assert.That((report.Done, (await RenderOf(userId)).State), Is.EqualTo((1, UserSpartanRenderState.Done)));
     }
 
     [Test]

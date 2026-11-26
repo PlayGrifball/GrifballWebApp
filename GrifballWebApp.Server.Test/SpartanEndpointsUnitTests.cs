@@ -23,7 +23,7 @@ public class SpartanEndpointsUnitTests : SqliteGrifballContextFixture
     private static readonly byte[] Head = [0x89, 0x50, 0x4E, 0x47, 9];
     private static readonly byte[] Emblem = [0x89, 0x50, 0x4E, 0x47, 1];
     private static readonly SpartanCatalog Catalog = new(
-        [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, "Aviator")])])], ["111"], ["Plain"], []);
+        [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, "Aviator")])])], ["111"], []);
 
     private sealed class FakeCatalogs(SpartanCatalog? catalog) : ISpartanCatalogSource
     {
@@ -76,7 +76,7 @@ public class SpartanEndpointsUnitTests : SqliteGrifballContextFixture
         await Db.SaveChangesAsync();
     }
 
-    private static SpartanChoice Mk7() => new("Mark VII", new Dictionary<string, string> { ["helmet"] = "Aviator" }, null, "111", "Plain");
+    private static SpartanChoice Mk7() => new("Mark VII", new Dictionary<string, string> { ["helmet"] = "Aviator" }, null, "111");
 
     // --- MyProfileController ---
 
@@ -132,7 +132,6 @@ public class SpartanEndpointsUnitTests : SqliteGrifballContextFixture
         {
             Assert.That(ControllerTestHelpers.StatusOf(set), Is.EqualTo(StatusCodes.Status204NoContent));
             Assert.That(dto.Choice!.Core, Is.EqualTo("Mark VII"));
-            Assert.That(dto.Choice.Visor, Is.EqualTo("Plain"));
             Assert.That(dto.RenderState, Is.EqualTo("Requested"));
         }
     }
@@ -155,11 +154,11 @@ public class SpartanEndpointsUnitTests : SqliteGrifballContextFixture
     {
         var user = await UserAsync();
 
-        var result = await Profile(user.Id).SetSpartan(new SpartanChoice("Mark VII", null, null, "999", "Rose"), CancellationToken.None);
+        var result = await Profile(user.Id).SetSpartan(new SpartanChoice("Mark VII", null, null, "999"), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            result.AssertProblem(StatusCodes.Status400BadRequest, "There is no coating '999'; There is no visor 'Rose'");
+            result.AssertProblem(StatusCodes.Status400BadRequest, "There is no coating '999'");
             Assert.That(await Db.UserSpartans.AnyAsync(), Is.False);
         }
     }

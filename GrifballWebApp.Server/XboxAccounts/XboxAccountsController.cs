@@ -94,7 +94,7 @@ public class XboxAccountsController : ControllerBase
     public async Task<IActionResult> GetProfilePicture([FromRoute] long xboxUserID, [FromServices] XboxImageService images, CancellationToken ct)
         => await images.GetUserAndChoiceOfXboxAsync(xboxUserID, ct) is var (userID, choice)
             ? await ShownImage(images, userID, xboxUserID, choice, ct)
-            : await ShownImage(images, xboxUserID, null, ct);
+            : await ShownImage(images, xboxUserID, ProfilePictureChoice.Emblem, ct);
 
     /// <summary>The picture that stands for a site user: their Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored or the user has no account.</summary>
     [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
@@ -120,7 +120,7 @@ public class XboxAccountsController : ControllerBase
             ? headshot
             : await ShownImage(images, xboxUserID, choice, ct);
 
-    private async Task<IActionResult> ShownImage(XboxImageService images, long xboxUserID, ProfilePictureChoice? choice, CancellationToken ct)
+    private async Task<IActionResult> ShownImage(XboxImageService images, long xboxUserID, ProfilePictureChoice choice, CancellationToken ct)
         => await images.GetShownKindAsync(xboxUserID, choice, ct) is { } kind ? await Image(images, xboxUserID, kind, ct, UserImageMaxAge) : NotFoundBriefly();
 
     private async Task<IActionResult?> SpartanHeadshot(XboxImageService images, int userID, CancellationToken ct)

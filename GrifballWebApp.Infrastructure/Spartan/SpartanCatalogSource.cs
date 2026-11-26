@@ -35,7 +35,6 @@ public sealed class SpartanCatalogSource(InfiniteSpartanRenderClient client, IMe
             [.. c.Regions.Select(r => new Application.Spartan.SpartanCatalogRegion(r.Kind, r.Key, r.Region,
                 [.. r.Pieces.Select(p => new Application.Spartan.SpartanCatalogPiece(p.Permutation, p.Name))]))]))],
         [.. catalog.Coatings],
-        [.. catalog.Visors],
         [.. catalog.PendingCores]);
 }
 

@@ -111,15 +111,15 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
             report.Disabled = true;
             return report;
         }
-        var due = await DueInOrder().Take(Math.Max(1, _options.AccountsPerRun)).ToListAsync(ct);
         report.Due = await CountDueAsync(ct);
-        if (due.Count == 0)
+        if (report.Due == 0)
             return report;
         if (throttle.Remaining(time.GetUtcNow()) is { } remaining)
         {
             report.ThrottledFor = remaining;
             return report;
         }
+        var due = await DueInOrder().Take(Math.Max(1, _options.AccountsPerRun)).ToListAsync(ct);
 
         var gap = TimeSpan.FromMinutes(1) / Math.Max(1, _options.CallsPerMinute);
         var first = true;
@@ -237,7 +237,7 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
             row.ChestAttachmentPath, row.KneePadPath, row.LeftShoulderPadPath, row.RightShoulderPadPath, row.HipAttachmentPath, row.WristAttachmentPath,
             row.ArmorFxPath, row.MythicFxPath, row.ActionPosePath, row.StancePath, row.BodyType, row.LeftArm, row.RightArm, row.LeftLeg, row.RightLeg);
 
-        var changed = row.Status != XboxUserArmorStatus.Found || before != after;
+        var changed = row.Status is not (XboxUserArmorStatus.Found or XboxUserArmorStatus.Failed) || before != after;
         row.Status = XboxUserArmorStatus.Found;
         row.Error = null;
         if (changed)

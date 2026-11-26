@@ -4800,7 +4800,7 @@
                     "$ref": "#/components/schemas/SpartanChoice"
                   }
                 ],
-                "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default."
+                "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids and the coating. Anything left out is the core's default."
               }
             }
           }
@@ -4857,7 +4857,7 @@
         "tags": [
           "MyProfile"
         ],
-        "summary": "What the render service can render: the cores, their pieces by region, the coatings and visors.",
+        "summary": "What the render service can render: the cores, their pieces by region, and the coatings.",
         "operationId": "GetSpartanCatalog",
         "responses": {
           "401": {
@@ -18663,8 +18663,7 @@
         "required": [
           "coatings",
           "cores",
-          "pendingCores",
-          "visors"
+          "pendingCores"
         ],
         "type": "object",
         "properties": {
@@ -18675,12 +18674,6 @@
             }
           },
           "coatings": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "visors": {
             "type": "array",
             "items": {
               "type": "string"
@@ -18768,8 +18761,7 @@
           "armor",
           "coating",
           "core",
-          "parts",
-          "visor"
+          "parts"
         ],
         "type": "object",
         "properties": {
@@ -18793,14 +18785,10 @@
           "coating": {
             "type": "string",
             "nullable": true
-          },
-          "visor": {
-            "type": "string",
-            "nullable": true
           }
         },
         "additionalProperties": false,
-        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default."
+        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids and the coating. Anything left out is the core's default."
       },
       "SpartanPartChoice": {
         "required": [
@@ -18838,7 +18826,7 @@
                 "$ref": "#/components/schemas/SpartanChoice"
               }
             ],
-            "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default.",
+            "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids and the coating. Anything left out is the core's default.",
             "nullable": true
           },
           "hasEquippedSet": {

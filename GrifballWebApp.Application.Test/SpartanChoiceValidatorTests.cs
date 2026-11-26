@@ -12,7 +12,7 @@ public class SpartanChoiceValidatorTests
             new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, "Mark VII"), new(2, "Eaglestrike")]),
             new SpartanCatalogRegion("KIT", "kit", 200, [new(7, null)]),
         ])],
-        ["111", "222"], ["Plain"], ["Chimera"]);
+        ["111", "222"], ["Chimera"]);
 
     private static IReadOnlyList<string> Check(SpartanChoice choice) => SpartanChoiceValidator.Validate(choice, Catalog);
 
@@ -21,7 +21,7 @@ public class SpartanChoiceValidatorTests
 
     [Test]
     public void EverythingListed_IsAccepted() => Assert.That(Check(new SpartanChoice("Mark VII",
-        new Dictionary<string, string> { ["helmet"] = "Eaglestrike" }, [new(200, 7)], "222", "Plain")), Is.Empty);
+        new Dictionary<string, string> { ["helmet"] = "Eaglestrike" }, [new(200, 7)], "222")), Is.Empty);
 
     [Test]
     public void AnUnknownCore_IsRefused_AndNothingElseIsChecked()
@@ -60,10 +60,9 @@ public class SpartanChoiceValidatorTests
     }
 
     [Test]
-    public void AnUnknownCoatingAndVisor_AreNamed()
-        => Assert.That(Check(new SpartanChoice("Mark VII", Coating: "9", Visor: "Shiny")), Is.EquivalentTo(new List<string>
+    public void AnUnknownCoating_IsNamed()
+        => Assert.That(Check(new SpartanChoice("Mark VII", Coating: "9")), Is.EquivalentTo(new List<string>
         {
             "There is no coating '9'",
-            "There is no visor 'Shiny'",
         }));
 }

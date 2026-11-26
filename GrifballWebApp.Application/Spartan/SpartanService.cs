@@ -42,7 +42,7 @@ public class SpartanService(IApplicationDbContext context, ISpartanCatalogSource
             return null;
         var json = await context.UserSpartans.Where(s => s.UserId == userId).Select(s => s.ChoiceJson).FirstOrDefaultAsync(ct);
         var hasEquipped = user.XboxUserID is long xuid
-            && await context.XboxUserArmor.AnyAsync(a => a.XboxUserID == xuid && a.Status == XboxUserArmorStatus.Found && a.CoreId != null, ct);
+            && await context.XboxUserArmor.AnyAsync(a => a.XboxUserID == xuid && a.Status != XboxUserArmorStatus.NotFound && a.CoreId != null, ct);
         var render = await context.UserSpartanRenders.Where(r => r.UserId == userId)
             .Select(r => new { r.State, r.RenderedAt, r.Error, Files = r.Files.Select(f => f.Name).ToList() })
             .FirstOrDefaultAsync(ct);

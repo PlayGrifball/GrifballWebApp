@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using GrifballWebApp.Application.Spartan;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -22,12 +23,15 @@ public class SpartanRenderOptions
     public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(30);
     /// <summary>A render the job began but never finished (a restart) is asked for again after this long.</summary>
     public TimeSpan RenderingExpiresAfter { get; set; } = TimeSpan.FromHours(2);
+    /// <summary>A render that hit a passing problem (Halo or the render service not answering) is tried again after this long.</summary>
+    public TimeSpan RetryAfter { get; set; } = TimeSpan.FromMinutes(10);
 }
 
 public sealed class SpartanRenderReport
 {
     public int Done { get; set; }
     public int Failed { get; set; }
+    public int Retrying { get; set; }
     public int Marked { get; set; }
     public bool Disabled { get; set; }
     public bool CatalogUnavailable { get; set; }
@@ -45,7 +49,8 @@ public sealed class SpartanRenderSource(
     ISpartanCatalogSource catalogs,
     InfiniteSpartanRenderClient client,
     IOptions<SpartanRenderOptions> options,
-    TimeProvider time)
+    TimeProvider time,
+    XboxArmorThrottle throttle)
 {
     private readonly SpartanRenderOptions _options = options.Value;
 
@@ -62,7 +67,7 @@ public sealed class SpartanRenderSource(
 
         var expired = now - _options.RenderingExpiresAfter;
         var due = await context.UserSpartanRenders
-            .Where(r => r.State == UserSpartanRenderState.Requested || (r.State == UserSpartanRenderState.Rendering && r.RequestedAt < expired))
+            .Where(r => (r.State == UserSpartanRenderState.Requested && r.RequestedAt <= now) || (r.State == UserSpartanRenderState.Rendering && r.RequestedAt < expired))
             .OrderBy(r => r.RequestedAt)
             .Take(Math.Max(1, _options.UsersPerRun))
             .ToListAsync(ct);
@@ -78,10 +83,12 @@ public sealed class SpartanRenderSource(
         }
         foreach (var render in due)
         {
-            if (await RenderAsync(render, catalog, ct))
-                report.Done++;
-            else
-                report.Failed++;
+            switch (await RenderAsync(render, catalog, ct))
+            {
+                case Outcome.Done: report.Done++; break;
+                case Outcome.Retry: report.Retrying++; break;
+                default: report.Failed++; break;
+            }
         }
         return report;
     }
@@ -106,8 +113,10 @@ public sealed class SpartanRenderSource(
         return stale.Count;
     }
 
-    /// <summary>One user's render. True when its files are stored (or already were).</summary>
-    private async Task<bool> RenderAsync(UserSpartanRender render, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
+    private enum Outcome { Done, Failed, Retry }
+
+    /// <summary>One user's render: done when its files are stored (or already were).</summary>
+    private async Task<Outcome> RenderAsync(UserSpartanRender render, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
     {
         var asked = render.RequestedAt;
         try
@@ -121,9 +130,10 @@ public sealed class SpartanRenderSource(
             if (render.LoadoutKey == key && have == (stance is null ? 3 : 6))
             {
                 render.State = UserSpartanRenderState.Done;
+                render.RenderedAt = time.GetUtcNow().UtcDateTime;
                 render.Error = null;
                 await context.SaveChangesAsync(ct);
-                return true;
+                return Outcome.Done;
             }
 
             render.State = UserSpartanRenderState.Rendering;
@@ -133,20 +143,28 @@ public sealed class SpartanRenderSource(
             timeout.CancelAfter(_options.Timeout);
             var files = await MakeFilesAsync(choice, stance, timeout.Token);
 
-            var old = await context.UserSpartanFiles.Where(f => f.UserId == render.UserId).ToListAsync(ct);
-            context.UserSpartanFiles.RemoveRange(old);
+            await using var transaction = await context.Database.BeginTransactionAsync(ct);
+            await context.UserSpartanFiles.Where(f => f.UserId == render.UserId).ExecuteDeleteAsync(ct);
+            foreach (var tracked in context.ChangeTracker.Entries<UserSpartanFile>().Where(e => e.Entity.UserId == render.UserId).ToList())
+                tracked.State = EntityState.Detached;
             foreach (var (name, file) in files)
                 context.UserSpartanFiles.Add(new UserSpartanFile { UserId = render.UserId, Name = name, ContentType = file.ContentType, Content = file.Content });
-
-            // A choice made while this rendered asks again: the next run renders it
-            var askedSince = await context.UserSpartanRenders.AsNoTracking()
-                .Where(r => r.UserId == render.UserId).Select(r => r.RequestedAt).FirstAsync(ct);
-            render.State = askedSince > asked ? UserSpartanRenderState.Requested : UserSpartanRenderState.Done;
-            render.RenderedAt = time.GetUtcNow().UtcDateTime;
-            render.LoadoutKey = key;
-            render.Error = null;
             await context.SaveChangesAsync(ct);
-            return true;
+
+            // A choice made while this rendered asks again: the update only finishes the request this render began from
+            var renderedAt = time.GetUtcNow().UtcDateTime;
+            await context.UserSpartanRenders.Where(r => r.UserId == render.UserId).ExecuteUpdateAsync(u => u
+                .SetProperty(r => r.State, r => r.RequestedAt == asked ? UserSpartanRenderState.Done : UserSpartanRenderState.Requested)
+                .SetProperty(r => r.RenderedAt, renderedAt)
+                .SetProperty(r => r.LoadoutKey, key)
+                .SetProperty(r => r.Error, (string?)null), ct);
+            await transaction.CommitAsync(ct);
+            await context.Entry(render).ReloadAsync(ct);
+            return Outcome.Done;
+        }
+        catch (HttpRequestException e) when (!ct.IsCancellationRequested)
+        {
+            return await RetryLaterAsync(render, e.Message, ct);
         }
         catch (Exception e) when (!ct.IsCancellationRequested && e is not DbUpdateException)
         {
@@ -154,18 +172,30 @@ public sealed class SpartanRenderSource(
         }
     }
 
-    private async Task<bool> FailAsync(UserSpartanRender render, string error, CancellationToken ct)
+    // A passing problem is not the user's to fix: the render waits its turn again instead of being marked failed
+    private async Task<Outcome> RetryLaterAsync(UserSpartanRender render, string error, CancellationToken ct)
+    {
+        var now = time.GetUtcNow();
+        var wait = throttle.Remaining(now) is { } remaining && remaining > _options.RetryAfter ? remaining : _options.RetryAfter;
+        render.State = UserSpartanRenderState.Requested;
+        render.RequestedAt = now.UtcDateTime + wait;
+        render.Error = error.Length > 500 ? error[..500] : error;
+        await context.SaveChangesAsync(ct);
+        return Outcome.Retry;
+    }
+
+    private async Task<Outcome> FailAsync(UserSpartanRender render, string error, CancellationToken ct)
     {
         render.State = UserSpartanRenderState.Failed;
         render.Error = error.Length > 500 ? error[..500] : error;
         await context.SaveChangesAsync(ct);
-        return false;
+        return Outcome.Failed;
     }
 
     private async Task<(SpartanChoice? Choice, int? Stance, string? Problem)> WhatToRenderAsync(int userId, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
     {
         var xuid = await context.Users.Where(u => u.Id == userId).Select(u => u.XboxUserID).FirstOrDefaultAsync(ct);
-        var armor = xuid is long id ? await context.XboxUserArmor.AsNoTracking().FirstOrDefaultAsync(a => a.XboxUserID == id && a.Status == XboxUserArmorStatus.Found && a.CoreId != null, ct) : null;
+        var armor = xuid is long id ? await context.XboxUserArmor.AsNoTracking().FirstOrDefaultAsync(a => a.XboxUserID == id && a.Status != XboxUserArmorStatus.NotFound && a.CoreId != null, ct) : null;
         var json = await context.UserSpartans.Where(s => s.UserId == userId).Select(s => s.ChoiceJson).FirstOrDefaultAsync(ct);
 
         var equipped = armor is null ? null : await mapper.Map(armor, catalog, ct);
@@ -246,17 +276,23 @@ public sealed class SpartanRenderJob(SpartanRenderSource renders, ILogger<Sparta
         context.Result = Report(report, logger);
     }
 
+    private static string RunSummary(SpartanRenderReport report)
+    {
+        var summary = $"{report.Done} rendered, {report.Failed} failed";
+        return report.Retrying > 0 ? $"{summary}, {report.Retrying} to try again" : summary;
+    }
+
     internal static JobRunReport Report(SpartanRenderReport report, ILogger logger)
     {
         var summary = report.Disabled ? "The Spartan render job is turned off (SpartanRender:Enabled)"
             : report.CatalogUnavailable ? "The Spartan render service is not available; the renders wait"
             : report.Waiting == 0 ? "No Spartan render is waiting"
-            : $"{report.Done} rendered, {report.Failed} failed";
+            : RunSummary(report);
         if (report.CatalogUnavailable)
             logger.LogWarning("Spartan render job: the render service's catalog could not be read");
         var result = report.Disabled || report.Waiting == 0 ? JobRunReport.Skipped(summary)
-            : report.CatalogUnavailable || (report.Failed > 0 && report.Done == 0) ? JobRunReport.Failed(summary)
+            : report.CatalogUnavailable || (report.Failed + report.Retrying > 0 && report.Done == 0) ? JobRunReport.Failed(summary)
             : JobRunReport.Succeeded(summary);
-        return result.With("waiting", report.Waiting).With("done", report.Done).With("failed", report.Failed).With("marked", report.Marked);
+        return result.With("waiting", report.Waiting).With("done", report.Done).With("failed", report.Failed).With("retrying", report.Retrying).With("marked", report.Marked);
     }
 }

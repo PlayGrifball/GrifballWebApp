@@ -60,11 +60,9 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
         string? coating = null;
         if ((await ItemOf(armor.CoatingPath, ct))?.StyleId is int style && catalog.Coatings.Contains(style.ToString(), StringComparer.Ordinal))
             coating = style.ToString();
-        var visorTitle = (await ItemOf(armor.VisorPath, ct))?.Title;
-        var visor = visorTitle is not null && catalog.Visors.Contains(visorTitle, StringComparer.Ordinal) ? visorTitle : null;
         var stance = (await ItemOf(armor.ActionPosePath, ct))?.StanceId;
 
-        return new MappedSpartan(new SpartanChoice(core.Name, pieces, null, coating, visor), stance);
+        return new MappedSpartan(new SpartanChoice(core.Name, pieces, null, coating), stance);
     }
 
     /// <summary>The keys of the core's regions that have a piece named <paramref name="title"/>, narrowed by what the slot is called when several do.</summary>

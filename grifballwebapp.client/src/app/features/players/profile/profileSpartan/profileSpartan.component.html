@@ -38,33 +38,29 @@
 
   @if (editing()) {
     @if (catalog(); as c) {
-      <form class="spartan-form" (submit)="$event.preventDefault(); save()">
+      <form class="spartan-form" [formGroup]="form" (ngSubmit)="save()">
         <label for="spartan-core">Core</label>
-        <select id="spartan-core" #coreSelect (change)="setCore(coreSelect.value)">
-          <option value="" [selected]="!core()">Choose a core</option>
-          @for (entry of cores(); track entry.name) { <option [value]="entry.name" [selected]="entry.name === core()">{{entry.name}}</option> }
+        <select id="spartan-core" formControlName="core">
+          <option value="">Choose a core</option>
+          @for (entry of cores(); track entry.name) { <option [value]="entry.name">{{entry.name}}</option> }
         </select>
 
-        @for (region of regions(); track region.key) {
-          <label [for]="'spartan-' + region.key">{{region.key}}</label>
-          <select [id]="'spartan-' + region.key" #pieceSelect (change)="setPiece(region.key, pieceSelect.value)">
-            <option value="">Default</option>
+        <div formGroupName="armor" class="spartan-pieces">
+          @for (region of regions(); track region.key) {
+            <label [for]="'spartan-' + region.key">{{region.key}}</label>
+            <select [id]="'spartan-' + region.key" [formControlName]="region.key">
+              <option value="">Default</option>
             @for (piece of region.pieces; track piece.permutation) {
-              @if (piece.name) { <option [value]="piece.name" [selected]="piece.name === armor()[region.key]">{{piece.name}}</option> }
+              @if (piece.name) { <option [value]="piece.name">{{piece.name}}</option> }
             }
-          </select>
-        }
+            </select>
+          }
+        </div>
 
         <label for="spartan-coating">Coating</label>
-        <select id="spartan-coating" #coatingSelect (change)="coating.set(coatingSelect.value)">
+        <select id="spartan-coating" formControlName="coating">
           <option value="">Default</option>
-          @for (style of c.coatings; track style) { <option [value]="style" [selected]="style === coating()">{{style}}</option> }
-        </select>
-
-        <label for="spartan-visor">Visor</label>
-        <select id="spartan-visor" #visorSelect (change)="visor.set(visorSelect.value)">
-          <option value="">Default</option>
-          @for (title of c.visors; track title) { <option [value]="title" [selected]="title === visor()">{{title}}</option> }
+          @for (style of c.coatings; track style) { <option [value]="style">{{style}}</option> }
         </select>
 
         <div class="spartan-actions">

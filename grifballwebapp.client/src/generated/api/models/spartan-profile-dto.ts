@@ -9,7 +9,7 @@ import { SpartanChoice } from '../models/spartan-choice';
 export interface SpartanProfileDto {
 
   /**
-   * A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default.
+   * A Spartan as a player chose it: the core, pieces by region key, pieces by ids and the coating. Anything left out is the core's default.
    */
   choice: SpartanChoice | null;
   files: Array<string>;

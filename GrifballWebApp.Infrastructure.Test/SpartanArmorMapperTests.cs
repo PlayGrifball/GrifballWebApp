@@ -25,7 +25,7 @@ public class SpartanArmorMapperTests
             new("REGION", "glove", 4, [new(1, "Grip")]),
             new("KIT", "kit", 5, [new(9, null)]),
         ]),
-    ], ["111"], ["Gold"], []);
+    ], ["111"], []);
 
     private readonly IHaloInfiniteClient _halo = Substitute.For<IHaloInfiniteClient>();
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
@@ -80,7 +80,7 @@ public class SpartanArmorMapperTests
         {
             Assert.That(mapped!.Choice.Core, Is.EqualTo("Mark VII"));
             Assert.That(mapped.Choice.Armor, Is.Empty);
-            Assert.That((mapped.Choice.Coating, mapped.Choice.Visor, mapped.Stance), Is.EqualTo(((string?)null, (string?)null, (int?)null)));
+            Assert.That((mapped.Choice.Coating, mapped.Stance), Is.EqualTo(((string?)null, (int?)null)));
         }
     }
 
@@ -153,39 +153,35 @@ public class SpartanArmorMapperTests
     }
 
     [Test]
-    public async Task ACoatingInTheCatalog_ByItsStyleId_AndAVisorByItsTitle_AndTheStanceOfTheActionPose_AreKept()
+    public async Task ACoatingInTheCatalog_ByItsStyleId_AndTheStanceOfTheActionPose_AreKept()
     {
         Serve("cores/mk7.json", Found("Mark VII"));
         Serve("coatings/c.json", Found(style: 111));
-        Serve("visors/v.json", Found("Gold"));
         Serve("poses/p.json", Found(stance: 39388885));
 
         var mapped = await Mapper().Map(Armor(a =>
         {
             a.CoatingPath = "coatings/c.json";
-            a.VisorPath = "visors/v.json";
             a.ActionPosePath = "poses/p.json";
         }), Catalog, CancellationToken.None);
 
-        Assert.That((mapped!.Choice.Coating, mapped.Choice.Visor, mapped.Stance), Is.EqualTo(("111", "Gold", (int?)39388885)));
+        Assert.That((mapped!.Choice.Coating, mapped.Stance), Is.EqualTo(("111", (int?)39388885)));
     }
 
     [Test]
-    public async Task ACoatingOrVisorTheCatalogDoesNotHave_AndAStanceOfZero_AreLeftOut()
+    public async Task ACoatingTheCatalogDoesNotHave_AndAStanceOfZero_AreLeftOut()
     {
         Serve("cores/mk7.json", Found("Mark VII"));
         Serve("coatings/c.json", Found(style: 999));
-        Serve("visors/v.json", Found("Rose"));
         Serve("poses/p.json", Found(stance: 0));
 
         var mapped = await Mapper().Map(Armor(a =>
         {
             a.CoatingPath = "coatings/c.json";
-            a.VisorPath = "visors/v.json";
             a.ActionPosePath = "poses/p.json";
         }), Catalog, CancellationToken.None);
 
-        Assert.That((mapped!.Choice.Coating, mapped.Choice.Visor, mapped.Stance), Is.EqualTo(((string?)null, (string?)null, (int?)null)));
+        Assert.That((mapped!.Choice.Coating, mapped.Stance), Is.EqualTo(((string?)null, (int?)null)));
     }
 
     [Test]

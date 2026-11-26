@@ -52,7 +52,6 @@ public class SpartanCatalogSourceTests
             Assert.That(region.Region, Is.EqualTo(100));
             Assert.That(region.Pieces.Select(p => p.Name), Is.EqualTo(new List<string?> { "Mark VII", null }));
             Assert.That(catalog.Coatings, Is.EqualTo(new List<string> { "111" }));
-            Assert.That(catalog.Visors, Is.EqualTo(new List<string> { "Plain" }));
             Assert.That(catalog.PendingCores, Is.EqualTo(new List<string> { "Chimera" }));
         }
     }
