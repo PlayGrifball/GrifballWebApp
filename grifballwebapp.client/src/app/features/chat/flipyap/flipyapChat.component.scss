@@ -5,6 +5,8 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
+  // Solid: the page's text must not show through the words
+  background: var(--hud-surface-container);
   max-height: min(560px, calc(100vh - 140px));
   box-shadow: 0 8px 28px rgb(0 0 0 / 40%);
 }
