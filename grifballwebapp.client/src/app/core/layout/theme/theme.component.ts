@@ -4,7 +4,7 @@ import { PaletteComponent } from './palette/palette.component';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { ThemingService } from '../theming.service';
+import { THEME_FONTS, ThemingService } from '../theming.service';
 import { ThemePersistence } from '../themePersistence.service';
 import { AppLog } from '../../telemetry/appLog';
 
@@ -50,7 +50,7 @@ export class ThemeComponent implements OnInit {
     })
   }
 
-  fonts: string[] = ['Rajdhani', 'Roboto', 'sans-serif'];
+  fonts = THEME_FONTS;
   readonly themes = this.themingService.definedThemes;
   readonly activeEra = this.themingService.era;
   readonly activePrimary = this.themingService.primary;

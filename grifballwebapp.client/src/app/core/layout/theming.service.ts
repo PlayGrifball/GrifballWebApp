@@ -13,6 +13,9 @@ type Theme = {
   font?: string;
 };
 
+/** The fonts the theme editor offers (the server accepts the same list). */
+export const THEME_FONTS: readonly string[] = ['Rajdhani', 'Roboto', 'sans-serif'];
+
 /** The default theme: the seed colours of the Archive Vault design (see styles/_hud-tokens.scss). */
 export const ARCHIVE_VAULT = {
   name: 'Archive Vault',

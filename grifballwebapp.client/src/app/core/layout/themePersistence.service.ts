@@ -3,7 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { AccountService } from '../auth/account.service';
 import type { MyThemeService } from '@api/services/my-theme.service';
 import { AppLog } from '../telemetry/appLog';
-import { ThemeSettings, ThemingService } from './theming.service';
+import { THEME_FONTS, ThemeSettings, ThemingService } from './theming.service';
 
 /** Where this device keeps the theme, so it shows when nobody is signed in and before the account's has loaded. */
 export const THEME_STORAGE_KEY = 'themeSettings';
@@ -12,7 +12,6 @@ export const THEME_STORAGE_KEY = 'themeSettings';
 export const THEME_SAVE_DELAY_MS = 800;
 
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
-const FONTS = ['Rajdhani', 'Roboto', 'sans-serif'];
 
 /** The settings if `value` is a theme the picker can make (stored text is anyone's to edit), else null. */
 export function parseThemeSettings(value: unknown): ThemeSettings | null {
@@ -21,7 +20,7 @@ export function parseThemeSettings(value: unknown): ThemeSettings | null {
   const v = value as Record<string, unknown>;
   const colours = [v['primary'], v['secondary'], v['tertiary'], v['neutral'], v['neutralVariant'], v['error']];
   if (typeof v['era'] !== 'string' || !/^[a-z0-9-]{0,32}$/.test(v['era'])
-    || typeof v['font'] !== 'string' || !FONTS.includes(v['font'])
+    || typeof v['font'] !== 'string' || !THEME_FONTS.includes(v['font'])
     || !colours.every(c => typeof c === 'string' && HEX.test(c)))
     return null;
   return {
