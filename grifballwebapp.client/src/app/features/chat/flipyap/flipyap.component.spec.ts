@@ -18,6 +18,8 @@ describe('FlipyapComponent', () => {
   let fixture: ComponentFixture<FlipyapComponent>;
 
   const el = () => fixture.nativeElement as HTMLElement;
+  /** The window without its scrollbars: what the fixed box is placed in. */
+  const view = () => document.documentElement;
   const box = () => el().querySelector<HTMLElement>('.flipyap')!;
   const pet = () => el().querySelector<HTMLButtonElement>('.flipyap__pet')!;
   const chat = () => el().querySelector<HTMLElement>('.flipyap__chat');
@@ -223,7 +225,7 @@ describe('FlipyapComponent', () => {
   });
 
   describe('picked up and dragged', () => {
-    const corner = () => ({ right: innerWidth - box().getBoundingClientRect().right, bottom: innerHeight - box().getBoundingClientRect().bottom });
+    const corner = () => ({ right: view().clientWidth - box().getBoundingClientRect().right, bottom: view().clientHeight - box().getBoundingClientRect().bottom });
 
     it('starts in the bottom right corner', () => {
       create();
@@ -301,7 +303,7 @@ describe('FlipyapComponent', () => {
 
       dragBy(100000, 100000);
       rect = box().getBoundingClientRect();
-      expect([rect.right, rect.bottom]).toEqual([innerWidth, innerHeight]);
+      expect([rect.right, rect.bottom]).toEqual([view().clientWidth, view().clientHeight]);
     });
 
     it('opens the chat below and beside him in the top left, and above and beside him in the bottom right', () => {

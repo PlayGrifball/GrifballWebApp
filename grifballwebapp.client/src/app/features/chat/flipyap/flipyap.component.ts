@@ -194,14 +194,16 @@ export class FlipyapComponent {
     const box = this.box()?.nativeElement;
     if (!box)
       return;
+    // The window without its scrollbars: what a fixed box is placed in
+    const { clientWidth, clientHeight } = document.documentElement;
     const rect = box.getBoundingClientRect();
     const now = this.offset();
     const clamp = (delta: number, low: number, high: number) => Math.min(Math.max(delta, low), high);
-    const dx = clamp(x - now.x, -rect.left, innerWidth - rect.right);
-    const dy = clamp(y - now.y, -rect.top, innerHeight - rect.bottom);
+    const dx = clamp(x - now.x, -rect.left, clientWidth - rect.right);
+    const dy = clamp(y - now.y, -rect.top, clientHeight - rect.bottom);
     this.offset.set({ x: now.x + dx, y: now.y + dy });
-    this.nearLeft.set(rect.left + dx + rect.width / 2 < innerWidth / 2);
-    this.nearTop.set(rect.top + dy + rect.height / 2 < innerHeight / 2);
+    this.nearLeft.set(rect.left + dx + rect.width / 2 < clientWidth / 2);
+    this.nearTop.set(rect.top + dy + rect.height / 2 < clientHeight / 2);
   }
 
   private restorePosition(): void {
