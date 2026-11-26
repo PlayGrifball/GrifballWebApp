@@ -11,65 +11,63 @@ export const SPRITE_SIZE = 32;
 
 /** The colours of the sprite's letters in its drawings below. */
 const COLOURS: Readonly<Record<string, string>> = {
-  o: '#25222f', // outline
-  c: '#6b7385', // methane tank cone
-  C: '#9aa2b8', // methane tank cone, lit ridge
-  a: '#f9a21b', // armour
-  h: '#ffc85a', // armour, lit
-  d: '#d8620e', // armour, shaded
-  p: '#a9b0cf', // skin
-  n: '#8089ab', // skin, shaded
+  o: '#1a1a22', // outline
+  C: '#efe9d2', // methane tank cone
+  c: '#bdb59a', // methane tank cone, shaded
+  a: '#e6a82a', // gold armour
+  d: '#b27818', // gold armour, shaded
+  h: '#ffd35c', // gold armour, lit
+  g: '#4a4a54', // charcoal armour
+  G: '#6d6d79', // charcoal armour, lit
+  e: '#8a8a96', // face
+  E: '#a9a9b5', // face, lit
   w: '#ffffff', // eye
-  k: '#15131c', // pupil
-  m: '#3d4150', // rebreather mask
-  M: '#5d6378', // rebreather mask, lit
+  k: '#23232b', // pupil and grille
   v: '#8fd0ff', // rebreather vents
-  e: '#5a6074', // legs
-  f: '#3b3f52', // legs, shaded
 };
 
 /** Flipyap's left half, top to bottom: each row's sixteen letters are mirrored to make the right half. */
 const HALF: readonly string[] = [
   '................',
+  '................',
   '...............o',
   '..............oC',
-  '..............oC',
   '.............oaC',
   '.............oaC',
-  '............oaCc',
-  '............oaCc',
-  '...........oaCcc',
-  '...........oaCcc',
-  '..........oaCccc',
-  '..........oaCccc',
-  '.........oaCcccc',
-  '........oaCccccc',
-  '.....ooopppppppp',
-  '....oppppppppppp',
-  '....opppppwwpppp',
-  '....opppppwkpppp',
-  '....oppnnppppppp',
-  '....oommmmmmmmmm',
-  '.....ommmMMmmmmm',
-  '.....oommmmmmmmm',
-  '...ooooaaaaaaaaa',
-  '..oppoaaahaaddaa',
-  '..oppoaaaaaaaaaa',
-  '..oppoaadaaaaaaa',
-  '...opoaaaaaaaaaa',
-  '...ooooddddddddd',
-  '......oeeeeeeeeo',
-  '......oeefffeeeo',
-  '....ooeeeeeeeeeo',
-  '....oooooooooooo',
+  '............oaCC',
+  '............oaCC',
+  '...........oaCCc',
+  '...........oaCCc',
+  '..........oaCCcc',
+  '..........oaCCcc',
+  '.........oaCCccc',
+  '.......ooggggggg',
+  '......oggggggGGG',
+  '.....oggeeeeEEEE',
+  '.....ogeeewkEEEE',
+  '.....ogeeeeEEEEE',
+  '.....ogggkgkgkgk',
+  '......oggggggggg',
+  '....oooggggggggg',
+  '...ogggoaaahaaaa',
+  '...ogGgoaaaaaaaa',
+  '...ogggoaadaaaaa',
+  '....ogoaaaaaaaaa',
+  '....oooddddddddd',
+  '.......ogggggggg',
+  '......ogggkggggo',
+  '......ogGggggggo',
+  '.....ooggggggggo',
+  '.....ooooooooooo',
+  '................',
 ];
 
 /** The rows of a frame that differ from his resting face (row number, left half). */
 const FRAME_ROWS: Readonly<Record<FlipyapFrame, Readonly<Record<number, string>>>> = {
   idle: {},
-  blink: { 16: '....oppppppppppp', 17: '....opppppkkpppp' },
-  talk: { 20: '.....ommmvvvvvvv' },
-  held: { 16: '....opppwwwwwppp', 17: '....opppwwkwwppp' },
+  blink: { 16: '.....ogeekkkEEEE' },
+  talk: { 18: '.....ogggvvvvvvv' },
+  held: { 16: '.....ogeewwwEEEE' },
 };
 
 function pixels(frame: FlipyapFrame): SpritePixel[] {
