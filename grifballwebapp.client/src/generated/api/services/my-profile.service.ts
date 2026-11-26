@@ -329,7 +329,7 @@ export class MyProfileService extends BaseService {
   }
 
   /** Path part for operation `clearMySpartan()` */
-  static readonly ClearMySpartanPath = '/me/spartan';
+  static readonly ClearMySpartanPath = '/me/spartan/clear';
 
   /**
    * Goes back to the Spartan the signed-in user has equipped in Halo Infinite.

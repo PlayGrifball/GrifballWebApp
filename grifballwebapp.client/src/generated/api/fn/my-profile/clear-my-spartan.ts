@@ -12,7 +12,7 @@ export interface ClearMySpartan$Params {
 }
 
 export function clearMySpartan(http: HttpClient, rootUrl: string, params?: ClearMySpartan$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
-  const rb = new RequestBuilder(rootUrl, clearMySpartan.PATH, 'delete');
+  const rb = new RequestBuilder(rootUrl, clearMySpartan.PATH, 'post');
   if (params) {
   }
 
@@ -26,4 +26,4 @@ export function clearMySpartan(http: HttpClient, rootUrl: string, params?: Clear
   );
 }
 
-clearMySpartan.PATH = '/me/spartan';
+clearMySpartan.PATH = '/me/spartan/clear';

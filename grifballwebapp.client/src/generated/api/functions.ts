@@ -451,3 +451,5 @@ export type { GetUserProfilePicture$Jpeg$Params as GetUserProfilePicture$Jpeg$Pa
 export { getUserProfilePicture$Jpeg as getUserProfilePicture$Jpeg } from './fn/xbox-accounts/get-user-profile-picture-jpeg';
 export type { GetUserProfilePicture$Webp$Params as GetUserProfilePicture$Webp$Params } from './fn/xbox-accounts/get-user-profile-picture-webp';
 export { getUserProfilePicture$Webp as getUserProfilePicture$Webp } from './fn/xbox-accounts/get-user-profile-picture-webp';
+export type { GetUserSpartanHeadshot$Params as GetUserSpartanHeadshot$Params } from './fn/xbox-accounts/get-user-spartan-headshot';
+export { getUserSpartanHeadshot as getUserSpartanHeadshot } from './fn/xbox-accounts/get-user-spartan-headshot';

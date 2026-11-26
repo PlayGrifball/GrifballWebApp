@@ -8,5 +8,6 @@ import { ProfilePictureChoice } from './profile-picture-choice';
  */
 export const PROFILE_PICTURE_CHOICE: ProfilePictureChoice[] = [
   'Emblem',
-  'GamerPicture'
+  'GamerPicture',
+  'Spartan'
 ];

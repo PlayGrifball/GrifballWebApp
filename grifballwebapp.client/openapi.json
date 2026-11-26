@@ -4785,7 +4785,7 @@
           }
         }
       },
-      "put": {
+      "post": {
         "tags": [
           "MyProfile"
         ],
@@ -4850,8 +4850,10 @@
             }
           }
         }
-      },
-      "delete": {
+      }
+    },
+    "/me/spartan/clear": {
+      "post": {
         "tags": [
           "MyProfile"
         ],
@@ -10157,7 +10159,7 @@
         "tags": [
           "XboxAccounts"
         ],
-        "summary": "The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.",
+        "summary": "The picture that stands for the account: its user's Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored.",
         "operationId": "GetXboxAccountProfilePicture",
         "parameters": [
           {
@@ -10212,7 +10214,7 @@
         "tags": [
           "XboxAccounts"
         ],
-        "summary": "The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.",
+        "summary": "The picture that stands for a site user: their Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored or the user has no account.",
         "operationId": "GetUserProfilePicture",
         "parameters": [
           {
@@ -10242,6 +10244,49 @@
                 }
               },
               "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userID}/spartan-headshot": {
+      "get": {
+        "tags": [
+          "XboxAccounts"
+        ],
+        "summary": "The headshot of the Spartan rendered for a site user (the neutral stance, the helmet framed); 404 until one is rendered.",
+        "operationId": "GetUserSpartanHeadshot",
+        "parameters": [
+          {
+            "name": "userID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/png": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
@@ -15952,10 +15997,11 @@
       "ProfilePictureChoice": {
         "enum": [
           "Emblem",
-          "GamerPicture"
+          "GamerPicture",
+          "Spartan"
         ],
         "type": "string",
-        "description": "Which of a user's Xbox images stands for them on the site; the other is the fallback when the account has none of it."
+        "description": "Which image stands for a user on the site: their Spartan headshot, Halo emblem or gamer picture; the others are the fallback when it is not stored."
       },
       "ProfileStatsDto": {
         "required": [

@@ -28,6 +28,8 @@ import { getUserProfilePicture$Png } from '../fn/xbox-accounts/get-user-profile-
 import { GetUserProfilePicture$Png$Params } from '../fn/xbox-accounts/get-user-profile-picture-png';
 import { getUserProfilePicture$Webp } from '../fn/xbox-accounts/get-user-profile-picture-webp';
 import { GetUserProfilePicture$Webp$Params } from '../fn/xbox-accounts/get-user-profile-picture-webp';
+import { getUserSpartanHeadshot } from '../fn/xbox-accounts/get-user-spartan-headshot';
+import { GetUserSpartanHeadshot$Params } from '../fn/xbox-accounts/get-user-spartan-headshot';
 import { getXboxAccount } from '../fn/xbox-accounts/get-xbox-account';
 import { GetXboxAccount$Params } from '../fn/xbox-accounts/get-xbox-account';
 import { getXboxAccountGamerPicture$Jpeg } from '../fn/xbox-accounts/get-xbox-account-gamer-picture-jpeg';
@@ -566,7 +568,7 @@ export class XboxAccountsService extends BaseService {
   static readonly GetXboxAccountProfilePicturePath = '/xbox-accounts/{xboxUserID}/profile-picture';
 
   /**
-   * The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.
+   * The picture that stands for the account: its user's Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored.
    *
    *
    *
@@ -581,7 +583,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.
+   * The picture that stands for the account: its user's Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored.
    *
    *
    *
@@ -598,7 +600,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.
+   * The picture that stands for the account: its user's Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored.
    *
    *
    *
@@ -613,7 +615,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.
+   * The picture that stands for the account: its user's Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored.
    *
    *
    *
@@ -630,7 +632,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.
+   * The picture that stands for the account: its user's Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored.
    *
    *
    *
@@ -645,7 +647,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for the account: its user's chosen image (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when neither is.
+   * The picture that stands for the account: its user's Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored.
    *
    *
    *
@@ -665,7 +667,7 @@ export class XboxAccountsService extends BaseService {
   static readonly GetUserProfilePicturePath = '/users/{userID}/profile-picture';
 
   /**
-   * The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.
+   * The picture that stands for a site user: their Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored or the user has no account.
    *
    *
    *
@@ -680,7 +682,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.
+   * The picture that stands for a site user: their Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored or the user has no account.
    *
    *
    *
@@ -697,7 +699,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.
+   * The picture that stands for a site user: their Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored or the user has no account.
    *
    *
    *
@@ -712,7 +714,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.
+   * The picture that stands for a site user: their Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored or the user has no account.
    *
    *
    *
@@ -729,7 +731,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.
+   * The picture that stands for a site user: their Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored or the user has no account.
    *
    *
    *
@@ -744,7 +746,7 @@ export class XboxAccountsService extends BaseService {
   }
 
   /**
-   * The picture that stands for a site user: the image they chose (the emblem unless they chose the gamer picture), else the other when that one is not stored; 404 when the user has no account or neither is stored.
+   * The picture that stands for a site user: their Spartan headshot (unless they chose another image), else the emblem, then the gamer picture; 404 when none is stored or the user has no account.
    *
    *
    *
@@ -755,6 +757,41 @@ export class XboxAccountsService extends BaseService {
    */
   getUserProfilePicture$Webp(params: GetUserProfilePicture$Webp$Params, context?: HttpContext): Observable<Blob> {
     const resp = this.getUserProfilePicture$Webp$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
+    );
+  }
+
+  /** Path part for operation `getUserSpartanHeadshot()` */
+  static readonly GetUserSpartanHeadshotPath = '/users/{userID}/spartan-headshot';
+
+  /**
+   * The headshot of the Spartan rendered for a site user (the neutral stance, the helmet framed); 404 until one is rendered.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserSpartanHeadshot()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserSpartanHeadshot$Response(params: GetUserSpartanHeadshot$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+    const obs = getUserSpartanHeadshot(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The headshot of the Spartan rendered for a site user (the neutral stance, the helmet framed); 404 until one is rendered.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserSpartanHeadshot$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserSpartanHeadshot(params: GetUserSpartanHeadshot$Params, context?: HttpContext): Observable<Blob> {
+    const resp = this.getUserSpartanHeadshot$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<Blob>): Blob => r.body)
     );

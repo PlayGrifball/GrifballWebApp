@@ -14,7 +14,7 @@ export interface SetMySpartan$Params {
 }
 
 export function setMySpartan(http: HttpClient, rootUrl: string, params?: SetMySpartan$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
-  const rb = new RequestBuilder(rootUrl, setMySpartan.PATH, 'put');
+  const rb = new RequestBuilder(rootUrl, setMySpartan.PATH, 'post');
   if (params) {
     rb.body(params.body, 'application/json');
   }
