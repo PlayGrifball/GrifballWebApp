@@ -560,7 +560,7 @@ public partial class GrifChatUnitTests
     {
         var model = new FakeModel([Text("Hi")]);
         var chat = ChatWithModels(model);
-        _clients.Models.Returns([Haiku with { EveryTool = true }]);
+        _clients.Models.Returns([Haiku with { Roles = [], EveryTool = true }]);
 
         using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Discord, Asker))
             await All(reply.StreamAsync());
