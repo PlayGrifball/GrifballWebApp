@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockResponse, signIn, type Role } from './mockApi.mts';
 
-// Code that is no longer in the app's first download but loaded when it is first needed: the theme
-// dialog, the snack bar (with its default 5 s duration) and the date-time pickers with their Luxon
+// Code that is no longer in the app's first download but loaded when it is first needed: the
+// snack bar (with its default 5 s duration) and the date-time pickers with their Luxon
 // adapter. Each must still work as before. The backend is mocked (e2e/mockApi.mts).
 
 async function mockBackend(page: Page, role: Role): Promise<void> {
@@ -18,14 +18,11 @@ async function mockBackend(page: Page, role: Role): Promise<void> {
   });
 }
 
-test('the theme editor opens in a dialog', async ({ page }) => {
-  await mockBackend(page, 'anon');
-  await page.goto('/');
-  await expect(page.locator('tr.mat-mdc-row').first()).toBeVisible();
+test('the theme editor is a section of the player\'s own profile', async ({ page }) => {
+  await mockBackend(page, 'player');
+  await page.goto('/profile/117');
 
-  await page.getByRole('button', { name: 'Theme icon' }).click();
-
-  await expect(page.locator('mat-dialog-container app-theme')).toBeVisible();
+  await expect(page.locator('app-theme app-palette').first()).toBeVisible();
 });
 
 test('a failed login says so in a snack bar that closes itself after 5 seconds', async ({ page }) => {

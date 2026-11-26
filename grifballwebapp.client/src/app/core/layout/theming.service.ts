@@ -1,4 +1,4 @@
-import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, computed, signal, inject } from '@angular/core';
 import { AppLog } from '../telemetry/appLog';
 
 type Theme = {
@@ -12,6 +12,9 @@ type Theme = {
   error: string;
   font?: string;
 };
+
+/** The fonts the theme editor offers (the server accepts the same list). */
+export const THEME_FONTS: readonly string[] = ['Rajdhani', 'Roboto', 'sans-serif'];
 
 /** The default theme: the seed colours of the Archive Vault design (see styles/_hud-tokens.scss). */
 export const ARCHIVE_VAULT = {
@@ -39,6 +42,18 @@ export const SPARTAN_HUD = {
   font: 'Rajdhani',
 } as const satisfies Theme;
 
+/** What a player chooses: the colours and font the picker edits, and the era of the preset they started from. */
+export type ThemeSettings = {
+  era: string;
+  font: string;
+  primary: string;
+  secondary: string;
+  tertiary: string;
+  neutral: string;
+  neutralVariant: string;
+  error: string;
+};
+
 export type ShadeApplied = {
   name: string,
   hex: string,
@@ -59,6 +74,18 @@ export class ThemingService {
   neutral = signal<string>(ARCHIVE_VAULT.neutral);
   neutralVariant = signal<string>(ARCHIVE_VAULT.neutralVariant);
   error = signal<string>(ARCHIVE_VAULT.error);
+
+  /** Everything the player chose, as one value to compare and save. */
+  readonly settings = computed<ThemeSettings>(() => ({
+    era: this.era(),
+    font: this.font(),
+    primary: this.primary(),
+    secondary: this.secondary(),
+    tertiary: this.tertiary(),
+    neutral: this.neutral(),
+    neutralVariant: this.neutralVariant(),
+    error: this.error(),
+  }));
 
   shadeApplied = signal<ShadeApplied>({
     name: '',
@@ -132,6 +159,11 @@ export class ThemingService {
     this.neutral.set(neutral);
     this.neutralVariant.set(neutralVariant);
     this.error.set(error);
+  }
+
+  /** Puts a saved choice on the site. */
+  applySettings(settings: ThemeSettings): void {
+    this.applyTheme({ name: '', ...settings });
   }
 
   setEra(era: string) {

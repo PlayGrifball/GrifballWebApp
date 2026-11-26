@@ -3,7 +3,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { MatSidenav } from '@angular/material/sidenav';
 import { ToolbarComponent } from './toolbar.component';
-import { ThemeComponent } from '../theme/theme.component';
 import { AccountService } from '../../auth/account.service';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
@@ -314,23 +313,6 @@ describe('ToolbarComponent', () => {
         other.remove();
       }
       expect(search).not.toHaveBeenCalled();
-    });
-  });
-
-  it('opens the theme editor as a borderless dialog, full screen on a phone and closable every way', async () => {
-    // The dialog code is loaded on the first click; the app-wide MatDialog opens it.
-    const open = spyOn(TestBed.inject(MatDialog), 'open');
-    await component.theme();
-    expect(open).toHaveBeenCalledWith(ThemeComponent, {
-      width: '720px',
-      maxWidth: '100vw',
-      maxHeight: '100dvh',
-      backdropClass: 'no-backdrop',
-      panelClass: ['dialog-no-bg', 'theme-dialog'],
-      ariaLabelledBy: 'theme-title',
-      autoFocus: 'first-tabbable',
-      restoreFocus: true,
-      closeOnNavigation: true,
     });
   });
 });

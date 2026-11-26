@@ -200,6 +200,24 @@ public class UserAggregateTests
     }
 
     [Test]
+    public void ChooseTheme_StartsWithNone_TakesOneChosen_AndRefusesOneTooLongForItsColumn()
+    {
+        var user = User.Register("alice");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(user.Theme, Is.Null);
+            Assert.That(user.ChooseTheme(null), Is.False, "Already so");
+            Assert.That(user.ChooseTheme("{}"), Is.True);
+            Assert.That(user.Theme, Is.EqualTo("{}"));
+            Assert.That(user.ChooseTheme("{}"), Is.False, "Already so");
+            Assert.That(user.ChooseTheme(null), Is.True);
+            Assert.That(user.Theme, Is.Null);
+            Assert.Throws<ArgumentOutOfRangeException>(() => user.ChooseTheme(new string('x', User.ThemeMaxLength + 1)));
+        }
+    }
+
+    [Test]
     public void ChooseRegion_ByTheImport_FillsOnlyWhatNoOneChose()
     {
         var empty = User.Register("empty");

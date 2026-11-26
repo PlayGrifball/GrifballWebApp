@@ -4745,6 +4745,96 @@
         }
       }
     },
+    "/me/theme": {
+      "get": {
+        "tags": [
+          "MyTheme"
+        ],
+        "summary": "The signed-in user's saved theme, or 204 No Content when they have not chosen one.",
+        "operationId": "GetMyTheme",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserThemeDto"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "MyTheme"
+        ],
+        "summary": "Saves the signed-in user's theme.",
+        "operationId": "SetMyTheme",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UserThemeDto"
+                  }
+                ],
+                "description": "The colours and font a player chose for the site: the seed colours (#rgb or #rrggbb), the font, and the era\n            of the preset they started from (empty for none)."
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/{userID}/gamertag": {
       "get": {
         "tags": [
@@ -19606,6 +19696,47 @@
         },
         "additionalProperties": false
       },
+      "UserThemeDto": {
+        "required": [
+          "era",
+          "error",
+          "font",
+          "neutral",
+          "neutralVariant",
+          "primary",
+          "secondary",
+          "tertiary"
+        ],
+        "type": "object",
+        "properties": {
+          "era": {
+            "type": "string"
+          },
+          "font": {
+            "type": "string"
+          },
+          "primary": {
+            "type": "string"
+          },
+          "secondary": {
+            "type": "string"
+          },
+          "tertiary": {
+            "type": "string"
+          },
+          "neutral": {
+            "type": "string"
+          },
+          "neutralVariant": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "The colours and font a player chose for the site: the seed colours (#rgb or #rrggbb), the font, and the era\n            of the preset they started from (empty for none)."
+      },
       "ViewerDataDto": {
         "required": [
           "matchGames",
@@ -20085,6 +20216,9 @@
     },
     {
       "name": "MyProfile"
+    },
+    {
+      "name": "MyTheme"
     },
     {
       "name": "Profile"

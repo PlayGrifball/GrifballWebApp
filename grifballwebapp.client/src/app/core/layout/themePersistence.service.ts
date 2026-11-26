@@ -1,0 +1,159 @@
+import { DestroyRef, Injectable, Injector, PLATFORM_ID, effect, inject, signal, untracked } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { AccountService } from '../auth/account.service';
+import type { MyThemeService } from '@api/services/my-theme.service';
+import { AppLog } from '../telemetry/appLog';
+import { THEME_FONTS, ThemeSettings, ThemingService } from './theming.service';
+
+/** Where this device keeps the theme, so it shows when nobody is signed in and before the account's has loaded. */
+export const THEME_STORAGE_KEY = 'themeSettings';
+
+/** How long a change waits for another before it is saved to the account (the colour picker changes it many times a second). */
+export const THEME_SAVE_DELAY_MS = 800;
+
+const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/** The settings if `value` is a theme the picker can make (stored text is anyone's to edit), else null. */
+export function parseThemeSettings(value: unknown): ThemeSettings | null {
+  if (typeof value !== 'object' || value === null)
+    return null;
+  const v = value as Record<string, unknown>;
+  const colours = [v['primary'], v['secondary'], v['tertiary'], v['neutral'], v['neutralVariant'], v['error']];
+  if (typeof v['era'] !== 'string' || !/^[a-z0-9-]{0,32}$/.test(v['era'])
+    || typeof v['font'] !== 'string' || !THEME_FONTS.includes(v['font'])
+    || !colours.every(c => typeof c === 'string' && HEX.test(c)))
+    return null;
+  return {
+    era: v['era'], font: v['font'],
+    primary: v['primary'] as string, secondary: v['secondary'] as string, tertiary: v['tertiary'] as string,
+    neutral: v['neutral'] as string, neutralVariant: v['neutralVariant'] as string, error: v['error'] as string,
+  };
+}
+
+/**
+ * Keeps the player's theme. Every change is saved on this device (localStorage, so it applies when signed out
+ * and from the first paint) and, when signed in, to their account, so their other devices show it too. On
+ * signing in, the account's theme wins; an account with none gets the default, so another person's leftover theme never shows.
+ */
+@Injectable({ providedIn: 'root' })
+export class ThemePersistence {
+  private readonly theming = inject(ThemingService);
+  private readonly account = inject(AccountService);
+  private readonly injector = inject(Injector);
+  private readonly log = inject(AppLog);
+  private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  /** The settings (as JSON) last put on the site from storage, the account or a change, so only a new choice is saved. */
+  private current = '';
+  private destroyed = false;
+  private timer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Counts the times a saved theme from the account replaced the one shown: the editor starts over from it. */
+  readonly restored = signal(0);
+
+  constructor() {
+    if (!this.browser)
+      return;
+
+    const stored = this.readStored();
+    if (stored)
+      this.theming.applySettings(stored);
+    this.current = JSON.stringify(this.theming.settings());
+
+    effect(() => {
+      const settings = this.theming.settings();
+      untracked(() => this.changed(settings));
+    });
+    effect(() => {
+      const signedIn = this.account.personID() !== null;
+      untracked(() => signedIn ? this.loadFromAccount() : this.cancelSave());
+    });
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.cancelSave();
+    });
+  }
+
+  private changed(settings: ThemeSettings): void {
+    const json = JSON.stringify(settings);
+    if (json === this.current)
+      return;
+    this.current = json;
+    if (!parseThemeSettings(settings))
+      return;
+    this.writeStored(json);
+    if (this.account.isLoggedIn()) {
+      this.cancelSave();
+      this.timer = setTimeout(() => this.saveToAccount(settings), THEME_SAVE_DELAY_MS);
+    }
+  }
+
+  private loadFromAccount(): void {
+    void this.withApi(api => api.getMyTheme().subscribe({
+      next: saved => {
+        const settings = parseThemeSettings(saved);
+        if (settings) {
+          this.cancelSave();
+          this.current = JSON.stringify(settings);
+          this.writeStored(this.current);
+          this.theming.applySettings(settings);
+          this.restored.update(n => n + 1);
+        } else {
+          this.cancelSave();
+          this.theming.reset();
+          this.current = JSON.stringify(this.theming.settings());
+          this.removeStored();
+          this.restored.update(n => n + 1);
+        }
+      },
+      error: () => this.log.warn('Theme: could not load the saved theme'),
+    }));
+  }
+
+  private saveToAccount(settings: ThemeSettings): void {
+    this.timer = null;
+    if (!this.account.isLoggedIn())
+      return;
+    void this.withApi(api => api.setMyTheme({ body: settings }).subscribe({
+      error: () => this.log.warn('Theme: could not save the theme to the account'),
+    }));
+  }
+
+  /** The account endpoints load on first use, so signed-out visitors never download them with the first page. */
+  private async withApi(use: (api: MyThemeService) => void): Promise<void> {
+    const { MyThemeService } = await import('@api/services/my-theme.service');
+    if (!this.destroyed)
+      use(this.injector.get(MyThemeService));
+  }
+
+  private cancelSave(): void {
+    if (this.timer !== null)
+      clearTimeout(this.timer);
+    this.timer = null;
+  }
+
+  private readStored(): ThemeSettings | null {
+    try {
+      const text = localStorage.getItem(THEME_STORAGE_KEY);
+      return text ? parseThemeSettings(JSON.parse(text)) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private removeStored(): void {
+    try {
+      localStorage.removeItem(THEME_STORAGE_KEY);
+    } catch {
+      // Storage blocked: nothing to forget
+    }
+  }
+
+  private writeStored(json: string): void {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, json);
+    } catch {
+      // Storage blocked or full: the theme still applies for this visit
+    }
+  }
+}

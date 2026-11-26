@@ -20,10 +20,6 @@
       <a mat-icon-button class="hud-header__chat" routerLink="/chat" aria-label="Chat" title="Chat">
         <mat-icon>chat</mat-icon>
       </a>
-      <button mat-icon-button aria-label="Theme icon" (click)="theme()">
-        <mat-icon>palette</mat-icon>
-      </button>
-
       @if (accountService.isLoggedIn()) {
         <!-- The user's chip opens their menu: their profile, and logging out -->
         <div class="hud-user-menu" (keydown)="onMenuKeydown($event)" (focusout)="onMenuFocusOut($event)">

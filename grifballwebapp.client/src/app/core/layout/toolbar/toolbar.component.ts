@@ -144,25 +144,4 @@ export class ToolbarComponent {
       throw error;
     }
   }
-
-  /** Opens the theme editor. It, its colour picker and the dialog code load on first use, not with the app. */
-  async theme(): Promise<void> {
-    const [{ ThemeComponent }, { MatDialog }] = await Promise.all([
-      import('../theme/theme.component'),
-      import('@angular/material/dialog'),
-    ]);
-    // On a phone it takes the whole screen; its header (with Close) stays in view as it scrolls.
-    // Esc, a click beside it and going back (closeOnNavigation) close it too.
-    this.injector.get(MatDialog).open(ThemeComponent, {
-      width: '720px',
-      maxWidth: '100vw',
-      maxHeight: '100dvh',
-      backdropClass: 'no-backdrop',
-      panelClass: ['dialog-no-bg', 'theme-dialog'],
-      ariaLabelledBy: 'theme-title',
-      autoFocus: 'first-tabbable',
-      restoreFocus: true,
-      closeOnNavigation: true,
-    });
-  }
 }

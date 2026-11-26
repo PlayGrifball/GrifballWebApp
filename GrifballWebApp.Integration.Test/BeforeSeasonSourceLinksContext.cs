@@ -19,8 +19,9 @@ internal sealed class BeforeSeasonSourceLinksContext(DbContextOptions<GrifballCo
     public static void IgnoreSourceLinks(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Season>().Ignore(s => s.HistoricalSourceLinks);
-        // Every database this is for is older than the users' picture choice, which the model would insert and read back
+        // Every database this is for is older than the users' picture choice and theme, which the model would insert and read back
         modelBuilder.Entity<User>().Ignore(u => u.ProfilePicture);
+        modelBuilder.Entity<User>().Ignore(u => u.Theme);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

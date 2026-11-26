@@ -72,6 +72,10 @@
           <app-profile-identity [regionID]="profileStats()?.regionID ?? null" [profilePicture]="profileStats()?.profilePicture ?? 'Emblem'" (changed)="store.loadStats()" />
         </section>
 
+        <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="theme-title">
+          <app-theme />
+        </section>
+
         <section class="hud-section hud-panel hud-panel--soft">
           <app-access-tokens />
         </section>

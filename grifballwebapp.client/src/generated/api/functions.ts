@@ -217,6 +217,10 @@ export type { GetMyGamertagClaims$Params as GetMyGamertagClaims$Params } from '.
 export { getMyGamertagClaims as getMyGamertagClaims } from './fn/my-profile/get-my-gamertag-claims';
 export type { ClaimGamertag$Params as ClaimGamertag$Params } from './fn/my-profile/claim-gamertag';
 export { claimGamertag as claimGamertag } from './fn/my-profile/claim-gamertag';
+export type { GetMyTheme$Params as GetMyTheme$Params } from './fn/my-theme/get-my-theme';
+export { getMyTheme as getMyTheme } from './fn/my-theme/get-my-theme';
+export type { SetMyTheme$Params as SetMyTheme$Params } from './fn/my-theme/set-my-theme';
+export { setMyTheme as setMyTheme } from './fn/my-theme/set-my-theme';
 export type { GetGamertag$Params as GetGamertag$Params } from './fn/profile/get-gamertag';
 export { getGamertag as getGamertag } from './fn/profile/get-gamertag';
 export type { SetGamertag$Params as SetGamertag$Params } from './fn/profile/set-gamertag';

@@ -1,7 +1,6 @@
 import { Route } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
 import { HomeComponent } from './features/home/home.component';
-import { ThemeComponent } from './core/layout/theme/theme.component';
 import { SeasonComponent } from './features/league/season/season.component';
 import { SignupsComponent } from './features/league/signups/signups.component';
 import { SignupFormComponent } from './features/league/signupForm/signupForm.component';
@@ -70,12 +69,6 @@ describe('APP_ROUTES', () => {
     const registerRoute = APP_ROUTES.find(r => r.path === 'register');
     expect(registerRoute).toBeDefined();
     expect(registerRoute?.title).toBe('Register');
-  });
-
-  it('should have theme route', () => {
-    const themeRoute = APP_ROUTES.find(r => r.path === 'theme');
-    expect(themeRoute).toBeDefined();
-    expect(themeRoute?.title).toBe('Theme');
   });
 
   it('should have wildcard route for 404', () => {
@@ -238,7 +231,6 @@ describe('APP_ROUTES lazy loading', () => {
   // without having to start the whole Angular application or a router.
   const expected: Record<string, unknown> = {
     '': HomeComponent,
-    'theme': ThemeComponent,
     'season/:seasonID': SeasonComponent,
     'season/:seasonID/signups': SignupsComponent,
     'season/:seasonID/signupForm': SignupFormComponent,

@@ -122,6 +122,9 @@ public class User : IdentityUser<int>, IAuditStamp, IHasDomainEvents
     public bool IsDummyUser { get; private set; }
     /// <summary>Which Xbox image shows for the user: the emblem unless they chose their gamer picture (<see cref="ChooseProfilePicture"/>).</summary>
     public ProfilePictureChoice ProfilePicture { get; private set; } = ProfilePictureChoice.Emblem;
+    /// <summary>The colours and font the user chose for the site (<see cref="ChooseTheme"/>), as JSON the Application validates; null until they chose.</summary>
+    public string? Theme { get; private set; }
+    public const int ThemeMaxLength = 500;
 
     /// <summary>The prefix of an import placeholder's user name: a dummy user the historical import stands in for a
     /// gamertag with ("historical:Name"), until it is claimed or tied to the Xbox account that holds the gamertag now.
@@ -339,6 +342,17 @@ public class User : IdentityUser<int>, IAuditStamp, IHasDomainEvents
         RegionSource = source;
         Changed();
         return RegionChoice.Set;
+    }
+
+    /// <summary>The theme (colours and font) the user chose, or null to go back to the site's own. Returns false when it was that already.</summary>
+    public bool ChooseTheme(string? theme)
+    {
+        if (theme is { Length: > ThemeMaxLength })
+            throw new ArgumentOutOfRangeException(nameof(theme), "The theme is too long");
+        if (Theme == theme)
+            return false;
+        Theme = theme;
+        return true;
     }
 
     /// <summary>The Xbox image that stands for the user on the site. Returns false when it was that already.</summary>

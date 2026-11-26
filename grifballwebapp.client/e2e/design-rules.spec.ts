@@ -6,7 +6,7 @@ import { closeOverlay, mockBackend, open, OVERLAYS, ROUTES, settled } from './te
 // and picker (e2e/testPages.mts, shared with a11y.spec.ts):
 //  - visible text is at least 12px
 //  - the value text in an input, a mat-select or a textarea, and a button's label, starts at least
-//    8px from its box's border (caught the theme dialog's labels sitting flush against the outline)
+//    8px from its box's border (caught the theme editor's labels sitting flush against the outline)
 //  - interactive targets are at least 44x44px, at the two portrait sizes (WCAG 2.5.8, with the
 //    inline-link-in-running-text exception)
 //  - no text is clipped (scrollWidth/Height > clientWidth/Height on an overflow:hidden/clip element)

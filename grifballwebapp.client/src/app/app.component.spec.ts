@@ -11,6 +11,7 @@ import { AccountService } from './core/auth/account.service';
 import { SeasonService } from '@api/services/season.service';
 import { BuildService } from '@api/services/build.service';
 import { ThemingService } from './core/layout/theming.service';
+import { ThemePersistence } from './core/layout/themePersistence.service';
 import { noMaterialAnimations } from './shared/testing/noMaterialAnimations';
 
 /** The window as the specs change it: without a ResizeObserver, or with a fake one. */
@@ -93,6 +94,7 @@ describe('AppComponent', () => {
       ],
       providers: [
         noMaterialAnimations,
+        { provide: ThemePersistence, useValue: {} },
         provideRouter([]),
         { provide: AccountService, useValue: mockAccountService },
         { provide: SeasonService, useValue: mockSeasonService },
@@ -225,6 +227,7 @@ describe('AppComponent behaviour', () => {
       imports: [AppComponent],
       providers: [
         noMaterialAnimations,
+        { provide: ThemePersistence, useValue: {} },
         provideRouter([]),
         { provide: AccountService, useValue: account },
         { provide: SeasonService, useValue: api },
@@ -615,6 +618,7 @@ describe('AppComponent rendered on the server', () => {
       imports: [AppComponent],
       providers: [
         noMaterialAnimations,
+        { provide: ThemePersistence, useValue: {} },
         provideRouter([]),
         { provide: PLATFORM_ID, useValue: 'server' },
         { provide: AccountService, useValue: { isLoggedIn: signal(false), isEventOrganizer: signal(false), isSysAdmin: signal(false), isPlayer: signal(false), personID: signal(null), displayName: signal(null) } },

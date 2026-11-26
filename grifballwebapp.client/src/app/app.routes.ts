@@ -10,11 +10,6 @@ export const APP_ROUTES: Routes = [
     // No title: the home page is titled after the site alone (shared/pageMeta.ts)
   },
   {
-    path: 'theme',
-    loadComponent: () => import('./core/layout/theme/theme.component').then(m => m.ThemeComponent),
-    title: 'Theme'
-  },
-  {
     path: 'season/:seasonID',
     loadComponent: () => import('./features/league/season/season.component').then(m => m.SeasonComponent),
     title: 'Season'
