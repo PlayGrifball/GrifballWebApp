@@ -48,10 +48,10 @@ public class SpartanCatalogSourceTests
         var region = catalog!.Cores.Single().Regions.Single();
         Assert.That(region.Key, Is.EqualTo("helmet"));
         Assert.That(region.Region, Is.EqualTo(100));
-        Assert.That(region.Pieces.Select(p => p.Name), Is.EqualTo(new string?[] { "Mark VII", null }));
-        Assert.That(catalog.Coatings, Is.EqualTo(new[] { "111" }));
-        Assert.That(catalog.Visors, Is.EqualTo(new[] { "Plain" }));
-        Assert.That(catalog.PendingCores, Is.EqualTo(new[] { "Chimera" }));
+        Assert.That(region.Pieces.Select(p => p.Name), Is.EqualTo(new List<string?> { "Mark VII", null }));
+        Assert.That(catalog.Coatings, Is.EqualTo(new List<string> { "111" }));
+        Assert.That(catalog.Visors, Is.EqualTo(new List<string> { "Plain" }));
+        Assert.That(catalog.PendingCores, Is.EqualTo(new List<string> { "Chimera" }));
     }
 
     [Test]
