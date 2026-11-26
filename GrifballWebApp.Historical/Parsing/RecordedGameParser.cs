@@ -108,11 +108,11 @@ public static partial class RecordedGameParser
         {
             var row = sheet.Rows[r];
             var name = Cell(row, c.Player).Trim();
-            if (SeasonStatsParser.IsTotalsRow(name) || SeasonStatsParser.IsRepeatingHeader(name, c.TeamOf(row)))
+            if (IsSummaryOrHeader(name, c.TeamOf(row)))
                 continue;
             var (k, d, g, gp) = (Int(row, c.Kills), Int(row, c.Deaths), Int(row, c.Goals), Int(row, c.GamesPlayed));
             // A week or playoffs marker (in the player column, or the next one), or a row of zeros
-            if (name.Length == 0 || ((k ?? 0) == 0 && (d ?? 0) == 0 && (g ?? 0) == 0 && (gp ?? 0) == 0))
+            if (name.Length == 0 || IsAllZero(k, d, g, gp))
             {
                 playoffs = PhaseOf(row) ?? playoffs;
                 continue;
@@ -135,6 +135,11 @@ public static partial class RecordedGameParser
         }
         return blocks;
     }
+
+    private static bool IsSummaryOrHeader(string name, string? team)
+        => SeasonStatsParser.IsTotalsRow(name) || SeasonStatsParser.IsRepeatingHeader(name, team);
+
+    private static bool IsAllZero(params int?[] counts) => counts.All(n => (n ?? 0) == 0);
 
     /// <summary>A marker row's phase: whether it starts the playoffs, or null for a row that marks none.</summary>
     private static bool? PhaseOf(string[] row)
@@ -240,10 +245,8 @@ public static partial class RecordedGameParser
         {
             var row = sheet.Rows[end];
             var first = Cell(row, 0).Trim();
-            if (SeasonStatsParser.IsTotalsRow(first))
-                continue;
             var rawPlayer = Cell(row, 1).Trim();
-            if (SeasonStatsParser.IsTotalsRow(rawPlayer) || SeasonStatsParser.IsRepeatingHeader(rawPlayer, first))
+            if (SeasonStatsParser.IsTotalsRow(first) || IsSummaryOrHeader(rawPlayer, first))
                 continue;
             var named = first.Length > 0 && !first.Equals("Sub", StringComparison.OrdinalIgnoreCase);
             if (named && !sideOf.TryGetValue(first, out side))

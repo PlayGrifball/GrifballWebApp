@@ -255,10 +255,16 @@ public static partial class GamesTableParser
                 var (sa, sb) = (Int(row, scoreA), Int(row, scoreB));
                 var players = lines.ByGame.GetValueOrDefault(match) ?? [];
                 result.Games.Add(Game(key, match, [a, b], [(Outcome(sa, sb), sa), (Outcome(sb, sa), sb)],
-                    Distinct(players.Select(p => Value(p, columns.Gamertag) is { } gamertag && !SeasonStatsParser.IsTotalsLabel(gamertag)
-                        ? columns.Line(p, gamertag, Int(p, side) ?? 0) : null).OfType<RecordedPlayerInput>())));
+                    Distinct(MatchLines(players, columns, side))));
             }
             CountStray(lines, listed);
+        }
+
+        private IEnumerable<RecordedPlayerInput> MatchLines(IEnumerable<string[]> players, LineColumns columns, int side)
+        {
+            foreach (var p in players)
+                if (Value(p, columns.Gamertag) is { } gamertag && !SeasonStatsParser.IsTotalsLabel(gamertag))
+                    yield return columns.Line(p, gamertag, Int(p, side) ?? 0);
         }
 
         /// <summary>gb_teamstats' columns.</summary>
