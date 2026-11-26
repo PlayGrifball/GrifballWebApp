@@ -12,6 +12,7 @@ import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '@shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 import { AccessTokensComponent } from './accessTokens/accessTokens.component';
+import { ProfileSpartanComponent } from './profileSpartan/profileSpartan.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { StubVodListComponent } from '@shared/vodList/vodList.stub';
 import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
@@ -37,6 +38,12 @@ class ProfileIdentityStubComponent {
 // And the access tokens section (accessTokens.component.spec.ts).
 @Component({ selector: 'app-access-tokens', template: '<p>access tokens</p>' })
 class AccessTokensStubComponent {}
+
+// And the Spartan section (profileSpartan.component.spec.ts).
+@Component({ selector: 'app-profile-spartan', template: '<p>spartan</p>' })
+class ProfileSpartanStubComponent {
+  readonly userID = input.required<number>();
+}
 
 
 /** The owner's settings are a @defer block: drawn as the browser draws them once their code is in. */
@@ -64,8 +71,8 @@ describe('ProfileComponent', () => {
       .overrideProvider(MatSnackBar, { useValue: snackBar })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, VodListComponent, ProfileCommendationsComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, ProfileSpartanComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, ProfileSpartanStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
 
@@ -520,8 +527,8 @@ describe('ProfileComponent linked accounts', () => {
     })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, VodListComponent, ProfileCommendationsComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, ProfileSpartanComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, ProfileSpartanStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
@@ -669,8 +676,8 @@ describe('ProfileComponent: region and identity', () => {
       .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, VodListComponent, ProfileCommendationsComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, ProfileSpartanComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, ProfileSpartanStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);

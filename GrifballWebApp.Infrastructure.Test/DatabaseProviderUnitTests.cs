@@ -153,7 +153,7 @@ public class DatabaseProviderUnitTests
     private static readonly string[] TablesWithoutHistory =
     [
         "Auth.ChatMonths", "Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSeasonReviews", "Event.HistoricalSourceSnapshots",
-        "Event.HistoricalSources", "Event.StatFlags", "Xbox.XboxUserArmor", "Xbox.XboxUserImages", "Xbox.UserSpartanRenders", "Xbox.UserSpartanFiles", "Xbox.XuidLookups",
+        "Event.HistoricalSources", "Event.StatFlags", "Xbox.UserSpartanFiles", "Xbox.UserSpartanRenders", "Xbox.XboxUserArmor", "Xbox.XboxUserImages", "Xbox.XuidLookups",
     ];
 
     // Every table keeps its rows' history but the background jobs' bookkeeping, whose rows churn and would grow it
