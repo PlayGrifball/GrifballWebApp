@@ -734,7 +734,7 @@ public static partial class SeasonStatsParser
     /// <summary>Whether a cell names a player: not blank and not a summary label.</summary>
     public static bool IsPlayerTag(string? value) => !string.IsNullOrWhiteSpace(value) && !IsTotalsLabel(value);
 
-    [GeneratedRegex(@"^(?:(?:grand|sub|team)?(?:total|average)s?(?:kills|deaths|games|stats)?|teamstats)$")]
+    [GeneratedRegex(@"^(?:(?:grand|sub|team)?(?:total|average)s?(?:kills|deaths|games|stats)?|teamstats)(?:\([^)]*\))?$")]
     private static partial Regex SummaryKey();
 
     [GeneratedRegex(@"^\s*total\s+stats\b", RegexOptions.IgnoreCase)]
