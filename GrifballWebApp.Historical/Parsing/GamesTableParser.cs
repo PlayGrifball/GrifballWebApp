@@ -260,7 +260,7 @@ public static partial class GamesTableParser
             CountStray(lines, listed);
         }
 
-        private IEnumerable<RecordedPlayerInput> MatchLines(IEnumerable<string[]> players, LineColumns columns, int side)
+        private static IEnumerable<RecordedPlayerInput> MatchLines(IEnumerable<string[]> players, LineColumns columns, int side)
         {
             foreach (var p in players)
                 if (Value(p, columns.Gamertag) is { } gamertag && !SeasonStatsParser.IsTotalsLabel(gamertag))
