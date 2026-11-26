@@ -41,6 +41,8 @@ describe('FlipyapChatComponent', () => {
   }
 
   beforeEach(() => {
+    // The page's title outlives a test: one set before must not reach the next ask
+    document.title = '';
     sessionStorage.removeItem(CHAT_STORAGE_KEY);
     isLoggedIn.set(false);
     answers = [];

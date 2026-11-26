@@ -71,13 +71,13 @@ describe('ChatComponent', () => {
 
   it('says what it is, and asks a signed-out visitor to name the player or log in', () => {
     expect(el().querySelector('h1')!.textContent!.trim()).toBe('Chat');
-    expect(text()).toContain('name the player you mean');
+    expect(text()).toContain('Name the player you mean');
     expect(el().querySelector('a[href="/login"]')).not.toBeNull();
     expect(text()).toContain('No questions yet');
 
     isLoggedIn.set(true);
     fixture.detectChanges();
-    expect(text()).not.toContain('name the player you mean');
+    expect(text()).not.toContain('Name the player you mean');
   });
 
   it('asks with the button, empties the box, and shows the answer as it streams in', () => {
