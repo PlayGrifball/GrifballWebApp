@@ -6,7 +6,7 @@ import { UserThemeDto } from '@api/models/user-theme-dto';
 import { AccountService } from '../auth/account.service';
 import { AppLog } from '../telemetry/appLog';
 import { THEME_SAVE_DELAY_MS, THEME_STORAGE_KEY, ThemePersistence, parseThemeSettings } from './themePersistence.service';
-import { ThemeSettings, ThemingService } from './theming.service';
+import { ARCHIVE_VAULT, ThemeSettings, ThemingService } from './theming.service';
 
 const saved: ThemeSettings = {
   era: 'y2k', font: 'Roboto', primary: '#112233', secondary: '#abc', tertiary: '#445566',
@@ -124,15 +124,16 @@ describe('ThemePersistence', () => {
     expect(api.setMyTheme).not.toHaveBeenCalled();
   });
 
-  it('does not send this device\'s theme to an account that has none (it may be another person\'s)', async () => {
+  it('gives an account with no theme the default, not the one left on this device (it may be another person\'s)', async () => {
     localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(saved));
     personID.set(1);
-    create();
+    const persistence = create();
     TestBed.tick();
     await until(() => api.getMyTheme.calls.count() > 0);
-    await pause(30);
+    await until(() => persistence.restored() > 0);
     expect(api.setMyTheme).not.toHaveBeenCalled();
-    expect(theming.settings()).toEqual(saved);
+    expect(theming.settings().primary).toBe(ARCHIVE_VAULT.primary);
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
   });
 
   it('does not keep or save a half-typed colour', async () => {

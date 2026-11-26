@@ -33,7 +33,7 @@ export function parseThemeSettings(value: unknown): ThemeSettings | null {
 /**
  * Keeps the player's theme. Every change is saved on this device (localStorage, so it applies when signed out
  * and from the first paint) and, when signed in, to their account, so their other devices show it too. On
- * signing in, the account's theme wins; an account with none keeps showing this device's until the player changes it.
+ * signing in, the account's theme wins; an account with none gets the default, so another person's leftover theme never shows.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemePersistence {
@@ -98,6 +98,12 @@ export class ThemePersistence {
           this.writeStored(this.current);
           this.theming.applySettings(settings);
           this.restored.update(n => n + 1);
+        } else {
+          this.cancelSave();
+          this.theming.reset();
+          this.current = JSON.stringify(this.theming.settings());
+          this.removeStored();
+          this.restored.update(n => n + 1);
         }
       },
       error: () => this.log.warn('Theme: could not load the saved theme'),
@@ -132,6 +138,14 @@ export class ThemePersistence {
       return text ? parseThemeSettings(JSON.parse(text)) : null;
     } catch {
       return null;
+    }
+  }
+
+  private removeStored(): void {
+    try {
+      localStorage.removeItem(THEME_STORAGE_KEY);
+    } catch {
+      // Storage blocked: nothing to forget
     }
   }
 
