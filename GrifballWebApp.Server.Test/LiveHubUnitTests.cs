@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace GrifballWebApp.Server.Test;
 
