@@ -102,6 +102,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<MatchCalendarService>();
         services.AddTransient<RegionService>();
         services.AddTransient<ProfilePictureService>();
+        services.AddTransient<Spartan.SpartanService>();
         services.AddTransient<UserThemeService>();
         services.AddTransient<QuickSearchService>();
         services.AddTransient<TeamService>();

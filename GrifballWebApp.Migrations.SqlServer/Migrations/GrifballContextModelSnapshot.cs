@@ -4328,6 +4328,97 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartan", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ChoiceJson")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserSpartans", "Xbox");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("UserSpartansHistory", "Xbox");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanFile", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("UserId", "Name");
+
+                    b.ToTable("UserSpartanFiles", "Xbox");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanRender", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("LoadoutKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("RenderedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("State", "RequestedAt");
+
+                    b.ToTable("UserSpartanRenders", "Xbox");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Players.VoiceConsent", b =>
                 {
                     b.Property<long>("DiscordUserID")
@@ -6212,6 +6303,39 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartan", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Players.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanFile", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Players.UserSpartanRender", "Render")
+                        .WithMany("Files")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Render");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanRender", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Players.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxGamertagHistory", b =>
                 {
                     b.HasOne("GrifballWebApp.Domain.Players.XboxUser", "XboxUser")
@@ -6473,6 +6597,11 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("UserLogins");
 
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanRender", b =>
+                {
+                    b.Navigation("Files");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUser", b =>

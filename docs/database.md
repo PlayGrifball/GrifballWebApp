@@ -626,6 +626,8 @@ would only grow:
 | `Xbox.XuidLookups` | The XUID lookup's retry queue (the claims it makes keep their history) |
 | `Xbox.XboxUserImages` | The gamer pictures and emblems the image jobs keep: whole images, rewritten when one changes |
 | `Xbox.XboxUserArmor` | What each account has equipped in Halo Infinite, rewritten on every change |
+| `Xbox.UserSpartanRenders` | Whether a user's Spartan render is asked for, running, done or failed; bookkeeping the render job rewrites |
+| `Xbox.UserSpartanFiles` | The six rendered files (models and pictures) of a user's Spartan, replaced whole by each render |
 
 A test (`EveryTable_KeepsHistory_ButTheBackgroundJobsBookkeeping`) fails for any other table without history. This section is about SQL Server and Postgres; SQLite keeps the same history with a few
 differences ([sqlite.md](sqlite.md)).

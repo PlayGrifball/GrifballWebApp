@@ -255,7 +255,7 @@ public class UserGamertagClaimTests
 
     private MyProfileController Controller(int? userId)
     {
-        var controller = new MyProfileController(new GrifballWebApp.Application.Profile.RegionService(_context), new GrifballWebApp.Application.Profile.ProfilePictureService(_context), _service);
+        var controller = new MyProfileController(new GrifballWebApp.Application.Profile.RegionService(_context), new GrifballWebApp.Application.Profile.ProfilePictureService(_context), _service, null!);
         var identity = userId is null ? new ClaimsIdentity() : new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString())], "test");
         controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) } };
         return controller;
