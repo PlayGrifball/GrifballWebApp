@@ -42,7 +42,8 @@ export class ProfileSpartanComponent implements OnInit {
   /** The render's time is in the address, so a new render is not shown from the cache of an old one. */
   readonly fileUrl = (name: string): string => {
     const rendered = this.profile()?.renderedAt;
-    return `/api/users/${this.userID()}/spartan/${name}${rendered ? `?v=${encodeURIComponent(rendered)}` : ''}`;
+    const version = rendered ? `?v=${encodeURIComponent(rendered)}` : '';
+    return `/api/users/${this.userID()}/spartan/${name}${version}`;
   };
   readonly hasFile = (name: string): boolean => !!this.profile()?.files?.includes(name);
 

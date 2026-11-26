@@ -49,6 +49,7 @@ describe('ProfileSpartanStore', () => {
       http.expectOne(stateUrl).flush(profile);
       jasmine.clock().tick(60_000);
       http.expectNone(stateUrl);
+      expect(store.profile()).toEqual(profile);
     } finally {
       jasmine.clock().uninstall();
     }

@@ -399,6 +399,25 @@ public class SpartanRenderTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task AHaloError_WithNoWaitInIt_PutsTheRenderBackAfterTheUsualDelay()
+    {
+        var (userId, xuid) = await UserAsync();
+        await EquipAsync(xuid);
+        _halo.GameCmsGetItem("cores/mk7.json", string.Empty).Returns(new HaloApiResultContainer<InGameItem, HaloApiErrorContainer>(
+            null!, new HaloApiErrorContainer { Code = 500 }));
+
+        var report = await Source().RunAsync();
+
+        var render = await RenderOf(userId);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Failed, report.Retrying), Is.EqualTo((0, 1)));
+            Assert.That(render.State, Is.EqualTo(UserSpartanRenderState.Requested));
+            Assert.That(_throttle.Remaining(Start), Is.Null, "no wait was given, so none is held");
+        }
+    }
+
+    [Test]
     public async Task AUsersOwnChoice_IsRenderedWhileHaloIsDown_WithoutTheirStance()
     {
         var (userId, xuid) = await UserAsync(Choice);
@@ -421,7 +440,9 @@ public class SpartanRenderTests : SqliteContextFixture
     {
         var (first, _) = await UserAsync(Choice);
         var (second, _) = await UserAsync(Choice);
+#pragma warning disable EF1003 // DDL cannot take parameters; the id is a number this test made
         await Context.Database.ExecuteSqlRawAsync("CREATE TRIGGER no_files BEFORE INSERT ON UserSpartanFiles WHEN NEW.UserId = " + first + " BEGIN SELECT RAISE(ABORT, 'boom'); END");
+#pragma warning restore EF1003
 
         var report = await Source().RunAsync();
 
