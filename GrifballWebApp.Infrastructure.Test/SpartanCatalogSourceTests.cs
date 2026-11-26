@@ -86,13 +86,13 @@ public class SpartanCatalogSourceTests
     }
 
     [Test]
-    public void ACancelledAsk_StaysCancelled_InsteadOfLookingLikeADownService()
+    public async Task ACancelledAsk_StaysCancelled_InsteadOfLookingLikeADownService()
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
         var source = Source(new Handler(() => throw new TaskCanceledException()));
 
-        Assert.ThrowsAsync<TaskCanceledException>(() => source.Get(cts.Token));
+        await Assert.ThrowsAsync<TaskCanceledException>(() => source.Get(cts.Token));
     }
 
     [TestCase(null, SpartanRenderServiceExtensions.DefaultBaseAddress)]
