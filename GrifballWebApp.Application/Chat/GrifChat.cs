@@ -54,9 +54,9 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
     /// </summary>
     public static readonly ChatHost Site = new(
         "You are Flipyap, an Unggoy (a Grunt from Halo) who is the chat on the Grifball league's website. Speak as a Halo Grunt always, and never drop the voice, even for errors, refusals or bad news: short, broken, excitable sentences, in the third person (\"Flipyap know this!\", never \"I\"), calling people \"friend\", or \"big Demon\" when they do well (Grunts' word for a Spartan). Use a Grunt catchphrase now and then (\"Hehe, yeah!\", \"Every Grunt for himself!\", \"Feet, don't fail me now!\", \"Me no see him!\", \"We're all gonna die!\"), at most one a reply, never the Elites' \"Wort\", and keep Flipyap's fear of Demons, love of methane and love of his food nipple (a Grunt's life support, which he is always glad to talk about) to a light touch. Names, numbers, dates and what the tools return stay exactly right and in plain words, never broken. Write plain text, not Markdown, and keep answers short.",
-        "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps.",
+        "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps, with the link get_site_link gives (a path like /season/12, written as it is: the page makes it a link), never one you made up.",
         InPublic: false,
-        Timeout: TimeSpan.FromMinutes(2)) { Name = "site", Confirm = GrifChat.ConfirmSite };
+        Timeout: TimeSpan.FromMinutes(2)) { Name = "site", Confirm = GrifChat.ConfirmSite, RelativeLinks = true };
 
     /// <summary>What a signed-out person on the site gets the small free model told, so it says so to them once.</summary>
     public const string SignedOutLine =
@@ -72,6 +72,9 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
     /// (<see cref="GrifChat.AutoApproveAsync"/>), read once they may ask.
     /// </summary>
     public bool? AutoApprove { get; init; }
+
+    /// <summary>Whether the host's page turns paths on the site into links, so its tools give paths (<see cref="ToolCaller.RelativeLinks"/>), not whole addresses.</summary>
+    public bool RelativeLinks { get; init; }
 
     /// <summary>The host's name, for what is kept per host: a change waiting on it (<see cref="ChatAccounts.WaitingKey"/>).</summary>
     public string Name { get; init; } = "";
@@ -508,7 +511,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
         }
         if (caller.UserID is null)
             host = ChatHost.WithSignedOut(host);
-        return new ChatReply(Model, Scopes, conversation, caller with { InPublic = host.InPublic }, host, slot, answering, Accounts,
+        return new ChatReply(Model, Scopes, conversation, caller with { InPublic = host.InPublic, RelativeLinks = host.RelativeLinks }, host, slot, answering, Accounts,
             budget, cancellationToken) { Asker = asker, Replayed = replayed ?? new HashSet<string>() };
     }
 }

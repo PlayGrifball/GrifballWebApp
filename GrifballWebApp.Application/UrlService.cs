@@ -4,9 +4,18 @@ public class UrlService
 {
     private readonly string _baseUrl;
     public UrlService(IConfiguration configuration)
+        : this(configuration.GetValue<string>("BaseUrl") ?? throw new Exception("Missing BaseUrl from configuration. Should be the home page for the website. Ex: https://localhost:4200"))
     {
-        _baseUrl = configuration.GetValue<string>("BaseUrl") ?? throw new Exception("Missing BaseUrl from configuration. Should be the home page for the website. Ex: https://localhost:4200");
     }
+
+    /// <summary>Links on the site at <paramref name="baseUrl"/> (its home page, no trailing slash).</summary>
+    public UrlService(string baseUrl)
+    {
+        _baseUrl = baseUrl;
+    }
+
+    /// <summary>Links as paths on the site itself ("/season/3"), for a page that is already on it and turns them into links.</summary>
+    public static UrlService Relative { get; } = new("");
 
     public string SignupForm(int seasonId)
     {

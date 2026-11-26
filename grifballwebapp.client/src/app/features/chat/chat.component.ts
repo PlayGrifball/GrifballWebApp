@@ -9,6 +9,7 @@ import { RouterLink } from '@angular/router';
 import { AccountService } from '@core/auth/account.service';
 import { ChatQuestionForm } from './chatQuestionForm';
 import { ChatStore } from './chat.store';
+import { chatParts } from './chatLinks';
 
 /**
  * The chat page: the league's chat, as the Discord bot answers in Discord, on the site. It looks up seasons, teams,
@@ -26,6 +27,8 @@ export class ChatComponent {
   private readonly store = inject(ChatStore);
 
   readonly turns = this.store.turns;
+  /** A reply's words, the site's pages it names as links. */
+  readonly parts = chatParts;
   readonly asking = this.store.asking;
   readonly error = this.store.error;
   /** A change the chat asked for, waiting for the user's yes or no: nothing changes until they answer. */

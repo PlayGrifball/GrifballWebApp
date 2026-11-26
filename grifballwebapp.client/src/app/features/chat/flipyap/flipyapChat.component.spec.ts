@@ -111,6 +111,19 @@ describe('FlipyapChatComponent', () => {
     expect(stream.calls.mostRecent().args[1]).toEqual(jasmine.objectContaining({ page: '/leaderboards', pageTitle: 'Leaderboards - Grifball' }));
   });
 
+  it('shows a site page the answer names as a link to it, and any other path as plain text', () => {
+    type('Where?');
+    button('Ask')!.click();
+    answer().subscriber.next('See /season/12 and /admin/1.');
+    fixture.detectChanges();
+
+    const link = el().querySelector<HTMLAnchorElement>('[role="log"] a')!;
+    expect(link.getAttribute('href')).toBe('/season/12');
+    expect(link.textContent).toBe('/season/12');
+    expect(el().querySelectorAll('[role="log"] a').length).toBe(1);
+    expect(turns()).toEqual([['You', 'Where?'], ['Flipyap', 'See /season/12 and /admin/1.']]);
+  });
+
   it('asks, shows the answer as Flipyap as it streams in, and talks while it does', () => {
     type('Who won?');
     button('Ask')!.click();

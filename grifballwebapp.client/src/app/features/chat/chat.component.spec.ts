@@ -103,6 +103,19 @@ describe('ChatComponent', () => {
     expect(el().querySelector('[role="log"]')!.getAttribute('aria-busy')).toBe('false');
   });
 
+  it('shows a site page the answer names as a link to it, and any other path as plain text', () => {
+    type('Where?');
+    press('Enter');
+    answer().subscriber.next('See /season/12 and /admin/1.');
+    fixture.detectChanges();
+
+    const link = el().querySelector<HTMLAnchorElement>('[role="log"] a')!;
+    expect(link.getAttribute('href')).toBe('/season/12');
+    expect(link.textContent).toBe('/season/12');
+    expect(el().querySelectorAll('[role="log"] a').length).toBe(1);
+    expect(turns()).toEqual([['You', 'Where?'], ['Flipyap', 'See /season/12 and /admin/1.']]);
+  });
+
   it('asks on Enter, and starts a new line on Shift+Enter', () => {
     type('Who won?');
     expect(press('Enter', true).defaultPrevented).toBeFalse();
