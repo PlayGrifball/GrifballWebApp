@@ -53,6 +53,10 @@ public class LinkToolsUnitTests
         => Assert.That(() => Tools().GetSiteLink(page), Throws.TypeOf<ToolException>().With.Message.Contains(missing));
 
     [Test]
+    public void GetSiteLink_ForAPageTheSiteDoesNotHave_Refuses()
+        => Assert.That(() => Tools().GetSiteLink((SitePage)999), Throws.TypeOf<ToolException>().With.Message.Contains("no page"));
+
+    [Test]
     public void TheSiteChat_GivesPathsOnTheSite_ButTheOtherHostsDoNot()
     {
         using (Assert.EnterMultipleScope())
