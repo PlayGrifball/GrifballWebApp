@@ -497,7 +497,7 @@ public partial class GrifChatUnitTests
         => Assert.That(GrifChat.IsRefusal(GrifChat.ProviderLimitReached), Is.True);
 
     [Test]
-    public async Task StreamAsync_AModelForEveryTool_GetsEveryToolTheCallersRolesAllow_InPrivate_AndTheShortListElsewhere()
+    public async Task StreamAsync_AModelForEveryTool_GetsEveryToolTheCallersRolesAllow_AndAModelWithoutItTheShortList()
     {
         var model = new FakeModel([Text("Hi")], [Text("Hi")], [Text("Hi")]);
         var chat = ChatWithModels(model);
@@ -521,13 +521,16 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
-    public void ToolsFor_IsTheShortListInPublic_AndEveryToolInPrivateOnlyForAModelForIt()
+    public void ToolsFor_IsEveryToolOnlyForAModelForIt_StaffsToolsOnlyInPrivate()
     {
         var everyTool = Haiku with { EveryTool = true };
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(ChatHost.Discord.ToolsFor(everyTool), Is.EqualTo(GrifTools.Chat));
+            Assert.That(ChatHost.Discord.ToolsFor(everyTool), Is.EqualTo(GrifTools.EveryPublic));
+            Assert.That(GrifTools.EveryPublic, Is.SupersetOf(GrifTools.Chat).And.Contains("list_late_league_seasons").And.Contains("get_game").And.Unique);
+            Assert.That(GrifTools.EveryPublic.Intersect(GrifTools.Staff.SelectMany(GrifTools.Methods).Select(GrifTools.Name)), Is.Empty, "A channel is public: no dashboard, claim or change");
+            Assert.That(ChatHost.Discord.ToolsFor(Free), Is.EqualTo(GrifTools.Chat));
             Assert.That(ChatHost.Site.ToolsFor(everyTool), Is.EqualTo(GrifTools.Every));
             Assert.That(ChatHost.Site.ToolsFor(Free), Is.EqualTo(GrifTools.PrivateChat));
             Assert.That(GrifTools.Every, Is.SupersetOf(GrifTools.PrivateChat).And.Contains("list_late_league_seasons").And.Unique);
@@ -549,6 +552,24 @@ public partial class GrifChatUnitTests
         {
             Assert.That(names, Does.Contain("list_seasons"));
             Assert.That(names.Intersect(StaffToolsFor(SiteRoles.Sysadmin)), Is.EquivalentTo(StaffToolsFor(SiteRoles.Player)), "Each tool for its roles");
+        }
+    }
+
+    [Test]
+    public async Task StreamAsync_AModelForEveryTool_InAChannel_GetsEveryToolButStaffs_EvenForASysadmin()
+    {
+        var model = new FakeModel([Text("Hi")]);
+        var chat = ChatWithModels(model);
+        _clients.Models.Returns([Haiku with { Roles = [], EveryTool = true }]);
+
+        using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Discord, Asker))
+            await All(reply.StreamAsync());
+
+        var names = model.Options.Single()!.Tools!.Select(t => t.Name).ToList();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(names, Does.Contain("list_late_league_seasons").And.Contain("get_game"), "Not on the short list: a model that picks well gets it");
+            Assert.That(names.Intersect(StaffToolsFor(SiteRoles.Sysadmin)), Is.Empty, "A channel is public: no staff tool, whoever asks");
         }
     }
 
@@ -576,6 +597,10 @@ public partial class GrifChatUnitTests
     [Test]
     public void Chat_TheShortList_HasTheSeasonListItsToolsPointTo()
         => Assert.That(GrifTools.Chat, Does.Contain("list_seasons"), "A season tool refused names list_seasons");
+
+    [Test]
+    public void Chat_TheShortList_CanReadAGamesStats_ForTheGamesItsOtherToolsList()
+        => Assert.That(GrifTools.Chat, Does.Contain("get_game"), "get_recent_games and get_season_match list match IDs; only get_game reads their kills, deaths and medals");
 
     [Test]
     public void Allowed_InAVoiceChannel_IsPublic_ButEachAskersOwnModels()

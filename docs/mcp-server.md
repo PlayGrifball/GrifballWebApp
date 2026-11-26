@@ -160,8 +160,8 @@ The models are `IChatClientFactory`'s, which Infrastructure registers (`ChatClie
 or a Discord account linked to a real site account, gamertag or not, not a historical import's placeholder), Sonnet and
 Opus for sysadmins to pick instead, with `Anthropic:ApiKey` set, then the Ollama model (`Ollama:Model`, default
 `llama3.1:latest`, at `Ollama:Url`) for anyone, signed in or not.
-A model with `EveryTool` (the Claude defaults) gets, in private (the site, a Discord DM), every tool the caller's roles allow, as the
-MCP server gives them; the others, and every model in a Discord channel, keep the chat's short list, which a small model picks from
+A model with `EveryTool` (the Claude defaults) gets every tool the caller's roles allow, as the
+MCP server gives them (in a Discord channel without staff's tools: its replies are public); the others keep the chat's short list, which a small model picks from
 better. `GrifChat` chooses one per question: the one asked for, else the user's choice (`ChatChoice`, kept from the site's picker
 for their Discord DMs too), else the first their roles and sign-in state allow; a Discord channel always uses the first
 model anyone open to their own sign-in state may use (never `Roles` alone, whoever asks: no Sonnet or Opus there, and no

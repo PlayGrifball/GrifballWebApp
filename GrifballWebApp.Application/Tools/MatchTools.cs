@@ -53,5 +53,11 @@ public class MatchTools
     [Description("A recorded Halo game's details: its time and length, the season match it counts for, each team's score and outcome, and each player's stats and medals.")]
     public async Task<MatchDetailsDto> GetGame([Description("The game's match ID, a GUID (a season match lists its games').")] Guid matchID,
         CancellationToken ct = default)
-        => await _matchDetails.GetAsync(matchID, ct) ?? throw new ToolException($"There is no recorded game {matchID}.");
+    {
+        var game = await _matchDetails.GetAsync(matchID, ct);
+        // One counted for a season not announced yet is no game to anyone but staff
+        if (game?.SeasonMatch is { } seasonMatch && !await _visibility.CanSeeSeasonMatch(seasonMatch.SeasonMatchID, _caller.Viewer, ct))
+            game = null;
+        return game ?? throw new ToolException($"There is no recorded game {matchID}.");
+    }
 }

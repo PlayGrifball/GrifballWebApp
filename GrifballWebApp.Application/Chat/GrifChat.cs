@@ -7,7 +7,8 @@ namespace GrifballWebApp.Application.Chat;
 /// <summary>
 /// A host of the chat (the Discord bot in a channel or a DM, the site): what it tells the model about itself, whether others
 /// read its replies, and how long one may take. Whether others read them is what sets the rest apart: in public (a Discord
-/// channel) the caller sees seasons as the public does and gets <see cref="GrifTools.Chat"/>; in private (a DM, the site) their
+/// channel) the caller sees seasons as the public does and gets <see cref="GrifTools.Chat"/>, or, with a model that picks well from a long
+/// list, <see cref="GrifTools.EveryPublic"/> (no staff's tools); in private (a DM, the site) their
 /// roles decide what they see, and they get <see cref="GrifTools.PrivateChat"/>, staff's tools too, each for its roles; or, with a model
 /// that picks well from a long list, every tool (<see cref="ToolsFor"/>).
 /// </summary>
@@ -71,14 +72,14 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
 
     /// <summary>
     /// The names of the tools <paramref name="model"/> is given here, each only to a caller its roles allow (<see cref="GrifTools.AIFunctions"/>):
-    /// in public, <see cref="GrifTools.Chat"/> whatever the model; in private, every tool (<see cref="GrifTools.Every"/>) when it picks
-    /// well from a long list (<see cref="ChatModelOption.EveryTool"/>), else <see cref="GrifTools.PrivateChat"/>.
+    /// when it picks well from a long list (<see cref="ChatModelOption.EveryTool"/>) every tool (<see cref="GrifTools.Every"/>, in public without
+    /// staff's: <see cref="GrifTools.EveryPublic"/>), else <see cref="GrifTools.Chat"/> in public and <see cref="GrifTools.PrivateChat"/> in private.
     /// </summary>
     public IReadOnlyCollection<string> ToolsFor(ChatModelOption model)
     {
-        if (InPublic)
-            return GrifTools.Chat;
-        return model.EveryTool ? GrifTools.Every : GrifTools.PrivateChat;
+        if (model.EveryTool)
+            return InPublic ? GrifTools.EveryPublic : GrifTools.Every;
+        return InPublic ? GrifTools.Chat : GrifTools.PrivateChat;
     }
 }
 

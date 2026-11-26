@@ -131,7 +131,7 @@ public static class GrifTools
     public static readonly string[] Chat =
     [
         "who_am_i", "get_current_time", "search", "list_seasons", "get_season", "get_season_standings", "get_season_schedule", "get_team",
-        "get_player", "get_player_rank", "get_season_match", "get_recent_games", "get_leaderboards", "pull_season_match_games", "pull_xbox_account_games",
+        "get_player", "get_player_rank", "get_season_match", "get_game", "get_recent_games", "get_leaderboards", "pull_season_match_games", "pull_xbox_account_games",
         "suggest_draft_picks",
     ];
 
@@ -148,10 +148,16 @@ public static class GrifTools
     public static readonly string[] PrivateChat = [.. Chat, .. Staff.SelectMany(Methods).Select(Name)];
 
     /// <summary>
-    /// Every tool, as the MCP server gives them (<see cref="All"/>), each for its roles: for a chat in private with a model that picks well from
+    /// Every tool, as the MCP server gives them (<see cref="All"/>), each for its roles: for a chat in private (in public, <see cref="EveryPublic"/>) with a model that picks well from
     /// a long list (the chat model option EveryTool), so it can answer what the short list can't (every season, a Late League season).
     /// </summary>
     public static readonly string[] Every = [.. All.SelectMany(set => Methods(set.Type)).Select(Name)];
+
+    /// <summary>
+    /// Every tool but staff's (<see cref="Staff"/>): for a chat in public (a Discord channel) with a model that picks well from a long list
+    /// (EveryTool); each is still only for the roles it names.
+    /// </summary>
+    public static readonly string[] EveryPublic = [.. Every.Except(Staff.SelectMany(Methods).Select(Name))];
 
     /// <summary>The roles that may use a tool: its method's [ToolRoles], else its class's; none, anyone may.</summary>
     public static IReadOnlyList<string> Roles(MethodInfo method)
