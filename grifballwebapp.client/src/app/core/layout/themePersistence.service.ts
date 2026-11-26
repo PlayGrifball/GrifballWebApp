@@ -1,8 +1,8 @@
-import { DestroyRef, Injectable, PLATFORM_ID, effect, inject, signal, untracked } from '@angular/core';
+import { DestroyRef, Injectable, Injector, PLATFORM_ID, effect, inject, signal, untracked } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { AccountService } from '../auth/account.service';
+import type { MyThemeService } from '@api/services/my-theme.service';
 import { AppLog } from '../telemetry/appLog';
-import { MyThemeService } from '@api/services/my-theme.service';
 import { ThemeSettings, ThemingService } from './theming.service';
 
 /** Where this device keeps the theme, so it shows when nobody is signed in and before the account's has loaded. */
@@ -40,7 +40,7 @@ export function parseThemeSettings(value: unknown): ThemeSettings | null {
 export class ThemePersistence {
   private readonly theming = inject(ThemingService);
   private readonly account = inject(AccountService);
-  private readonly api = inject(MyThemeService);
+  private readonly injector = inject(Injector);
   private readonly log = inject(AppLog);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -84,7 +84,7 @@ export class ThemePersistence {
   }
 
   private loadFromAccount(): void {
-    this.api.getMyTheme().subscribe({
+    void this.withApi(api => api.getMyTheme().subscribe({
       next: saved => {
         const settings = parseThemeSettings(saved);
         if (settings) {
@@ -98,14 +98,20 @@ export class ThemePersistence {
         }
       },
       error: () => this.log.warn('Theme: could not load the saved theme'),
-    });
+    }));
   }
 
   private saveToAccount(settings: ThemeSettings): void {
     this.timer = null;
-    this.api.setMyTheme({ body: settings }).subscribe({
+    void this.withApi(api => api.setMyTheme({ body: settings }).subscribe({
       error: () => this.log.warn('Theme: could not save the theme to the account'),
-    });
+    }));
+  }
+
+  /** The account endpoints load on first use, so signed-out visitors never download them with the first page. */
+  private async withApi(use: (api: MyThemeService) => void): Promise<void> {
+    const { MyThemeService } = await import('@api/services/my-theme.service');
+    use(this.injector.get(MyThemeService));
   }
 
   private cancelSave(): void {

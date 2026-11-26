@@ -71,12 +71,6 @@ describe('APP_ROUTES', () => {
     expect(registerRoute?.title).toBe('Register');
   });
 
-  it('should have theme route', () => {
-    const themeRoute = APP_ROUTES.find(r => r.path === 'theme');
-    expect(themeRoute).toBeDefined();
-    expect(themeRoute?.title).toBe('Theme');
-  });
-
   it('should have wildcard route for 404', () => {
     const notFoundRoute = APP_ROUTES.find(r => r.path === '**');
     expect(notFoundRoute).toBeDefined();

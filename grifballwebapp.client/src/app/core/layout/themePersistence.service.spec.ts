@@ -1,5 +1,5 @@
 import { PLATFORM_ID, signal } from '@angular/core';
-import { TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { MyThemeService } from '@api/services/my-theme.service';
 import { UserThemeDto } from '@api/models/user-theme-dto';
@@ -12,6 +12,14 @@ const saved: ThemeSettings = {
   era: 'y2k', font: 'Roboto', primary: '#112233', secondary: '#abc', tertiary: '#445566',
   neutral: '#778899', neutralVariant: '#aabbcc', error: '#ff0000',
 };
+
+const realTimeout = window.setTimeout.bind(window);
+const pause = (ms: number) => new Promise<void>(resolve => realTimeout(resolve, ms));
+/** Waits (in real time, the fake clock is on) for the lazily loaded account endpoints to be used. */
+async function until(done: () => boolean): Promise<void> {
+  for (let i = 0; i < 300 && !done(); i++)
+    await pause(10);
+}
 
 describe('parseThemeSettings', () => {
   it('takes a theme the picker can make', () => {
@@ -44,13 +52,17 @@ describe('ThemePersistence', () => {
 
   beforeEach(() => {
     spyOn(console, 'debug');
+    jasmine.clock().install();
     localStorage.clear();
     personID.set(null);
     api = jasmine.createSpyObj('MyThemeService', ['getMyTheme', 'setMyTheme']);
     api.getMyTheme.and.returnValue(of(null as unknown as UserThemeDto));
     api.setMyTheme.and.returnValue(of(undefined));
   });
-  afterEach(() => localStorage.clear());
+  afterEach(() => {
+    jasmine.clock().uninstall();
+    localStorage.clear();
+  });
 
   it('applies the theme stored on this device', () => {
     localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(saved));
@@ -64,58 +76,61 @@ describe('ThemePersistence', () => {
     expect(theming.settings()).toEqual(before);
   });
 
-  it('saves nothing until the theme changes', fakeAsync(() => {
+  it('saves nothing until the theme changes', async () => {
     personID.set(1);
     create();
     TestBed.tick();
-    tick(THEME_SAVE_DELAY_MS * 2);
+    jasmine.clock().tick(THEME_SAVE_DELAY_MS * 2);
+    await pause(50);
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
     expect(api.setMyTheme).not.toHaveBeenCalled();
-  }));
+  });
 
-  it('keeps a change on this device when signed out, and does not call the API', fakeAsync(() => {
+  it('keeps a change on this device when signed out, and does not call the API', async () => {
     create();
     TestBed.tick();
     theming.applySettings(saved);
     TestBed.tick();
-    tick(THEME_SAVE_DELAY_MS * 2);
+    jasmine.clock().tick(THEME_SAVE_DELAY_MS * 2);
+    await pause(50);
     expect(JSON.parse(localStorage.getItem(THEME_STORAGE_KEY)!)).toEqual(saved);
     expect(api.setMyTheme).not.toHaveBeenCalled();
-  }));
+  });
 
-  it('saves a change to the account once, after changes stop', fakeAsync(() => {
+  it('saves a change to the account once, after changes stop', async () => {
     personID.set(1);
     create();
     TestBed.tick();
     theming.applySettings({ ...saved, primary: '#000000' });
     TestBed.tick();
-    tick(THEME_SAVE_DELAY_MS / 2);
+    jasmine.clock().tick(THEME_SAVE_DELAY_MS / 2);
     theming.applySettings(saved);
     TestBed.tick();
-    tick(THEME_SAVE_DELAY_MS);
+    jasmine.clock().tick(THEME_SAVE_DELAY_MS);
+    await until(() => api.setMyTheme.calls.count() > 0);
     expect(api.setMyTheme).toHaveBeenCalledOnceWith({ body: saved });
-  }));
+  });
 
-  it('lets the account\'s theme win on sign-in, keeping it on this device', fakeAsync(() => {
+  it('lets the account\'s theme win on sign-in, keeping it on this device', async () => {
     api.getMyTheme.and.returnValue(of(saved));
     personID.set(1);
     const persistence = create();
     TestBed.tick();
-    flush();
+    await until(() => persistence.restored() > 0);
     expect(theming.settings()).toEqual(saved);
     expect(JSON.parse(localStorage.getItem(THEME_STORAGE_KEY)!)).toEqual(saved);
     expect(persistence.restored()).toBe(1);
     expect(api.setMyTheme).not.toHaveBeenCalled();
-  }));
+  });
 
-  it('sends this device\'s theme up when the account has none', fakeAsync(() => {
+  it('sends this device\'s theme up when the account has none', async () => {
     localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(saved));
     personID.set(1);
     create();
     TestBed.tick();
-    flush();
+    await until(() => api.setMyTheme.calls.count() > 0);
     expect(api.setMyTheme).toHaveBeenCalledOnceWith({ body: saved });
-  }));
+  });
 
   it('does nothing on the server render', () => {
     localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(saved));
