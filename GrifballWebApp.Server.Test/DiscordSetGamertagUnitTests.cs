@@ -218,8 +218,12 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
             .SetGamertagForDiscordUser(555555, null, "NewGamertag");
 
         Db.ChangeTracker.Clear();
-        Assert.That(refusal, Is.Null);
-        Assert.That((await Db.Users.SingleAsync(u => u.Id == siteAccount.Id)).DiscordUserID, Is.EqualTo(555555));
+        var linked = (await Db.Users.SingleAsync(u => u.Id == siteAccount.Id)).DiscordUserID;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(refusal, Is.Null);
+            Assert.That(linked, Is.EqualTo(555555));
+        }
     }
 
     [Test]
