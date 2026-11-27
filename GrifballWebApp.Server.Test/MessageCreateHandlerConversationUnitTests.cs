@@ -762,7 +762,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         await Handler(model).HandleAsync(MessageToTheBot());
 
         var saved = await SavedReplies();
-        Assert.That(saved, Is.EqualTo([$"[Pictures shown with this reply: {players[0]}-halo-emblem.png]"]));
+        Assert.That(saved.Single(), Is.EqualTo($"[Pictures shown with this reply: {players[0]}-halo-emblem.png]"));
     }
 
     [Test]
@@ -837,7 +837,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         {
             Assert.That(sent.GetProperty("content").GetString(), Is.EqualTo("Here you go:"));
             Assert.That(sent.TryGetProperty("attachments", out var files) ? files.GetArrayLength() : 0, Is.Zero);
-        Assert.That(saved.Single(), Is.EqualTo($"[Pictures shown with this reply: {players[0]}-halo-emblem.png]"));
+            Assert.That((await SavedReplies()).Single(), Is.EqualTo("Here you go:"));
         }
     }
 
