@@ -195,7 +195,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
                 (ChatRole.Assistant, "Earlier answer"),
                 (ChatRole.User, "hello"),
             }));
-            Assert.That(model.Options!.Instructions, Does.Contain("You are a Discord bot"));
+            Assert.That(model.Options!.Instructions, Does.Contain(ChatHost.Discord.About));
             // The author has no linked account: every chat tool but the pull tools, which only some roles may use
             Assert.That(model.Options!.Tools!.Select(x => x.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal))));
             // The two users were there already: not added again

@@ -360,10 +360,90 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
-    public void Site_SpeaksAsAHaloGrunt_InThirdPerson_WithFactsExact()
+    public void EveryHost_SpeaksAsAHaloGrunt_InThirdPerson_WithFactsExact()
     {
-        var about = ChatHost.Site.About;
+        foreach (var host in new[] { ChatHost.Site, ChatHost.Discord, ChatHost.DiscordDirect, ChatHost.DiscordVoice })
+            AssertGruntVoice(host.About);
+    }
 
+    [Test]
+    public void TheDiscordHosts_KeepTheirOwnLimits_BesideTheVoice()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ChatHost.Discord.About, Does.Contain("Discord bot").And.Contain("2000-character limit"));
+            Assert.That(ChatHost.DiscordVoice.About, Does.Contain("read aloud").And.Contain("at most three short spoken sentences"));
+            Assert.That(ChatHost.Site.About, Does.Not.Contain("Discord"));
+        }
+    }
+
+    [Test]
+    public void OnlyTheSitesAbout_ForbidsMarkdown_ForDiscordRendersIt()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ChatHost.Site.About, Does.Contain("not Markdown"));
+            Assert.That(ChatHost.Discord.About, Does.Not.Contain("not Markdown"));
+            Assert.That(ChatHost.DiscordDirect.About, Does.Not.Contain("not Markdown"));
+            Assert.That(ChatHost.DiscordVoice.About, Does.Not.Contain("not Markdown"), "The voice has its own spoken rule");
+        }
+    }
+
+    [Test]
+    public void TheVoiceHost_LetsItsSpokenRulesWin_OverTheWrittenPersona()
+    {
+        var about = ChatHost.DiscordVoice.About;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(about, Does.Not.Contain("short, broken, excitable"), "No written-style run-on to compete with the spoken rules");
+            Assert.That(about, Does.Not.Contain("keep answers short").IgnoreCase);
+            Assert.That(about, Does.Contain("spoken rules win").And.Contain("at most three short spoken sentences").And.Contain("only if it fits"));
+            Assert.That(about, Does.Contain("no lists, links, Markdown or emoji"));
+        }
+    }
+
+    [Test]
+    public void TheDiscordDirectHost_InheritsThePersona_AndKeepsTheDiscordLimit_InItsInstructions()
+    {
+        var instructions = GrifChat.Instructions(ChatHost.DiscordDirect);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(instructions, Does.Contain("Unggoy").And.Contain("third person").And.Contain("Every Grunt for himself"));
+            Assert.That(instructions, Does.Contain("2000-character limit"));
+            Assert.That(instructions, Does.Contain(GrifChat.PrivateLine));
+            Assert.That(instructions, Does.Not.Contain("not Markdown"));
+        }
+    }
+
+    [Test]
+    public void TheVoiceHost_KeepsItsSpokenRule_InItsInstructions()
+    {
+        var instructions = GrifChat.Instructions(ChatHost.DiscordVoice);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(instructions, Does.Contain("no lists, links, Markdown or emoji"));
+            Assert.That(instructions, Does.Not.Contain("2000-character limit"));
+        }
+    }
+
+    [Test]
+    public void TheTwoThousandCharacterCap_IsInTheInstructions_OnlyForDiscordAndDiscordDirect()
+    {
+        var withCap = new[] { ChatHost.Discord, ChatHost.DiscordDirect }.Where(h => GrifChat.Instructions(h).Contains("2000-character limit"));
+        var without = new[] { ChatHost.Site, ChatHost.DiscordVoice }.Where(h => GrifChat.Instructions(h).Contains("2000-character limit"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(withCap, Is.EqualTo(new[] { ChatHost.Discord, ChatHost.DiscordDirect }));
+            Assert.That(without, Is.Empty);
+        }
+    }
+
+    private static void AssertGruntVoice(string about)
+    {
         using (Assert.EnterMultipleScope())
         {
             Assert.That(about, Does.Contain("Unggoy").And.Contain("third person").And.Contain("Demon").And.Contain("exactly"));
@@ -447,7 +527,7 @@ public partial class GrifChatUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(discord[0], Is.EqualTo("You are a Discord bot, and all messages must stay under the 2000-character limit."));
+            Assert.That(discord[0], Does.StartWith("You are Flipyap, an Unggoy").And.Contain("Discord bot").And.Contain("2000-character limit"));
             Assert.That(discord[^1], Is.EqualTo("The bot also has slash commands; /help lists them."));
             Assert.That(site[0], Does.StartWith("You are Flipyap, an Unggoy"));
             // In private, the line about the tools that change data too
