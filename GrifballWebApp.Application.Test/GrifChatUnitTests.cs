@@ -356,8 +356,11 @@ public partial class GrifChatUnitTests
     [Test]
     public void WithPerson_SaysNothing_ForACallerWithNoAccount_AndNotesAMissingGamertag()
     {
-        Assert.That(GrifChat.WithPerson(ChatHost.Discord, ToolCaller.Anonymous, null, null), Is.EqualTo(ChatHost.Discord));
-        Assert.That(GrifChat.Instructions(GrifChat.WithPerson(ChatHost.Site, new ToolCaller(5, []), null, null)), Does.Contain("no gamertag set yet").And.Contain("no staff roles"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(GrifChat.WithPerson(ChatHost.Discord, ToolCaller.Anonymous, null, null), Is.EqualTo(ChatHost.Discord));
+        }
+            Assert.That(GrifChat.Instructions(GrifChat.WithPerson(ChatHost.Site, new ToolCaller(5, []), null, null)), Does.Contain("no gamertag set yet").And.Contain("no staff roles"));
     }
 
     [Test]
