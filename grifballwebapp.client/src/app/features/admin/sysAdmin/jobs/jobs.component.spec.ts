@@ -71,7 +71,7 @@ describe('JobsComponent', () => {
   const text = (e: Element | null) => (e?.textContent ?? '').replace(/\s+/g, ' ').trim();
   const button = (label: string) =>
     Array.from(el().querySelectorAll<HTMLButtonElement>('button')).find(b => text(b) === label || b.getAttribute('aria-label') === label)!;
-  const rows = () => Array.from(el().querySelectorAll('[aria-label="Jobs"] tbody tr'));
+  const rows = () => Array.from(el().querySelectorAll('[aria-label="Jobs"] > table > tbody > tr:not(.jb-detail-row)'));
 
   /** After the last request is answered: the requests a change makes are checked straight after fixture.detectChanges() (a resource still loading keeps the fixture from being stable). */
   async function settle(): Promise<void> {
@@ -145,6 +145,19 @@ describe('JobsComponent', () => {
     expect((panel.querySelector<HTMLSelectElement>('.jb-schedule select')!).value).toBe('days');
     expect(button('Save').disabled).toBeTrue();
     expect(button('Reset to default (every 1 day)')).toBeTruthy();
+  });
+
+  it('opens a job’s details right under its row, and closes them with the same button', async () => {
+    await load([job('historical-refresh'), job('xbox-placeholders')]);
+    await details('historical-refresh');
+
+    const detailRow = el().querySelector('.jb-detail-row')!;
+    expect(detailRow.previousElementSibling).toBe(rows()[0]);
+    expect(rows()[1].querySelector('.jb-strong')!.textContent).toContain('xbox-placeholders');
+
+    button('Details of historical-refresh').click();
+    fixture.detectChanges();
+    expect(el().querySelector('.jb-detail')).toBeNull();
   });
 
   it('runs a job now, pauses and resumes it', async () => {

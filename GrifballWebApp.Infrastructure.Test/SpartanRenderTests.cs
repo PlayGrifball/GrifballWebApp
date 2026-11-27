@@ -338,6 +338,7 @@ public class SpartanRenderTests : SqliteContextFixture
         {
             Assert.That((report.Done, report.Failed), Is.EqualTo((0, 1)));
             Assert.That((render.State, render.Error), Is.EqualTo((UserSpartanRenderState.Failed, "No equipped Spartan is known for this account yet")));
+            Assert.That(report.Lines, Is.EqualTo(new[] { $"User (#{userId}): failed, No equipped Spartan is known for this account yet" }));
         }
     }
 
@@ -464,7 +465,23 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That((render.State, render.RequestedAt), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime.AddMinutes(10))));
             Assert.That(await FileNamesOf(first), Is.Empty);
             Assert.That(await FileNamesOf(second), Has.Count.EqualTo(3));
+            Assert.That(report.Lines, Is.EquivalentTo(new[] { $"User (#{first}): will try again, The render could not be saved", $"User (#{second}): rendered" }));
         }
+    }
+
+    [Test]
+    public async Task TheReport_NamesTheUser_ByTheirDisplayName()
+    {
+        var user = User.Seed(userName: "alice-login", displayName: "Alice", xboxUser: XboxUser.FromXbox(990, "alicegt"));
+        Context.Users.Add(user);
+        await Context.SaveChangesAsync();
+        Context.UserSpartans.Add(new UserSpartan { UserId = user.Id, ChoiceJson = JsonSerializer.Serialize(Choice, SpartanService.Json), UpdatedAt = Start.UtcDateTime });
+        Context.UserSpartanRenders.Add(new UserSpartanRender { UserId = user.Id, State = UserSpartanRenderState.Requested, RequestedAt = Start.UtcDateTime.AddMinutes(-1) });
+        await Context.SaveChangesAsync();
+
+        var report = await Source().RunAsync();
+
+        Assert.That(report.Lines, Is.EqualTo(new[] { $"Alice (#{user.Id}): rendered" }));
     }
 
     [TestCase(HttpStatusCode.ServiceUnavailable)]
@@ -870,5 +887,53 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That((some.Result, some.Summary), Is.EqualTo((JobRunResult.Succeeded, "1 rendered, 1 failed")));
             Assert.That((all.Result, all.Summary), Is.EqualTo((JobRunResult.Succeeded, "1 rendered, 0 failed")));
         }
+    }
+
+    [Test]
+    public void TheReport_NamesWhoseRenderEachWas()
+    {
+        var report = Report(r =>
+        {
+            r.Waiting = 2;
+            r.Done = 1;
+            r.Failed = 1;
+            r.Lines.Add("Alice (#4): rendered");
+            r.Lines.Add("Bob (#9): failed, The render took too long");
+        });
+
+        Assert.That(report.Summary, Is.EqualTo("1 rendered, 1 failed. Alice (#4): rendered; Bob (#9): failed, The render took too long"));
+    }
+
+    [Test]
+    public void TheReport_CapsTheSummary_SoManyLongErrorsCannotMakeItHuge()
+    {
+        var report = Report(r =>
+        {
+            r.Waiting = 20;
+            r.Failed = 20;
+            for (var i = 0; i < 20; i++)
+                r.Lines.Add($"User (#{i}): failed, {new string('x', 500)}");
+        });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Summary, Has.Length.LessThanOrEqualTo(1000));
+            Assert.That(report.Summary, Does.StartWith("0 rendered, 20 failed. User (#0): failed, xxx").And.EndWith("…"));
+        }
+    }
+
+    [Test]
+    public void TheReport_CountsTheRendersToTryAgain_AndNamesThem()
+    {
+        var report = Report(r =>
+        {
+            r.Waiting = 2;
+            r.Done = 1;
+            r.Retrying = 1;
+            r.Lines.Add("Alice (#4): rendered");
+            r.Lines.Add("Bob (#9): will try again, The render service is not answering");
+        });
+
+        Assert.That(report.Summary, Is.EqualTo("1 rendered, 0 failed, 1 to try again. Alice (#4): rendered; Bob (#9): will try again, The render service is not answering"));
     }
 }

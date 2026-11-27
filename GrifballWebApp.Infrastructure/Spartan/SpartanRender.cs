@@ -36,6 +36,8 @@ public sealed class SpartanRenderReport
     public bool Disabled { get; set; }
     public bool CatalogUnavailable { get; set; }
     public int Waiting { get; set; }
+    /// <summary>One line per user a run rendered for: whose render it was and how it went.</summary>
+    public List<string> Lines { get; } = [];
 }
 
 /// <summary>
@@ -85,17 +87,38 @@ public sealed class SpartanRenderSource(
             report.CatalogUnavailable = true;
             return report;
         }
+        var dueIds = due.Select(r => r.UserId).ToList();
+        var names = await context.Users.Where(u => dueIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName })
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
         foreach (var render in due)
         {
-            switch (await RenderAsync(render, catalog, ct))
+            _lastError = null;
+            var outcome = await RenderAsync(render, catalog, ct);
+            var error = Shorten(_lastError ?? "no reason given", LineErrorLength);
+            switch (outcome)
             {
                 case Outcome.Done: report.Done++; break;
                 case Outcome.Retry: report.Retrying++; break;
                 default: report.Failed++; break;
             }
+            var who = $"{names.GetValueOrDefault(render.UserId) ?? "User"} (#{render.UserId})";
+            report.Lines.Add(outcome switch
+            {
+                Outcome.Done => $"{who}: rendered",
+                Outcome.Retry => $"{who}: will try again, {error}",
+                _ => $"{who}: failed, {error}",
+            });
         }
         return report;
     }
+
+    private const int LineErrorLength = 120;
+
+    /// <summary>The text of the last failure or retry a render recorded, read for the run's report (the row can be stale after a re-request).</summary>
+    private string? _lastError;
+
+    internal static string Shorten(string text, int length) => text.Length <= length ? text : text[..(length - 1)] + "…";
 
     /// <summary>
     /// Renders are asked for the users who show their equipped set and have none yet, and again when the armor job saw the set
@@ -247,6 +270,7 @@ public sealed class SpartanRenderSource(
         var now = time.GetUtcNow();
         var until = now.UtcDateTime + (throttle.Remaining(now) is { } remaining && remaining > _options.RetryAfter ? remaining : _options.RetryAfter);
         var text = Cut(error);
+        _lastError = text;
         await context.UserSpartanRenders.Where(r => r.UserId == render.UserId && r.RequestedAt == asked)
             .ExecuteUpdateAsync(u => u
                 .SetProperty(r => r.State, UserSpartanRenderState.Requested)
@@ -259,6 +283,7 @@ public sealed class SpartanRenderSource(
     private async Task<Outcome> FailAsync(UserSpartanRender render, DateTime asked, string error, CancellationToken ct)
     {
         var text = Cut(error);
+        _lastError = text;
         await context.UserSpartanRenders.Where(r => r.UserId == render.UserId && r.RequestedAt == asked)
             .ExecuteUpdateAsync(u => u
                 .SetProperty(r => r.State, UserSpartanRenderState.Failed)
@@ -382,7 +407,9 @@ public sealed class SpartanRenderJob(SpartanRenderSource renders, ILogger<Sparta
     private static string RunSummary(SpartanRenderReport report)
     {
         var summary = $"{report.Done} rendered, {report.Failed} failed";
-        return report.Retrying > 0 ? $"{summary}, {report.Retrying} to try again" : summary;
+        if (report.Retrying > 0)
+            summary += $", {report.Retrying} to try again";
+        return report.Lines.Count == 0 ? summary : SpartanRenderSource.Shorten(summary + ". " + string.Join("; ", report.Lines), 1000);
     }
 
     internal static JobRunReport Report(SpartanRenderReport report, ILogger logger)
