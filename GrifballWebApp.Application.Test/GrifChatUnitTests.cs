@@ -155,7 +155,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(expected, Is.Not.Empty);
-            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Concat(expected)));
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => t != GrifTools.ListSlashCommands).Concat(expected)));
         }
     }
 
@@ -169,7 +169,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(StaffToolsFor(SiteRoles.Player), Is.Empty);
-            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat));
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => t != GrifTools.ListSlashCommands)));
         }
     }
 

@@ -514,7 +514,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(sysadminTools, Does.Contain("list_late_league_seasons"), "Not on the short list: a model that picks well gets it");
-            Assert.That(sysadminTools, Is.SupersetOf(GrifTools.Chat), "The short list's too");
+            Assert.That(sysadminTools, Is.SupersetOf(GrifTools.Chat.Where(t => t != GrifTools.ListSlashCommands)), "The short list's too");
             Assert.That(model.Options[1]!.Tools!.Select(t => t.Name), Does.Not.Contain("list_late_league_seasons"), "A model for the short list keeps it");
             Assert.That(model.Options[2]!.Tools!.Select(t => t.Name), Does.Contain("list_late_league_seasons"), "A Discord DM is private too");
         }
