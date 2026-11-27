@@ -748,15 +748,28 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     }
 
     [Test]
-    public async Task HandleClickAsync_AFailure_IsLogged_NotThrown()
+    public async Task HandleClickAsync_AFailure_IsLogged_NotThrown_AndAnErrorOnItsSpan()
     {
-        _rest.GetMessagesAsync(20ul, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => throw new InvalidOperationException("Discord is down"));
+        using var spans = new ChatSpans();
+        System.Diagnostics.Activity? current = null;
+        _rest.GetMessagesAsync(20ul, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ =>
+        {
+            current = System.Diagnostics.Activity.Current;
+            throw new InvalidOperationException("Discord is down");
+        });
 
         await Handler(new ScriptedChatClient((TimeSpan.Zero, "Never"))).HandleClickAsync(
             GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true),
             AuthorId, "user5", new MessageCreateHandler.ChatClick("a1", true));
 
-        Assert.That(_logger.Entries.Single().Exception, Is.TypeOf<InvalidOperationException>());
+        var click = current is null ? null : ChatSpans.Ancestors(current).LastOrDefault() ?? current;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_logger.Entries.Single().Exception, Is.TypeOf<InvalidOperationException>());
+            Assert.That(click?.OperationName, Is.EqualTo(MessageCreateHandler.MessageSpanName));
+            Assert.That(click?.Status, Is.EqualTo(System.Diagnostics.ActivityStatusCode.Error));
+            Assert.That(click?.StatusDescription, Is.EqualTo(nameof(InvalidOperationException)));
+        }
     }
 
     [Test]
