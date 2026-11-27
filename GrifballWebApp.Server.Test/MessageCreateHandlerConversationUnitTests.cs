@@ -83,6 +83,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddSingleton(_dataPull)
             // get_recent_games finds the account by gamertag through it
             .AddTransient<GrifballWebApp.Application.XboxAccounts.XboxAccountService>()
+            // get_player_image's, and the pictures a reply names
+            .AddTransient<GrifballWebApp.Application.XboxAccounts.XboxImageService>()
             .AddTransient<GrifballWebApp.Application.Seasons.SeasonVisibility>()
             // get_season's
             .AddTransient<GrifballWebApp.Application.Seasons.SeasonService>()
@@ -685,6 +687,51 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         {
             Assert.That(model.Options!.Instructions, Does.Contain(GrifChat.AutoApprovedLine));
             Assert.That(model.Options.Tools, Has.None.InstanceOf<ApprovalRequiredAIFunction>());
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyNamingAPlayersPicture_AttachesItAndLeavesTheAddressOut()
+    {
+        Db.XboxUsers.Add(XboxUser.FromXbox(500, "Grifter"));
+        var player = User.Seed(userName: "grif", xboxUserID: 500);
+        Db.Users.Add(player);
+        Db.XboxUserImages.Add(new XboxUserImage { XboxUserID = 500, Kind = XboxUserImageKind.HaloEmblem, Status = XboxUserImageStatus.Found, ContentType = "image/png", Content = [1, 2, 3], CheckedAt = _time.GetUtcNow().UtcDateTime });
+        await Db.SaveChangesAsync();
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"Here is the emblem, friend: https://grif.test/api/users/{player.Id}/halo-emblem And /api/users/{player.Id}/gamer-picture"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var last = _discord.Requests.Last(r => r.Method != HttpMethod.Get);
+        var sent = last.Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent.GetProperty("content").GetString(), Is.EqualTo("Here is the emblem, friend: And"));
+            Assert.That(sent.GetProperty("attachments").GetArrayLength(), Is.EqualTo(1), "The gamer picture isn't stored: only the emblem goes");
+            Assert.That(sent.GetProperty("attachments")[0].GetProperty("filename").GetString(), Is.EqualTo($"{player.Id}-halo-emblem.png"));
+            Assert.That(await SavedReplies(), Has.None.Contain("/api/users"));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyThatIsOnlyAPicture_IsSentAsTheFileAlone()
+    {
+        Db.XboxUsers.Add(XboxUser.FromXbox(500, "Grifter"));
+        var player = User.Seed(userName: "grif", xboxUserID: 500);
+        Db.Users.Add(player);
+        Db.XboxUserImages.Add(new XboxUserImage { XboxUserID = 500, Kind = XboxUserImageKind.GamerPicture, Status = XboxUserImageStatus.Found, ContentType = "image/jpeg", Content = [9], CheckedAt = _time.GetUtcNow().UtcDateTime });
+        await Db.SaveChangesAsync();
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"/api/users/{player.Id}/gamer-picture"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var sent = _discord.Requests.Last(r => r.Method != HttpMethod.Get).Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent.GetProperty("attachments")[0].GetProperty("filename").GetString(), Is.EqualTo($"{player.Id}-gamer-picture.jpg"));
+            Assert.That(sent.TryGetProperty("content", out var content) ? content.GetString() : "", Is.Empty);
         }
     }
 }

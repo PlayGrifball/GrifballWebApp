@@ -20,6 +20,16 @@ describe('chatParts', () => {
     expect(chatParts('/seasons or /leaderboards or /seasons').filter(p => p.link).map(p => p.link)).toEqual(['/seasons', '/leaderboards', '/seasons']);
   });
 
+  it('shows each of a player\'s pictures the site keeps as an image, and no other address', () => {
+    for (const kind of ['spartan-headshot', 'halo-emblem', 'gamer-picture']) {
+      const path = `/api/users/12/${kind}`;
+      expect(chatParts(`See ${path}`)).toEqual([{ text: 'See ' }, { text: path, image: path }]);
+    }
+    for (const text of ['/api/users/12/profile-picture', '/api/users/x/halo-emblem', 'https://evil.test/api/users/12/halo-emblem', '/api/seasons', '/api/users/12/halo-emblem/more']) {
+      expect(chatParts(text).some(p => p.image)).withContext(text).toBeFalse();
+    }
+  });
+
   it('does not link a path the site has no page for, part of a longer word or address, or the end of a longer path', () => {
     for (const text of ['/admin/12', '/sysadmin/jobs', 'https://grif.test/season/12', 'x/season/12', '/season/12/secret', '/season/abc', '/seasonsfoo', '/profile/3/edit', '/season/12/team', '/Season/12', '/Leaderboards']) {
       expect(chatParts(text).some(p => p.link)).withContext(text).toBeFalse();

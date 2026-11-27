@@ -124,6 +124,17 @@ describe('FlipyapChatComponent', () => {
     expect(turns()).toEqual([['You', 'Where?'], ['Flipyap', 'See /season/12 and /admin/1.']]);
   });
 
+  it('shows a player\'s picture the answer names, and no other image address', () => {
+    type('Show me.');
+    button('Ask')!.click();
+    answer().subscriber.next('Here: /api/users/12/halo-emblem and /api/users/12/secret and /pictures/x.png');
+    fixture.detectChanges();
+
+    const images = el().querySelectorAll<HTMLImageElement>('[role="log"] img');
+    expect(images).toHaveSize(1);
+    expect(images[0].getAttribute('src')).toBe('/api/users/12/halo-emblem');
+  });
+
   it('asks, shows the answer as Flipyap as it streams in, and talks while it does', () => {
     type('Who won?');
     button('Ask')!.click();

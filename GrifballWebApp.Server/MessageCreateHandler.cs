@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Threading.Channels;
 using GrifballWebApp.Application.Chat;
+using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Server.Commands;
 
 namespace GrifballWebApp.Server;
@@ -210,7 +211,15 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         }
         var restMessage = await updateTask;
 
-        await FinishReplyAsync(message, restMessage, responseBuilder, saveTo, UserId, BotID);
+        // The pictures it names (get_player_image's addresses) are attached to its last message, and the addresses left out of the text
+        var pictures = ChatImages.In(responseBuilder.ToString());
+        var files = pictures.Count == 0 ? null : await PicturesAsync(pictures);
+        if (pictures.Count > 0)
+        {
+            var text = ChatImages.Without(responseBuilder.ToString());
+            responseBuilder.Clear().Append(text);
+        }
+        await FinishReplyAsync(message, restMessage, responseBuilder, saveTo, UserId, BotID, files);
         if (cutShort is not null)
             await message.ReplyAsync(cutShort);
         return cutShort;
@@ -329,9 +338,25 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         return restMessage;
     }
 
-    /// <summary>The whole reply shown (in messages of 2000 characters at most) and saved, once it has streamed in.</summary>
+    /// <summary>The pictures from the site's own store, as files to attach; one the site no longer has is left out.</summary>
+    private async Task<List<NetCord.Rest.AttachmentProperties>?> PicturesAsync(IReadOnlyList<ChatImage> pictures)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var images = scope.ServiceProvider.GetRequiredService<XboxImageService>();
+        var files = new List<NetCord.Rest.AttachmentProperties>();
+        foreach (var picture in pictures)
+        {
+            if (await ChatImages.LoadAsync(images, picture) is not { } content)
+                continue;
+            var extension = content.ContentType switch { "image/jpeg" => "jpg", "image/webp" => "webp", _ => "png" };
+            files.Add(new NetCord.Rest.AttachmentProperties($"{picture.UserID}-{ChatImages.Slug(picture.Kind)}.{extension}", new MemoryStream(content.Content)));
+        }
+        return files.Count == 0 ? null : files;
+    }
+
+    /// <summary>The whole reply shown (in messages of 2000 characters at most) and saved, once it has streamed in; <paramref name="files"/> go with its last message.</summary>
     private static async Task FinishReplyAsync(Message message, NetCord.Rest.RestMessage? restMessage, StringBuilder responseBuilder,
-        GrifballContext? context, long UserId, long BotID)
+        GrifballContext? context, long UserId, long BotID, List<NetCord.Rest.AttachmentProperties>? files = null)
     {
         // Final update to ensure the full response is shown
         var finalResponse = responseBuilder.ToString();
@@ -349,10 +374,15 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
         if (restMessage is null)
         {
-            if (string.IsNullOrEmpty(finalResponse) is false)
+            // The finalResponse may be empty if we cleared the responseBuilder above
+            if (string.IsNullOrEmpty(finalResponse) is false || files is not null)
             {
-                // The finalResponse may be empty if we cleared the responseBuilder above
-                restMessage = await message.ReplyAsync(finalResponse);
+                var reply = new NetCord.Rest.ReplyMessageProperties();
+                if (string.IsNullOrEmpty(finalResponse) is false)
+                    reply = reply.WithContent(finalResponse);
+                if (files is not null)
+                    reply = reply.WithAttachments(files);
+                restMessage = await message.ReplyAsync(reply);
                 await SaveMessageToDb(UserId, BotID, context, restMessage);
             }
             
@@ -360,8 +390,13 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         else
         {
             // The last streamed update may already show all of it; it is saved either way (only full messages are).
-            if (restMessage.Content != finalResponse)
-                restMessage = await restMessage.ModifyAsync(x => x.WithContent(finalResponse));
+            if (restMessage.Content != finalResponse || files is not null)
+                restMessage = await restMessage.ModifyAsync(x =>
+                {
+                    x.WithContent(finalResponse);
+                    if (files is not null)
+                        x.WithAttachments(files);
+                });
             await SaveMessageToDb(UserId, BotID, context, restMessage);
         }
     }
