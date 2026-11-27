@@ -36,7 +36,7 @@ public class ChatButtonsUnitTests
         var found = ChatButtons.In(text);
 
         Assert.That(found, Has.Count.EqualTo(ChatButtons.MaxButtons));
-        Assert.That(found.First(), Is.EqualTo(new ChatButton(ChatButtonKind.JoinQueue, null)));
+        Assert.That(found[0], Is.EqualTo(new ChatButton(ChatButtonKind.JoinQueue, null)));
     }
 
     [TestCase("Tap [button:join_queue] now.", "Tap now.")]
