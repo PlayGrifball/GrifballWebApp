@@ -26,6 +26,7 @@ public class SignupButtonInteractionsTests
     private FakeRestRequestHandler _rest;
     private readonly List<InteractionCallbackProperties> _callbacks = [];
     private const ulong DiscordId = 9876;
+    private static readonly int[] TenThenTwo = [10, 2];
 
     [SetUp]
     public async Task Setup()
@@ -192,7 +193,7 @@ public class SignupButtonInteractionsTests
 
         var modal = ((InteractionCallbackProperties<ModalProperties>)_callbacks.Single()).Data!;
         var groups = modal.Components.OfType<LabelProperties>().Skip(2).Select(l => ((CheckboxGroupProperties)l.Component).Options.Count()).ToList();
-        Assert.That(groups, Is.EqualTo(new[] { 10, 2 }));
+        Assert.That(groups, Is.EqualTo(TenThenTwo));
     }
 
     [Test]

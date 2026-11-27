@@ -36,11 +36,13 @@ public class SignupModalInteractionsTests
         _context = await TestDatabase.NewGrifballContext();
         var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
         _handler = new SignupButtonHandler(_context, new SignupsService(_context), urls);
-        _rest = new FakeRestRequestHandler { NoContentForAll = true };
+        _rest = new FakeRestRequestHandler();
     }
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
+
+    private string Reply() => _rest.Requests.Last(r => r.Method == HttpMethod.Patch).Json.RootElement.GetProperty("content").GetString()!;
 
     private static string Quoted(IEnumerable<string> values) => string.Join(",", values.Select(v => $"\"{v}\""));
 
@@ -91,6 +93,7 @@ public class SignupModalInteractionsTests
             Assert.That(signup.RequiresAssistanceDrafting, Is.False);
             Assert.That(signup.SignupAvailability.Select(a => a.AvailabilityOptionID), Is.EqualTo(new[] { options[1].AvailabilityOptionID }));
             Assert.That(_callbacks.Single().Type, Is.EqualTo(InteractionCallbackType.DeferredMessage));
+            Assert.That(Reply(), Is.EqualTo("Your signup is saved. Times (UTC): Tue 20:01."));
         }
     }
 
@@ -127,6 +130,10 @@ public class SignupModalInteractionsTests
 
         await _handler.SignupDetails(Submit(season.SeasonID, "", []), season.SeasonID);
 
-        Assert.That(await _context.SeasonSignups.AnyAsync(s => s.UserID == user.Id), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _context.SeasonSignups.AnyAsync(s => s.UserID == user.Id), Is.False);
+            Assert.That(Reply(), Is.EqualTo("Signups for this season are closed."));
+        }
     }
 }
