@@ -118,7 +118,7 @@ public class SignupButtonHandler
             new LabelProperties("About you", new CheckboxGroupProperties(ChoicesInput,
             [
                 new CheckboxGroupOptionProperties("I would captain a team", WillCaptainChoice) { Default = signup?.WillCaptain ?? false },
-                new CheckboxGroupOptionProperties("I would like help drafting", DraftHelpChoice) { Default = signup?.RequiresAssistanceDrafting ?? false },
+                new CheckboxGroupOptionProperties("I would like help drafting (captains only)", DraftHelpChoice) { Default = signup?.RequiresAssistanceDrafting ?? false },
             ])
             {
                 MinValues = 0,
@@ -204,7 +204,8 @@ public class SignupButtonHandler
         var more = timeslots.Length > MaxTimeslotGroups * TimeslotsPerGroup
             ? $" This season has more times than fit here: set them {"on the signup form".LinkMarkdown(_urlService.SignupForm(seasonId))}."
             : "";
-        await Reply(context, $"Your signup is saved. {summary}{more}");
+        var draftHelp = choices.Contains(DraftHelpChoice) && !choices.Contains(WillCaptainChoice) ? " Draft help is only for captains, so it is off." : "";
+        await Reply(context, $"Your signup is saved. {summary}{more}{draftHelp}");
     }
 
     private static Task<IDiscordRestMessage> Reply(IDiscordInteractionContext context, string message)

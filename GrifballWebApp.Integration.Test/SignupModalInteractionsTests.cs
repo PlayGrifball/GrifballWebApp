@@ -111,7 +111,7 @@ public class SignupModalInteractionsTests
             Timeslots = [new TimeslotDto { OptionID = options[0].AvailabilityOptionID, IsChecked = true }],
         });
 
-        await _handler.SignupDetails(Submit(season.SeasonID, "", ["draft_help"], []), season.SeasonID);
+        await _handler.SignupDetails(Submit(season.SeasonID, "", ["captain", "draft_help"], []), season.SeasonID);
 
         var signup = await _context.SeasonSignups.Include(s => s.SignupAvailability).AsNoTracking().SingleAsync(s => s.UserID == user.Id);
         using (Assert.EnterMultipleScope())
@@ -119,6 +119,22 @@ public class SignupModalInteractionsTests
             Assert.That(signup.TeamName, Is.Null);
             Assert.That(signup.RequiresAssistanceDrafting, Is.True);
             Assert.That(signup.SignupAvailability, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task Submit_DraftHelpWithoutCaptain_IsOffAndSaysWhy()
+    {
+        var user = await AddLinkedUser();
+        var season = await SignupTestData.OpenSeason(_context);
+
+        await _handler.SignupDetails(Submit(season.SeasonID, "", ["draft_help"]), season.SeasonID);
+
+        var signup = await _context.SeasonSignups.AsNoTracking().SingleAsync(s => s.UserID == user.Id);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(signup.RequiresAssistanceDrafting, Is.False);
+            Assert.That(Reply(), Is.EqualTo("Your signup is saved. No times set yet. Draft help is only for captains, so it is off."));
         }
     }
 
