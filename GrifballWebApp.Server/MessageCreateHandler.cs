@@ -372,33 +372,36 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             responseBuilder.Append(finalResponse); // Append the remaining characters to the builder
         }
 
+        await SendLastAsync(message, restMessage, finalResponse, context, UserId, BotID, files);
+    }
+
+    /// <summary>The last message of a reply: sent, or the one streamed so far made whole (with <paramref name="files"/>), and saved.</summary>
+    private static async Task SendLastAsync(Message message, NetCord.Rest.RestMessage? restMessage, string text,
+        GrifballContext? context, long UserId, long BotID, List<NetCord.Rest.AttachmentProperties>? files)
+    {
         if (restMessage is null)
         {
-            // The finalResponse may be empty if we cleared the responseBuilder above
-            if (string.IsNullOrEmpty(finalResponse) is false || files is not null)
-            {
-                var reply = new NetCord.Rest.ReplyMessageProperties();
-                if (string.IsNullOrEmpty(finalResponse) is false)
-                    reply = reply.WithContent(finalResponse);
-                if (files is not null)
-                    reply = reply.WithAttachments(files);
-                restMessage = await message.ReplyAsync(reply);
-                await SaveMessageToDb(UserId, BotID, context, restMessage);
-            }
-            
+            // The text may be empty if the builder was cleared above
+            if (string.IsNullOrEmpty(text) && files is null)
+                return;
+            var reply = new NetCord.Rest.ReplyMessageProperties();
+            if (string.IsNullOrEmpty(text) is false)
+                reply = reply.WithContent(text);
+            if (files is not null)
+                reply = reply.WithAttachments(files);
+            restMessage = await message.ReplyAsync(reply);
         }
-        else
+        // The last streamed update may already show all of it; it is saved either way (only full messages are).
+        else if (restMessage.Content != text || files is not null)
         {
-            // The last streamed update may already show all of it; it is saved either way (only full messages are).
-            if (restMessage.Content != finalResponse || files is not null)
-                restMessage = await restMessage.ModifyAsync(x =>
-                {
-                    x.WithContent(finalResponse);
-                    if (files is not null)
-                        x.WithAttachments(files);
-                });
-            await SaveMessageToDb(UserId, BotID, context, restMessage);
+            restMessage = await restMessage.ModifyAsync(x =>
+            {
+                x.WithContent(text);
+                if (files is not null)
+                    x.WithAttachments(files);
+            });
         }
+        await SaveMessageToDb(UserId, BotID, context, restMessage);
     }
 
     /// <summary>
