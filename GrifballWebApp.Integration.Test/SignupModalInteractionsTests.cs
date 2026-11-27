@@ -233,6 +233,22 @@ public class SignupModalInteractionsTests
     }
 
     [Test]
+    public async Task Submit_SavesForAPlayerLinkedOnlyByTheirDiscordSignIn()
+    {
+        // The site account signs in with this Discord account but doesn't hold it as its own (DiscordCaller.Find finds it)
+        var user = User.Seed(userName: "login-linked", xboxUser: XboxUser.FromXbox(5555, "LoginGT"));
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+        _context.UserLogins.Add(new UserLogin { UserId = user.Id, LoginProvider = "Discord", ProviderKey = DiscordId.ToString(), ProviderDisplayName = "Discord" });
+        await _context.SaveChangesAsync();
+        var season = await SignupTestData.OpenSeason(_context);
+
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "", ["captain"]), season.SeasonID);
+
+        Assert.That(await _context.SeasonSignups.AnyAsync(s => s.UserID == user.Id), Is.True);
+    }
+
+    [Test]
     public async Task Submit_SignupsClosed_MakesNoSignup()
     {
         var user = await AddLinkedUser();

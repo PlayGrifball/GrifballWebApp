@@ -39,6 +39,7 @@ public class DiscordModuleRegistrationTests
     [
         "set_gamertag() preconditions: 0",
         "set_gamertag_for(UInt64 targetDiscordUserId, String targetUsername) preconditions: 0",
+        "set_region() preconditions: 0",
         "signup(Int32 seasonId) preconditions: 0",
     ];
 
@@ -194,7 +195,7 @@ public class DiscordModuleRegistrationTests
             "/me claims \"Your gamertag claims\" permissions: default, preconditions: 0",
             "/me logins \"Link or unlink your sign-ins\" permissions: default, preconditions: 0",
             "/me region \"Set your region\" permissions: default, preconditions: 0"
-                + " [region: String \"Your region, or none to clear it\" autocomplete: RegionAutocomplete, preconditions: 0]",
+                + " [region: String = null \"Your region, or none to clear it (default: pick from a list)\" autocomplete: RegionAutocomplete, preconditions: 0]",
             "/player commendations \"A player's medals\" permissions: default, preconditions: 0"
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/player history \"A player's seasons and teams\" permissions: default, preconditions: 0"

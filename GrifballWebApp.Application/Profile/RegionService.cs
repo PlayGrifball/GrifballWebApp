@@ -39,6 +39,10 @@ public class RegionService
         => _context.Regions.AsNoTracking().OrderBy(r => r.RegionID)
             .Select(r => new RegionDto { RegionID = r.RegionID, RegionName = r.RegionName }).ToListAsync(ct);
 
+    /// <summary>The user's region; null when they have none.</summary>
+    public Task<int?> Of(int userId, CancellationToken ct = default)
+        => _context.Users.Where(u => u.Id == userId).Select(u => u.RegionID).FirstOrDefaultAsync(ct);
+
     /// <summary>Sets the user's region, as chosen by them (the import never overwrites it); null clears it.</summary>
     public async Task<SetRegionResult> Set(int userId, int? regionId, CancellationToken ct = default)
     {

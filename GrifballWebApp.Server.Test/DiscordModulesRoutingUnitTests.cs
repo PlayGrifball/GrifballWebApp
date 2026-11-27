@@ -193,7 +193,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(admin)
             .AddSingleton(new PersonalCommandsHandler(caller, lookups, membership, queue, null!, new RegionService(Db),
                 new UserGamertagClaimService(Db, new GamertagMatching(Db), _time, MsOptions.Create(new UserClaimOptions())), signups, seasons,
-                new AvailabilityService(Db), reschedules, urls))
+                new AvailabilityService(Db), reschedules, urls, new SignupButtonHandler(Db, signups, urls)))
             .AddSingleton(new RescheduleSuggestions(lookups, new GrifballWebApp.Application.Scheduling.SchedulingService(Db, _time)))
             .AddSingleton(new BrowseCommandsHandler(leaderboards, new MatchmakingStatsService(Db), new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), lookups, urls))
             .AddSingleton(new SeasonCommandsHandler(lookups, seasons, new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db), signups, brackets, urls))

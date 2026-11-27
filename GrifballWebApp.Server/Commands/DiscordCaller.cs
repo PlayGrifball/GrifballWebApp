@@ -31,6 +31,9 @@ public class DiscordCaller
 {
     public const string NoGamertag = "You must set your gamertag first: use the button below, or /setgamertag.";
 
+    /// <summary>The Set Gamertag button, offered with <see cref="NoGamertag"/>.</summary>
+    private static readonly ActionRowProperties[] SetGamertagButton = [new ActionRowProperties([new ButtonProperties(DiscordButtonContants.SetGamertag, "Set Gamertag", ButtonStyle.Primary)])];
+
     /// <summary>The roles the site's controllers name.</summary>
     public static class Roles
     {
@@ -110,7 +113,7 @@ public class DiscordCaller
         if (user is null)
         {
             await context.Interaction.ModifyResponseAsync(x => x.WithContent(NoGamertag)
-                .WithComponents([new ActionRowProperties([new ButtonProperties(DiscordButtonContants.SetGamertag, "Set Gamertag", ButtonStyle.Primary)])]));
+                .WithComponents(SetGamertagButton));
             return null;
         }
 
@@ -121,6 +124,24 @@ public class DiscordCaller
         }
 
         return user;
+    }
+
+    /// <summary>
+    /// <see cref="Require"/> for a command whose first response is a modal, so nothing was deferred: a refusal is a new
+    /// ephemeral reply.
+    /// </summary>
+    public async Task<CallerUser?> RequireBeforeResponding(IDiscordInteractionContext context, IReadOnlyCollection<string> roles)
+    {
+        var user = await Find(context.Interaction.User.Id);
+        if (user is not null && user.IsInAnyRole(roles))
+            return user;
+        await context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+        {
+            Content = user is null ? NoGamertag : MissingRole(roles),
+            Flags = MessageFlags.Ephemeral,
+            Components = user is null ? SetGamertagButton : null,
+        }));
+        return null;
     }
 
     /// <summary>The reply to a caller without the role: the site would answer 403.</summary>
