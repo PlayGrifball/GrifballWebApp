@@ -338,6 +338,7 @@ public class SpartanRenderTests : SqliteContextFixture
         {
             Assert.That((report.Done, report.Failed), Is.EqualTo((0, 1)));
             Assert.That((render.State, render.Error), Is.EqualTo((UserSpartanRenderState.Failed, "No equipped Spartan is known for this account yet")));
+            Assert.That(report.Lines, Is.EqualTo(new[] { $"User (#{userId}): failed, No equipped Spartan is known for this account yet" }));
         }
     }
 
@@ -464,7 +465,23 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That((render.State, render.RequestedAt), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime.AddMinutes(10))));
             Assert.That(await FileNamesOf(first), Is.Empty);
             Assert.That(await FileNamesOf(second), Has.Count.EqualTo(3));
+            Assert.That(report.Lines, Is.EquivalentTo(new[] { $"User (#{first}): will try again, The render could not be saved", $"User (#{second}): rendered" }));
         }
+    }
+
+    [Test]
+    public async Task TheReport_NamesTheUser_ByTheirDisplayName()
+    {
+        var user = User.Seed(userName: "alice-login", displayName: "Alice", xboxUser: XboxUser.FromXbox(990, "alicegt"));
+        Context.Users.Add(user);
+        await Context.SaveChangesAsync();
+        Context.UserSpartans.Add(new UserSpartan { UserId = user.Id, ChoiceJson = JsonSerializer.Serialize(Choice, SpartanService.Json), UpdatedAt = Start.UtcDateTime });
+        Context.UserSpartanRenders.Add(new UserSpartanRender { UserId = user.Id, State = UserSpartanRenderState.Requested, RequestedAt = Start.UtcDateTime.AddMinutes(-1) });
+        await Context.SaveChangesAsync();
+
+        var report = await Source().RunAsync();
+
+        Assert.That(report.Lines, Is.EqualTo(new[] { $"Alice (#{user.Id}): rendered" }));
     }
 
     [TestCase(HttpStatusCode.ServiceUnavailable)]
