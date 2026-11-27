@@ -139,21 +139,23 @@ public class DiscordSetGamertag : IDiscordGamertagSetter
         else if (await CreateAccount(newUser, discordUser) is { } failure)
             return failure;
 
-        if (placeholder is not null)
-        {
-            try
-            {
-                await _merges.Merge(newUser.Id, placeholder.Id, MergeOptions.For(MergeTrigger.DiscordMatch, own ? "Discord set gamertag" : "Discord set gamertag by a sysadmin", newUser.Id));
-            }
-            catch (MergeConflictException e)
-            {
-                return (own ? "Your account was made, but your past records could not be joined to it: " : "Their account was made, but their past records could not be joined to it: ")
-                    + e.Message + (own ? " Contact a commissioner." : " Merge them on the site.");
-            }
-        }
-
         // TODO: We need visibility on external auth in admin panel
-        return null;
+        return placeholder is null ? null : await MergePlaceholder(newUser, placeholder, own);
+    }
+
+    /// <summary>Joins the placeholder's records into the account. The refusal when they conflict.</summary>
+    private async Task<string?> MergePlaceholder(Domain.Players.User newUser, Domain.Players.User placeholder, bool own)
+    {
+        try
+        {
+            await _merges.Merge(newUser.Id, placeholder.Id, MergeOptions.For(MergeTrigger.DiscordMatch, own ? "Discord set gamertag" : "Discord set gamertag by a sysadmin", newUser.Id));
+            return null;
+        }
+        catch (MergeConflictException e)
+        {
+            return (own ? "Your account was made, but your past records could not be joined to it: " : "Their account was made, but their past records could not be joined to it: ")
+                + e.Message + (own ? " Contact a commissioner." : " Merge them on the site.");
+        }
     }
 
     /// <summary>A new account for the Discord user, a Player, signed in with their Discord. The refusal when it can't be made.</summary>
