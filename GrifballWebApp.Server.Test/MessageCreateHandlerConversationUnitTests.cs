@@ -735,6 +735,48 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         }
     }
 
+    [Test]
+    public async Task HandleAsync_APictureShown_IsKeptInTheSavedReply_SoLaterTurnsKnow()
+    {
+        var players = await PlayersWithEmblems(1);
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"Here you go: {Emblem(players[0])}"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var saved = await SavedReplies();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(saved, Has.Count.EqualTo(1));
+            Assert.That(saved[0], Does.StartWith("Here you go:"));
+            Assert.That(saved[0], Does.Contain($"{players[0]}-halo-emblem.png"));
+            Assert.That(saved[0], Does.Not.Contain("/api/users"));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyThatIsOnlyAPicture_IsSavedAsTheNoteOfWhatWasShown()
+    {
+        var players = await PlayersWithEmblems(1);
+        var model = new ScriptedChatClient((TimeSpan.Zero, Emblem(players[0])));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var saved = await SavedReplies();
+        Assert.That(saved, Is.EqualTo([$"[Pictures shown with this reply: {players[0]}-halo-emblem.png]"]));
+    }
+
+    [Test]
+    public async Task HandleAsync_PicturesDiscordRefuses_LeaveNoNoteOfAPictureShown()
+    {
+        var players = await PlayersWithEmblems(1);
+        _discord.FailWhenAttaching = true;
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"Here you go: {Emblem(players[0])}"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        Assert.That(await SavedReplies(), Has.None.Contain("halo-emblem"));
+    }
+
     /// <summary>Players with a stored Halo emblem of <paramref name="size"/> bytes each, as their user IDs.</summary>
     private async Task<List<int>> PlayersWithEmblems(int count, int size = 3)
     {

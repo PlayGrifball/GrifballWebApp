@@ -452,9 +452,12 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         GrifballContext? context, long UserId, long BotID, List<NetCord.Rest.AttachmentProperties>? files)
     {
         NetCord.Rest.RestMessage? sent;
+        string? saved = null;
         try
         {
             sent = await SendFinalAsync(message, restMessage, text, files);
+            if (sent is not null && files is not null)
+                saved = ShownNote(text, files);
         }
         catch (Exception e) when (files is not null)
         {
@@ -462,7 +465,14 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             sent = await SendFinalAsync(message, restMessage, text, null);
         }
         if (sent is not null)
-            await SaveMessageToDb(UserId, BotID, context, sent);
+            await SaveMessageToDb(UserId, BotID, context, sent, saved);
+    }
+
+    /// <summary>The reply as kept for the conversation: its text, and a note of the pictures that went with it (the next turns see no files).</summary>
+    private static string ShownNote(string text, List<NetCord.Rest.AttachmentProperties> files)
+    {
+        var note = $"[Pictures shown with this reply: {string.Join(", ", files.Select(f => f.FileName))}]";
+        return text.Length == 0 ? note : $"{text}\n{note}";
     }
 
     /// <summary>The last message as sent, or as streamed (when it already shows all of it); null when there is nothing to send.</summary>
@@ -511,7 +521,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     }
 
     /// <summary>The bot's message, kept for the channel's conversation; none is kept from a DM (no <paramref name="context"/>).</summary>
-    private static async Task SaveMessageToDb(long UserId, long BotID, GrifballContext? context, NetCord.Rest.RestMessage restMessage)
+    private static async Task SaveMessageToDb(long UserId, long BotID, GrifballContext? context, NetCord.Rest.RestMessage restMessage, string? content = null)
     {
         if (context is null)
             return;
@@ -520,7 +530,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             Id = (long)restMessage.Id,
             FromDiscordUserId = BotID,
             ToDiscordUserId = UserId,
-            Content = restMessage.Content,
+            Content = content ?? restMessage.Content,
             Timestamp = restMessage.CreatedAt.UtcDateTime,
         };
         context.DiscordMessages.Add(newMessage);
