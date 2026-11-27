@@ -228,7 +228,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         var pictures = new List<ChatImage>();
         var offered = new List<ChatButton>();
         var baseUrl = configuration["BaseUrl"] ?? "";
-        var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, saveTo, UserId, BotID, Time, started, pictures, baseUrl));
+        var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, saveTo, UserId, BotID, Time, started, pictures, offered, baseUrl));
 
         string? cutShort = null;
         try
@@ -521,14 +521,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             // The text may be empty if the builder was cleared above
             if (string.IsNullOrEmpty(text) && files is null && components is null)
                 return null;
-            var reply = new NetCord.Rest.ReplyMessageProperties();
-            if (string.IsNullOrEmpty(text) is false)
-                reply = reply.WithContent(text);
-            if (files is not null)
-                reply = reply.WithAttachments(files);
-            if (components is not null)
-                reply = reply.WithComponents(components);
-            return await message.ReplyAsync(reply);
+            return await message.ReplyAsync(NewReply(text, files, components));
         }
         // The last streamed update may already show all of it; it is saved either way (only full messages are).
         if (restMessage.Content == text && files is null && components is null)
@@ -541,6 +534,16 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             if (components is not null)
                 x.WithComponents(components);
         });
+    }
+
+    private static NetCord.Rest.ReplyMessageProperties NewReply(string text, List<NetCord.Rest.AttachmentProperties>? files, IReadOnlyList<NetCord.Rest.ActionRowProperties>? components)
+    {
+        var reply = new NetCord.Rest.ReplyMessageProperties();
+        if (string.IsNullOrEmpty(text) is false)
+            reply = reply.WithContent(text);
+        if (files is not null)
+            reply = reply.WithAttachments(files);
+        return components is null ? reply : reply.WithComponents(components);
     }
 
     /// <summary>
