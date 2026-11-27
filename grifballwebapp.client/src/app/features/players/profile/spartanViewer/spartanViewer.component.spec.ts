@@ -151,6 +151,22 @@ describe('createSpartanScene', () => {
     expect(canvas.isConnected).toBeFalse();
   }, 30000);
 
+  it('adds only the newest model, and none once it is disposed', async () => {
+    if (!webgl) { pending('This browser has no WebGL.'); return; }
+    const THREE = await import('three');
+    const add = spyOn(THREE.Scene.prototype, 'add').and.callThrough();
+    const canvas = document.createElement('canvas');
+    const scene = await createSpartanScene(canvas);
+
+    await Promise.all([scene.show(triangle), scene.show(triangle)]);
+    expect(add).toHaveBeenCalledTimes(1);
+
+    const late = scene.show(triangle);
+    scene.dispose();
+    await late;
+    expect(add).toHaveBeenCalledTimes(1);
+  }, 30000);
+
   it('refuses a model that is not one', async () => {
     if (!webgl) { pending('This browser has no WebGL.'); return; }
     const canvas = document.createElement('canvas');

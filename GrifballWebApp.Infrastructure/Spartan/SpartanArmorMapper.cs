@@ -60,7 +60,7 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
             if (title is null)
                 continue;
             foreach (var key in RegionsOf(core, title, slot.Hints))
-                pieces.TryAdd(key, title);
+                pieces.TryAdd(key, CatalogNameOf(core, key, title));
         }
 
         string? coating = null;
@@ -76,6 +76,9 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
 
     /// <summary>The stance of the armor row's action pose, or null when it has none. Throws when Halo failed.</summary>
     public async Task<int?> StanceOf(XboxUserArmor armor, CancellationToken ct) => (await ItemOf(armor.ActionPosePath, ct))?.StanceId;
+
+    private static string CatalogNameOf(SpartanCatalogCore core, string regionKey, string title)
+        => core.Regions.First(r => r.Key == regionKey).Pieces.First(p => string.Equals(p.Name, title, StringComparison.OrdinalIgnoreCase)).Name ?? title;
 
     /// <summary>The keys of the core's regions that have a piece named <paramref name="title"/>, narrowed by what the slot is called when several do.</summary>
     internal static IReadOnlyList<string> RegionsOf(SpartanCatalogCore core, string title, string[] hints)

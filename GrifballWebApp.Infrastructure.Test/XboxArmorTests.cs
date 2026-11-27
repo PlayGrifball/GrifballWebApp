@@ -192,6 +192,25 @@ public class XboxArmorTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task Run_AnAccountWhoseCustomizationVanishes_IsMarkedChanged_SoItsRenderIsRefreshed()
+    {
+        var xuid = await PlayerAsync(Day, inEvent: false);
+        _halo.EconomyPlayerPublicCustomization($"xuid({xuid})").Returns(Ok(Armor()));
+        await Source().RunAsync();
+        _time.Advance(TimeSpan.FromDays(8));
+        _halo.EconomyPlayerPublicCustomization($"xuid({xuid})").Returns(Error(404));
+
+        await Source().RunAsync();
+
+        var row = await Context.XboxUserArmor.AsNoTracking().SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(row.Status, Is.EqualTo(XboxUserArmorStatus.NotFound));
+            Assert.That(row.ChangedAt, Is.EqualTo(_time.GetUtcNow().UtcDateTime));
+        }
+    }
+
+    [Test]
     public async Task Run_AFailedCheck_KeepsTheSetItHad_AndIsTriedAgainSooner()
     {
         var xuid = await PlayerAsync(Day, inEvent: false);

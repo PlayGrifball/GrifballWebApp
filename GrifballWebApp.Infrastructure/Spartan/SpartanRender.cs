@@ -50,7 +50,8 @@ public sealed class SpartanRenderSource(
     InfiniteSpartanRenderClient client,
     IOptions<SpartanRenderOptions> options,
     TimeProvider time,
-    XboxArmorThrottle throttle)
+    XboxArmorThrottle throttle,
+    ILogger<SpartanRenderSource> logger)
 {
     /// <summary>Users who show their equipped set and have no render row yet are queued this many at a time.</summary>
     private const int NewRendersPerRun = 100;
@@ -143,22 +144,42 @@ public sealed class SpartanRenderSource(
         }
         catch (HttpRequestException e) when (!ct.IsCancellationRequested)
         {
-            if (e is HaloAnswerException { Wait: { } wait })
-                throttle.Wait(time.GetUtcNow(), wait);
+            Throttle((e as HaloAnswerException)?.Wait);
             return await RetryLaterAsync(render, asked, e.Message, ct);
+        }
+        catch (SpartanRenderException e) when (!ct.IsCancellationRequested && (int)e.StatusCode is 429 or >= 500)
+        {
+            Throttle(e.RetryAfter);
+            logger.LogWarning(e, "The render service could not render for user {UserId} just now", render.UserId);
+            return await RetryLaterAsync(render, asked, "The render service is not answering", ct);
         }
         catch (DbUpdateException e)
         {
+            logger.LogWarning(e, "The files of user {UserId}'s render could not be saved", render.UserId);
             // What did not save must not ride along with the next user's save, and this render must not stay Rendering
             foreach (var entry in context.ChangeTracker.Entries().Where(x => x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToList())
                 entry.State = EntityState.Detached;
-            return await RetryLaterAsync(render, asked, e.InnerException?.Message ?? e.Message, ct);
+            return await RetryLaterAsync(render, asked, "The render could not be saved", ct);
         }
         catch (Exception e) when (!ct.IsCancellationRequested)
         {
-            return await FailAsync(render, asked, e is OperationCanceledException ? "The render took too long" : e.Message, ct);
+            logger.LogWarning(e, "The render for user {UserId} failed", render.UserId);
+            return await FailAsync(render, asked, FailureText(e), ct);
         }
     }
+
+    private void Throttle(TimeSpan? wait)
+    {
+        if (wait is { } w)
+            throttle.Wait(time.GetUtcNow(), w);
+    }
+
+    private static string FailureText(Exception e) => e switch
+    {
+        OperationCanceledException => "The render took too long",
+        SpartanRenderException or InvalidOperationException => e.Message,
+        _ => "The render failed",
+    };
 
     private async Task<Outcome> MakeAsync(UserSpartanRender render, DateTime asked, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
     {

@@ -48,6 +48,8 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
   controls.autoRotateSpeed = 1.5;
   const loader = new GLTFLoader();
   let model: InstanceType<typeof THREE.Group> | null = null;
+  let latest = 0;
+  let disposed = false;
 
   const resize = () => {
     const { clientWidth: width, clientHeight: height } = canvas;
@@ -66,7 +68,12 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
 
   return {
     async show(url) {
+      const mine = ++latest;
       const gltf = await loader.loadAsync(url);
+      if (disposed || mine !== latest) {
+        releaseModel(THREE, scene, gltf.scene);
+        return;
+      }
       if (model) releaseModel(THREE, scene, model);
       model = gltf.scene;
       scene.add(model);
@@ -79,6 +86,7 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
       controls.update();
     },
     dispose() {
+      disposed = true;
       renderer.setAnimationLoop(null);
       observer.disconnect();
       controls.dispose();

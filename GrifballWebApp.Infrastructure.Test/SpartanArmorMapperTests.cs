@@ -169,6 +169,17 @@ public class SpartanArmorMapperTests
     }
 
     [Test]
+    public async Task APiece_IsStoredAsTheCatalogNamesIt_NotAsHaloCasesIt()
+    {
+        Serve("cores/mk7.json", Found("Mark VII"));
+        Serve("helmets/a.json", Found("AVIATOR"));
+
+        var mapped = await Mapper().Map(Armor(a => a.HelmetPath = "helmets/a.json"), Catalog, CancellationToken.None);
+
+        Assert.That(mapped!.Choice.Armor!["helmet"], Is.EqualTo("Aviator"));
+    }
+
+    [Test]
     public async Task AVisorInTheCatalog_ByItsTitle_IsKept_AndOneItDoesNotHaveIsLeftOut()
     {
         Serve("cores/mk7.json", Found("Mark VII"));

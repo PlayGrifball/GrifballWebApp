@@ -11,6 +11,7 @@ using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Spartan;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -119,7 +120,7 @@ public class SpartanRenderTests : SqliteContextFixture
     {
         var mapper = new SpartanArmorMapper(_halo, new MemoryCache(new MemoryCacheOptions())) { Delay = (_, _) => Task.CompletedTask };
         var client = new InfiniteSpartanRenderClient(new HttpClient(_service) { BaseAddress = new Uri("http://render.test/") });
-        return new SpartanRenderSource(Context, mapper, _catalogs, client, Options.Create(_options), _time, _throttle);
+        return new SpartanRenderSource(Context, mapper, _catalogs, client, Options.Create(_options), _time, _throttle, NullLogger<SpartanRenderSource>.Instance);
     }
 
     /// <summary>A user with an Xbox account, asking for a render (and with a choice when <paramref name="choice"/> is given).</summary>
@@ -464,6 +465,36 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That(await FileNamesOf(first), Is.Empty);
             Assert.That(await FileNamesOf(second), Has.Count.EqualTo(3));
         }
+    }
+
+    [TestCase(HttpStatusCode.ServiceUnavailable)]
+    [TestCase(HttpStatusCode.TooManyRequests)]
+    public async Task AServerSideRenderFailure_IsRetriedLater_NotFailedForGood(HttpStatusCode status)
+    {
+        _service.FailWith = status;
+        var (userId, _) = await UserAsync(Choice);
+
+        var report = await Source().RunAsync();
+
+        var after = await RenderOf(userId);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Failed, report.Retrying), Is.EqualTo((0, 1)));
+            Assert.That(after.State, Is.EqualTo(UserSpartanRenderState.Requested));
+            Assert.That(after.RequestedAt, Is.GreaterThan(Start.UtcDateTime));
+        }
+    }
+
+    [Test]
+    public async Task ARejectedRequest_ShowsThePlayerOnlyTheServicesMessage()
+    {
+        _service.FailWith = HttpStatusCode.BadRequest;
+        var (userId, _) = await UserAsync(Choice);
+
+        await Source().RunAsync();
+
+        var after = await RenderOf(userId);
+        Assert.That(after.State, Is.EqualTo(UserSpartanRenderState.Failed));
     }
 
     [Test]

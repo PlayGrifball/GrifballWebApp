@@ -171,8 +171,7 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
         {
             if (response.Error is { Code: 404 })
             {
-                row.Status = XboxUserArmorStatus.NotFound;
-                row.Error = null;
+                MarkNotFound(row, now);
                 report.NotFound++;
             }
             else
@@ -190,6 +189,15 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
         else
             report.Unchanged++;
         return false;
+    }
+
+    /// <summary>A set that was there and is gone counts as a change, so its render is refreshed.</summary>
+    private static void MarkNotFound(XboxUserArmor row, DateTime now)
+    {
+        if (row.CoreId is not null && row.Status != XboxUserArmorStatus.NotFound)
+            row.ChangedAt = now;
+        row.Status = XboxUserArmorStatus.NotFound;
+        row.Error = null;
     }
 
     private static string Truncate(string error) => error.Length > 200 ? error[..200] : error;
