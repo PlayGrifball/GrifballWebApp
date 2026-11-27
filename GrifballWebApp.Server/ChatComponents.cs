@@ -39,16 +39,21 @@ public static class ChatComponents
         return rows.Count == 0 ? null : rows;
     }
 
-    /// <summary>The rows of a reply once its Confirm and Cancel are answered: the offered buttons stay as they were.</summary>
-    public static IReadOnlyList<ActionRowProperties> WithoutConfirm(IEnumerable<IMessageComponent> components)
+    /// <summary>
+    /// The rows of a reply once its Confirm and Cancel are answered (but those of <paramref name="keep"/>, a change still waiting): the
+    /// offered buttons stay as they were. Only the bot's own buttons are kept, so a row with none of them goes (Discord refuses an empty row).
+    /// </summary>
+    public static IReadOnlyList<ActionRowProperties> WithoutConfirm(IEnumerable<IMessageComponent> components, string? keep = null)
         => [.. components.OfType<ActionRow>()
             .Select(row => row.Components.OfType<Button>().ToList())
-            .Where(buttons => !buttons.Exists(IsConfirm))
+            .Where(buttons => buttons.Count > 0 && !buttons.Exists(b => IsConfirm(b, keep)))
             .Select(buttons => new ActionRowProperties([.. buttons.Select(b => new ButtonProperties(b.CustomId, b.Label!, b.Style))]))];
 
-    /// <summary>Whether a message's rows have Confirm and Cancel (<see cref="DiscordButtonContants.ChatConfirm"/>).</summary>
-    public static bool HasConfirm(IEnumerable<IMessageComponent> components)
-        => components.OfType<ActionRow>().Any(row => row.Components.OfType<Button>().Any(IsConfirm));
+    /// <summary>Whether a message's rows have Confirm and Cancel (<see cref="DiscordButtonContants.ChatConfirm"/>) of a change other than <paramref name="keep"/>.</summary>
+    public static bool HasConfirm(IEnumerable<IMessageComponent> components, string? keep = null)
+        => components.OfType<ActionRow>().Any(row => row.Components.OfType<Button>().Any(b => IsConfirm(b, keep)));
 
-    private static bool IsConfirm(Button button) => button.CustomId.StartsWith($"{DiscordButtonContants.ChatConfirm}:", StringComparison.Ordinal);
+    private static bool IsConfirm(Button button, string? keep)
+        => button.CustomId.StartsWith($"{DiscordButtonContants.ChatConfirm}:", StringComparison.Ordinal)
+            && (keep is null || !button.CustomId.StartsWith($"{DiscordButtonContants.ChatConfirm}:{keep}:", StringComparison.Ordinal));
 }

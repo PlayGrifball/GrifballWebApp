@@ -33,6 +33,33 @@ public class ChatComponentsUnitTests
         }
     }
 
+    private static readonly string[] OfferedOnly = [DiscordButtonContants.JoinQueue];
+    private static readonly string[] NewChangeAndOffered = ["chatconfirm:new:yes,chatconfirm:new:no", DiscordButtonContants.JoinQueue];
+
+    /// <summary>A message's rows as Discord gives them: each a JSON object.</summary>
+    private static IReadOnlyList<NetCord.IMessageComponent> Rows(params object[] rows) => GatewayMessages.Build(1, direct: true, components: rows).Components;
+
+    /// <summary>A row of the bot's buttons, by their custom IDs (comma-separated).</summary>
+    private static object Buttons(string ids) => new { type = 1, components = ids.Split(',').Select(id => new { type = 2, style = 1, label = id, custom_id = id }).ToArray() };
+
+    /// <summary>A row with only a link button: none of the bot's own.</summary>
+    private static readonly object LinkRow = new { type = 1, components = new[] { new { type = 2, style = 5, label = "Site", url = "https://grif.test" } } };
+
+    [Test]
+    public void WithoutConfirm_TakesOffAnsweredConfirmRows_KeepsAStillWaitingChanges_AndDropsRowsLeftEmpty()
+    {
+        var rows = Rows(Buttons("chatconfirm:old:yes,chatconfirm:old:no"), Buttons("chatconfirm:new:yes,chatconfirm:new:no"), LinkRow, Buttons(DiscordButtonContants.JoinQueue));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ChatComponents.WithoutConfirm(rows).Select(row => string.Join(",", Ids(row))), Is.EqualTo(OfferedOnly));
+            Assert.That(ChatComponents.WithoutConfirm(rows, keep: "new").Select(row => string.Join(",", Ids(row))), Is.EqualTo(NewChangeAndOffered));
+            Assert.That(ChatComponents.HasConfirm(rows, keep: "new"), Is.True, "the old change's");
+            Assert.That(ChatComponents.HasConfirm(Rows(Buttons("chatconfirm:new:yes,chatconfirm:new:no")), keep: "new"), Is.False);
+            Assert.That(ChatComponents.HasConfirm(Rows(LinkRow, Buttons(DiscordButtonContants.JoinQueue))), Is.False);
+        }
+    }
+
     [TestCase(ChatButtonKind.SetGamertag, null, "set_gamertag")]
     [TestCase(ChatButtonKind.SignupDetails, 7, "signupdetails:7")]
     [TestCase(ChatButtonKind.Signup, 7, "signup:7")]

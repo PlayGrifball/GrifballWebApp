@@ -96,7 +96,7 @@ public class SeasonTools
 
     [Description("The times a season's matches can be played, as /availability show gives them: each day of the week and its times, in UTC. Players pick theirs on the signup form.")]
     public async Task<Availability.TimeslotDto[]> GetSeasonAvailability([Description("The season's ID; left out, the next season to start, else the running one.")] int? seasonID = null, CancellationToken ct = default)
-        => await _availability.GetSeasonAvailability(await SeasonOrDefault(seasonID, SeasonPurpose.Upcoming, ct), ct);
+        => [.. (await _availability.GetSeasonAvailability(await SeasonOrDefault(seasonID, SeasonPurpose.Upcoming, ct), ct)).OrderBy(t => t.DayOfWeek).ThenBy(t => t.Time)];
 
     [Description("Who signed up for a season, and whether each will captain.")]
     public async Task<List<SignupResponseDto>> GetSeasonSignups([Description("The season's ID; left out, the next season to start, else the running one.")] int? seasonID = null, CancellationToken ct = default)

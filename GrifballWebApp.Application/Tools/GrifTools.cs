@@ -126,11 +126,6 @@ public static class GrifTools
             .Concat(QueuingHaloPulls.Select(t => (t, ToolEffect.QueuesHaloPull)))
             .Concat(ChangingData.Select(t => (t, ToolEffect.ChangesData)));
 
-    /// <summary>
-    /// The tools a chat with a small model gets in public (the Discord bot in a channel): the questions people ask most. A model picks
-    /// worse from a long list, so the rest are left to the MCP server's clients. Staff's tools aren't among them: the Discord bot
-    /// answers in a public channel, which mustn't read a dashboard or a claim.
-    /// </summary>
     /// <summary>The name of the tool that lists the bot's slash commands, offered only to hosts that have them (<c>ChatHost.HasSlashCommands</c>).</summary>
     public const string ListSlashCommands = "list_slash_commands";
 
@@ -140,11 +135,22 @@ public static class GrifTools
     /// <summary>The tools only the Discord bot has use for (<c>ChatHost.HasSlashCommands</c>).</summary>
     public static readonly string[] DiscordOnly = [ListSlashCommands, OfferButton];
 
+    /// <summary>The name of the tool that reads the caller's own account (their claims, their sign-ins): theirs alone.</summary>
+    public const string GetMyAccount = "get_my_account";
+
+    /// <summary>The tools whose answers are the caller's alone: only in private (<see cref="PrivateChat"/>, <see cref="Every"/>), never in a public list.</summary>
+    public static readonly string[] PrivateOnly = [GetMyAccount];
+
+    /// <summary>
+    /// The tools a chat with a small model gets in public (the Discord bot in a channel): the questions people ask most. A model picks
+    /// worse from a long list, so the rest are left to the MCP server's clients. Staff's tools aren't among them: the Discord bot
+    /// answers in a public channel, which mustn't read a dashboard or a claim; nor are <see cref="PrivateOnly"/>'s.
+    /// </summary>
     public static readonly string[] Chat =
     [
         "who_am_i", "get_current_time", "search", "list_seasons", "get_season", "get_season_standings", "get_season_schedule", "get_team",
         "get_player", "get_player_rank", "get_season_match", "get_game", "get_recent_games", "get_leaderboards", "get_site_link", "get_player_image", ListSlashCommands, OfferButton, "pull_season_match_games", "pull_xbox_account_games",
-        "suggest_draft_picks", "get_season_availability", "get_upcoming_events", "get_queue_status", "get_my_account",
+        "suggest_draft_picks", "get_season_availability", "get_upcoming_events", "get_queue_status",
     ];
 
     /// <summary>
@@ -154,10 +160,10 @@ public static class GrifTools
     public static readonly Type[] Staff = [typeof(StaffTools), .. ChangingData];
 
     /// <summary>
-    /// The tools a chat gets in private (the site's, a Discord DM): <see cref="Chat"/>'s, and staff's (<see cref="Staff"/>). Its replies are
+    /// The tools a chat gets in private (the site's, a Discord DM): <see cref="Chat"/>'s, <see cref="PrivateOnly"/>'s, and staff's (<see cref="Staff"/>). Its replies are
     /// the caller's alone, so staff get their own tools there, as the MCP server gives them, each for its roles: a player gets none of them.
     /// </summary>
-    public static readonly string[] PrivateChat = [.. Chat, .. Staff.SelectMany(Methods).Select(Name)];
+    public static readonly string[] PrivateChat = [.. Chat, .. PrivateOnly, .. Staff.SelectMany(Methods).Select(Name)];
 
     /// <summary>
     /// Every tool, as the MCP server gives them (<see cref="All"/>), each for its roles: for a chat in private (in public, <see cref="EveryPublic"/>) with a model that picks well from
@@ -166,10 +172,10 @@ public static class GrifTools
     public static readonly string[] Every = [.. All.SelectMany(set => Methods(set.Type)).Select(Name)];
 
     /// <summary>
-    /// Every tool but staff's (<see cref="Staff"/>): for a chat in public (a Discord channel) with a model that picks well from a long list
+    /// Every tool but staff's (<see cref="Staff"/>) and <see cref="PrivateOnly"/>'s: for a chat in public (a Discord channel) with a model that picks well from a long list
     /// (EveryTool); each is still only for the roles it names.
     /// </summary>
-    public static readonly string[] EveryPublic = [.. Every.Except(Staff.SelectMany(Methods).Select(Name))];
+    public static readonly string[] EveryPublic = [.. Every.Except(Staff.SelectMany(Methods).Select(Name)).Except(PrivateOnly)];
 
     /// <summary>The roles that may use a tool: its method's [ToolRoles], else its class's; none, anyone may.</summary>
     public static IReadOnlyList<string> Roles(MethodInfo method)

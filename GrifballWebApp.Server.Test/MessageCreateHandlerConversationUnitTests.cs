@@ -476,7 +476,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         await Handler(model).HandleAsync(DirectMessage());
 
         AssertNothingLogged();
-        Assert.That(ToolNames(model), Is.EquivalentTo(GrifTools.Chat));
+        Assert.That(ToolNames(model), Is.EquivalentTo(GrifTools.Chat.Concat(GrifTools.PrivateOnly)));
     }
 
     [Test]
@@ -717,12 +717,12 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         return withButtons;
     }
 
-    /// <summary>A change waiting for <paramref name="user"/>'s answer in their DM, as "a1".</summary>
-    private async Task<string> WaitingFor(GrifballWebApp.Domain.Players.User user)
+    /// <summary>A change waiting for <paramref name="user"/>'s answer in their DM, as "a1", asked for by <paramref name="model"/>.</summary>
+    private async Task<string> WaitingFor(GrifballWebApp.Domain.Players.User user, string model = "ollama")
     {
         var accounts = new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<ChatAccounts>.Instance);
         var asker = ChatLimits.Asker(new ToolCaller(user.Id, []), "");
-        await accounts.SaveWaitingAsync(ChatHost.DiscordDirect, asker, new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)",
+        await accounts.SaveWaitingAsync(ChatHost.DiscordDirect, asker, new ChatAction("a1", model, "forfeit_season_match(seasonMatchID: 12)",
             [new ChatActionCall("r1", "call-1", "forfeit_season_match", "{\"seasonMatchID\":12}")]));
         return asker;
     }
@@ -738,7 +738,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
         var withButtons = DmHoldsButtons(ConfirmOrCancelA1, OfferedOnly);
         Action<IDiscordMessageOptions>? edit = null;
-        withButtons.ModifyAsync(Arg.Do<Action<IDiscordMessageOptions>>(a => edit = a), Arg.Any<RestRequestProperties?>(), Arg.Any<CancellationToken>()).Returns(withButtons);
+        var sentFirst = -1;
+        withButtons.ModifyAsync(Arg.Do<Action<IDiscordMessageOptions>>(a => { edit = a; sentFirst = _discord.SentMessages().Count; }), Arg.Any<RestRequestProperties?>(), Arg.Any<CancellationToken>()).Returns(withButtons);
         var handler = Handler(new ScriptedChatClient((TimeSpan.Zero, "Left as it was.")));
         await WaitingFor(user);
 
@@ -754,6 +755,24 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(kept?.OfType<ActionRowProperties>().Select(row => string.Join(",", row.OfType<ButtonProperties>().Select(b => b.CustomId))),
                 Is.EqualTo(OfferedOnly));
             Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
+            Assert.That(sentFirst, Is.EqualTo(1), "the reply first, the edit after it");
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AChangeDroppedAsItsModelIsGone_LosesItsConfirmAndCancel()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        var withButtons = DmHoldsButtons(ConfirmOrCancelA1);
+        var handler = Handler(new ScriptedChatClient((TimeSpan.Zero, "Never")));
+        await WaitingFor(user, model: "no-longer-configured");
+
+        await handler.HandleAsync(TypedInTheDm("yes"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(GrifChat.ModelGone));
+            Assert.That(Modified(withButtons), Is.EqualTo(1), "nothing waits for them now");
         }
     }
 

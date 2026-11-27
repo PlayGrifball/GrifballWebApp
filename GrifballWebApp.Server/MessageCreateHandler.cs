@@ -187,7 +187,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         catch (ChatRefusedException refused)
         {
             // Neither the question nor why is kept: the model never had it (a DM's are left out of its history, GrifChat.WithoutRefusals)
-            await RefuseAsync(message, refused.Message, click, host, asker);
+            await RefuseAsync(message, refused.Message, click, host, asker, earlier);
             return null;
         }
         catch (Exception e)
@@ -200,24 +200,28 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         }
         using (reply)
         {
-            // A reply started: the change waiting in the DM is answered or forgotten (GrifChat), so its buttons go
-            await TakeOffAnsweredConfirmsAsync(earlier);
             if (saveTo is not null)
                 await SaveQuestionAsync(saveTo, message, UserId, BotID);
-            return await AnswerAsync(message, reply, saveTo, UserId, BotID);
+            var cutShort = await AnswerAsync(message, reply, saveTo, UserId, BotID);
+            // A reply started, so the change waiting in the DM was answered or forgotten (GrifChat): its buttons go, once the reply is out
+            await TakeOffAnsweredConfirmsAsync(earlier, keep: null);
+            return cutShort;
         }
     }
 
     /// <summary>
     /// Why the chat won't answer, as the reply. A click's change that still waits (refused for the asker's limits or month, GrifChat.ConfirmAsync
-    /// keeps it) gets its Confirm and Cancel again with it: the clicked ones are gone.
+    /// keeps it) gets its Confirm and Cancel again with it: the clicked ones are gone. In a DM (<paramref name="earlier"/>), the Confirm and
+    /// Cancel of any other change go from the earlier messages: refused, it may have been dropped all the same (its model gone).
     /// </summary>
-    private async Task RefuseAsync(NetCord.Rest.RestMessage message, string refusal, ChatClick? click, ChatHost host, string asker)
+    private async Task RefuseAsync(NetCord.Rest.RestMessage message, string refusal, ChatClick? click, ChatHost host, string asker, List<IDiscordRestMessage>? earlier)
     {
+        var waiting = earlier is null ? null : await chat.WaitingAsync(host, asker);
         var reply = new NetCord.Rest.ReplyMessageProperties().WithContent(refusal);
-        if (click is not null && await chat.WaitingAsync(host, asker) is { } waiting && waiting.Id == click.ActionId)
+        if (click is not null && waiting?.Id == click.ActionId)
             reply = reply.WithComponents(ChatComponents.For([], waiting)!);
         await message.ReplyAsync(reply);
+        await TakeOffAnsweredConfirmsAsync(earlier, waiting?.Id);
     }
 
     /// <summary>
@@ -339,16 +343,16 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         => [.. messages.Select(m => new ChatMessage(m.Author.Id == BotId ? ChatRole.Assistant : ChatRole.User, m.Content))];
 
     /// <summary>
-    /// Confirm and Cancel taken off the bot's earlier DM messages (<paramref name="earlier"/>; none in a channel), the buttons they offered left as
-    /// they were. A message that can't be changed now is logged: the reply goes on.
+    /// Confirm and Cancel taken off the bot's earlier DM messages (<paramref name="earlier"/>; none in a channel), but those of <paramref name="keep"/>,
+    /// a change still waiting: the buttons they offered are left as they were. A message that can't be changed now is logged: the reply goes on.
     /// </summary>
-    private async Task TakeOffAnsweredConfirmsAsync(List<IDiscordRestMessage>? earlier)
+    private async Task TakeOffAnsweredConfirmsAsync(List<IDiscordRestMessage>? earlier, string? keep)
     {
-        foreach (var answered in (earlier ?? []).Where(m => m.Author.Id == BotId && ChatComponents.HasConfirm(m.Components.Select(c => c.Original))))
+        foreach (var answered in (earlier ?? []).Where(m => m.Author.Id == BotId && ChatComponents.HasConfirm(m.Components.Select(c => c.Original), keep)))
         {
             try
             {
-                await answered.ModifyAsync(x => x.WithComponents(ChatComponents.WithoutConfirm(answered.Components.Select(c => c.Original))));
+                await answered.ModifyAsync(x => x.WithComponents(ChatComponents.WithoutConfirm(answered.Components.Select(c => c.Original), keep)));
             }
             catch (Exception e)
             {

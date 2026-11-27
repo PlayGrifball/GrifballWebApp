@@ -58,6 +58,9 @@ public class GrifToolsTests
     private static readonly string[] Alpha = ["Alpha"];
     private static readonly string[] DiscordSignIn = ["Discord"];
     private static readonly string[] OldTag = ["OldTag"];
+    private static readonly string[] ByDayThenTime = ["Monday 19:00", "Friday 19:00", "Friday 20:00"];
+
+    private static GrifballWebApp.Application.Availability.TimeslotDto Slot(DayOfWeek day, int hour) => new() { DayOfWeek = day, Time = new TimeOnly(hour, 0) };
     private static readonly string[] PlayerRole = ["Player"];
     private static readonly string[] Pullers = ["Player", "Commissioner", "Sysadmin"];
     private static readonly string[] Staff = ["Commissioner", "Sysadmin"];
@@ -324,13 +327,20 @@ public class GrifToolsTests
             new MatchmakingStatsService(_context), new GrifballWebApp.Application.Home.HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), _time));
 
         var events = await browse.GetUpcomingEvents();
+        var none = await SeasonTools().GetSeasonAvailability(_season.SeasonID);
+        await new GrifballWebApp.Application.Availability.AvailabilityService(_context).UpdateSeasonAvailability(new GrifballWebApp.Application.Availability.SeasonAvailabilityDto
+        {
+            SeasonID = _season.SeasonID,
+            Timeslots = [Slot(DayOfWeek.Friday, 20), Slot(DayOfWeek.Monday, 19), Slot(DayOfWeek.Friday, 19)],
+        }, CancellationToken.None);
         var times = await SeasonTools().GetSeasonAvailability(_season.SeasonID);
         var unknown = await Assert.ThrowsAsync<ToolException>(() => SeasonTools().GetSeasonAvailability(_season.SeasonID + 1000));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(events.Select(e => (e.SeasonID, e.EventType)), Does.Contain((_season.SeasonID, GrifballWebApp.Application.Home.EventType.Season)), "it runs until March");
-            Assert.That(times, Is.Empty, "none set");
+            Assert.That(none, Is.Empty, "none set");
+            Assert.That(times.Select(t => $"{t.DayOfWeek} {t.Time:HH:mm}"), Is.EqualTo(ByDayThenTime), "as /availability show orders them");
             Assert.That(unknown?.Message, Does.Contain("list_seasons"));
         }
     }
@@ -460,6 +470,19 @@ public class GrifToolsTests
     public void TheChatTools_AreAllTools()
     {
         Assert.That(GrifTools.Chat, Is.SubsetOf(AllTools().Select(GrifTools.Name)).And.Unique);
+    }
+
+    [Test]
+    public void APrivateOnlyTool_IsOnNoPublicList()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(GrifTools.PrivateOnly, Is.SubsetOf(AllTools().Select(GrifTools.Name)).And.Contains(GrifTools.GetMyAccount));
+            Assert.That(GrifTools.Chat.Intersect(GrifTools.PrivateOnly), Is.Empty, "a channel's short list");
+            Assert.That(GrifTools.EveryPublic.Intersect(GrifTools.PrivateOnly), Is.Empty, "a channel's long list");
+            Assert.That(GrifTools.PrivateChat, Is.SupersetOf(GrifTools.PrivateOnly));
+            Assert.That(GrifTools.Every, Is.SupersetOf(GrifTools.PrivateOnly));
+        }
     }
 
     [Test]
