@@ -905,6 +905,24 @@ public class SpartanRenderTests : SqliteContextFixture
     }
 
     [Test]
+    public void TheReport_CapsTheSummary_SoManyLongErrorsCannotMakeItHuge()
+    {
+        var report = Report(r =>
+        {
+            r.Waiting = 20;
+            r.Failed = 20;
+            for (var i = 0; i < 20; i++)
+                r.Lines.Add($"User (#{i}): failed, {new string('x', 500)}");
+        });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Summary, Has.Length.LessThanOrEqualTo(1000));
+            Assert.That(report.Summary, Does.StartWith("0 rendered, 20 failed. User (#0): failed, xxx").And.EndWith("…"));
+        }
+    }
+
+    [Test]
     public void TheReport_CountsTheRendersToTryAgain_AndNamesThem()
     {
         var report = Report(r =>

@@ -60,10 +60,6 @@ export class JobsComponent {
 
   /** The job whose runs and schedule are shown. */
   readonly selectedKey = signal<JobKey | null>(null);
-  readonly selected = computed<JobDto | null>(() => {
-    const key = this.selectedKey();
-    return key ? this.jobs().find(j => j.group === key.group && j.name === key.name) ?? null : null;
-  });
   /** The chosen job's last runs; null until they are read. */
   readonly runs = this.store.runs;
   readonly runsFailed = this.store.runsFailed;
