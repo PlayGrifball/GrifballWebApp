@@ -42,6 +42,11 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
   const environment = new THREE.PMREMGenerator(renderer);
   const environmentMap = environment.fromScene(new RoomEnvironment(), 0.04);
   scene.environment = environmentMap.texture;
+  // The environment alone leaves the model black where it fails to light (some phones), so lights too.
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 1.5));
+  const key = new THREE.DirectionalLight(0xffffff, 2.5);
+  key.position.set(2, 3, 4);
+  scene.add(key);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
