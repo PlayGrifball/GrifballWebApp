@@ -29,6 +29,9 @@ public sealed class FakeRestRequestHandler : IRestRequestHandler
     /// <summary>Answer every request with 204 No Content.</summary>
     public bool NoContentForAll { get; init; }
 
+    /// <summary>Refuse (400) a message that carries files, as Discord does for too many or too large ones.</summary>
+    public bool FailWhenAttaching { get; set; }
+
     public IReadOnlyList<RecordedRequest> Requests
     {
         get { lock (_requests) return _requests.ToList(); }
@@ -61,6 +64,9 @@ public sealed class FakeRestRequestHandler : IRestRequestHandler
         }
         lock (_requests)
             _requests.Add(new RecordedRequest(request.Method, request.RequestUri!.AbsolutePath, body));
+
+        if (FailWhenAttaching && body is not null && JsonDocument.Parse(body).RootElement.TryGetProperty("attachments", out var files) && files.GetArrayLength() > 0)
+            return new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("""{"message":"Request entity too large","code":40005}""", Encoding.UTF8, "application/json") };
 
         if (NoContentForAll || request.Method == HttpMethod.Delete)
             return new HttpResponseMessage(HttpStatusCode.NoContent);

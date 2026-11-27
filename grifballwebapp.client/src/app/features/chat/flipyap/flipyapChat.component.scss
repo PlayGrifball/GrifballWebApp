@@ -74,6 +74,16 @@
   color: var(--hud-heading);
 }
 
+// A player's picture the reply shows, on a line of its own
+.flipyap-chat__image {
+  display: block;
+  width: 7rem;
+  max-width: 100%;
+  height: auto;
+  margin: 0.25rem 0;
+  border-radius: 0.25rem;
+}
+
 .flipyap-chat__empty {
   margin: 0;
   color: var(--hud-muted);

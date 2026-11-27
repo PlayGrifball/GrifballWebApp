@@ -9,7 +9,7 @@
     @for (turn of turns(); track $index) {
       <div class="flipyap-chat__turn" [class.flipyap-chat__turn--bot]="turn.fromBot">
         <span class="flipyap-chat__who">{{ turn.fromBot ? 'Flipyap' : 'You' }}</span>
-        <p class="flipyap-chat__text">@for (part of parts(turn.text); track $index) {@if (part.link) {<a [routerLink]="part.link">{{ part.text }}</a>} @else {{{ part.text }}}}</p>
+        <p class="flipyap-chat__text">@for (part of parts(turn.text); track $index) {@if (part.link) {<a [routerLink]="part.link">{{ part.text }}</a>} @else if (part.image) {@if (!failedImages().has(part.image)) {<img class="flipyap-chat__image" [src]="part.image" [alt]="part.alt" loading="lazy" (error)="imageFailed(part.image)" />}} @else {{{ part.text }}}}</p>
       </div>
     } @empty {
       <p class="flipyap-chat__empty">

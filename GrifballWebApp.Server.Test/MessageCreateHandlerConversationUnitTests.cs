@@ -83,6 +83,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddSingleton(_dataPull)
             // get_recent_games finds the account by gamertag through it
             .AddTransient<GrifballWebApp.Application.XboxAccounts.XboxAccountService>()
+            // get_player_image's, and the pictures a reply names
+            .AddTransient<GrifballWebApp.Application.XboxAccounts.XboxImageService>()
             .AddTransient<GrifballWebApp.Application.Seasons.SeasonVisibility>()
             // get_season's
             .AddTransient<GrifballWebApp.Application.Seasons.SeasonService>()
@@ -106,7 +108,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             chatClients.Models.Returns(_ => throw fail);
         chatClients.Create(Arg.Any<ChatModelOption>()).Returns(models.Length == 1 ? models[0] : new ChatClientSequence(models));
         _chatClients = chatClients;
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString(), ["BaseUrl"] = "https://grif.test" }).Build();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
         return new MessageCreateHandler(_rest, config, scopes, _ambient, _logger, new GrifChat(new ChatModel(chatClients, NullLoggerFactory.Instance), scopes, _limits,
             new ChatAccounts(scopes, _time, NullLogger<ChatAccounts>.Instance)), _time);
@@ -685,6 +687,193 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         {
             Assert.That(model.Options!.Instructions, Does.Contain(GrifChat.AutoApprovedLine));
             Assert.That(model.Options.Tools, Has.None.InstanceOf<ApprovalRequiredAIFunction>());
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyNamingAPlayersPicture_AttachesItAndLeavesTheAddressOut()
+    {
+        Db.XboxUsers.Add(XboxUser.FromXbox(500, "Grifter"));
+        var player = User.Seed(userName: "grif", xboxUserID: 500);
+        Db.Users.Add(player);
+        Db.XboxUserImages.Add(new XboxUserImage { XboxUserID = 500, Kind = XboxUserImageKind.HaloEmblem, Status = XboxUserImageStatus.Found, ContentType = "image/png", Content = [1, 2, 3], CheckedAt = _time.GetUtcNow().UtcDateTime });
+        await Db.SaveChangesAsync();
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"Here is the emblem, friend: https://grif.test/api/users/{player.Id}/halo-emblem And /api/users/{player.Id}/gamer-picture"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var last = _discord.Requests.Last(r => r.Method != HttpMethod.Get);
+        var sent = last.Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent.GetProperty("content").GetString(), Is.EqualTo("Here is the emblem, friend: And"));
+            Assert.That(sent.GetProperty("attachments").GetArrayLength(), Is.EqualTo(1), "The gamer picture isn't stored: only the emblem goes");
+            Assert.That(sent.GetProperty("attachments")[0].GetProperty("filename").GetString(), Is.EqualTo($"{player.Id}-halo-emblem.png"));
+            Assert.That(await SavedReplies(), Has.None.Contain("/api/users"));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyThatIsOnlyAPicture_IsSentAsTheFileAlone()
+    {
+        Db.XboxUsers.Add(XboxUser.FromXbox(500, "Grifter"));
+        var player = User.Seed(userName: "grif", xboxUserID: 500);
+        Db.Users.Add(player);
+        Db.XboxUserImages.Add(new XboxUserImage { XboxUserID = 500, Kind = XboxUserImageKind.GamerPicture, Status = XboxUserImageStatus.Found, ContentType = "image/jpeg", Content = [9], CheckedAt = _time.GetUtcNow().UtcDateTime });
+        await Db.SaveChangesAsync();
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"/api/users/{player.Id}/gamer-picture"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var sent = _discord.Requests.Last(r => r.Method != HttpMethod.Get).Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent.GetProperty("attachments")[0].GetProperty("filename").GetString(), Is.EqualTo($"{player.Id}-gamer-picture.jpg"));
+            Assert.That(sent.TryGetProperty("content", out var content) ? content.GetString() : "", Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_APictureShown_IsKeptInTheSavedReply_SoLaterTurnsKnow()
+    {
+        var players = await PlayersWithEmblems(1);
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"Here you go: {Emblem(players[0])}"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var saved = await SavedReplies();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(saved, Has.Count.EqualTo(1));
+            Assert.That(saved[0], Does.StartWith("Here you go:"));
+            Assert.That(saved[0], Does.Contain($"{players[0]}-halo-emblem.png"));
+            Assert.That(saved[0], Does.Not.Contain("/api/users"));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyThatIsOnlyAPicture_IsSavedAsTheNoteOfWhatWasShown()
+    {
+        var players = await PlayersWithEmblems(1);
+        var model = new ScriptedChatClient((TimeSpan.Zero, Emblem(players[0])));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var saved = await SavedReplies();
+        Assert.That(saved.Single(), Is.EqualTo($"[Pictures shown with this reply: {players[0]}-halo-emblem.png]"));
+    }
+
+    [Test]
+    public async Task HandleAsync_PicturesDiscordRefuses_LeaveNoNoteOfAPictureShown()
+    {
+        var players = await PlayersWithEmblems(1);
+        _discord.FailWhenAttaching = true;
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"Here you go: {Emblem(players[0])}"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        Assert.That(await SavedReplies(), Has.None.Contain("halo-emblem"));
+    }
+
+    /// <summary>Players with a stored Halo emblem of <paramref name="size"/> bytes each, as their user IDs.</summary>
+    private async Task<List<int>> PlayersWithEmblems(int count, int size = 3)
+    {
+        var players = new List<int>();
+        for (var i = 0; i < count; i++)
+        {
+            Db.XboxUsers.Add(XboxUser.FromXbox(600 + i, $"Gamer{i}"));
+            var player = User.Seed(userName: $"player{i}", xboxUserID: 600 + i);
+            Db.Users.Add(player);
+            Db.XboxUserImages.Add(new XboxUserImage { XboxUserID = 600 + i, Kind = XboxUserImageKind.HaloEmblem, Status = XboxUserImageStatus.Found, ContentType = "image/png", Content = new byte[size], CheckedAt = _time.GetUtcNow().UtcDateTime });
+            await Db.SaveChangesAsync();
+            players.Add(player.Id);
+        }
+        return players;
+    }
+
+    private static string Emblem(int userID) => $"/api/users/{userID}/halo-emblem";
+
+    [Test]
+    public async Task HandleAsync_AReplyNamingMoreThanTenPictures_AttachesTenAndSendsTheText()
+    {
+        var players = await PlayersWithEmblems(12);
+        var model = new ScriptedChatClient((TimeSpan.Zero, "All of them: " + string.Join(' ', players.Select(Emblem))));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var sent = _discord.Requests.Last(r => r.Method != HttpMethod.Get).Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent.GetProperty("attachments").GetArrayLength(), Is.EqualTo(10));
+            Assert.That(sent.GetProperty("content").GetString(), Is.EqualTo("All of them:"));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_PicturesOverAMessagesSize_AreLeftOffPastTheLimit()
+    {
+        var players = await PlayersWithEmblems(3, size: 4_000_000);
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Big: " + string.Join(' ', players.Select(Emblem))));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var sent = _discord.Requests.Last(r => r.Method != HttpMethod.Get).Json.RootElement;
+        Assert.That(sent.GetProperty("attachments").GetArrayLength(), Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task HandleAsync_APictureDiscordRefuses_StillDeliversAndSavesTheText()
+    {
+        var players = await PlayersWithEmblems(1);
+        _discord.FailWhenAttaching = true;
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"Here you go: {Emblem(players[0])}"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var sent = _discord.Requests.Last(r => r.Method != HttpMethod.Get).Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent.GetProperty("content").GetString(), Is.EqualTo("Here you go:"));
+            Assert.That(sent.TryGetProperty("attachments", out var files) ? files.GetArrayLength() : 0, Is.Zero);
+            Assert.That((await SavedReplies()).Single(), Is.EqualTo("Here you go:"));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_APictureNotStored_IsLeftOutOfTheText()
+    {
+        var players = await PlayersWithEmblems(1);
+        var model = new ScriptedChatClient((TimeSpan.Zero, $"Here: /api/users/{players[0]}/gamer-picture and https://evil.test/api/users/{players[0]}/halo-emblem"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var sent = _discord.Requests.Last(r => r.Method != HttpMethod.Get).Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent.GetProperty("content").GetString(), Is.EqualTo($"Here: and https://evil.test/api/users/{players[0]}/halo-emblem"));
+            Assert.That(sent.TryGetProperty("attachments", out var files) ? files.GetArrayLength() : 0, Is.Zero, "Nothing stored, and no other host's address counts");
+        }
+    }
+
+    [TestCase(1000)]
+    [TestCase(1991)]
+    public async Task HandleAsync_APictureInAnEarlierMessageOfALongReply_IsAttachedToTheLastAndLeftOutOfTheText(int addressAt)
+    {
+        var players = await PlayersWithEmblems(1);
+        var text = new string('a', addressAt - 1) + " " + Emblem(players[0]) + " " + new string('b', 1500);
+        var model = new ScriptedChatClient((TimeSpan.Zero, text), (TimeSpan.FromMilliseconds(1500), " more"), (TimeSpan.Zero, " end")) { Clock = _time };
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var saved = await SavedReplies();
+        var last = _discord.Requests.Last(r => r.Method != HttpMethod.Get).Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(saved, Has.None.Contain("/api/users"));
+            Assert.That(saved[0], Does.StartWith(new string('a', addressAt - 1)));
+            Assert.That(last.GetProperty("attachments").GetArrayLength(), Is.EqualTo(1));
         }
     }
 }

@@ -17,7 +17,7 @@
     @for (turn of turns(); track $index) {
       <div class="chat__turn" [class.chat__turn--bot]="turn.fromBot">
         <span class="chat__who">{{ turn.fromBot ? 'Flipyap' : 'You' }}</span>
-        <p class="chat__text">@for (part of parts(turn.text); track $index) {@if (part.link) {<a [routerLink]="part.link">{{ part.text }}</a>} @else {{{ part.text }}}}</p>
+        <p class="chat__text">@for (part of parts(turn.text); track $index) {@if (part.link) {<a [routerLink]="part.link">{{ part.text }}</a>} @else if (part.image) {@if (!failedImages().has(part.image)) {<img class="chat__image" [src]="part.image" [alt]="part.alt" loading="lazy" (error)="imageFailed(part.image)" />}} @else {{{ part.text }}}}</p>
       </div>
     } @empty {
       <p class="chat__empty">Hehe, yeah! No questions yet. Try "Who won the last season?"</p>

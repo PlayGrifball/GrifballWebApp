@@ -30,7 +30,7 @@ public abstract class MessageCreateHandlerFixture
         _logger = new RecordingLogger<MessageCreateHandler>();
         _ambient = Substitute.For<IAmbientCurrentUser>();
         _ambient.IsActive.Returns(true);
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString(), ["BaseUrl"] = "https://grif.test" }).Build();
         // A model configured (never asked: these tests never get as far)
         var model = Substitute.For<IChatClientFactory>();
         model.Available.Returns(true);

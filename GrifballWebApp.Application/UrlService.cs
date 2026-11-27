@@ -80,6 +80,12 @@ public class UrlService
         return $"{_baseUrl}/xbox/{xboxUserId}";
     }
 
+    /// <summary>The picture the site keeps for a user (<see cref="Chat.ChatImages.Slug"/>): the API's own address, so a chat can show it.</summary>
+    public string PlayerImage(int userId, string slug)
+    {
+        return $"{_baseUrl}/api/users/{userId}/{slug}";
+    }
+
     public string RescheduleRequest(int seasonMatchId)
     {
         return $"{_baseUrl}/reschedule-request/{seasonMatchId}";

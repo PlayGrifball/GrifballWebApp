@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, afterRenderEffect, effect, inject, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, afterRenderEffect, effect, inject, output, signal, viewChild } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
@@ -27,6 +27,12 @@ export class FlipyapChatComponent {
   readonly turns = this.store.turns;
   /** A reply's words, the site's pages it names as links. */
   readonly parts = chatParts;
+  /** The pictures that would not load: hidden, not left as a broken-image icon. */
+  readonly failedImages = signal<ReadonlySet<string>>(new Set());
+  imageFailed(image: string | undefined): void {
+    if (image === undefined) return;
+    this.failedImages.update(failed => new Set(failed).add(image));
+  }
   readonly asking = this.store.asking;
   readonly error = this.store.error;
   readonly waiting = this.store.waiting;
