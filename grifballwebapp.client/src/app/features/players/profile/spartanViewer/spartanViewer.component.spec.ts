@@ -20,6 +20,13 @@ describe('SpartanViewerComponent', () => {
     fixture.detectChanges();
     return fixture;
   }
+  async function settle(f: ComponentFixture<SpartanViewerComponent>): Promise<void> {
+    for (let i = 0; i < 3; i++) {
+      await f.whenStable();
+      f.detectChanges();
+      await new Promise<void>(resolve => setTimeout(resolve));
+    }
+  }
   const text = (f: ComponentFixture<SpartanViewerComponent>) => (f.nativeElement as HTMLElement).textContent!.replace(/\s+/g, ' ');
 
   it('says it is loading, then shows the model in the canvas it made the scene for', async () => {
@@ -27,8 +34,7 @@ describe('SpartanViewerComponent', () => {
     const fixture = create(async c => { canvas = c; return scene; });
     expect(text(fixture)).toContain('Loading the 3D model');
 
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await settle(fixture);
 
     expect(canvas).toBe((fixture.nativeElement as HTMLElement).querySelector('canvas')!);
     expect(shown).toEqual(['/a.glb']);
@@ -38,11 +44,10 @@ describe('SpartanViewerComponent', () => {
 
   it('shows the next model when the address changes', async () => {
     const fixture = create(async () => scene);
-    await fixture.whenStable();
+    await settle(fixture);
 
     fixture.componentRef.setInput('url', '/b.glb');
-    fixture.detectChanges();
-    await fixture.whenStable();
+    await settle(fixture);
 
     expect(shown).toEqual(['/a.glb', '/b.glb']);
   });
@@ -59,15 +64,14 @@ describe('SpartanViewerComponent', () => {
   it('says so when the model cannot be read', async () => {
     scene.show = async () => { throw new Error('bad glb'); };
     const fixture = create(async () => scene);
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await settle(fixture);
 
     expect(fixture.componentInstance.state()).toBe('unavailable');
   });
 
   it('lets go of the scene when it goes away', async () => {
     const fixture = create(async () => scene);
-    await fixture.whenStable();
+    await settle(fixture);
 
     fixture.destroy();
 
