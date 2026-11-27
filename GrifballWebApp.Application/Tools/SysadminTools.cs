@@ -54,7 +54,7 @@ public class SysadminTools
     }
 
     [Description("Links an Xbox account to a site user by setting that user's gamertag, as the player does with /setgamertag or on their profile, with the same rules: "
-        + "refused when the user has a gamertag already or another user holds it; a placeholder holding it is merged into the user. Name the user by their site "
+        + "refused when the user has a gamertag already or another user holds it (the site's Edit User page, in a browser, can change one or take it over); a placeholder holding it is merged into the user. Name the user by their site "
         + "user ID (search gives it) or by their Discord user ID. Sysadmins.")]
     [ToolReachesHalo]
     public async Task<string> SetUserGamertag(
@@ -72,7 +72,7 @@ public class SysadminTools
         var id = userID ?? await _context.Users.Where(u => u.DiscordUserID == discordUserID && !u.IsDummyUser).Select(u => (int?)u.Id).FirstOrDefaultAsync(ct)
             ?? throw new ToolException("No site account is linked to that Discord user. They make one by using /setgamertag themselves or signing in to the site with Discord.");
         var error = await _setGamertag.SetGamertag(id, gamertag.Trim(), ct);
-        return error is null ? $"Set: user {id} has the gamertag {gamertag.Trim()}." : throw new ToolException(error);
+        return error is null ? $"Set: user {id} has the gamertag {gamertag.Trim()}." : throw new ToolException(error + " A sysadmin can change or take over a gamertag on the site's Edit User page.");
     }
 
     [Description("Pulls one Halo game's stats from Halo and saves them, as the admin page does (a game saved already stays as it is). "
