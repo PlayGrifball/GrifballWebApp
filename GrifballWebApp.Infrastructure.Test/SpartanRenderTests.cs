@@ -97,10 +97,9 @@ public class SpartanRenderTests : SqliteContextFixture
             ? """{"id":"set1","state":"failed","items":[]}"""
             : """
               {"id":"set1","state":"done","items":[
-               {"name":"stance-glb","state":"done","output":"glb","url":"/sets/set1/stance-glb"},
+               {"name":"glb","state":"done","output":"glb","url":"/sets/set1/glb"},
                {"name":"stance-body","state":"done","output":"png","url":"/sets/set1/stance-body"},
                {"name":"stance-head","state":"done","output":"png","url":"/sets/set1/stance-head"},
-               {"name":"neutral-glb","state":"done","output":"glb","url":"/sets/set1/neutral-glb"},
                {"name":"neutral-body","state":"done","output":"png","url":"/sets/set1/neutral-body"},
                {"name":"neutral-head","state":"done","output":"png","url":"/sets/set1/neutral-head"}]}
               """;
@@ -219,11 +218,11 @@ public class SpartanRenderTests : SqliteContextFixture
 
         var render = await RenderOf(userId);
         var head = await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "neutral-head");
-        var glb = await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "neutral-glb");
+        var glb = await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "glb");
         using (Assert.EnterMultipleScope())
         {
             Assert.That((report.Done, report.Failed), Is.EqualTo((1, 0)));
-            Assert.That(await FileNamesOf(userId), Is.EqualTo(new List<string> { "neutral-body", "neutral-glb", "neutral-head" }));
+            Assert.That(await FileNamesOf(userId), Is.EqualTo(new List<string> { "glb", "neutral-body", "neutral-head" }));
             Assert.That((head.ContentType, Encoding.UTF8.GetString(head.Content)), Is.EqualTo(("image/png", "png-head")));
             Assert.That((glb.ContentType, Encoding.UTF8.GetString(glb.Content)), Is.EqualTo(("model/gltf-binary", "glb-body")));
             Assert.That((render.State, render.RenderedAt, render.Error), Is.EqualTo((UserSpartanRenderState.Done, Start.UtcDateTime, (string?)null)));
@@ -244,7 +243,7 @@ public class SpartanRenderTests : SqliteContextFixture
     }
 
     [Test]
-    public async Task AnEquippedSet_IsRenderedInItsStance_SixFilesFromTheSet()
+    public async Task AnEquippedSet_IsRenderedInItsStance_FiveFilesFromTheSet()
     {
         var (userId, xuid) = await UserAsync();
         await EquipAsync(xuid);
@@ -256,9 +255,9 @@ public class SpartanRenderTests : SqliteContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Done, Is.EqualTo(1));
-            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(6));
+            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(5));
             Assert.That(_service.Loadouts.Single(), Does.Contain("\"stance\":77").And.Contain("\"core\":\"Mark VII\""));
-            Assert.That((await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "stance-glb")).ContentType, Is.EqualTo("model/gltf-binary"));
+            Assert.That((await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "glb")).ContentType, Is.EqualTo("model/gltf-binary"));
             Assert.That((await RenderOf(userId)).State, Is.EqualTo(UserSpartanRenderState.Done));
         }
     }

@@ -151,7 +151,7 @@ public class MyProfileController : ControllerBase
     public async Task<ActionResult<SpartanProfileDto>> UserSpartan([FromRoute] int userId, CancellationToken ct)
         => await _spartans.Get(userId, ct) is { } dto ? dto : this.NotFoundProblem(ApiProblems.NoSuchUser);
 
-    /// <summary>A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.</summary>
+    /// <summary>A file of a user's rendered Spartan: glb (one model with the neutral and stance poses as clips), stance-body, stance-head, neutral-body or neutral-head.</summary>
     [AllowAnonymous]
     [HttpGet("users/{userId:int}/spartan/{name}", Name = "GetUserSpartanFile")]
     [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "model/gltf-binary")]

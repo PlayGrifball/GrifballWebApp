@@ -195,12 +195,12 @@ public class SpartanEndpointsUnitTests : SqliteGrifballContextFixture
     public async Task UserSpartan_GivesAnyoneAUsersRender_WithoutSigningIn()
     {
         var user = await UserAsync();
-        await StoreHeadshotAsync(user.Id, Start.UtcDateTime, "neutral-glb");
+        await StoreHeadshotAsync(user.Id, Start.UtcDateTime, "glb");
         var anonymous = Profile(null);
 
         var got = await anonymous.UserSpartan(user.Id, CancellationToken.None);
 
-        Assert.That(got.Value!.Files.Single(), Is.EqualTo("neutral-glb"));
+        Assert.That(got.Value!.Files.Single(), Is.EqualTo("glb"));
     }
 
     [Test]
@@ -235,7 +235,7 @@ public class SpartanEndpointsUnitTests : SqliteGrifballContextFixture
         await StoreHeadshotAsync(user.Id, Start.UtcDateTime, "secret-name");
 
         var unknownName = await Profile(null).SpartanFile(user.Id, "secret-name", CancellationToken.None);
-        var notRendered = await Profile(null).SpartanFile(user.Id, "stance-glb", CancellationToken.None);
+        var notRendered = await Profile(null).SpartanFile(user.Id, "glb", CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {

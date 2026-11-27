@@ -34,7 +34,7 @@ describe('ProfileSpartanComponent', () => {
   beforeEach(() => {
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     shown = [];
-    const scene: SpartanScene = { show: async url => { shown.push(url); }, dispose: () => undefined };
+    const scene: SpartanScene = { show: async url => { shown.push(url); }, play: () => undefined, dispose: () => undefined };
     TestBed.configureTestingModule({
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: MatSnackBar, useValue: snackBar }, { provide: SPARTAN_SCENE, useValue: async () => scene }],
     });
@@ -117,10 +117,10 @@ describe('ProfileSpartanComponent', () => {
   });
 
   it('shows its render in the showcase, from the user\'s own URLs', async () => {
-    await load(profile({ files: ['neutral-body', 'neutral-glb'], renderedAt: '2026-11-20T10:00:00Z' }));
+    await load(profile({ files: ['neutral-body', 'glb'], renderedAt: '2026-11-20T10:00:00Z' }));
     expect(el().querySelector('img')!.getAttribute('src')).toBe('/api/users/21/spartan/neutral-body?v=2026-11-20T10%3A00%3A00Z');
     await fixture.whenStable();
-    expect(shown).toEqual(['/api/users/21/spartan/neutral-glb?v=2026-11-20T10%3A00%3A00Z']);
+    expect(shown).toEqual(['/api/users/21/spartan/glb?v=2026-11-20T10%3A00%3A00Z']);
   });
 
   it('opens the chooser with what is chosen now, after loading the catalog', async () => {

@@ -352,7 +352,7 @@ public sealed class SpartanRenderSource(
                 files[item.Name] = new SpartanFileDto(ContentTypeOf(item.Output), await client.GetFileAsync(item, ct));
             return files;
         }
-        foreach (var (name, output, framing) in new[] { ("neutral-glb", "glb", "body"), ("neutral-body", "png", "body"), ("neutral-head", "png", "head") })
+        foreach (var (name, output, framing) in new[] { ("glb", "glb", "body"), ("neutral-body", "png", "body"), ("neutral-head", "png", "head") })
         {
             var bytes = await client.RenderAsync(new SpartanLoadout
             {
