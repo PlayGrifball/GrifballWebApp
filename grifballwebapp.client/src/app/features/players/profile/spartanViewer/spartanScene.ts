@@ -8,6 +8,23 @@ export interface SpartanScene {
 
 export type SpartanSceneFactory = (canvas: HTMLCanvasElement) => Promise<SpartanScene>;
 
+/** Takes a model out of the scene and frees its geometry, materials and textures. */
+export const releaseModel = (
+  THREE: typeof import('three'),
+  scene: InstanceType<typeof import('three').Scene>,
+  group: InstanceType<typeof import('three').Group>,
+): void => {
+  scene.remove(group);
+  group.traverse(object => {
+    if (!(object instanceof THREE.Mesh)) return;
+    object.geometry.dispose();
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose();
+      material.dispose();
+    }
+  });
+};
+
 /** three.js is loaded here, on first use, so only a page that shows a Spartan in 3D pays for it. */
 export const createSpartanScene: SpartanSceneFactory = async canvas => {
   const [THREE, { GLTFLoader }, { OrbitControls }, { RoomEnvironment }] = await Promise.all([
@@ -47,22 +64,10 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
     renderer.render(scene, camera);
   });
 
-  const release = (group: InstanceType<typeof THREE.Group>) => {
-    scene.remove(group);
-    group.traverse(object => {
-      if (!(object instanceof THREE.Mesh)) return;
-      object.geometry.dispose();
-      for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-        for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose();
-        material.dispose();
-      }
-    });
-  };
-
   return {
     async show(url) {
       const gltf = await loader.loadAsync(url);
-      if (model) release(model);
+      if (model) releaseModel(THREE, scene, model);
       model = gltf.scene;
       scene.add(model);
       const box = new THREE.Box3().setFromObject(model);
@@ -77,7 +82,7 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
       renderer.setAnimationLoop(null);
       observer.disconnect();
       controls.dispose();
-      if (model) release(model);
+      if (model) releaseModel(THREE, scene, model);
       environmentMap.dispose();
       environment.dispose();
       renderer.dispose();

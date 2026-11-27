@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { createSpartanScene, SPARTAN_SCENE, SpartanScene, SpartanSceneFactory } from './spartanScene';
+import { createSpartanScene, releaseModel, SPARTAN_SCENE, SpartanScene, SpartanSceneFactory } from './spartanScene';
 import { SpartanViewerComponent } from './spartanViewer.component';
 
 describe('SpartanViewerComponent', () => {
@@ -90,6 +90,34 @@ describe('SpartanViewerComponent', () => {
 
     expect(disposed).toBe(1);
     expect(shown).toEqual([]);
+  });
+});
+
+describe('releaseModel', () => {
+  it('takes the model out of the scene and frees what it holds, textures included', async () => {
+    const THREE = await import('three');
+    const scene = new THREE.Scene();
+    const texture = new THREE.Texture();
+    const material = new THREE.MeshStandardMaterial({ map: texture });
+    const geometry = new THREE.BufferGeometry();
+    const group = new THREE.Group();
+    group.add(new THREE.Mesh(geometry, [material]), new THREE.Mesh(geometry, material), new THREE.Group());
+    scene.add(group);
+    const freed = { texture: 0, material: 0, geometry: 0 };
+    texture.addEventListener('dispose', () => freed.texture++);
+    material.addEventListener('dispose', () => freed.material++);
+    geometry.addEventListener('dispose', () => freed.geometry++);
+
+    releaseModel(THREE, scene, group);
+
+    expect(scene.children).toEqual([]);
+    expect(freed.texture).toBeGreaterThan(0);
+    expect(freed.material).toBeGreaterThan(0);
+    expect(freed.geometry).toBeGreaterThan(0);
+  });
+
+  it('is what the scene token gives by default', () => {
+    expect(TestBed.inject(SPARTAN_SCENE)).toBe(createSpartanScene);
   });
 });
 
