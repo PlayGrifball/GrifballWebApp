@@ -13,6 +13,7 @@ import { LinkedAccountsComponent } from '@shared/linkedAccounts/linkedAccounts.c
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 import { AccessTokensComponent } from './accessTokens/accessTokens.component';
 import { ProfileSpartanComponent } from './profileSpartan/profileSpartan.component';
+import { SpartanPublicComponent } from './spartanPublic/spartanPublic.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { StubVodListComponent } from '@shared/vodList/vodList.stub';
 import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
@@ -40,6 +41,12 @@ class ProfileIdentityStubComponent {
 class AccessTokensStubComponent {}
 
 // And the Spartan section (profileSpartan.component.spec.ts).
+@Component({ selector: 'app-spartan-public', template: '<p>public spartan</p>' })
+class SpartanPublicStubComponent {
+  readonly userID = input.required<number>();
+  readonly name = input('');
+}
+
 @Component({ selector: 'app-profile-spartan', template: '<p>spartan</p>' })
 class ProfileSpartanStubComponent {
   readonly userID = input.required<number>();
@@ -71,8 +78,8 @@ describe('ProfileComponent', () => {
       .overrideProvider(MatSnackBar, { useValue: snackBar })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, ProfileSpartanComponent, VodListComponent, ProfileCommendationsComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, ProfileSpartanStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, ProfileSpartanComponent, SpartanPublicComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, ProfileSpartanStubComponent, SpartanPublicStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
 
@@ -136,6 +143,28 @@ describe('ProfileComponent', () => {
     load({ gamertag: 'Sgt Grif' });
     const feed = fixture.debugElement.query(By.directive(CalendarSubscribeComponent)).componentInstance as CalendarSubscribeComponent;
     expect(feed.path()).toBe('users/21/calendar.ics');
+  });
+
+  it("shows another player's Spartan to a visitor, named by their gamertag", () => {
+    personID.set(3);
+    load({ gamertag: 'Sgt Grif' });
+    const spartan = fixture.debugElement.query(By.directive(SpartanPublicStubComponent)).componentInstance as SpartanPublicStubComponent;
+    expect(spartan.userID()).toBe(21);
+    expect(spartan.name()).toBe('Sgt Grif');
+  });
+
+  it("shows a signed-out visitor the Spartan too", () => {
+    personID.set(null);
+    load({ gamertag: 'Sgt Grif' });
+    expect(fixture.debugElement.query(By.directive(SpartanPublicStubComponent))).not.toBeNull();
+  });
+
+  it("leaves the owner's own Spartan to their settings, so it shows once", async () => {
+    personID.set(21);
+    load({ gamertag: 'Sgt Grif' });
+    await renderDeferred(fixture);
+    expect(fixture.debugElement.query(By.directive(SpartanPublicStubComponent))).toBeNull();
+    expect(fixture.debugElement.query(By.directive(ProfileSpartanStubComponent))).not.toBeNull();
   });
 
   it("shows the player's commendations", () => {
@@ -527,8 +556,8 @@ describe('ProfileComponent linked accounts', () => {
     })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, ProfileSpartanComponent, VodListComponent, ProfileCommendationsComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, ProfileSpartanStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, ProfileSpartanComponent, SpartanPublicComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, ProfileSpartanStubComponent, SpartanPublicStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
@@ -676,8 +705,8 @@ describe('ProfileComponent: region and identity', () => {
       .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, ProfileSpartanComponent, VodListComponent, ProfileCommendationsComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, ProfileSpartanStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, ProfileSpartanComponent, SpartanPublicComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, ProfileSpartanStubComponent, SpartanPublicStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);

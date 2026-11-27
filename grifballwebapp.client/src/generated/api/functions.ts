@@ -227,6 +227,8 @@ export type { ClearMySpartan$Params as ClearMySpartan$Params } from './fn/my-pro
 export { clearMySpartan as clearMySpartan } from './fn/my-profile/clear-my-spartan';
 export type { RenderMySpartan$Params as RenderMySpartan$Params } from './fn/my-profile/render-my-spartan';
 export { renderMySpartan as renderMySpartan } from './fn/my-profile/render-my-spartan';
+export type { GetUserSpartan$Params as GetUserSpartan$Params } from './fn/my-profile/get-user-spartan';
+export { getUserSpartan as getUserSpartan } from './fn/my-profile/get-user-spartan';
 export type { GetUserSpartanFile$Png$Params as GetUserSpartanFile$Png$Params } from './fn/my-profile/get-user-spartan-file-png';
 export { getUserSpartanFile$Png as getUserSpartanFile$Png } from './fn/my-profile/get-user-spartan-file-png';
 export type { GetUserSpartanFile$GltfBinary$Params as GetUserSpartanFile$GltfBinary$Params } from './fn/my-profile/get-user-spartan-file-gltf-binary';

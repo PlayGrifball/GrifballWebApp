@@ -44,6 +44,10 @@
       </section>
     }
 
+    @if (accountService.personID() !== userID()) {
+      <app-spartan-public [userID]="userID()" [name]="gamertag() || profileStats()?.displayName || 'Spartan'" />
+    }
+
     @if (accountService.personID() === userID()) {
       @if (settingGamertag()) {
       <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="profile-gamertag">

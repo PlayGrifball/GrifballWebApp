@@ -1,14 +1,3 @@
-.spartan-files {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-
-  img {
-    max-width: 100%;
-    height: auto;
-  }
-}
-
 .spartan-actions {
   display: flex;
   flex-wrap: wrap;
@@ -26,6 +15,3 @@
   display: contents;
 }
 
-.spartan-model {
-  margin-block: 1rem;
-}
