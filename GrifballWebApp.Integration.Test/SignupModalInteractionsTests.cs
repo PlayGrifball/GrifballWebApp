@@ -2,7 +2,9 @@ using System.Text.Json;
 using DiscordInterfaces;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Signups;
+using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Signups;
 using Microsoft.EntityFrameworkCore;
@@ -46,18 +48,20 @@ public class SignupModalInteractionsTests
 
     private static string Quoted(IEnumerable<string> values) => string.Join(",", values.Select(v => $"\"{v}\""));
 
-    private IDiscordModalInteractionContext Submit(int seasonId, string teamName, string[] choices, string[]? times = null)
+    private static string Id(AvailabilityOption option) => option.AvailabilityOptionID.ToString();
+
+    /// <summary>A submit of the signup modal; with <paramref name="shown"/>, one time group showing those IDs, <paramref name="ticked"/> ticked.</summary>
+    private IDiscordModalInteractionContext Submit(int seasonId, string teamName, string[] choices, IEnumerable<string>? shown = null, params string[] ticked)
     {
-        var timeGroups = string.Concat((times is null ? Array.Empty<string[]>() : new[] { times }).Select((values, i) =>
-            $$$"""
-            ,{"type":18,"id":{{{10 + i}}},"component":{"type":22,"id":{{{20 + i}}},"custom_id":"times_{{{i}}}","values":[{{{Quoted(values)}}}]}}
-            """));
+        var timeGroup = shown is null ? "" : $$$"""
+            ,{"type":18,"id":10,"component":{"type":22,"id":20,"custom_id":"times:{{{string.Join(",", shown)}}}","values":[{{{Quoted(ticked)}}}]}}
+            """;
         var json = $$$"""
         {"id":"1","application_id":"2","type":5,"data":{"custom_id":"signup:{{{seasonId}}}",
            "components":[
              {"type":18,"id":1,"component":{"type":4,"id":2,"custom_id":"team_name","value":"{{{teamName}}}"}},
              {"type":18,"id":3,"component":{"type":22,"id":4,"custom_id":"choices","values":[{{{Quoted(choices)}}}]}}
-             {{{timeGroups}}}]},
+             {{{timeGroup}}}]},
          "channel_id":"3","channel":{"id":"3","type":0},
          "user":{"id":"{{{DiscordId}}}","username":"discorduser","discriminator":"0"},"token":"tok","version":1,
          "locale":"en-US","entitlements":[],"authorizing_integration_owners":{},"context":1}
@@ -76,6 +80,19 @@ public class SignupModalInteractionsTests
         return user;
     }
 
+    private Task<int[]> ChosenTimes(User user) => _context.SeasonSignups.AsNoTracking()
+        .Where(s => s.UserID == user.Id)
+        .SelectMany(s => s.SignupAvailability.Select(a => a.AvailabilityOptionID))
+        .OrderBy(id => id)
+        .ToArrayAsync();
+
+    private async Task ChooseTimes(User user, Season season, params AvailabilityOption[] options) => await new SignupsService(_context).UpsertSignup(new SignupRequestDto
+    {
+        SeasonID = season.SeasonID,
+        UserID = user.Id,
+        Timeslots = [.. options.Select(o => new TimeslotDto { OptionID = o.AvailabilityOptionID, IsChecked = true })],
+    });
+
     [Test]
     public async Task Submit_SignsUpWithTheChoicesAndTimesPicked()
     {
@@ -83,15 +100,15 @@ public class SignupModalInteractionsTests
         var season = await SignupTestData.OpenSeason(_context);
         var options = await SignupTestData.Options(_context, season, (DayOfWeek.Monday, new TimeOnly(19, 1)), (DayOfWeek.Tuesday, new TimeOnly(20, 1)));
 
-        await _handler.SignupDetails(Submit(season.SeasonID, "Grifs", ["captain"], [options[1].AvailabilityOptionID.ToString()]), season.SeasonID);
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "Grifs", ["captain"], options.Select(Id), Id(options[1])), season.SeasonID);
 
-        var signup = await _context.SeasonSignups.Include(s => s.SignupAvailability).AsNoTracking().SingleAsync(s => s.UserID == user.Id);
+        var signup = await _context.SeasonSignups.AsNoTracking().SingleAsync(s => s.UserID == user.Id);
         using (Assert.EnterMultipleScope())
         {
             Assert.That(signup.TeamName, Is.EqualTo("Grifs"));
             Assert.That(signup.WillCaptain, Is.True);
             Assert.That(signup.RequiresAssistanceDrafting, Is.False);
-            Assert.That(signup.SignupAvailability.Select(a => a.AvailabilityOptionID), Is.EqualTo(new[] { options[1].AvailabilityOptionID }));
+            Assert.That(await ChosenTimes(user), Is.EqualTo(new[] { options[1].AvailabilityOptionID }));
             Assert.That(_callbacks.Single().Type, Is.EqualTo(InteractionCallbackType.DeferredMessage));
             Assert.That(Reply(), Is.EqualTo("Your signup is saved. Times (UTC): Tue 20:01."));
         }
@@ -103,22 +120,63 @@ public class SignupModalInteractionsTests
         var user = await AddLinkedUser();
         var season = await SignupTestData.OpenSeason(_context);
         var options = await SignupTestData.Options(_context, season, (DayOfWeek.Monday, new TimeOnly(19, 1)), (DayOfWeek.Tuesday, new TimeOnly(20, 1)));
-        await new SignupsService(_context).UpsertSignup(new SignupRequestDto
-        {
-            SeasonID = season.SeasonID,
-            UserID = user.Id,
-            TeamName = "Old",
-            Timeslots = [new TimeslotDto { OptionID = options[0].AvailabilityOptionID, IsChecked = true }],
-        });
+        await ChooseTimes(user, season, options[0]);
 
-        await _handler.SignupDetails(Submit(season.SeasonID, "", ["captain", "draft_help"], []), season.SeasonID);
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "", ["captain", "draft_help"], options.Select(Id)), season.SeasonID);
 
-        var signup = await _context.SeasonSignups.Include(s => s.SignupAvailability).AsNoTracking().SingleAsync(s => s.UserID == user.Id);
+        var signup = await _context.SeasonSignups.AsNoTracking().SingleAsync(s => s.UserID == user.Id);
         using (Assert.EnterMultipleScope())
         {
             Assert.That(signup.TeamName, Is.Null);
             Assert.That(signup.RequiresAssistanceDrafting, Is.True);
-            Assert.That(signup.SignupAvailability, Is.Empty);
+            Assert.That(await ChosenTimes(user), Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task Submit_ChangesOnlyTheTimesItShowed()
+    {
+        // The modal showed Monday only (the season got Tuesday while it was open, say): Tuesday, chosen before, stays
+        var user = await AddLinkedUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        var options = await SignupTestData.Options(_context, season, (DayOfWeek.Monday, new TimeOnly(19, 1)), (DayOfWeek.Tuesday, new TimeOnly(20, 1)));
+        await ChooseTimes(user, season, options[1]);
+
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "", [], [Id(options[0])], Id(options[0])), season.SeasonID);
+
+        Assert.That(await ChosenTimes(user), Is.EqualTo(options.Select(o => o.AvailabilityOptionID).Order()));
+    }
+
+    [Test]
+    public async Task Submit_KeepsATimeTheSeasonNoLongerOffers()
+    {
+        var user = await AddLinkedUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        var options = await SignupTestData.Options(_context, season, (DayOfWeek.Monday, new TimeOnly(19, 1)));
+        var dropped = AvailabilityOption.At(DayOfWeek.Wednesday, new TimeOnly(21, 1));
+        _context.Availability.Add(dropped);
+        await _context.SaveChangesAsync();
+        _context.SeasonSignups.Add(SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: DateTime.UtcNow, timeslots: [dropped.AvailabilityOptionID]));
+        await _context.SaveChangesAsync();
+
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "", [], [Id(options[0])], Id(options[0])), season.SeasonID);
+
+        Assert.That(await ChosenTimes(user), Is.EqualTo(new[] { options[0].AvailabilityOptionID, dropped.AvailabilityOptionID }.Order()));
+    }
+
+    [Test]
+    public async Task Submit_IgnoresTimeIDsThatAreNotNumbers()
+    {
+        var user = await AddLinkedUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        var options = await SignupTestData.Options(_context, season, (DayOfWeek.Monday, new TimeOnly(19, 1)));
+
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "", [], [Id(options[0]), "x"], "abc", Id(options[0])), season.SeasonID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ChosenTimes(user), Is.EqualTo(new[] { options[0].AvailabilityOptionID }));
+            Assert.That(Reply(), Is.EqualTo("Your signup is saved. Times (UTC): Mon 19:01."));
         }
     }
 
@@ -128,7 +186,7 @@ public class SignupModalInteractionsTests
         var user = await AddLinkedUser();
         var season = await SignupTestData.OpenSeason(_context);
 
-        await _handler.SignupDetails(Submit(season.SeasonID, "", ["draft_help"]), season.SeasonID);
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "", ["draft_help"]), season.SeasonID);
 
         var signup = await _context.SeasonSignups.AsNoTracking().SingleAsync(s => s.UserID == user.Id);
         using (Assert.EnterMultipleScope())
@@ -143,7 +201,7 @@ public class SignupModalInteractionsTests
     {
         var season = await SignupTestData.OpenSeason(_context);
 
-        await _handler.SignupDetails(Submit(season.SeasonID, "Grifs", ["captain"]), season.SeasonID);
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "Grifs", ["captain"]), season.SeasonID);
 
         var reply = ((InteractionCallbackProperties<InteractionMessageProperties>)_callbacks.Single()).Data!;
         using (Assert.EnterMultipleScope())
@@ -162,20 +220,13 @@ public class SignupModalInteractionsTests
         var slots = Enumerable.Range(0, 24).Select(h => (DayOfWeek.Monday, new TimeOnly(h, 1)))
             .Concat(Enumerable.Range(0, 7).Select(h => (DayOfWeek.Tuesday, new TimeOnly(h, 1)))).ToArray();
         var options = await SignupTestData.Options(_context, season, slots);
-        await new SignupsService(_context).UpsertSignup(new SignupRequestDto
-        {
-            SeasonID = season.SeasonID,
-            UserID = user.Id,
-            Timeslots = [new TimeslotDto { OptionID = options[30].AvailabilityOptionID, IsChecked = true }],
-        });
+        await ChooseTimes(user, season, options[30]);
 
-        await _handler.SignupDetails(Submit(season.SeasonID, "", [], [options[0].AvailabilityOptionID.ToString()]), season.SeasonID);
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "", [], options.Take(30).Select(Id), Id(options[0])), season.SeasonID);
 
-        var signup = await _context.SeasonSignups.Include(s => s.SignupAvailability).AsNoTracking().SingleAsync(s => s.UserID == user.Id);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(signup.SignupAvailability.Select(a => a.AvailabilityOptionID).Order(),
-                Is.EqualTo(new[] { options[0].AvailabilityOptionID, options[30].AvailabilityOptionID }.Order()));
+            Assert.That(await ChosenTimes(user), Is.EqualTo(new[] { options[0].AvailabilityOptionID, options[30].AvailabilityOptionID }.Order()));
             Assert.That(Reply(), Is.EqualTo("Your signup is saved. Times (UTC): Mon 00:01, Tue 06:01. This season has more times than fit here: set them "
                 + $"[on the signup form](https://grif.test/login?followUp=/season/{season.SeasonID}/signupForm)."));
         }
@@ -187,7 +238,7 @@ public class SignupModalInteractionsTests
         var user = await AddLinkedUser();
         var season = await SignupTestData.OpenSeason(_context, open: false);
 
-        await _handler.SignupDetails(Submit(season.SeasonID, "", []), season.SeasonID);
+        await _handler.SaveSignupDetails(Submit(season.SeasonID, "", []), season.SeasonID);
 
         using (Assert.EnterMultipleScope())
         {

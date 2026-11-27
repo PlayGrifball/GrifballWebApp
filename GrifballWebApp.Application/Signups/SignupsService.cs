@@ -38,6 +38,10 @@ public class SignupsService
         return (Math.Abs(a * b) + a) % b;
     }
 
+    /// <summary>Whether the season takes signups now (<see cref="Season.SignupsOpenAt"/>).</summary>
+    public Task<bool> SignupsAreOpen(int seasonID, CancellationToken ct = default)
+        => _context.Seasons.Where(x => x.SeasonID == seasonID).AnyAsync(Season.SignupsOpenAt(_time.GetUtcNow().UtcDateTime), ct);
+
     public async Task<TimeslotDto[]> GetTimeslots(int seasonID, int offset, int userID, CancellationToken ct = default)
     {
         // The player's timeslots, read through their signup

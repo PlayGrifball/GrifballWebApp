@@ -26,6 +26,6 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
     [ComponentInteraction(DiscordButtonContants.SignupDetails)]
     public async Task SignupDetails(int seasonId)
     {
-        await _handler.SignupDetails(Context.ToDiscordContext(), seasonId);
+        await _handler.OpenSignupDetails(Context.ToDiscordContext(), seasonId);
     }
 }

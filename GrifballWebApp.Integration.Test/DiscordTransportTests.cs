@@ -253,8 +253,8 @@ public class DiscordTransportTests
         {
             Assert.That(Routes(requests), Is.EqualTo(new[] { Callback, EditOriginal }));
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.DeferredChannelMessage));
+            Assert.That(requests[0].Flags, Is.EqualTo(MessageFlags.Ephemeral));
             Assert.That(requests[1].Content, Is.EqualTo("Your signup is saved. No times set yet."));
-            Assert.That(requests[1].Flags, Is.EqualTo(MessageFlags.Ephemeral));
             Assert.That(signup.UserID, Is.EqualTo(user.Id));
             Assert.That(signup.TeamName, Is.EqualTo("Bombers"));
             Assert.That(signup.WillCaptain, Is.True);
