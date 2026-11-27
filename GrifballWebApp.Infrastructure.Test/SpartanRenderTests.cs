@@ -903,4 +903,19 @@ public class SpartanRenderTests : SqliteContextFixture
 
         Assert.That(report.Summary, Is.EqualTo("1 rendered, 1 failed. Alice (#4): rendered; Bob (#9): failed, The render took too long"));
     }
+
+    [Test]
+    public void TheReport_CountsTheRendersToTryAgain_AndNamesThem()
+    {
+        var report = Report(r =>
+        {
+            r.Waiting = 2;
+            r.Done = 1;
+            r.Retrying = 1;
+            r.Lines.Add("Alice (#4): rendered");
+            r.Lines.Add("Bob (#9): will try again, The render service is not answering");
+        });
+
+        Assert.That(report.Summary, Is.EqualTo("1 rendered, 0 failed, 1 to try again. Alice (#4): rendered; Bob (#9): will try again, The render service is not answering"));
+    }
 }
