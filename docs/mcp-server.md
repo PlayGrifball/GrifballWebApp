@@ -92,6 +92,7 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 | `pull_xbox_account_games` | Queues the pull of an Xbox account's recent games from Halo (players and staff; `/player pull` too) |
 | `get_current_time` | The time now, in UTC and as Unix seconds |
 | `list_slash_commands` | The Discord bot's slash commands with what each does (the bot's own host only; the list `/help` shows) |
+| `offer_button` | A button under the Discord bot's reply that opens its set-gamertag form, signs up for a season, opens the signup details form or joins the queue (the bot's own host only) |
 
 ### Staff's tools
 

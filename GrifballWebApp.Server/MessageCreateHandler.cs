@@ -115,7 +115,39 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     }
 
     /// <summary>The message answered: why the answer was cut short, if it was (<see cref="AnswerAsync"/>).</summary>
-    private async ValueTask<string?> HandleResponseCore(Message message)
+    private ValueTask<string?> HandleResponseCore(Message message)
+        => HandleResponseCore(message, message.Author.Id, message.Author.Username, message.Content, message.GuildId is null, null);
+
+    /// <summary>A click on the Confirm or Cancel button of a DM's waiting change: the answer is the same as typing yes or no.</summary>
+    public sealed record ChatClick(string ActionId, bool Approved);
+
+    /// <summary>
+    /// The click of <paramref name="userId"/> on a DM reply's Confirm or Cancel button (<paramref name="message"/> is that reply): answered as their yes or
+    /// no would be, the reply to the button's message. A failure is logged, never thrown: the gateway handler must go on.
+    /// </summary>
+    public async Task HandleClickAsync(NetCord.Rest.RestMessage message, ulong userId, string username, ChatClick click)
+    {
+        using var span = Tracing.StartActivity(MessageSpanName);
+        span?.SetTag("discord.direct", true);
+        span?.SetTag("discord.answered", true);
+        ambientCurrentUser.Begin();
+        try
+        {
+            if (await HandleResponseCore(message, userId, username, "", true, click) is { } cutShort)
+                span?.SetStatus(ActivityStatusCode.Error, cutShort);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to handle the click of Discord user {DiscordUserId} on message {MessageId}", userId, message.Id);
+            span?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
+        }
+        finally
+        {
+            ambientCurrentUser.End();
+        }
+    }
+
+    private async ValueTask<string?> HandleResponseCore(NetCord.Rest.RestMessage message, ulong authorId, string authorName, string question, bool direct, ChatClick? click)
     {
         // No model configured (no Ollama:Url): say so, rather than fail on each message
         if (!chat.Available)
@@ -124,39 +156,40 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             return null;
         }
 
-        var UserId = (long)message.Author.Id;
+        var UserId = (long)authorId;
         var BotID = (long)BotId;
         // The author's linked app user, if any, is the audit user for this scope's writes and the ambient user.
         using var scope = scopeFactory.CreateScope();
-        await DiscordInteractionPipeline.SetCurrentUserAsync(message.Author.Id, logger, scope.ServiceProvider);
+        await DiscordInteractionPipeline.SetCurrentUserAsync(authorId, logger, scope.ServiceProvider);
         var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 
-        await EnsureDiscordUsersAsync(context, UserId, message.Author.Username, BotID);
+        await EnsureDiscordUsersAsync(context, UserId, authorName, BotID);
         // A DM is the author's alone: in private, as the site's chat (their roles decide which seasons they see, and staff get their
         // tools), its history Discord's DM channel itself, and nothing of it kept in DiscordMessages, whose history a channel's reply
         // reads: what staff see in private never reaches a public reply. In a channel, in public: the channel reads the reply, so a
         // season not announced yet stays out of it whoever asks (#435), and no staff tools.
-        var direct = message.GuildId is null;
         var host = direct ? ChatHost.DiscordDirect : ChatHost.Discord;
         var saveTo = direct ? null : context;
-        var history = direct ? await DirectHistoryAsync(message) : await ChatHistoryAsync(context, UserId, BotID);
+        var history = direct ? await DirectHistoryAsync(message, click is not null) : await ChatHistoryAsync(context, UserId, BotID);
 
         // The tools, as the author: their linked site account and its roles, or no account (every tool not about "you").
         // Each tool call runs in a scope of its own: this scope's context saves the streamed reply meanwhile
-        var caller = await new DiscordCaller(context).AsToolCaller(message.Author.Id);
+        var caller = await new DiscordCaller(context).AsToolCaller(authorId);
 
         // The chat's limits, as on the site: the question's length, the history's, and the author's (their site account's when
         // linked, so they count alike here and on the site; else their Discord account's)
         ChatReply reply;
         try
         {
-            var asker = ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id));
+            var asker = ChatLimits.Asker(caller, ChatLimits.Discord(authorId));
             // In a DM, a yes or no answers the change waiting for the author (GrifChat.ConfirmAsync): anything else is a question
-            if (direct && Answer(message.Content) is { } approved && await chat.WaitingAsync(host, asker) is { } waiting)
+            if (click is not null)
+                reply = await chat.ConfirmAsync(history, click.ActionId, click.Approved, caller, host, asker);
+            else if (direct && Answer(question) is { } approved && await chat.WaitingAsync(host, asker) is { } waiting)
                 reply = await chat.ConfirmAsync(history, waiting.Id, approved, caller, host, asker);
             // The model: in a DM, the one the author chose on the site (else their default); in a channel, the one anyone may use
             else
-                reply = await chat.StartAsync(history, message.Content, caller, host, asker);
+                reply = await chat.StartAsync(history, question, caller, host, asker);
         }
         catch (ChatRefusedException refused)
         {
@@ -167,7 +200,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         catch (Exception e)
         {
             // The database failed as the reply started (the author's choice, their month): they are told, not left with no answer
-            logger.LogError(e, "The chat failed to start answering Discord message {MessageId} from Discord user {DiscordUserId}", message.Id, message.Author.Id);
+            logger.LogError(e, "The chat failed to start answering Discord message {MessageId} from Discord user {DiscordUserId}", message.Id, authorId);
             await message.ReplyAsync(Chat.ChatHub.Failed);
             // Its type: its message may quote a user
             return e.GetType().Name;
@@ -184,7 +217,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// The reply shown as it streams in, then whole, and saved (to <paramref name="saveTo"/>, a channel's; none from a DM). A reply cut
     /// short (it took too long) is followed by why, which is returned.
     /// </summary>
-    private async Task<string?> AnswerAsync(Message message, ChatReply reply, GrifballContext? saveTo, long UserId, long BotID)
+    private async Task<string?> AnswerAsync(NetCord.Rest.RestMessage message, ChatReply reply, GrifballContext? saveTo, long UserId, long BotID)
     {
         // Each chunk with when it arrived: the reply is paced by the stream, not by when the background task gets to it
         var channel = Channel.CreateUnbounded<(string Text, long ArrivedAt)>();
@@ -193,6 +226,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         // Background task for incremental updates
         var started = Time.GetTimestamp();
         var pictures = new List<ChatImage>();
+        var offered = new List<ChatButton>();
         var baseUrl = configuration["BaseUrl"] ?? "";
         var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, saveTo, UserId, BotID, Time, started, pictures, baseUrl));
 
@@ -216,9 +250,11 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         // The pictures it names (get_player_image's addresses, in the earlier messages too) are attached to its last message, and the addresses left out of the text
         var rest = responseBuilder.ToString();
         pictures.AddRange(ChatImages.In(rest, baseUrl));
-        responseBuilder.Clear().Append(ChatImages.Without(rest, baseUrl));
+        offered.AddRange(ChatButtons.In(rest));
+        responseBuilder.Clear().Append(ChatButtons.Without(ChatImages.Without(rest, baseUrl)));
+        var components = ChatComponents.For([.. offered.Distinct().Take(ChatButtons.MaxButtons)], reply.Waiting);
         using var files = await PicturesAsync([.. pictures.Distinct()]);
-        await FinishReplyAsync(message, restMessage, responseBuilder, saveTo, UserId, BotID, files?.Files);
+        await FinishReplyAsync(message, restMessage, responseBuilder, saveTo, UserId, BotID, files?.Files, components);
         if (cutShort is not null)
             await message.ReplyAsync(cutShort);
         return cutShort;
@@ -258,7 +294,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     }
 
     /// <summary>A question the chat took, kept for the channels' conversation.</summary>
-    private static async Task SaveQuestionAsync(GrifballContext context, Message message, long UserId, long BotID)
+    private static async Task SaveQuestionAsync(GrifballContext context, NetCord.Rest.RestMessage message, long UserId, long BotID)
     {
         var newMessage = new DiscordMessage()
         {
@@ -284,10 +320,10 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// A DM's conversation so far, as Discord keeps it in the DM channel: its last <see cref="GrifChat.HistoryLimit"/> messages before
     /// this one, oldest first. Never from DiscordMessages, the channels' conversation, which keeps none of a DM.
     /// </summary>
-    private async Task<List<ChatMessage>> DirectHistoryAsync(Message message)
+    private async Task<List<ChatMessage>> DirectHistoryAsync(NetCord.Rest.RestMessage message, bool includeMessage)
     {
         var earlier = await discordClient.GetMessagesAsync(message.ChannelId, new NetCord.Rest.PaginationProperties<ulong> { BatchSize = GrifChat.HistoryLimit + 1 })
-            .Where(m => m.Id < message.Id)
+            .Where(m => m.Id < message.Id || (includeMessage && m.Id == message.Id))
             .Take(GrifChat.HistoryLimit)
             .ToListAsync();
         return earlier
@@ -300,8 +336,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// Shows the reply as it streams in (<paramref name="chunks"/>, each with when it arrived): every 25 characters at most once a second, each full
     /// 2000 characters as a message of its own (saved). Returns the message still being written, if any.
     /// </summary>
-    private static async Task<NetCord.Rest.RestMessage?> StreamReplyAsync(ChannelReader<(string Text, long ArrivedAt)> chunks, StringBuilder responseBuilder, Message message,
-        GrifballContext? context, long UserId, long BotID, TimeProvider time, long started, List<ChatImage> pictures, string baseUrl)
+    private static async Task<NetCord.Rest.RestMessage?> StreamReplyAsync(ChannelReader<(string Text, long ArrivedAt)> chunks, StringBuilder responseBuilder, NetCord.Rest.RestMessage message,
+        GrifballContext? context, long UserId, long BotID, TimeProvider time, long started, List<ChatImage> pictures, List<ChatButton> offered, string baseUrl)
     {
         NetCord.Rest.RestMessage? restMessage = null;
         var timeThreshold = TimeSpan.FromSeconds(1);
@@ -319,7 +355,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
                 while (currentResponse.Length > 2000)
                 {
                     var cut = CutAt(currentResponse);
-                    var shown = Shown(currentResponse[..cut], pictures, baseUrl); // its pictures are kept for the last message
+                    var shown = Shown(currentResponse[..cut], pictures, offered, baseUrl); // its pictures are kept for the last message
                     restMessage = await SendFullAsync(message, restMessage, shown, context, UserId, BotID);
                     restMessage = null; // Null out the message so we do not try to save or send it again
                     currentResponse = currentResponse[cut..]; // Get everything after the first 2000 characters
@@ -347,14 +383,15 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     }
 
     /// <summary>A part of the reply as shown: the pictures it names are added to <paramref name="pictures"/>, and their addresses left out.</summary>
-    private static string Shown(string part, List<ChatImage> pictures, string baseUrl)
+    private static string Shown(string part, List<ChatImage> pictures, List<ChatButton> offered, string baseUrl)
     {
         pictures.AddRange(ChatImages.In(part, baseUrl));
-        return ChatImages.Without(part, baseUrl);
+        offered.AddRange(ChatButtons.In(part));
+        return ChatButtons.Without(ChatImages.Without(part, baseUrl));
     }
 
     /// <summary>A full message of the reply, sent (or the one streamed so far made whole) and saved; nothing of it left (only pictures) is nothing to send.</summary>
-    private static async Task<NetCord.Rest.RestMessage?> SendFullAsync(Message message, NetCord.Rest.RestMessage? restMessage, string text,
+    private static async Task<NetCord.Rest.RestMessage?> SendFullAsync(NetCord.Rest.RestMessage message, NetCord.Rest.RestMessage? restMessage, string text,
         GrifballContext? context, long UserId, long BotID)
     {
         if (text.Length == 0)
@@ -424,8 +461,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     }
 
     /// <summary>The whole reply shown (in messages of 2000 characters at most) and saved, once it has streamed in; <paramref name="files"/> go with its last message.</summary>
-    private async Task FinishReplyAsync(Message message, NetCord.Rest.RestMessage? restMessage, StringBuilder responseBuilder,
-        GrifballContext? context, long UserId, long BotID, List<NetCord.Rest.AttachmentProperties>? files = null)
+    private async Task FinishReplyAsync(NetCord.Rest.RestMessage message, NetCord.Rest.RestMessage? restMessage, StringBuilder responseBuilder,
+        GrifballContext? context, long UserId, long BotID, List<NetCord.Rest.AttachmentProperties>? files = null, IReadOnlyList<NetCord.Rest.ActionRowProperties>? components = null)
     {
         // Final update to ensure the full response is shown
         var finalResponse = responseBuilder.ToString();
@@ -441,28 +478,28 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             responseBuilder.Append(finalResponse); // Append the remaining characters to the builder
         }
 
-        await SendLastAsync(message, restMessage, finalResponse, context, UserId, BotID, files);
+        await SendLastAsync(message, restMessage, finalResponse, context, UserId, BotID, files, components);
     }
 
     /// <summary>
     /// The last message of a reply: sent, or the one streamed so far made whole (with <paramref name="files"/>), and saved. Discord refusing
     /// the files (too many, too large) still gets the text sent.
     /// </summary>
-    private async Task SendLastAsync(Message message, NetCord.Rest.RestMessage? restMessage, string text,
-        GrifballContext? context, long UserId, long BotID, List<NetCord.Rest.AttachmentProperties>? files)
+    private async Task SendLastAsync(NetCord.Rest.RestMessage message, NetCord.Rest.RestMessage? restMessage, string text,
+        GrifballContext? context, long UserId, long BotID, List<NetCord.Rest.AttachmentProperties>? files, IReadOnlyList<NetCord.Rest.ActionRowProperties>? components)
     {
         NetCord.Rest.RestMessage? sent;
         string? saved = null;
         try
         {
-            sent = await SendFinalAsync(message, restMessage, text, files);
+            sent = await SendFinalAsync(message, restMessage, text, files, components);
             if (sent is not null && files is not null)
                 saved = ShownNote(text, files);
         }
         catch (Exception e) when (files is not null)
         {
             logger.LogWarning(e, "Discord refused the pictures of its reply to message {MessageId}: the text goes without them", message.Id);
-            sent = await SendFinalAsync(message, restMessage, text, null);
+            sent = await SendFinalAsync(message, restMessage, text, null, components);
         }
         if (sent is not null)
             await SaveMessageToDb(UserId, BotID, context, sent, saved);
@@ -476,28 +513,33 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     }
 
     /// <summary>The last message as sent, or as streamed (when it already shows all of it); null when there is nothing to send.</summary>
-    private static async Task<NetCord.Rest.RestMessage?> SendFinalAsync(Message message, NetCord.Rest.RestMessage? restMessage, string text, List<NetCord.Rest.AttachmentProperties>? files)
+    private static async Task<NetCord.Rest.RestMessage?> SendFinalAsync(NetCord.Rest.RestMessage message, NetCord.Rest.RestMessage? restMessage, string text, List<NetCord.Rest.AttachmentProperties>? files,
+        IReadOnlyList<NetCord.Rest.ActionRowProperties>? components)
     {
         if (restMessage is null)
         {
             // The text may be empty if the builder was cleared above
-            if (string.IsNullOrEmpty(text) && files is null)
+            if (string.IsNullOrEmpty(text) && files is null && components is null)
                 return null;
             var reply = new NetCord.Rest.ReplyMessageProperties();
             if (string.IsNullOrEmpty(text) is false)
                 reply = reply.WithContent(text);
             if (files is not null)
                 reply = reply.WithAttachments(files);
+            if (components is not null)
+                reply = reply.WithComponents(components);
             return await message.ReplyAsync(reply);
         }
         // The last streamed update may already show all of it; it is saved either way (only full messages are).
-        if (restMessage.Content == text && files is null)
+        if (restMessage.Content == text && files is null && components is null)
             return restMessage;
         return await restMessage.ModifyAsync(x =>
         {
             x.WithContent(text);
             if (files is not null)
                 x.WithAttachments(files);
+            if (components is not null)
+                x.WithComponents(components);
         });
     }
 
@@ -508,7 +550,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// <param name="existingMessage"></param>
     /// <param name="content"></param>
     /// <returns></returns>
-    private static async Task<NetCord.Rest.RestMessage> SendOrModify(Message messageToRespondTo, NetCord.Rest.RestMessage? existingMessage, string content)
+    private static async Task<NetCord.Rest.RestMessage> SendOrModify(NetCord.Rest.RestMessage messageToRespondTo, NetCord.Rest.RestMessage? existingMessage, string content)
     {
         if (existingMessage is null)
         {

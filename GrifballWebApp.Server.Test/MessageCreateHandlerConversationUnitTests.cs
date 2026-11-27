@@ -670,6 +670,73 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     }
 
     [Test]
+    public async Task HandleAsync_AReplyOfferingAButton_ShowsItUnderTheReply_AndLeavesItsTokenOut()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Tap this [button:signup_details:12] to set your times."));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var body = _discord.SentMessages().Single().Body;
+        var button = body.GetProperty("components")[0].GetProperty("components")[0];
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(body.GetProperty("content").GetString(), Is.EqualTo("Tap this to set your times."));
+            Assert.That(button.GetProperty("custom_id").GetString(), Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordButtonContants.SignupDetailsWithParams(12)));
+            Assert.That(await SavedReplies(), Is.EqualTo(new[] { "Tap this to set your times." }));
+        }
+    }
+
+    [Test]
+    public async Task HandleClickAsync_ACancelButton_AnswersTheWaitingChangeAsANoDoes()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        DmHolds();
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Left as it was."));
+        var handler = Handler(model);
+        var accounts = new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<ChatAccounts>.Instance);
+        var asker = ChatLimits.Asker(new ToolCaller(user.Id, []), "");
+        await accounts.SaveWaitingAsync(ChatHost.DiscordDirect, asker, new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)",
+            [new ChatActionCall("r1", "call-1", "forfeit_season_match", "{\"seasonMatchID\":12}")]));
+
+        await handler.HandleClickAsync(GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true),
+            AuthorId, "user5", new MessageCreateHandler.ChatClick("a1", false));
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>().Single().Result?.ToString(), Does.Contain("rejected"));
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
+            Assert.That(await accounts.WaitingAsync(ChatHost.DiscordDirect, asker), Is.Null, "Answered");
+        }
+    }
+
+    [Test]
+    public async Task HandleClickAsync_ANoChangeWaiting_SaysSo()
+    {
+        DmHolds();
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Never"));
+
+        await Handler(model).HandleClickAsync(GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true),
+            AuthorId, "user5", new MessageCreateHandler.ChatClick("gone", true));
+
+        AssertNothingLogged();
+        Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(GrifChat.NothingWaiting));
+    }
+
+    [Test]
+    public async Task HandleClickAsync_AFailure_IsLogged_NotThrown()
+    {
+        _rest.GetMessagesAsync(20ul, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => throw new InvalidOperationException("Discord is down"));
+
+        await Handler(new ScriptedChatClient((TimeSpan.Zero, "Never"))).HandleClickAsync(
+            GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true),
+            AuthorId, "user5", new MessageCreateHandler.ChatClick("a1", true));
+
+        Assert.That(_logger.Entries.Single().Exception, Is.TypeOf<InvalidOperationException>());
+    }
+
+    [Test]
     public async Task HandleAsync_StaffInADm_TheirSettingDecides_WhetherAChangeWaits()
     {
         var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);

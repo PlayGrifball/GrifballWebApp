@@ -18,6 +18,7 @@ public class DiscordModuleRegistrationTests
 
     private static readonly string[] Buttons =
     [
+        "chatconfirm(String actionId, String answer) preconditions: 0",
         "join_queue() preconditions: 0",
         "leave_queue() preconditions: 0",
         "set_gamertag() preconditions: 0",

@@ -334,6 +334,8 @@ public class Program
         services.AddTransient<MatchmakingButtonHandler>();
         services.AddTransient<MatchmakingStringMenuHandler>();
         services.AddTransient<SignupButtonHandler>();
+        services.AddTransient<MessageCreateHandler>();
+        services.AddTransient<ChatConfirmButtonHandler>();
         services.AddTransient<DraftStringMenuHandler>();
         services.AddTransient<DiscordCommandsHandler>();
         services.AddTransient<DiscordCaller>();

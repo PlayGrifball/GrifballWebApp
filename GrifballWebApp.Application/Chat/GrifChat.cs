@@ -108,7 +108,7 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
         var tools = model.EveryTool
             ? (InPublic ? GrifTools.EveryPublic : GrifTools.Every)
             : (InPublic ? GrifTools.Chat : GrifTools.PrivateChat);
-        return HasSlashCommands ? tools : tools.Except([GrifTools.ListSlashCommands]).ToArray();
+        return HasSlashCommands ? tools : tools.Except(GrifTools.DiscordOnly).ToArray();
     }
 
     /// <summary>Whether the host runs the Discord bot, which has slash commands to list (list_slash_commands): any other host would send the model to a tool that answers with nothing.</summary>
