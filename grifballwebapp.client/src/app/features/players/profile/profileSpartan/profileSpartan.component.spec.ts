@@ -82,7 +82,7 @@ describe('ProfileSpartanComponent', () => {
   });
 
   it('says the chosen Spartan shows, and offers going back to the equipped set', async () => {
-    await load(profile({ choice: { core: 'Mark VII', armor: null, parts: null, coating: null, visor: null } }));
+    await load(profile({ choice: { core: 'Mark VII', armor: null, parts: null, coating: null, visor: null, disableDamage: false } }));
     expect(text()).toContain('Showing the Spartan you chose.');
     button('Use my equipped set')!.click();
     http.expectOne({ method: 'POST', url: '/api/me/spartan/clear' }).flush(null, { status: 204, statusText: 'No Content' });
@@ -124,7 +124,7 @@ describe('ProfileSpartanComponent', () => {
   });
 
   it('opens the chooser with what is chosen now, after loading the catalog', async () => {
-    await load(profile({ choice: { core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash', visor: 'Mirror' } }));
+    await load(profile({ choice: { core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash', visor: 'Mirror', disableDamage: true } }));
     button('Choose a Spartan')!.click();
     fixture.detectChanges();
     expect(text()).toContain('Loading what you can choose from');
@@ -135,6 +135,7 @@ describe('ProfileSpartanComponent', () => {
     expect(el().querySelector<HTMLSelectElement>('#spartan-helmet')!.value).toBe('Eod');
     expect(el().querySelector<HTMLSelectElement>('#spartan-coating')!.value).toBe('Ash');
     expect(el().querySelector<HTMLSelectElement>('#spartan-visor')!.value).toBe('Mirror');
+    expect(el().querySelector<HTMLInputElement>('#spartan-disable-damage')!.checked).toBeTrue();
   });
 
   it('keeps Save off until a core is picked, and offers only named pieces of regions', async () => {
@@ -155,10 +156,12 @@ describe('ProfileSpartanComponent', () => {
     pick('#spartan-helmet', 'Eod');
     pick('#spartan-coating', 'Ash');
     pick('#spartan-visor', 'Mirror');
+    const clean = el().querySelector<HTMLInputElement>('#spartan-disable-damage')!;
+    clean.click();
     button('Save')!.click();
     fixture.detectChanges();
     const save = http.expectOne({ method: 'POST', url: stateUrl });
-    expect(save.request.body).toEqual({ core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash', visor: 'Mirror' });
+    expect(save.request.body).toEqual({ core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash', visor: 'Mirror', disableDamage: false });
     save.flush('', { status: 200, statusText: 'OK' });
     http.expectOne({ method: 'GET', url: stateUrl }).flush(profile());
     expect(el().querySelector('form')).toBeNull();
@@ -177,7 +180,7 @@ describe('ProfileSpartanComponent', () => {
 
   it('keeps the saved parts only while the core is the same', async () => {
     const parts = [{ region: 'helmet', permutation: 3 }] as never;
-    await openForm(profile({ choice: { core: 'Mark VII', armor: null, parts, coating: null, visor: null } }));
+    await openForm(profile({ choice: { core: 'Mark VII', armor: null, parts, coating: null, visor: null, disableDamage: false } }));
     button('Save')!.click();
     const same = http.expectOne({ method: 'POST', url: stateUrl });
     expect(same.request.body.parts).toEqual(parts);
@@ -198,7 +201,7 @@ describe('ProfileSpartanComponent', () => {
   });
 
   it('clears the choice from the component and closes the form', async () => {
-    await openForm(profile({ choice: { core: 'Mark VII', armor: null, parts: null, coating: null, visor: null } }));
+    await openForm(profile({ choice: { core: 'Mark VII', armor: null, parts: null, coating: null, visor: null, disableDamage: false } }));
     fixture.componentInstance.reset();
     fixture.detectChanges();
     expect(el().querySelector('form')).toBeNull();

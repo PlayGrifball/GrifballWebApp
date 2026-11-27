@@ -233,6 +233,19 @@ public class SpartanRenderTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task TheDamageLayerIsLeftOff_UnlessTheUserKeepsIt()
+    {
+        await UserAsync(Choice);
+        await Source().RunAsync();
+        Assert.That(_service.Loadouts, Has.Count.EqualTo(3).And.All.Contain("\"disableDamage\":true"));
+
+        _service.Loadouts.Clear();
+        await UserAsync(Choice with { DisableDamage = false });
+        await Source().RunAsync();
+        Assert.That(_service.Loadouts, Has.Count.EqualTo(3).And.All.Contain("\"disableDamage\":false"));
+    }
+
+    [Test]
     public async Task AVisor_IsSentWithEveryNeutralLoadout()
     {
         await UserAsync(Choice with { Visor = "Reflection" });

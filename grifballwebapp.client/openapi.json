@@ -4800,7 +4800,7 @@
                     "$ref": "#/components/schemas/SpartanChoice"
                   }
                 ],
-                "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default."
+                "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off. Anything left out is the core's default."
               }
             }
           }
@@ -18820,6 +18820,7 @@
           "armor",
           "coating",
           "core",
+          "disableDamage",
           "parts",
           "visor"
         ],
@@ -18849,10 +18850,13 @@
           "visor": {
             "type": "string",
             "nullable": true
+          },
+          "disableDamage": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false,
-        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default."
+        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off. Anything left out is the core's default."
       },
       "SpartanPartChoice": {
         "required": [
@@ -18890,7 +18894,7 @@
                 "$ref": "#/components/schemas/SpartanChoice"
               }
             ],
-            "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default.",
+            "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off. Anything left out is the core's default.",
             "nullable": true
           },
           "hasEquippedSet": {
