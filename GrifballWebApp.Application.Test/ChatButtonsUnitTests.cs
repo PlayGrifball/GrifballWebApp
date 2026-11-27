@@ -45,6 +45,9 @@ public class ChatButtonsUnitTests
     [TestCase("Tap [button:join_queue] now.", "Tap now.")]
     [TestCase("Tap it.\n[button:join_queue]", "Tap it.")]
     [TestCase("Tap [button:join_queue].", "Tap.")]
+    [TestCase("[button:join_queue] Tap it.", "Tap it.")]
+    [TestCase("Tap [button:join_queue]\nnow.", "Tap\nnow.")]
+    [TestCase("Tap it [button:join_queue]", "Tap it")]
     [TestCase("Not [button:nope] a button", "Not [button:nope] a button")]
     [TestCase("No token", "No token")]
     public void Without_LeavesTheTokensOut_AndTheRestAsItWas(string text, string expected)

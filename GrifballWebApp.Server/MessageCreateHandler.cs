@@ -88,7 +88,12 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             span.ActivityTraceFlags |= ActivityTraceFlags.Recorded;
     }
 
-    private async ValueTask HandleResponse(Message message, System.Diagnostics.Activity? span)
+    private ValueTask HandleResponse(Message message, System.Diagnostics.Activity? span)
+        => Handled(() => HandleResponseCore(message),
+            ex => logger.LogError(ex, "Failed to handle message {MessageId} from Discord user {DiscordUserId}", message.Id, message.Author.Id), span);
+
+    /// <summary>The answer, its failure logged (never thrown) and set on <paramref name="span"/>, as is a reply cut short.</summary>
+    private async ValueTask Handled(Func<ValueTask<string?>> answer, Action<Exception> logFailure, System.Diagnostics.Activity? span)
     {
         // A fresh ambient user slot per message, filled in with the author in HandleResponseCore, for contexts with no scope of
         // their own (IDbContextFactory) and other scopes (each tool call's, GrifTools.AIFunctions)
@@ -96,12 +101,12 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         string? error;
         try
         {
-            error = await HandleResponseCore(message);
+            error = await answer();
         }
         catch (Exception ex)
         {
             // One failing message must not fault the gateway handler for every message after it.
-            logger.LogError(ex, "Failed to handle message {MessageId} from Discord user {DiscordUserId}", message.Id, message.Author.Id);
+            logFailure(ex);
             // Its type: its message may quote a user
             error = ex.GetType().Name;
         }
@@ -130,21 +135,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         using var span = Tracing.StartActivity(MessageSpanName);
         span?.SetTag("discord.direct", true);
         span?.SetTag("discord.answered", true);
-        ambientCurrentUser.Begin();
-        try
-        {
-            if (await HandleResponseCore(message, userId, username, "", true, click) is { } cutShort)
-                span?.SetStatus(ActivityStatusCode.Error, cutShort);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to handle the click of Discord user {DiscordUserId} on message {MessageId}", userId, message.Id);
-            span?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
-        }
-        finally
-        {
-            ambientCurrentUser.End();
-        }
+        await Handled(() => HandleResponseCore(message, userId, username, "", true, click),
+            ex => logger.LogError(ex, "Failed to handle the click of Discord user {DiscordUserId} on message {MessageId}", userId, message.Id), span);
     }
 
     private async ValueTask<string?> HandleResponseCore(NetCord.Rest.RestMessage message, ulong authorId, string authorName, string question, bool direct, ChatClick? click)

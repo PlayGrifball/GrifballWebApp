@@ -689,6 +689,28 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     }
 
     [Test]
+    public async Task HandleAsync_AStreamedReplyOfferingAButton_GetsItInTheLastEdit()
+    {
+        var model = new ScriptedChatClient(
+            (TimeSpan.Zero, "This first chunk is over 25 characters"),
+            (TimeSpan.FromMilliseconds(1500), " [button:join_queue]"))
+        {
+            Clock = _time,
+        };
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var edit = _discord.Requests.Last(r => r.Method == HttpMethod.Patch).Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(edit.GetProperty("content").GetString(), Is.EqualTo("This first chunk is over 25 characters"));
+            Assert.That(edit.GetProperty("components")[0].GetProperty("components")[0].GetProperty("custom_id").GetString(),
+                Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordButtonContants.JoinQueue));
+        }
+    }
+
+    [Test]
     public async Task HandleClickAsync_ACancelButton_AnswersTheWaitingChangeAsANoDoes()
     {
         var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);

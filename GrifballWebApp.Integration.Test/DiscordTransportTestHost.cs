@@ -148,6 +148,7 @@ internal sealed record DiscordRequest(HttpMethod Method, string Route, JsonEleme
     // Discord interaction callback types
     public const int ChannelMessage = 4;
     public const int DeferredChannelMessage = 5;
+    public const int UpdateMessage = 7;
     public const int AutocompleteResult = 8;
     public const int Modal = 9;
 

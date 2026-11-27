@@ -29,15 +29,14 @@ public static partial class ChatButtons
 
     /// <summary>The token a button is written as in a reply.</summary>
     public static string Token(ChatButton button)
-        => button.SeasonID is { } season ? $"[button:{Name(button.Kind)}:{season}]" : $"[button:{Name(button.Kind)}]";
+        => button.SeasonID is { } season ? $"[button:{Names[button.Kind]}:{season}]" : $"[button:{Names[button.Kind]}]";
 
-    private static string Name(ChatButtonKind kind) => kind switch
+    private static readonly Dictionary<ChatButtonKind, string> Names = new()
     {
-        ChatButtonKind.SetGamertag => "set_gamertag",
-        ChatButtonKind.SignupDetails => "signup_details",
-        ChatButtonKind.Signup => "signup",
-        ChatButtonKind.JoinQueue => "join_queue",
-        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        [ChatButtonKind.SetGamertag] = "set_gamertag",
+        [ChatButtonKind.SignupDetails] = "signup_details",
+        [ChatButtonKind.Signup] = "signup",
+        [ChatButtonKind.JoinQueue] = "join_queue",
     };
 
     // The token with the blanks around it: they go with it
@@ -46,9 +45,9 @@ public static partial class ChatButtons
 
     private static ChatButton? Parse(Match match)
     {
-        foreach (var kind in Enum.GetValues<ChatButtonKind>())
+        foreach (var (kind, name) in Names)
         {
-            if (Name(kind) != match.Groups["kind"].Value)
+            if (name != match.Groups["kind"].Value)
                 continue;
             var season = match.Groups["season"].Success ? int.Parse(match.Groups["season"].Value) : (int?)null;
             return ChatButton.NeedsSeason(kind) == (season is not null) ? new ChatButton(kind, season) : null;

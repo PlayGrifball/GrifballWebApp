@@ -158,6 +158,21 @@ public class DiscordTransportTests
         }
     }
 
+    // What follows the click is the chat's answer (MessageCreateHandlerConversationUnitTests): here, the buttons go at once
+    [Test]
+    public async Task ChatConfirmButton_TakesTheButtonsOffTheMessage_AsItsResponse()
+    {
+        var requests = await _host.SendAsync(DiscordInteractionJson.Button("chatconfirm:a1:no", 5301));
+
+        var response = requests[0];
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.Route, Is.EqualTo("/interactions/1/tok/callback"));
+            Assert.That(response.CallbackType, Is.EqualTo(DiscordRequest.UpdateMessage));
+            Assert.That(response.Data.GetProperty("components").GetArrayLength(), Is.Zero);
+        }
+    }
+
     [Test]
     public async Task MatchmakingStringMenu_VoteToKick_EditsTheVoteMessageAndAnnouncesTheVote()
     {
