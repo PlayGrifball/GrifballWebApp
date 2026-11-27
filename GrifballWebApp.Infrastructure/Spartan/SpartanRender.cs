@@ -36,6 +36,8 @@ public sealed class SpartanRenderReport
     public bool Disabled { get; set; }
     public bool CatalogUnavailable { get; set; }
     public int Waiting { get; set; }
+    /// <summary>One line per user a run rendered for: whose render it was and how it went.</summary>
+    public List<string> Lines { get; } = [];
 }
 
 /// <summary>
@@ -85,14 +87,26 @@ public sealed class SpartanRenderSource(
             report.CatalogUnavailable = true;
             return report;
         }
+        var dueIds = due.Select(r => r.UserId).ToList();
+        var names = await context.Users.Where(u => dueIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName })
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
         foreach (var render in due)
         {
-            switch (await RenderAsync(render, catalog, ct))
+            var outcome = await RenderAsync(render, catalog, ct);
+            switch (outcome)
             {
                 case Outcome.Done: report.Done++; break;
                 case Outcome.Retry: report.Retrying++; break;
                 default: report.Failed++; break;
             }
+            var who = $"{names.GetValueOrDefault(render.UserId) ?? "User"} (#{render.UserId})";
+            report.Lines.Add(outcome switch
+            {
+                Outcome.Done => $"{who}: rendered",
+                Outcome.Retry => $"{who}: will try again, {render.Error}",
+                _ => $"{who}: failed, {render.Error}",
+            });
         }
         return report;
     }
@@ -382,7 +396,9 @@ public sealed class SpartanRenderJob(SpartanRenderSource renders, ILogger<Sparta
     private static string RunSummary(SpartanRenderReport report)
     {
         var summary = $"{report.Done} rendered, {report.Failed} failed";
-        return report.Retrying > 0 ? $"{summary}, {report.Retrying} to try again" : summary;
+        if (report.Retrying > 0)
+            summary += $", {report.Retrying} to try again";
+        return report.Lines.Count == 0 ? summary : summary + ". " + string.Join("; ", report.Lines);
     }
 
     internal static JobRunReport Report(SpartanRenderReport report, ILogger logger)

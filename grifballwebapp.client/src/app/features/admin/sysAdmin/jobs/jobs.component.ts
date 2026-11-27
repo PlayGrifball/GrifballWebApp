@@ -85,7 +85,12 @@ export class JobsComponent {
     return key?.group === job.group && key.name === job.name;
   }
 
+  /** Opens a job's details under its row; its Details button again closes them. */
   select(job: JobDto): void {
+    if (this.isSelected(job)) {
+      this.selectedKey.set(null);
+      return;
+    }
     this.selectedKey.set({ group: job.group, name: job.name });
     this.editInterval(job.intervalSeconds ?? job.defaultIntervalSeconds ?? 60);
   }

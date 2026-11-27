@@ -91,7 +91,7 @@
 }
 
 .jb-error {
-  max-width: 48ch;
+  max-width: 80ch;
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -188,4 +188,14 @@ input.jb-input {
 // The tables' hidden headings (.jb-sr) are placed in the table that scrolls sideways: not past it, widening the page
 .hud-table-wrap {
   position: relative;
+}
+
+// The details open straight under their job's row, as wide as the table
+.jb-table .jb-detail-row > td {
+  padding: 8px 0 16px;
+  white-space: normal;
+}
+
+.jb-detail-row .jb-detail {
+  margin: 0;
 }

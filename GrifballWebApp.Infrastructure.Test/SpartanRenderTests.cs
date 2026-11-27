@@ -871,4 +871,19 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That((all.Result, all.Summary), Is.EqualTo((JobRunResult.Succeeded, "1 rendered, 0 failed")));
         }
     }
+
+    [Test]
+    public void TheReport_NamesWhoseRenderEachWas()
+    {
+        var report = Report(r =>
+        {
+            r.Waiting = 2;
+            r.Done = 1;
+            r.Failed = 1;
+            r.Lines.Add("Alice (#4): rendered");
+            r.Lines.Add("Bob (#9): failed, The render took too long");
+        });
+
+        Assert.That(report.Summary, Is.EqualTo("1 rendered, 1 failed. Alice (#4): rendered; Bob (#9): failed, The render took too long"));
+    }
 }
