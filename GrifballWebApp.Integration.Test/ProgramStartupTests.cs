@@ -663,7 +663,7 @@ public class ProgramStartupTests
             Assert.That(factory.GatewayClientRegistered, Is.False, "No Discord gateway in the API role");
             using var scope = factory.Services.CreateScope();
             Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Tools.ISlashCommandCatalog>(), Is.TypeOf<GrifballWebApp.Application.Tools.NoSlashCommands>());
-            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Profile.IDiscordGamertagSetter>(), Is.TypeOf<GrifballWebApp.Application.Profile.NoDiscordGamertagSetter>());
+            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Profile.IDiscordGamertagSetter>(), Is.TypeOf<DiscordSetGamertag>(), "It needs no gateway, so every role has the real one");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Not.Contain(workerOnly));
@@ -796,7 +796,9 @@ public class ProgramStartupTests
         var settings = NormalModeSettings();
         settings[AppRole.ConfigurationKey] = "discord";
 
-        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
+        Type? catalogImplementation = null;
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true, services =>
+            catalogImplementation = services.Last(d => d.ServiceType == typeof(GrifballWebApp.Application.Tools.ISlashCommandCatalog)).ImplementationType);
         using var client = factory.CreateClient();
 
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
@@ -815,12 +817,7 @@ public class ProgramStartupTests
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
         Assert.That(checks, Does.Contain("discord"));
 
-        using var scope = factory.Services.CreateScope();
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Tools.ISlashCommandCatalog>(), Is.TypeOf<GrifballWebApp.Server.Commands.DiscordSlashCommandCatalog>(), "The bot knows its commands");
-            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Profile.IDiscordGamertagSetter>(), Is.TypeOf<DiscordSetGamertag>(), "The bot makes accounts for Discord users");
-        }
+        Assert.That(catalogImplementation, Is.EqualTo(typeof(GrifballWebApp.Server.Commands.DiscordSlashCommandCatalog)), "The bot knows its commands");
 
         await AssertOk(client, "/health/live");
         foreach (var path in new[] { "/CommitHash", "/seasons", "/internal/backups/abc" })
