@@ -1,3 +1,4 @@
+using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
