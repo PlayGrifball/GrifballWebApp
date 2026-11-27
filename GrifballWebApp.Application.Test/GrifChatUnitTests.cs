@@ -338,6 +338,29 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
+    public void WithPerson_TellsTheModelWhoItTalksTo_AsDataBeforeThePageLine()
+    {
+        var caller = new ToolCaller(12, ["Player", "Sysadmin"]);
+        var host = GrifChat.WithPerson(GrifChat.WithPage(ChatHost.Discord, "/season/3", null), caller, "Grunt\n\"Padre\"", 758786051678142464);
+
+        var lines = GrifChat.Instructions(host).Split('\n');
+
+        var line = lines.Single(l => l.StartsWith("The person you are talking to", StringComparison.Ordinal));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(line, Does.Contain("site user 12").And.Contain("gamertag \"GruntPadre\"").And.Contain("Player, Sysadmin").And.Contain("Discord user ID 758786051678142464"));
+            Assert.That(lines[^1], Does.StartWith("The person is looking at the site's page"), "The page line stays last");
+        }
+    }
+
+    [Test]
+    public void WithPerson_SaysNothing_ForACallerWithNoAccount_AndNotesAMissingGamertag()
+    {
+        Assert.That(GrifChat.WithPerson(ChatHost.Discord, ToolCaller.Anonymous, null, null), Is.EqualTo(ChatHost.Discord));
+        Assert.That(GrifChat.Instructions(GrifChat.WithPerson(ChatHost.Site, new ToolCaller(5, []), null, null)), Does.Contain("no gamertag set yet").And.Contain("no staff roles"));
+    }
+
+    [Test]
     public async Task Start_OnTheSite_TellsASignedOutPersonToLogInForTheFrontierModels_ButNotASignedInOne()
     {
         var anonymous = new FakeModel([Text("Hi")]);
