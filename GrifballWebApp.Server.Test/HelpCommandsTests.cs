@@ -33,7 +33,7 @@ public class HelpCommandsTests
     {
         var commands = new DiscordSlashCommandCatalog(Handler()).Commands();
 
-        Assert.That(commands.Select(c => c.Path), Is.SupersetOf(SomeCommands).And.Ordered.Using<string>(StringComparer.Ordinal));
+        Assert.That(commands.Select(c => c.Command), Is.SupersetOf(SomeCommands).And.Ordered.Using<string>(StringComparer.Ordinal));
     }
 
     [Test]
