@@ -18,6 +18,9 @@ internal sealed class SlashCommandToolsUnitTests
         new("/setgamertag", "Set your gamertag"),
     ];
 
+    private static readonly string[] SeasonParts = ["/season info", "/season standings"];
+    private static readonly string[] SetGamertagOnly = ["/setgamertag"];
+
     [Test]
     public void ListSlashCommands_GivesEveryCommand_OrOnlyTheNamedOnesParts()
     {
@@ -26,8 +29,8 @@ internal sealed class SlashCommandToolsUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(tools.ListSlashCommands(), Is.EqualTo(Registered));
-            Assert.That(tools.ListSlashCommands("season").Select(c => c.Command), Is.EqualTo(new[] { "/season info", "/season standings" }));
-            Assert.That(tools.ListSlashCommands("/SetGamertag").Select(c => c.Command), Is.EqualTo(new[] { "/setgamertag" }));
+            Assert.That(tools.ListSlashCommands("season").Select(c => c.Command), Is.EqualTo(SeasonParts));
+            Assert.That(tools.ListSlashCommands("/SetGamertag").Select(c => c.Command), Is.EqualTo(SetGamertagOnly));
         }
     }
 
