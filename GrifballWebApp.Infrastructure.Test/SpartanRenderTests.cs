@@ -287,7 +287,7 @@ public class SpartanRenderTests : SqliteContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(6));
+            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(5));
             Assert.That(_service.Loadouts.Single(), Does.Contain("\"helmet\":\"Aviator\"").And.Contain("\"stance\":77"));
         }
     }
@@ -387,7 +387,7 @@ public class SpartanRenderTests : SqliteContextFixture
         {
             Assert.That((report.Marked, report.Done), Is.EqualTo((1, 1)));
             Assert.That((await RenderOf(userId)).State, Is.EqualTo(UserSpartanRenderState.Done));
-            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(6));
+            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(5));
         }
     }
 
