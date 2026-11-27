@@ -9,13 +9,14 @@
     @for (turn of turns(); track $index) {
       <div class="flipyap-chat__turn" [class.flipyap-chat__turn--bot]="turn.fromBot">
         <span class="flipyap-chat__who">{{ turn.fromBot ? 'Flipyap' : 'You' }}</span>
-        <p class="flipyap-chat__text">{{ turn.text }}</p>
+        <p class="flipyap-chat__text">@for (part of parts(turn.text); track $index) {@if (part.link) {<a [routerLink]="part.link">{{ part.text }}</a>} @else {{{ part.text }}}}</p>
       </div>
     } @empty {
       <p class="flipyap-chat__empty">
-        Wawawa! Ask Flipyap about seasons, standings, teams, players and matches. Flipyap can get things wrong, so check the pages he point you to.
+        Big Demon! Ask Flipyap about seasons, standings, teams, players and matches. Flipyap sometimes get things wrong, so check the pages Flipyap point you to.
         @if (!signedIn()) {
-          Signed out, Flipyap no know who you are! Name the player you mean.
+          Signed out, Flipyap no know who you are! Name the player you mean. Or <a routerLink="/login" (click)="closed.emit()">log in</a>, and Flipyap
+          get big brain: Frontier models!
         }
       </p>
     }

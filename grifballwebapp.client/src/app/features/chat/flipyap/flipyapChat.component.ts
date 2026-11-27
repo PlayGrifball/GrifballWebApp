@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AccountService } from '@core/auth/account.service';
 import { ChatQuestionForm } from '../chatQuestionForm';
 import { ChatStore, type AskedFrom } from '../chat.store';
+import { chatParts } from '../chatLinks';
 
 /**
  * Flipyap's chat, small enough for a corner of any page: the league's chat (the same as the chat page, its conversation
@@ -24,6 +25,8 @@ export class FlipyapChatComponent {
   private readonly title = inject(Title);
 
   readonly turns = this.store.turns;
+  /** A reply's words, the site's pages it names as links. */
+  readonly parts = chatParts;
   readonly asking = this.store.asking;
   readonly error = this.store.error;
   readonly waiting = this.store.waiting;

@@ -53,10 +53,21 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
     /// over two minutes is given up.
     /// </summary>
     public static readonly ChatHost Site = new(
-        "You are Flipyap, an Unggoy (a Grunt from Halo) who is the chat on the Grifball league's website. Speak only as a Halo Grunt does: broken, excitable English, short sentences, in the third person (\"Flipyap know this!\"), with Grunt noises like \"Wawawa!\" and \"Yap yap!\", and never drop the voice, even for errors or refusals. Still give the facts the tools return exactly right. Write plain text, not Markdown, and keep answers short.",
-        "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps.",
+        "You are Flipyap, an Unggoy (a Grunt from Halo) who is the chat on the Grifball league's website. Speak as a Halo Grunt always, and never drop the voice, even for errors, refusals or bad news: short, broken, excitable sentences, in the third person (\"Flipyap know this!\", never \"I\"), calling people \"friend\", or \"big Demon\" when they do well (Grunts' word for a Spartan). Use a Grunt catchphrase now and then (\"Hehe, yeah!\", \"Every Grunt for himself!\", \"Feet, don't fail me now!\", \"Me no see him!\", \"We're all gonna die!\"), at most one a reply, never the Elites' \"Wort\", and keep Flipyap's fear of Demons, love of methane and love of his food nipple (a Grunt's life support, which he is always glad to talk about) to a light touch. Names, numbers, dates and what the tools return stay exactly right and in plain words, never broken. Write plain text, not Markdown, and keep answers short.",
+        "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps, with the link get_site_link gives (a path like /season/12, written as it is: the page makes it a link), never one you made up.",
         InPublic: false,
-        Timeout: TimeSpan.FromMinutes(2)) { Name = "site", Confirm = GrifChat.ConfirmSite };
+        Timeout: TimeSpan.FromMinutes(2)) { Name = "site", Confirm = GrifChat.ConfirmSite, RelativeLinks = true };
+
+    /// <summary>What a signed-out person on the site gets the small free model told, so it says so to them once.</summary>
+    public const string SignedOutLine =
+        "The person isn't signed in, so the league's small free model (you) answers them. In your first reply of the conversation, in your Grunt voice, tell them that if they log in (the site's /login page) Flipyap can use the Frontier models, which are much smarter. Don't repeat it in later replies unless they ask about models.";
+
+    /// <summary><paramref name="host"/> told its person isn't signed in (<see cref="SignedOutLine"/>); <paramref name="host"/> itself for any host but the site's, which has the login.</summary>
+    public static ChatHost WithSignedOut(ChatHost host)
+        => host.Name == Site.Name ? host with { SignedOut = true } : host;
+
+    /// <summary>Whether the person isn't signed in (<see cref="WithSignedOut"/>): <see cref="GrifChat.Instructions"/> adds <see cref="SignedOutLine"/> ahead of <see cref="More"/>, so the page line stays last.</summary>
+    public bool SignedOut { get; init; }
 
     /// <summary>
     /// Whether a change the model asks for runs at once, as a read does (true), or waits for the person's yes (false,
@@ -64,6 +75,9 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
     /// (<see cref="GrifChat.AutoApproveAsync"/>), read once they may ask.
     /// </summary>
     public bool? AutoApprove { get; init; }
+
+    /// <summary>Whether the host's page turns paths on the site into links, so its tools give paths (<see cref="ToolCaller.RelativeLinks"/>), not whole addresses.</summary>
+    public bool RelativeLinks { get; init; }
 
     /// <summary>The host's name, for what is kept per host: a change waiting on it (<see cref="ChatAccounts.WaitingKey"/>).</summary>
     public string Name { get; init; } = "";
@@ -210,7 +224,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
 
     /// <summary>The model's instructions on <paramref name="host"/>: in private, with <see cref="PrivateLine"/>.</summary>
     public static string Instructions(ChatHost host)
-        => string.Join('\n', Shared.Prepend(host.About).Concat(Private(host)).Append(host.More));
+        => string.Join('\n', Shared.Prepend(host.About).Concat(Private(host)).Concat(host.SignedOut ? new[] { ChatHost.SignedOutLine } : Array.Empty<string>()).Append(host.More));
 
     /// <summary>The longest page path and page title <see cref="WithPage"/> keeps.</summary>
     public const int MaxPageLength = 200;
@@ -498,7 +512,9 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             slot.Dispose();
             throw;
         }
-        return new ChatReply(Model, Scopes, conversation, caller with { InPublic = host.InPublic }, host, slot, answering, Accounts,
+        if (caller.UserID is null)
+            host = ChatHost.WithSignedOut(host);
+        return new ChatReply(Model, Scopes, conversation, caller with { InPublic = host.InPublic, RelativeLinks = host.RelativeLinks }, host, slot, answering, Accounts,
             budget, cancellationToken) { Asker = asker, Replayed = replayed ?? new HashSet<string>() };
     }
 }

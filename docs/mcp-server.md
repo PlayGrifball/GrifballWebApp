@@ -83,6 +83,7 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 | `suggest_match_times` | The best times for a season match from its season's timeslots, each with its warnings and how many players can play |
 | `get_game` | A recorded Halo game's teams, players and medals |
 | `get_leaderboards` | The all-time leaderboards |
+| `get_site_link` | A link to a page of the site (a season, team, match, game, profile, leaderboards, Late League), from the IDs the other tools give |
 | `list_late_league_seasons` | Late League's seasons |
 | `get_late_league_season` | A Late League season's player stats |
 | `get_recent_games` | A player's latest Grifball custom games as the site saved them, each with the player's outcome and its Waypoint link (`/matches` shows the same) |

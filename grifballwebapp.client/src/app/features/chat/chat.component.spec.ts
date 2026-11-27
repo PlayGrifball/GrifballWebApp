@@ -73,11 +73,13 @@ describe('ChatComponent', () => {
     expect(el().querySelector('h1')!.textContent!.trim()).toBe('Chat');
     expect(text()).toContain('Name the player you mean');
     expect(el().querySelector('a[href="/login"]')).not.toBeNull();
+    expect(text()).toContain('Frontier models');
     expect(text()).toContain('No questions yet');
 
     isLoggedIn.set(true);
     fixture.detectChanges();
     expect(text()).not.toContain('Name the player you mean');
+    expect(text()).not.toContain('Frontier models');
   });
 
   it('asks with the button, empties the box, and shows the answer as it streams in', () => {
@@ -99,6 +101,19 @@ describe('ChatComponent', () => {
     fixture.detectChanges();
     expect(button('Stop')).toBeUndefined();
     expect(el().querySelector('[role="log"]')!.getAttribute('aria-busy')).toBe('false');
+  });
+
+  it('shows a site page the answer names as a link to it, and any other path as plain text', () => {
+    type('Where?');
+    press('Enter');
+    answer().subscriber.next('See /season/12 and /admin/1.');
+    fixture.detectChanges();
+
+    const link = el().querySelector<HTMLAnchorElement>('[role="log"] a')!;
+    expect(link.getAttribute('href')).toBe('/season/12');
+    expect(link.textContent).toBe('/season/12');
+    expect(el().querySelectorAll('[role="log"] a')).toHaveSize(1);
+    expect(turns()).toEqual([['You', 'Where?'], ['Flipyap', 'See /season/12 and /admin/1.']]);
   });
 
   it('asks on Enter, and starts a new line on Shift+Enter', () => {
