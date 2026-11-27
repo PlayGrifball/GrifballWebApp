@@ -125,6 +125,19 @@ describe('ChatComponent', () => {
     const images = el().querySelectorAll<HTMLImageElement>('[role="log"] img');
     expect(images).toHaveSize(1);
     expect(images[0].getAttribute('src')).toBe('/api/users/12/halo-emblem');
+    expect(images[0].getAttribute('alt')).toBe('Player halo emblem');
+  });
+
+  it('hides a picture that fails to load', () => {
+    type('Show me.');
+    press('Enter');
+    answer().subscriber.next('Here: /api/users/12/halo-emblem');
+    fixture.detectChanges();
+
+    el().querySelector<HTMLImageElement>('[role="log"] img')!.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    expect(el().querySelectorAll('[role="log"] img')).toHaveSize(0);
   });
 
   it('asks on Enter, and starts a new line on Shift+Enter', () => {

@@ -3,6 +3,8 @@ export interface ChatPart {
   text: string;
   link?: string;
   image?: string;
+  /** What the picture shows, for a screen reader ("Player halo emblem"). */
+  alt?: string;
 }
 
 const id = '\\d{1,9}';
@@ -29,9 +31,14 @@ export function chatParts(text: string): ChatPart[] {
   let from = 0;
   for (const match of text.matchAll(sitePath)) {
     if (match.index > from) parts.push({ text: text.slice(from, match.index) });
-    parts.push(match[0].startsWith('/api/') ? { text: match[0], image: match[0] } : { text: match[0], link: match[0] });
+    parts.push(match[0].startsWith('/api/') ? { text: match[0], image: match[0], alt: altOf(match[0]) } : { text: match[0], link: match[0] });
     from = match.index + match[0].length;
   }
   if (from < text.length) parts.push({ text: text.slice(from) });
   return parts;
+}
+
+/** "Player halo emblem" for a picture's address. */
+function altOf(path: string): string {
+  return `Player ${path.slice(path.lastIndexOf('/') + 1).replace('-', ' ')}`;
 }

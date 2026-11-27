@@ -23,7 +23,8 @@ describe('chatParts', () => {
   it('shows each of a player\'s pictures the site keeps as an image, and no other address', () => {
     for (const kind of ['spartan-headshot', 'halo-emblem', 'gamer-picture']) {
       const path = `/api/users/12/${kind}`;
-      expect(chatParts(`See ${path}`)).toEqual([{ text: 'See ' }, { text: path, image: path }]);
+      const alt = `Player ${kind.replace('-', ' ')}`;
+      expect(chatParts(`See ${path}`)).toEqual([{ text: 'See ' }, { text: path, image: path, alt }]);
     }
     for (const text of ['/api/users/12/profile-picture', '/api/users/x/halo-emblem', 'https://evil.test/api/users/12/halo-emblem', '/api/seasons', '/api/users/12/halo-emblem/more']) {
       expect(chatParts(text).some(p => p.image)).withContext(text).toBeFalse();

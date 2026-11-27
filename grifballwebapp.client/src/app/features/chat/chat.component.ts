@@ -1,5 +1,5 @@
 import { CurrencyPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -29,6 +29,12 @@ export class ChatComponent {
   readonly turns = this.store.turns;
   /** A reply's words, the site's pages it names as links. */
   readonly parts = chatParts;
+  /** The pictures that would not load: hidden, not left as a broken-image icon. */
+  readonly failedImages = signal<ReadonlySet<string>>(new Set());
+  imageFailed(image: string | undefined): void {
+    if (image === undefined) return;
+    this.failedImages.update(failed => new Set(failed).add(image));
+  }
   readonly asking = this.store.asking;
   readonly error = this.store.error;
   /** A change the chat asked for, waiting for the user's yes or no: nothing changes until they answer. */
