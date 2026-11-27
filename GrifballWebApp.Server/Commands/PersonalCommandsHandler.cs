@@ -167,11 +167,7 @@ public class PersonalCommandsHandler
 
     /// <summary>Sets the region picked in the region modal, as one typed is.</summary>
     public Task SaveRegion(IDiscordModalInteractionContext context)
-    {
-        var picked = context.Components.OfType<NetCord.Label>().Select(l => l.Component).OfType<NetCord.RadioGroup>()
-            .FirstOrDefault(g => g.CustomId == RegionInput)?.SelectedValue;
-        return SetRegion(context, picked ?? "");
-    }
+        => SetRegion(context, ModalAnswers.Picked(context.Components, RegionInput) ?? "");
 
     /// <summary>Claims a past gamertag for a sysadmin to decide: refused as the site refuses it, when it can't be claimed.</summary>
     public async Task Claim(IDiscordInteractionContext context, string gamertag)

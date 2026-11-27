@@ -15,6 +15,17 @@ using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.SeasonMatchPage;
 using Quartz;
+using DiscordInterfaces;
+using GrifballWebApp.Infrastructure.Discord;
+using GrifballWebApp.Server.Extensions;
+using CheckboxProperties = NetCord.Rest.CheckboxProperties;
+using InteractionCallback = NetCord.Rest.InteractionCallback;
+using LabelProperties = NetCord.Rest.LabelProperties;
+using ModalProperties = NetCord.Rest.ModalProperties;
+using RadioGroupOptionProperties = NetCord.Rest.RadioGroupOptionProperties;
+using RadioGroupProperties = NetCord.Rest.RadioGroupProperties;
+using TextInputProperties = NetCord.Rest.TextInputProperties;
+using TextInputStyle = NetCord.Rest.TextInputStyle;
 
 namespace GrifballWebApp.Server.Commands;
 
@@ -34,6 +45,14 @@ public enum ForfeitSide
 public class AdminCommandsHandler
 {
     public const string Done = "Done.";
+    public const string JobNameHelp = "Name the job as group/name: /admin jobs list shows them.";
+    public const string DoubleEliminationInput = "double_elimination";
+    public const string JobStateInput = "state";
+    public const string DecisionInput = "decision";
+    public const string NotesInput = "notes";
+    /// <summary>Discord's limits on a component's custom ID and on a label's text.</summary>
+    private const int CustomIdLimit = 100;
+    private const int LabelLimit = 45;
 
     private readonly DiscordCaller _caller;
     private readonly CommandLookups _lookups;
@@ -120,22 +139,55 @@ public class AdminCommandsHandler
         await context.Reply(CommandReplies.Embed("Pending reschedules", _urls.Page("commissioner-dashboard"), CommandReplies.Lines(lines, "No reschedule is pending.")));
     }
 
-    /// <summary>Approves or rejects a reschedule request, as the dashboard does.</summary>
-    public async Task DecideReschedule(IDiscordInteractionContext context, int rescheduleID, bool approve, string? notes)
+    /// <summary>
+    /// Approves or rejects a reschedule request, as the dashboard does. With neither given, a modal asks which, with the
+    /// notes for the players.
+    /// </summary>
+    public async Task DecideReschedule(IDiscordInteractionContext context, int rescheduleID, bool? approve, string? notes)
     {
+        if (approve is not { } approved)
+        {
+            await OpenDecisionModal(context, rescheduleID, notes);
+            return;
+        }
         if (await Staff(context, DiscordCaller.Roles.Staff) is not { } caller)
             return;
         try
         {
-            await _reschedules.ProcessRescheduleAsync(rescheduleID, new ProcessRescheduleDto { Approved = approve, CommissionerNotes = notes }, caller.UserID);
+            await _reschedules.ProcessRescheduleAsync(rescheduleID, new ProcessRescheduleDto { Approved = approved, CommissionerNotes = notes }, caller.UserID);
         }
         catch (ArgumentException ex)
         {
             await context.Reply(ex.Message);
             return;
         }
-        await context.Reply(approve ? "Approved." : "Rejected.");
+        await context.Reply(approved ? "Approved." : "Rejected.");
     }
+
+    private async Task OpenDecisionModal(IDiscordInteractionContext context, int rescheduleID, string? notes)
+    {
+        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.Staff) is null)
+            return;
+        var modal = new ModalProperties(DiscordModalsContants.RescheduleDecideWithParams(rescheduleID), $"Reschedule request #{rescheduleID}")
+        {
+            new LabelProperties("Decision", new RadioGroupProperties(DecisionInput,
+            [
+                new RadioGroupOptionProperties("Approve", "approve"),
+                new RadioGroupOptionProperties("Reject", "reject"),
+            ])),
+            new LabelProperties("Notes for the players", new TextInputProperties(NotesInput, TextInputStyle.Paragraph)
+            {
+                Required = false,
+                Value = notes,
+            }),
+        };
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+    /// <summary>The decision modal's answers, decided as the command decides them.</summary>
+    public Task SaveDecision(IDiscordModalInteractionContext context, int rescheduleID)
+        => DecideReschedule(context, rescheduleID, ModalAnswers.Picked(context.Components, DecisionInput) == "approve",
+            ModalAnswers.Text(context.Components, NotesInput));
 
     public async Task ReportGame(IDiscordInteractionContext context, string match, string gameID, int? replaces)
     {
@@ -198,8 +250,14 @@ public class AdminCommandsHandler
         await context.Reply($"The matches are made. Schedule them on {"the season page".LinkMarkdown(_urls.Season(id))}.");
     }
 
-    public async Task CreateBracket(IDiscordInteractionContext context, string? season, int participants, bool doubleElimination, int bestOf)
+    /// <summary>Makes the season's bracket. With double elimination not given, a modal asks for it.</summary>
+    public async Task CreateBracket(IDiscordInteractionContext context, string? season, int participants, bool? doubleElimination, int bestOf)
     {
+        if (doubleElimination is not { } doubleElim)
+        {
+            await OpenBracketModal(context, season, participants, bestOf);
+            return;
+        }
         if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonFor(context, season, SeasonPurpose.Active, SeasonViewer.Staff) is not int id)
             return;
         if (participants <= 0)
@@ -207,9 +265,30 @@ public class AdminCommandsHandler
             await context.Reply("A bracket needs participants.");
             return;
         }
-        await _brackets.CreateBracket(participants, id, doubleElimination, bestOf);
+        await _brackets.CreateBracket(participants, id, doubleElim, bestOf);
         await context.Reply("The bracket is made. Seed it with /admin bracket seed, or set custom seeds on the site.");
     }
+
+    /// <summary>The bracket modal: the season is looked up first (a name may hold the custom ID's separator), and travels as its ID.</summary>
+    private async Task OpenBracketModal(IDiscordInteractionContext context, string? season, int participants, int bestOf)
+    {
+        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.CommissionerOnly) is null)
+            return;
+        if (await _lookups.Season(season, SeasonPurpose.Active, SeasonViewer.Staff) is not int id)
+        {
+            await context.EphemeralResponse(CommandLookups.NoSuchSeason);
+            return;
+        }
+        var modal = new ModalProperties(DiscordModalsContants.BracketCreateWithParams(id, participants, bestOf), "Make the bracket")
+        {
+            new LabelProperties("Double elimination", new CheckboxProperties(DoubleEliminationInput)),
+        };
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+    /// <summary>The bracket modal's answer, made as the command makes it.</summary>
+    public Task SaveBracket(IDiscordModalInteractionContext context, int seasonID, int participants, int bestOf)
+        => CreateBracket(context, CommandLookups.ChoicePrefix + seasonID, participants, ModalAnswers.Checked(context.Components, DoubleEliminationInput), bestOf);
 
     public async Task SeedBracket(IDiscordInteractionContext context, string? season)
     {
@@ -293,6 +372,38 @@ public class AdminCommandsHandler
         await context.Reply(CommandReplies.Embed("Jobs", _urls.Page("sysadmin/jobs"), CommandReplies.Lines(lines, "No jobs.")));
     }
 
+    /// <summary>Pauses or resumes a job named group/name. With neither given, a modal asks which.</summary>
+    public async Task PauseJob(IDiscordInteractionContext context, string job, bool? paused)
+    {
+        if (paused is { } pause)
+        {
+            await Job(context, job, pause);
+            return;
+        }
+        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.SysadminOnly) is null)
+            return;
+        var name = job.Trim();
+        // The name travels in the modal's custom ID: one that can't (no group/name, the ID's separator, too long) is refused here
+        if (name.Split('/', 2).Length != 2 || name.Contains(':') || DiscordModalsContants.JobPauseWithParams(name).Length > CustomIdLimit)
+        {
+            await context.EphemeralResponse(JobNameHelp);
+            return;
+        }
+        var modal = new ModalProperties(DiscordModalsContants.JobPauseWithParams(name), "Pause or resume the job")
+        {
+            new LabelProperties(name[..Math.Min(name.Length, LabelLimit)], new RadioGroupProperties(JobStateInput,
+            [
+                new RadioGroupOptionProperties("Pause it", "pause") { Default = true },
+                new RadioGroupOptionProperties("Resume it", "resume"),
+            ])),
+        };
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+    /// <summary>The pause modal's answer, done as the command does it.</summary>
+    public Task SavePause(IDiscordModalInteractionContext context, string job)
+        => Job(context, job, ModalAnswers.Picked(context.Components, JobStateInput) != "resume");
+
     /// <summary>Runs or pauses a job named group/name, as the jobs page does.</summary>
     public async Task Job(IDiscordInteractionContext context, string job, bool? pause)
     {
@@ -301,7 +412,7 @@ public class AdminCommandsHandler
         var parts = job.Trim().Split('/', 2);
         if (parts.Length != 2)
         {
-            await context.Reply("Name the job as group/name: /admin jobs list shows them.");
+            await context.Reply(JobNameHelp);
             return;
         }
         var key = new JobKey(parts[1], parts[0]);

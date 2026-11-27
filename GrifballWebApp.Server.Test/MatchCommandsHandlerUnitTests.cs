@@ -22,7 +22,7 @@ public class MatchCommandsHandlerUnitTests : SqliteGrifballContextFixture
     {
         var seasonMatches = new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db));
         var matchDetails = new MatchDetailsService(Db);
-        return new MatchCommandsHandler(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), seasonMatches, matchDetails, Urls(), null!, null!);
+        return new MatchCommandsHandler(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), seasonMatches, matchDetails, Urls(), new DiscordCaller(Db), null!);
     }
 
     [Test]
@@ -96,5 +96,45 @@ public class MatchCommandsHandlerUnitTests : SqliteGrifballContextFixture
             Assert.That(embed.Title, Is.EqualTo("Halo Infinite match"));
             Assert.That(embed.Fields!.ToList(), Has.Count.EqualTo(2));
         }
+    }
+
+    [Test]
+    public async Task Pull_OpensThePullModal_WhenBackToSeasonStartIsNotGiven()
+    {
+        await AddUser(discordUserId: 42, gamertag: "Puller", DiscordCaller.Roles.Player);
+        var season = await AddSeason("Winter League");
+        var match = await AddSeasonMatch(season, await AddTeam(season, "Home"), await AddTeam(season, "Away"));
+        var discord = new CommandContextRecorder(discordUserId: 42);
+
+        await Handler().Pull(discord.Context, match.SeasonMatchID.ToString(), backToSeasonStart: null);
+
+        var modal = discord.Modal();
+        var checkbox = (NetCord.Rest.CheckboxProperties)modal.Components.OfType<NetCord.Rest.LabelProperties>().Single().Component;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modal.CustomId, Is.EqualTo($"match_pull:{match.SeasonMatchID}"));
+            Assert.That(checkbox.CustomId, Is.EqualTo(MatchCommandsHandler.BackToSeasonStartInput));
+        }
+    }
+
+    [Test]
+    public async Task Pull_RepliesNoSuchMatch_InANewReply_WhenBackToSeasonStartIsNotGiven()
+    {
+        await AddUser(discordUserId: 42, gamertag: "Puller", DiscordCaller.Roles.Player);
+        var discord = new CommandContextRecorder(discordUserId: 42);
+
+        await Handler().Pull(discord.Context, "nonsense", backToSeasonStart: null);
+
+        Assert.That(discord.Message().Content, Is.EqualTo(MatchCommandsHandler.NoSuchMatch));
+    }
+
+    [Test]
+    public async Task Pull_OffersTheSetGamertagButton_InANewReply_WhenBackToSeasonStartIsNotGiven_AndTheCallerHasNoAccount()
+    {
+        var discord = new CommandContextRecorder(discordUserId: 909090);
+
+        await Handler().Pull(discord.Context, "nonsense", backToSeasonStart: null);
+
+        Assert.That(discord.Message().Content, Is.EqualTo(DiscordCaller.NoGamertag));
     }
 }

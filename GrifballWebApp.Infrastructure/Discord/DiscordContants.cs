@@ -24,6 +24,30 @@ public class DiscordButtonContants
         return $"{Signup}:{seasonId}";
     }
 
+    public const string BracketCreate = "bracket_create";
+    public static string BracketCreateWithParams(int seasonId, int participants, int bestOf)
+    {
+        return $"{BracketCreate}:{seasonId}:{participants}:{bestOf}";
+    }
+
+    public const string JobPause = "job_pause";
+    public static string JobPauseWithParams(string job)
+    {
+        return $"{JobPause}:{job}";
+    }
+
+    public const string MatchPull = "match_pull";
+    public static string MatchPullWithParams(int matchId)
+    {
+        return $"{MatchPull}:{matchId}";
+    }
+
+    public const string RescheduleDecide = "reschedule_decide";
+    public static string RescheduleDecideWithParams(int request)
+    {
+        return $"{RescheduleDecide}:{request}";
+    }
+
     public const string SignupDetails = "signupdetails";
     public static string SignupDetailsWithParams(int seasonId)
     {
@@ -61,5 +85,29 @@ public class DiscordModalsContants
     public static string SignupWithParams(int seasonId)
     {
         return $"{Signup}:{seasonId}";
+    }
+
+    public const string BracketCreate = "bracket_create";
+    public static string BracketCreateWithParams(int seasonId, int participants, int bestOf)
+    {
+        return $"{BracketCreate}:{seasonId}:{participants}:{bestOf}";
+    }
+
+    public const string JobPause = "job_pause";
+    public static string JobPauseWithParams(string job)
+    {
+        return $"{JobPause}:{job}";
+    }
+
+    public const string MatchPull = "match_pull";
+    public static string MatchPullWithParams(int matchId)
+    {
+        return $"{MatchPull}:{matchId}";
+    }
+
+    public const string RescheduleDecide = "reschedule_decide";
+    public static string RescheduleDecideWithParams(int request)
+    {
+        return $"{RescheduleDecide}:{request}";
     }
 }

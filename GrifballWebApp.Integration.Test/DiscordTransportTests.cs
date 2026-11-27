@@ -435,11 +435,11 @@ public class DiscordTransportTests
         new object[] { "admin match report", new[] { ("match", "Missing"), ("match_id", "not-a-guid"), ("replaces", "2") } },
         new object[] { "admin match forfeit", new[] { ("match", "Missing"), ("side", "0") } },
         new object[] { "admin match undo", new[] { ("match", "Missing") } },
-        new object[] { "match pull", new[] { ("match", "Missing") } },
+        new object[] { "match pull", new[] { ("match", "Missing"), ("back_to_season_start", "false") } },
         new object[] { "player pull", Array.Empty<(string, string)>() },
         new object[] { "admin match time", new[] { ("match", "Missing"), ("time", "2030-01-01 20:00") } },
         new object[] { "admin season generate", new[] { ("season", "Missing"), ("home_matches", "1"), ("best_of", "3") } },
-        new object[] { "admin bracket create", new[] { ("season", "Missing"), ("participants", "4"), ("best_of", "3") } },
+        new object[] { "admin bracket create", new[] { ("season", "Missing"), ("participants", "4"), ("best_of", "3"), ("double_elimination", "false") } },
         new object[] { "admin bracket seed", Array.Empty<(string, string)>() },
         new object[] { "admin draft lock", Array.Empty<(string, string)>() },
         new object[] { "admin draft unlock", Array.Empty<(string, string)>() },
@@ -449,7 +449,7 @@ public class DiscordTransportTests
         new object[] { "admin halo pull", new[] { ("match_id", "not-a-guid") } },
         new object[] { "admin jobs list", Array.Empty<(string, string)>() },
         new object[] { "admin jobs run", new[] { ("job", "a/b") } },
-        new object[] { "admin jobs pause", new[] { ("job", "a/b") } },
+        new object[] { "admin jobs pause", new[] { ("job", "a/b"), ("paused", "true") } },
         new object[] { "admin claims list", Array.Empty<(string, string)>() },
         new object[] { "admin claims approve", new[] { ("claim", "1") } },
         new object[] { "admin claims reject", new[] { ("claim", "1") } },
@@ -512,7 +512,7 @@ public class DiscordTransportTests
         });
         var season = match.SeasonID.ToString();
 
-        var pull = await _host.SendAsync(DiscordInteractionJson.SubCommand("match pull", 6101, ("match", match.SeasonMatchID.ToString())));
+        var pull = await _host.SendAsync(DiscordInteractionJson.SubCommand("match pull", 6101, ("match", match.SeasonMatchID.ToString()), ("back_to_season_start", "false")));
         var run = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule run", 6101, ("season", season)));
         var show = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule show", 6101, ("season", season)));
         var apply = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule apply", 6101, ("recommendation", recommendation.ToString())));
@@ -522,7 +522,7 @@ public class DiscordTransportTests
         var listing = jobs[^1].Data.GetProperty("embeds")[0].GetProperty("description").GetString()!;
         var listed = listing.StartsWith('`') ? listing[1..listing.IndexOf('`', 1)] : "";
         var ran = listed.Length > 0 ? await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs run", 6101, ("job", listed))) : null;
-        var paused = listed.Length > 0 ? await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs pause", 6101, ("job", listed))) : null;
+        var paused = listed.Length > 0 ? await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs pause", 6101, ("job", listed), ("paused", "true"))) : null;
 
         using (Assert.EnterMultipleScope())
         {
@@ -636,6 +636,104 @@ public class DiscordTransportTests
         {
             Assert.That(Routes(requests), Is.EqualTo(new[] { Callback, EditOriginal }));
             Assert.That(requests[1].Content, Does.StartWith(PersonalCommandsHandler.NoSuchRegion));
+        }
+    }
+
+    /// <summary>A user linked to Discord user <paramref name="discordId"/>, with a gamertag and site role <paramref name="role"/>.</summary>
+    private async Task<User> LinkedUserWithRole(ulong discordId, string gamertag, string role)
+    {
+        var user = await LinkedUser(discordId, gamertag);
+        await _host.WithContextAsync(async context =>
+        {
+            var found = await context.Roles.SingleAsync(r => r.Name == role);
+            context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = found.Id });
+            return await context.SaveChangesAsync();
+        });
+        return user;
+    }
+
+    [Test]
+    public async Task BracketCreate_WithoutDoubleElimination_OpensTheModal_WhoseSubmitMakesTheBracket()
+    {
+        await LinkedUserWithRole(6401, "BracketMaker", "Commissioner");
+        var season = await _host.WithContextAsync(async context =>
+        {
+            var created = Season.Seed(seasonName: "Transport Bracket Modal");
+            context.Seasons.Add(created);
+            await context.SaveChangesAsync();
+            return created;
+        });
+
+        var opened = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin bracket create", 6401,
+            ("season", season.SeasonID.ToString()), ("participants", "4"), ("best_of", "3")));
+        var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith($"bracket_create:{season.SeasonID}:4:3",
+            """[{"type":18,"id":1,"component":{"type":23,"id":2,"custom_id":"double_elimination","value":true}}]""", 6401));
+
+        var matches = await _host.WithContextAsync(context => context.SeasonMatches.CountAsync(x => x.SeasonID == season.SeasonID && x.BracketMatch != null));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(opened[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(opened[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"bracket_create:{season.SeasonID}:4:3"));
+            Assert.That(Routes(saved), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(saved[1].Content, Is.EqualTo("The bracket is made. Seed it with /admin bracket seed, or set custom seeds on the site."));
+            // Four teams single elimination is three matches: the loser bracket adds more
+            Assert.That(matches, Is.GreaterThan(3));
+        }
+    }
+
+    [Test]
+    public async Task RescheduleDecide_WithoutApprove_OpensTheModal_WhoseSubmitGoesToTheService()
+    {
+        await LinkedUserWithRole(6402, "Decider", "Commissioner");
+
+        var opened = await _host.SendAsync(DiscordInteractionJson.SubCommand("reschedule decide", 6402, ("request", "424242")));
+        var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith("reschedule_decide:424242",
+            """[{"type":18,"id":1,"component":{"type":21,"id":2,"custom_id":"decision","value":"approve"}},{"type":18,"id":3,"component":{"type":4,"id":4,"custom_id":"notes","value":"Fine"}}]""", 6402));
+        var blankNotes = await _host.SendAsync(DiscordInteractionJson.ModalWith("reschedule_decide:424242",
+            """[{"type":18,"id":1,"component":{"type":21,"id":2,"custom_id":"decision","value":"reject"}},{"type":18,"id":3,"component":{"type":4,"id":4,"custom_id":"notes","value":"  "}}]""", 6402));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(opened[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(Routes(saved), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(saved[1].Content, Is.EqualTo("Reschedule request not found"));
+            Assert.That(blankNotes[1].Content, Is.EqualTo("Reschedule request not found"));
+        }
+    }
+
+    [Test]
+    public async Task JobsPause_WithoutPaused_OpensTheModal_WhoseSubmitGoesToTheScheduler()
+    {
+        await LinkedUserWithRole(6403, "JobPauser", "Sysadmin");
+
+        var opened = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs pause", 6403, ("job", "nope/nothing")));
+        var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith("job_pause:nope/nothing",
+            """[{"type":18,"id":1,"component":{"type":21,"id":2,"custom_id":"state","value":"resume"}}]""", 6403));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(opened[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(Routes(saved), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(saved[1].Content, Is.EqualTo("There is no such job."));
+        }
+    }
+
+    [Test]
+    public async Task MatchPull_ModalSubmit_GoesThroughTheCommandsChecks()
+    {
+        await LinkedUserWithRole(6404, "ModalPuller", "Player");
+
+        var refused = await _host.SendAsync(DiscordInteractionJson.SubCommand("match pull", 6404, ("match", "Missing")));
+        var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith("match_pull:999999",
+            """[{"type":18,"id":1,"component":{"type":23,"id":2,"custom_id":"back_to_season_start","value":false}}]""", 6404));
+
+        using (Assert.EnterMultipleScope())
+        {
+            // No such match: said in a new reply, as the modal would have been the first response
+            Assert.That(refused[0].CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
+            Assert.That(refused[0].Content, Is.EqualTo(MatchCommandsHandler.NoSuchMatch));
+            Assert.That(Routes(saved), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(saved[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchMatch));
         }
     }
 

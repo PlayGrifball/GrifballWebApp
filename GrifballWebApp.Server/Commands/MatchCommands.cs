@@ -23,7 +23,7 @@ public class MatchCommands : ApplicationCommandModule<ApplicationCommandContext>
 
     [SubSlashCommand("pull", "Pull a season match's players' recent games from Halo (players and staff)")]
     public Task Pull([SlashCommandParameter(Description = "The match (search by team)", AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match,
-        [SlashCommandParameter(Name = "back_to_season_start", Description = "Back to the season's start, for an old match")] bool backToSeasonStart = false)
+        [SlashCommandParameter(Name = "back_to_season_start", Description = "Back to the season's start, for an old match (default: asked in a form)")] bool? backToSeasonStart = null)
         => _handler.Pull(Context.ToDiscordContext(), match, backToSeasonStart);
 
     [SubSlashCommand("game", "A Halo game's teams and players")]
