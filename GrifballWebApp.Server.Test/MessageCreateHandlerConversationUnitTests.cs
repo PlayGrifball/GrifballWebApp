@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using NetCord.Rest;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using System.Text.Json;
 using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 
@@ -778,7 +779,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
         var withButtons = DmHoldsButtons(ConfirmOrCancelA1);
         withButtons.ModifyAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<RestRequestProperties?>(), Arg.Any<CancellationToken>())
-            .Returns(_ => throw new InvalidOperationException("Discord is down"));
+            .ThrowsAsync(new InvalidOperationException("Discord is down"));
         var handler = Handler(new ScriptedChatClient((TimeSpan.Zero, "Left as it was.")));
         await WaitingFor(user);
 
