@@ -34,35 +34,30 @@ public class SignupButtonHandler
     private readonly GrifballContext _context;
     private readonly SignupsService _signupsService;
     private readonly UrlService _urlService;
+    private readonly DiscordCaller _caller;
     public SignupButtonHandler(GrifballContext context, SignupsService signupsService, UrlService urlService)
     {
         _context = context;
         _signupsService = signupsService;
         _urlService = urlService;
+        _caller = new DiscordCaller(context);
     }
 
-    private async Task<Domain.Players.User?> UserGuard(IDiscordInteractionContext discordContext, ulong discordUserId)
+    /// <summary>The caller's account, found as the commands find it (<see cref="DiscordCaller.Find"/>); null, and told so, without a gamertag.</summary>
+    private async Task<int?> UserGuard(IDiscordInteractionContext discordContext, ulong discordUserId)
     {
-        var user = await _context.Users
-                    .Include(x => x.XboxUser)
-                    .Where(x => x.DiscordUserID == (long)discordUserId)
-                    .FirstOrDefaultAsync();
-        if (user is null || user.XboxUser is null)
-        {
-            await discordContext.TempResponse("You must set your gamertag first");
-            return null;
-        }
-
-        return user;
+        if (await _caller.Find(discordUserId) is { } caller)
+            return caller.UserID;
+        await discordContext.TempResponse("You must set your gamertag first");
+        return null;
     }
 
     public async Task Signup(IDiscordButtonInteractionContext discordContext, int seasonId)
     {
-        var user = await UserGuard(discordContext, discordContext.User.Id);
-        if (user is null) return;
+        if (await UserGuard(discordContext, discordContext.User.Id) is not int userId) return;
 
         var isSignedUp = await _context.SeasonSignups
-            .AnyAsync(Domain.League.SeasonSignup.Of(seasonId, user.Id));
+            .AnyAsync(Domain.League.SeasonSignup.Of(seasonId, userId));
         var signupUrl = _urlService.SignupForm(seasonId);
         if (isSignedUp)
         {
@@ -73,7 +68,7 @@ public class SignupButtonHandler
         var dto = new SignupRequestDto()
         {
             SeasonID = seasonId,
-            UserID = user.Id,
+            UserID = userId,
         };
         try
         {
@@ -105,9 +100,8 @@ public class SignupButtonHandler
     /// </summary>
     public async Task OpenSignupDetails(IDiscordButtonInteractionContext discordContext, int seasonId)
     {
-        var user = await UserGuard(discordContext, discordContext.User.Id);
-        if (user is null) return;
-        await OpenModal(discordContext, user.Id, seasonId);
+        if (await UserGuard(discordContext, discordContext.User.Id) is not int userId) return;
+        await OpenModal(discordContext, userId, seasonId);
     }
 
     /// <summary>
@@ -179,17 +173,16 @@ public class SignupButtonHandler
     /// </summary>
     public async Task SaveSignupDetails(IDiscordModalInteractionContext context, int seasonId)
     {
-        var user = await UserGuard(context, context.User.Id);
-        if (user is null) return;
+        if (await UserGuard(context, context.User.Id) is not int userId) return;
         await context.Defer(ephemeral: true);
 
         var form = SubmittedForm.Read(context.Components);
-        var timeslots = await _signupsService.GetTimeslots(seasonId, 0, user.Id);
+        var timeslots = await _signupsService.GetTimeslots(seasonId, 0, userId);
         foreach (var slot in timeslots.Where(t => form.Shown.Contains(t.OptionID)))
             slot.IsChecked = form.Ticked.Contains(slot.OptionID);
         var offered = timeslots.Select(t => t.OptionID).ToHashSet();
         var chosen = await _context.SeasonSignups
-            .Where(Domain.League.SeasonSignup.Of(seasonId, user.Id))
+            .Where(Domain.League.SeasonSignup.Of(seasonId, userId))
             .SelectMany(x => x.SignupAvailability.Select(a => a.AvailabilityOptionID))
             .ToListAsync();
         var keptNotOffered = chosen.Where(id => !offered.Contains(id)).Select(id => new TimeslotDto { OptionID = id, IsChecked = true });
@@ -199,7 +192,7 @@ public class SignupButtonHandler
             await _signupsService.UpsertSignup(new SignupRequestDto
             {
                 SeasonID = seasonId,
-                UserID = user.Id,
+                UserID = userId,
                 TeamName = form.TeamName,
                 WillCaptain = form.WillCaptain,
                 RequiresAssistanceDrafting = form.DraftHelp,

@@ -126,7 +126,7 @@ public class PersonalCommandsHandler
             regionID = regions.FirstOrDefault(x => x.RegionID.ToString() == region.Trim() || x.RegionName.Equals(region.Trim(), StringComparison.OrdinalIgnoreCase))?.RegionID;
             if (regionID is null)
             {
-                await context.Reply($"{NoSuchRegion} The regions are {string.Join(", ", regions.Select(x => x.RegionName))}.");
+                await context.Reply($"{NoSuchRegion} {RegionsAre(regions)}");
                 return;
             }
         }
@@ -147,7 +147,7 @@ public class PersonalCommandsHandler
         var regions = await _regions.List();
         if (regions.Count >= RadioGroupLimit)
         {
-            await context.EphemeralResponse($"Give your region with the region option. The regions are {string.Join(", ", regions.Select(x => x.RegionName))}.");
+            await context.EphemeralResponse($"Give your region with the region option. {RegionsAre(regions)}");
             return;
         }
 
@@ -162,6 +162,8 @@ public class PersonalCommandsHandler
         };
         await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
     }
+
+    private static string RegionsAre(IEnumerable<RegionDto> regions) => $"The regions are {string.Join(", ", regions.Select(x => x.RegionName))}.";
 
     /// <summary>Sets the region picked in the region modal, as one typed is.</summary>
     public Task SaveRegion(IDiscordModalInteractionContext context)
