@@ -448,6 +448,25 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task TheMatchModals_ForAMatchWithNoTime_AndNoGameReplaced_StartEmpty()
+    {
+        var (time, _) = await Caller(DiscordCaller.Roles.Commissioner);
+        var report = new CommandContextRecorder(discordUserId: 42);
+        var season = await AddSeason("Spring");
+        var match = await AddSeasonMatch(season, await AddTeam(season, "Home"), await AddTeam(season, "Away"));
+        var handler = await Handler();
+
+        await handler.SetTime(time.Context, match.SeasonMatchID.ToString(), null);
+        await handler.ReportGame(report.Context, match.SeasonMatchID.ToString(), null, null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Typed(time.Modal(), AdminCommandsHandler.TimeInput), Is.Null, "not scheduled yet");
+            Assert.That(Typed(report.Modal(), AdminCommandsHandler.ReplacesInput), Is.Null);
+        }
+    }
+
+    [Test]
     public async Task TheModals_AreRefusedToOthers_AndToAnUnknownMatch_BeforeOneOpens()
     {
         var (player, _) = await Caller(DiscordCaller.Roles.Player);

@@ -570,6 +570,7 @@ public class DiscordTransportTests
     [TestCase("team info", "team", "Transport")]
     [TestCase("player profile", "player", "Transport")]
     [TestCase("admin match report", "match", "Transport")]
+    [TestCase("reschedule request", "match", "Transport")]
     [TestCase("admin bracket seed", "season", "Transport")]
     [TestCase("me region", "region", "north")]
     public async Task Autocomplete_OnASubcommandOption_SuggestsChoices(string path, string option, string typed)
@@ -579,8 +580,9 @@ public class DiscordTransportTests
         {
             if (await context.Seasons.AnyAsync(s => s.SeasonName == "Transport Autocomplete"))
                 return 0;
-            context.Users.Add(User.Seed(userName: "TransportPlayer", discordUser: DiscordUser.FromDiscord(6201, "TransportPlayer"),
-                xboxUser: XboxUser.FromXbox(6201, "TransportPlayer")));
+            var player = User.Seed(userName: "TransportPlayer", discordUser: DiscordUser.FromDiscord(6201, "TransportPlayer"),
+                xboxUser: XboxUser.FromXbox(6201, "TransportPlayer"));
+            context.Users.Add(player);
             var season = Season.Seed(seasonName: "Transport Autocomplete").WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
             context.Seasons.Add(season);
             await context.SaveChangesAsync();
@@ -588,6 +590,8 @@ public class DiscordTransportTests
             var away = Team.Seed(seasonID: season.SeasonID, teamName: "Transport Away");
             context.Teams.AddRange(home, away);
             await context.SaveChangesAsync();
+            // /reschedule request lists a player's own matches
+            await context.AddPlayers(home, player.Id);
             context.SeasonMatches.Add(SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID));
             await context.SaveChangesAsync();
             return 1;
@@ -789,6 +793,7 @@ public class DiscordTransportTests
         var openedReport = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin match report", 6502, ("match", id.ToString()), ("replaces", "2")));
         var savedReport = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "2")), 6502));
         var savedNoReplaced = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "")), 6502));
+        var savedReplacesNone = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "0")), 6502));
         var openedTime = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin match time", 6502, ("match", id.ToString())));
         var savedTime = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_time:{id}", TextInputs(("time", "2030-01-03 20:00")), 6502));
 
@@ -800,6 +805,7 @@ public class DiscordTransportTests
             // Not a Halo match ID: refused before Halo is asked
             Assert.That(savedReport[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchGame));
             Assert.That(savedNoReplaced[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchGame));
+            Assert.That(savedReplacesNone[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchGame));
             Assert.That(openedTime[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"match_time:{id}"));
             Assert.That(ModalInputs(openedTime[0].Data)["time"], Is.EqualTo("2030-01-02 20:00"), "the time it has now");
             Assert.That(savedTime[1].Content, Does.StartWith($"The match is set for <t:{new DateTimeOffset(2030, 1, 3, 20, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds()}>."));
@@ -811,27 +817,33 @@ public class DiscordTransportTests
     {
         await LinkedUserWithRole(6503, "ClaimRejecter", "Sysadmin");
         var claimant = await LinkedUser(6504, "Claimant6504");
-        var claimID = await _host.WithContextAsync(async context =>
+        var (claimID, withReasonID) = await _host.WithContextAsync(async context =>
         {
             var placeholder = User.Seed(userName: "OldTag6504");
-            context.Users.Add(placeholder);
+            var other = User.Seed(userName: "OtherTag6504");
+            context.Users.AddRange(placeholder, other);
             await context.SaveChangesAsync();
             var claim = GrifballWebApp.Domain.Archive.GamertagClaim.ClaimedByUser(claimant.Id, null, "OldTag6504", "OLDTAG6504", placeholder.Id, null, null);
-            context.GamertagClaims.Add(claim);
+            var withReason = GrifballWebApp.Domain.Archive.GamertagClaim.ClaimedByUser(claimant.Id, null, "OtherTag6504", "OTHERTAG6504", other.Id, null, null);
+            context.GamertagClaims.AddRange(claim, withReason);
             await context.SaveChangesAsync();
-            return claim.GamertagClaimID;
+            return (claim.GamertagClaimID, withReason.GamertagClaimID);
         });
 
         var opened = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin claims reject", 6503, ("claim", claimID.ToString())));
         var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith($"claim_reject:{claimID}", TextInputs(("reason", " ")), 6503));
+        var savedWithReason = await _host.SendAsync(DiscordInteractionJson.ModalWith($"claim_reject:{withReasonID}", TextInputs(("reason", "Not them")), 6503));
 
         var reason = await _host.WithContextAsync(context => context.GamertagClaims.AsNoTracking().Where(c => c.GamertagClaimID == claimID).Select(c => c.RejectionReason).SingleAsync());
+        var given = await _host.WithContextAsync(context => context.GamertagClaims.AsNoTracking().Where(c => c.GamertagClaimID == withReasonID).Select(c => c.RejectionReason).SingleAsync());
         using (Assert.EnterMultipleScope())
         {
             Assert.That(opened[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
             Assert.That(opened[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"claim_reject:{claimID}"));
             Assert.That(saved[1].Content, Is.EqualTo("Rejected."));
             Assert.That(reason, Is.Null);
+            Assert.That(savedWithReason[1].Content, Is.EqualTo("Rejected."));
+            Assert.That(given, Is.EqualTo("Not them"));
         }
     }
 

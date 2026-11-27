@@ -17,6 +17,7 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
     private static readonly string[] OnlySecret = ["Secret"];
     private static readonly string[] PlayerRole = ["Player"];
     private static readonly string[] CommissionerRole = ["Commissioner"];
+    private static readonly string[] WithATbd = ["Home Team vs TBD (Winter 2026)", "TBD vs Away Team (Winter 2026)"];
 
     private CommandLookups Lookups() => new(Db, new SeasonService(Db, null!, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, new FixedTimeProvider(Now)), new FixedTimeProvider(Now)), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, new FixedTimeProvider(Now)));
 
@@ -350,6 +351,20 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
             Assert.That(choices.Single().Name, Is.EqualTo("Home Team vs Away Team (Winter 2026)"));
             Assert.That(choices.Single().StringValue, Is.EqualTo(CommandLookups.ChoiceValue(match.SeasonMatchID)));
         }
+    }
+
+    [Test]
+    public async Task SeasonMatchChoices_NameAMissingTeam_Tbd()
+    {
+        var season = await AddSeason("Winter 2026");
+        var home = await AddTeam(season, "Home Team");
+        var away = await AddTeam(season, "Away Team");
+        Db.SeasonMatches.AddRange(SeasonMatch.Seed(season.SeasonID, home.TeamID, null), SeasonMatch.Seed(season.SeasonID, null, away.TeamID));
+        await Db.SaveChangesAsync();
+
+        var choices = await Lookups().SeasonMatchChoices("Team");
+
+        Assert.That(choices.Select(c => c.Name), Is.EquivalentTo(WithATbd));
     }
 
     [Test]
