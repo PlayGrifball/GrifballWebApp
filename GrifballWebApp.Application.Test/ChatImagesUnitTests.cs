@@ -32,9 +32,12 @@ internal sealed class ChatImagesUnitTests
     [Test]
     public void Without_DropsThePictureAddresses_AndTidiesTheBlanks()
     {
-        Assert.That(ChatImages.Without("Here: /api/users/3/halo-emblem  and https://grif.test/api/users/3/gamer-picture ok"), Is.EqualTo("Here: and ok"));
-        Assert.That(ChatImages.Without("/api/users/3/halo-emblem"), Is.Empty);
-        Assert.That(ChatImages.Without("No pictures, see /season/12."), Is.EqualTo("No pictures, see /season/12."));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ChatImages.Without("Here: /api/users/3/halo-emblem  and https://grif.test/api/users/3/gamer-picture ok"), Is.EqualTo("Here: and ok"));
+            Assert.That(ChatImages.Without("/api/users/3/halo-emblem"), Is.Empty);
+            Assert.That(ChatImages.Without("No pictures, see /season/12."), Is.EqualTo("No pictures, see /season/12."));
+        }
     }
 
     [TestCase(PlayerImageKind.SpartanHeadshot, "spartan-headshot")]

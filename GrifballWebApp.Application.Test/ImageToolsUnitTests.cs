@@ -44,13 +44,16 @@ internal sealed class ImageToolsUnitTests : ApplicationDbContextTests
 
     [TestCase(PlayerImageKind.GamerPicture)]
     [TestCase(PlayerImageKind.SpartanHeadshot)]
-    public void GetPlayerImage_OfAPictureTheSiteHasNot_Refuses(PlayerImageKind kind)
-        => Assert.ThrowsAsync<ToolException>(() => Tools().GetPlayerImage(_userID, kind));
+    public async Task GetPlayerImage_OfAPictureTheSiteHasNot_Refuses(PlayerImageKind kind)
+        => await Assert.ThatAsync(() => Tools().GetPlayerImage(_userID, kind), Throws.InstanceOf<ToolException>());
 
     [Test]
-    public void GetPlayerImage_OfAPlayerWithNoAccountOrNoSuchPlayer_Refuses()
+    public async Task GetPlayerImage_OfAPlayerWithNoAccountOrNoSuchPlayer_Refuses()
     {
-        Assert.ThrowsAsync<ToolException>(() => Tools().GetPlayerImage(_bareUserID, PlayerImageKind.HaloEmblem));
-        Assert.ThrowsAsync<ToolException>(() => Tools().GetPlayerImage(9999, PlayerImageKind.HaloEmblem));
+        using (Assert.EnterMultipleScope())
+        {
+            await Assert.ThatAsync(() => Tools().GetPlayerImage(_bareUserID, PlayerImageKind.HaloEmblem), Throws.InstanceOf<ToolException>());
+            await Assert.ThatAsync(() => Tools().GetPlayerImage(9999, PlayerImageKind.HaloEmblem), Throws.InstanceOf<ToolException>());
+        }
     }
 }
