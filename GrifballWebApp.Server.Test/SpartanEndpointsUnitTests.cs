@@ -200,7 +200,7 @@ public class SpartanEndpointsUnitTests : SqliteGrifballContextFixture
 
         var got = await anonymous.UserSpartan(user.Id, CancellationToken.None);
 
-        Assert.That(got.Value!.Files, Is.EqualTo(new[] { "neutral-glb" }));
+        Assert.That(got.Value!.Files.Single(), Is.EqualTo("neutral-glb"));
     }
 
     [Test]
