@@ -305,6 +305,7 @@ public class Program
             .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>(options => DiscordInteractionPipeline.Use(options));
             // /help reads the commands from the gateway's command service: only this role has it
             builder.Services.AddTransient<HelpCommandsHandler>();
+            builder.Services.AddTransient<GrifballWebApp.Application.Tools.ISlashCommandCatalog, GrifballWebApp.Server.Commands.DiscordSlashCommandCatalog>();
             // The bot's voice channels (/voice): this role runs the gateway they are joined through
             builder.Services.AddSingleton<GrifballWebApp.Server.Voice.IVoiceConnector, GrifballWebApp.Server.Voice.NetCordVoiceConnector>();
             builder.Services.AddSingleton(new GrifballWebApp.Server.Voice.VoiceOptions(TimeSpan.FromMilliseconds(builder.Configuration.GetValue("Speech:EndOfLineMilliseconds", 700)),

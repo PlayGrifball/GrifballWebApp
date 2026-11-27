@@ -120,6 +120,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<Tools.HaloTools>();
         services.AddTransient<TeamStandingsService>();
         services.AddTransient<ISetGamertagService, SetGamertagService>();
+        services.AddTransient<GrifballWebApp.Application.Tools.ISlashCommandCatalog, GrifballWebApp.Application.Tools.NoSlashCommands>();
         services.AddTransient<GradesService>();
         services.AddTransient<ScheduleService>();
         services.AddTransient<ScheduleRecommendations>();

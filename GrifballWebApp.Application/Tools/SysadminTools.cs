@@ -1,9 +1,12 @@
 using System.ComponentModel;
+using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.MatchDetails;
+using GrifballWebApp.Application.Profile;
+using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Application.Tools;
 
@@ -19,9 +22,14 @@ public class SysadminTools
     private readonly IDataPullService _dataPull;
     private readonly MatchDetailsService _matchDetails;
     private readonly IJobControl _jobs;
+    private readonly ISetGamertagService _setGamertag;
+    private readonly IApplicationDbContext _context;
 
-    public SysadminTools(ToolCaller caller, GamertagClaimService claims, IDataPullService dataPull, MatchDetailsService matchDetails, IJobControl jobs)
+    public SysadminTools(ToolCaller caller, GamertagClaimService claims, IDataPullService dataPull, MatchDetailsService matchDetails, IJobControl jobs,
+        ISetGamertagService setGamertag, IApplicationDbContext context)
     {
+        _setGamertag = setGamertag;
+        _context = context;
         _matchDetails = matchDetails;
         _jobs = jobs;
         _caller = caller;
@@ -43,6 +51,28 @@ public class SysadminTools
         else
             await _claims.Reject(claimID, reason, ct);
         return approve ? "Approved." : "Rejected.";
+    }
+
+    [Description("Links an Xbox account to a site user by setting that user's gamertag, as the player does with /setgamertag or on their profile, with the same rules: "
+        + "refused when the user has a gamertag already or another user holds it; a placeholder holding it is merged into the user. Name the user by their site "
+        + "user ID (search gives it) or by their Discord user ID. Sysadmins.")]
+    [ToolReachesHalo]
+    public async Task<string> SetUserGamertag(
+        [Description("The Xbox gamertag to set.")] string gamertag,
+        [Description("The site user's ID: this or discordUserID.")] int? userID = null,
+        [Description("The user's Discord user ID: this or userID.")] long? discordUserID = null,
+        CancellationToken ct = default)
+    {
+        _caller.RequireRolesOf();
+        if (string.IsNullOrWhiteSpace(gamertag))
+            throw new ToolException("Give the gamertag to set.");
+        if ((userID is null) == (discordUserID is null))
+            throw new ToolException("Name the user by userID or by discordUserID, one of them.");
+
+        var id = userID ?? await _context.Users.Where(u => u.DiscordUserID == discordUserID && !u.IsDummyUser).Select(u => (int?)u.Id).FirstOrDefaultAsync(ct)
+            ?? throw new ToolException("No site account is linked to that Discord user. They make one by using /setgamertag themselves or signing in to the site with Discord.");
+        var error = await _setGamertag.SetGamertag(id, gamertag.Trim(), ct);
+        return error is null ? $"Set: user {id} has the gamertag {gamertag.Trim()}." : throw new ToolException(error);
     }
 
     [Description("Pulls one Halo game's stats from Halo and saves them, as the admin page does (a game saved already stays as it is). "

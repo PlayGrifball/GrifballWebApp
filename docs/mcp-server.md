@@ -91,6 +91,7 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 | `pull_season_match_games` | Queues the pull of a season match's players' games from Halo (players and staff; `/match pull` too) |
 | `pull_xbox_account_games` | Queues the pull of an Xbox account's recent games from Halo (players and staff; `/player pull` too) |
 | `get_current_time` | The time now, in UTC and as Unix seconds |
+| `list_slash_commands` | The Discord bot's slash commands with what each does (the bot's own host only; the list `/help` shows) |
 
 ### Staff's tools
 
@@ -115,6 +116,7 @@ done by someone (a schedule applied, a job paused) is the token's user name (`To
 | `seed_season_bracket` | Commissioner | Seeds the bracket by the standings |
 | `set_captains_locked` | Commissioner | Locks or unlocks the draft's captains |
 | `decide_gamertag_claim` | Sysadmin | Approves or rejects a gamertag claim |
+| `set_user_gamertag` | Sysadmin | Sets a user's gamertag by site user ID or Discord ID, with the player's own rules (`/setgamertag`) |
 | `pull_halo_game` | Sysadmin | Pulls one Halo game's stats; refused when Halo has no such team game |
 | `refresh_medals` | Sysadmin | Downloads Halo's medals, once (refused once they're downloaded) |
 | `get_schedule_recommendation` | Commissioner, Sysadmin | A season's latest schedule recommendation, and whether one is being worked out |

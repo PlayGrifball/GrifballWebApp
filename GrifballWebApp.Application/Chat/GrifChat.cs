@@ -36,7 +36,7 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
     /// </summary>
     public static readonly ChatHost Discord = new(
         $"{Flipyap("the Grifball league's Discord bot, and every message must stay under the 2000-character limit")} {GruntVoice}",
-        "The bot also has slash commands; /help lists them.",
+        "The bot also has slash commands; list_slash_commands lists them, and so does /help. When someone asks how to do something in Discord, look the command up there.",
         InPublic: true,
         Timeout: TimeSpan.FromMinutes(2)) { Name = "discord" };
 

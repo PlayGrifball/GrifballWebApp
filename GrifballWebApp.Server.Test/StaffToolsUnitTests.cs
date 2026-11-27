@@ -54,6 +54,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
 
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
     private readonly IJobControl _jobs = Substitute.For<IJobControl>();
+    private readonly ISetGamertagService _setGamertag = Substitute.For<ISetGamertagService>();
     private readonly IScheduleRecommendationRuns _runs = Substitute.For<IScheduleRecommendationRuns>();
     private readonly IBracketService _brackets = Substitute.For<IBracketService>();
 
@@ -77,7 +78,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         new MatchPlannerService(Db), _brackets,
         new TeamService(Db, Substitute.For<IDatabaseLocks>()), Recommendations(), _runs);
 
-    private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull, new MatchDetailsService(Db), _jobs);
+    private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull, new MatchDetailsService(Db), _jobs, _setGamertag, Db);
 
     private async Task<int> AMatch()
     {
@@ -378,5 +379,50 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         var refused = await Assert.ThrowsAsync<GamertagClaimException>(() => Sysadmins(Sysadmin).DecideGamertagClaim(987654, approve: true));
 
         Assert.That(refused!.Message, Does.Contain("There is no claim 987654"));
+    }
+
+    [Test]
+    public async Task SetUserGamertag_SetsItForAUserByIDOrByDiscordID_ThroughTheSameServiceAsThePlayer()
+    {
+        var byID = User.Register("ById");
+        Db.Users.Add(byID);
+        await Db.SaveChangesAsync();
+        var byDiscord = await AddUser(758786051678142464UL, "Linked");
+        _setGamertag.SetGamertag(Arg.Any<int>(), "Mavbrid", Arg.Any<CancellationToken>()).Returns((string?)null);
+
+        var first = await Sysadmins(Sysadmin).SetUserGamertag(" Mavbrid ", userID: byID.Id);
+        var second = await Sysadmins(Sysadmin).SetUserGamertag("Mavbrid", discordUserID: 758786051678142464L);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(first, Does.Contain($"user {byID.Id}").And.Contain("Mavbrid"));
+            Assert.That(second, Does.Contain($"user {byDiscord.Id}"));
+        }
+        await _setGamertag.Received(1).SetGamertag(byID.Id, "Mavbrid", Arg.Any<CancellationToken>());
+        await _setGamertag.Received(1).SetGamertag(byDiscord.Id, "Mavbrid", Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SetUserGamertag_RefusesWhatThePlayerIsRefused_AWrongNaming_AndNonSysadmins()
+    {
+        _setGamertag.SetGamertag(5, "Taken", Arg.Any<CancellationToken>()).Returns("That gamertag is already attached to a user. Contact sysadmin if you believe this is incorrect");
+
+        var taken = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Taken", userID: 5));
+        var noOne = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Mavbrid"));
+        var both = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Mavbrid", userID: 5, discordUserID: 9));
+        var noAccount = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Mavbrid", discordUserID: 404));
+        var blank = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag(" ", userID: 5));
+        var player = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Player).SetUserGamertag("Mavbrid", userID: 5));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(taken!.Message, Does.Contain("already attached"));
+            Assert.That(noOne!.Message, Does.Contain("userID or by discordUserID"));
+            Assert.That(both!.Message, Does.Contain("userID or by discordUserID"));
+            Assert.That(noAccount!.Message, Does.Contain("/setgamertag"));
+            Assert.That(blank!.Message, Does.Contain("Give the gamertag"));
+            Assert.That(player!.Message, Is.EqualTo(SiteRoles.MissingRole(GrifTools.RolesByName["set_user_gamertag"])));
+        }
+        await _setGamertag.DidNotReceive().SetGamertag(Arg.Is<int>(i => i != 5), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

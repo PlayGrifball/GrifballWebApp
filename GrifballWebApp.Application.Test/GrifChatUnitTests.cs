@@ -528,7 +528,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(discord[0], Does.StartWith("You are Flipyap, an Unggoy").And.Contain("Discord bot").And.Contain("2000-character limit"));
-            Assert.That(discord[^1], Is.EqualTo("The bot also has slash commands; /help lists them."));
+            Assert.That(discord[^1], Is.EqualTo("The bot also has slash commands; list_slash_commands lists them, and so does /help. When someone asks how to do something in Discord, look the command up there."));
             Assert.That(site[0], Does.StartWith("You are Flipyap, an Unggoy"));
             // In private, the line about the tools that change data too
             Assert.That(site[1..^1], Is.EqualTo(discord[1..^1].Append(GrifChat.PrivateLine)));
