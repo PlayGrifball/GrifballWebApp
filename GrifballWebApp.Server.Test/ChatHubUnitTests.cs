@@ -138,7 +138,7 @@ public class ChatHubUnitTests
             Assert.That(model.Messages.Select(m => (m.Role, m.Text)), Is.EqualTo(new[] { (ChatRole.User, "Hi"), (ChatRole.Assistant, "Hello"), (ChatRole.User, "And now?") }));
             Assert.That(model.Options!.Instructions, Is.EqualTo(GrifChat.Instructions(ChatHost.Site)));
             // A player may pull: every chat tool
-            Assert.That(model.Options!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !GrifTools.DiscordOnly.Contains(t))));
+            Assert.That(model.Options!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !GrifTools.DiscordOnly.Contains(t)).Concat(GrifTools.PrivateOnly)));
         }
         Received.InOrder(() =>
         {
@@ -197,7 +197,7 @@ public class ChatHubUnitTests
 
         await Read(await Hub(model, new HubUserState(7, ["Player"]), claims).Ask(Question(), CancellationToken.None));
 
-        Assert.That(model.Options!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !GrifTools.DiscordOnly.Contains(t))), "the user's roles now, not the connection's claims");
+        Assert.That(model.Options!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !GrifTools.DiscordOnly.Contains(t)).Concat(GrifTools.PrivateOnly)), "the user's roles now, not the connection's claims");
     }
 
     [Test]
@@ -210,7 +210,7 @@ public class ChatHubUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(error, Is.Null);
-            Assert.That(model.Options!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal) && !GrifTools.DiscordOnly.Contains(t))));
+            Assert.That(model.Options!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal) && !GrifTools.DiscordOnly.Contains(t)).Concat(GrifTools.PrivateOnly)));
         }
         _ambient.Received(1).UserId = null;
     }

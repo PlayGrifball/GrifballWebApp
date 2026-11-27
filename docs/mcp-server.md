@@ -68,6 +68,7 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 | `get_season_player_stats` | Each player's stats, or one team's |
 | `get_season_grades` | Players' totals, per-minute rates and letter grades |
 | `get_season_signups` | Who signed up |
+| `get_season_availability` | The times a season's matches can be played, in UTC (the next season to start by default; `/availability show` too) |
 | `suggest_draft_picks` | The draft's suggested picks for a team (the one on deck by default; the next season to start), each with its score and why |
 | `get_season_bracket` | The playoff bracket |
 | `get_team` | A team's season, record, titles and roster |
@@ -83,6 +84,9 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 | `suggest_match_times` | The best times for a season match from its season's timeslots, each with its warnings and how many players can play |
 | `get_game` | A recorded Halo game's teams, players and medals |
 | `get_leaderboards` | The all-time leaderboards |
+| `get_upcoming_events` | Current and upcoming signups, drafts and seasons, soonest first (the home page's calendar; `/events` too) |
+| `get_queue_status` | How many are in the Late League queue, and whether you are in it or in a match (`/queue status` too) |
+| `get_my_account` | Your region, gamertag claims and linked sign-ins (`/me`); refused in a Discord channel, as `/me`'s replies are only for you |
 | `get_site_link` | A link to a page of the site (a season, team, match, game, profile, leaderboards, Late League), from the IDs the other tools give |
 | `get_player_image` | The address of a player's Spartan headshot, Halo emblem or gamer picture, when the site has stored it; the chats show it as a picture |
 | `list_late_league_seasons` | Late League's seasons |

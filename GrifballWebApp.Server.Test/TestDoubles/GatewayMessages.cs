@@ -7,9 +7,9 @@ namespace GrifballWebApp.Server.Test;
 internal static class GatewayMessages
 {
     /// <summary>Message 10 in channel 20 of guild 30 (a DM, in no guild, when <paramref name="direct"/>) from <paramref name="authorId"/>, saying <paramref name="content"/> ("hello"),
-    /// mentioning <paramref name="mentions"/>; a reply to <paramref name="reference"/> when given. Its replies go through <paramref name="restClient"/>.</summary>
+    /// mentioning <paramref name="mentions"/>, with <paramref name="components"/> (its rows, as JSON objects); a reply to <paramref name="reference"/> when given. Its replies go through <paramref name="restClient"/>.</summary>
     internal static NetCord.Gateway.Message Build(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null, RestClient? restClient = null,
-        bool direct = false, string content = "hello")
+        bool direct = false, string content = "hello", object[]? components = null)
     {
         var json = new Dictionary<string, object?>
         {
@@ -24,7 +24,7 @@ internal static class GatewayMessages
             ["attachments"] = Array.Empty<object>(),
             ["embeds"] = Array.Empty<object>(),
             ["reactions"] = Array.Empty<object>(),
-            ["components"] = Array.Empty<object>(),
+            ["components"] = components ?? [],
             ["sticker_items"] = Array.Empty<object>(),
             ["stickers"] = Array.Empty<object>(),
             ["message_snapshots"] = Array.Empty<object>(),
