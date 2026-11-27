@@ -4857,7 +4857,7 @@
         "tags": [
           "MyProfile"
         ],
-        "summary": "What the render service can render: the cores, their pieces by region, and the coatings.",
+        "summary": "What the render service can render: the cores, their pieces by region, the coatings and the visors.",
         "operationId": "GetSpartanCatalog",
         "responses": {
           "401": {

@@ -332,7 +332,7 @@ export class MyProfileService extends BaseService {
   static readonly GetSpartanCatalogPath = '/spartan/catalog';
 
   /**
-   * What the render service can render: the cores, their pieces by region, and the coatings.
+   * What the render service can render: the cores, their pieces by region, the coatings and the visors.
    *
    *
    *
@@ -347,7 +347,7 @@ export class MyProfileService extends BaseService {
   }
 
   /**
-   * What the render service can render: the cores, their pieces by region, and the coatings.
+   * What the render service can render: the cores, their pieces by region, the coatings and the visors.
    *
    *
    *
