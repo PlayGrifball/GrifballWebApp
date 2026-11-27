@@ -18,6 +18,11 @@ internal static class DiscordInteractionJson
     public static JsonInteraction Button(string customId, ulong userId, string username = "u") =>
         Parse(Envelope(3, $$"""{"custom_id":"{{customId}}","component_type":2}""", userId, username, OnBotMessage));
 
+    /// <summary>A click on button <paramref name="customId"/> of bot message 5 (author 7), which carries <paramref name="components"/> (their JSON array).</summary>
+    public static JsonInteraction ButtonOn(string customId, ulong userId, string components) =>
+        Parse(Envelope(3, $$"""{"custom_id":"{{customId}}","component_type":2}""", userId, "u",
+            OnBotMessage.Replace("\"embeds\":[]", $"\"components\":{components},\"embeds\":[]", StringComparison.Ordinal)));
+
     /// <summary>A choice of <paramref name="values"/> in string menu <paramref name="customId"/> of bot message 5 (author 7).</summary>
     public static JsonInteraction StringMenu(string customId, ulong userId, params string[] values) =>
         Parse(Envelope(3, $$"""{"custom_id":"{{customId}}","component_type":3,"values":{{JsonSerializer.Serialize(values)}}}""", userId, "u", OnBotMessage));

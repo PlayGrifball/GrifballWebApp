@@ -21,6 +21,11 @@ internal sealed class ScriptedChatClient(params (TimeSpan Delay, string Text)[] 
     /// <summary>The clock a chunk's delay moves on: the one the handler reads.</summary>
     public FakeTimeProvider? Clock { get; init; }
 
+    /// <summary>A tool call the model makes first, alone: the chat runs it and asks again, and the chunks are the reply then.</summary>
+    public FunctionCallContent? Call { get; init; }
+
+    private int _requests;
+
     public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         => throw new NotSupportedException("The bot only streams");
 
@@ -31,6 +36,11 @@ internal sealed class ScriptedChatClient(params (TimeSpan Delay, string Text)[] 
         Options = options;
         if (BeforeReply is not null)
             await BeforeReply(options!);
+        if (Call is not null && Interlocked.Increment(ref _requests) == 1)
+        {
+            yield return new ChatResponseUpdate(ChatRole.Assistant, [Call]);
+            yield break;
+        }
         foreach (var (delay, text) in chunks)
         {
             if (delay > TimeSpan.Zero)

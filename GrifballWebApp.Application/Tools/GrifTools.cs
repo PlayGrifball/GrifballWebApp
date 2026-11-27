@@ -112,7 +112,7 @@ public static class GrifTools
 {
     /// <summary>The classes of the tools that only read: open to anyone on the site, but staff's (<see cref="StaffTools"/>), each for its roles.</summary>
     public static readonly Type[] ReadOnly =
-        [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(LinkTools), typeof(ImageTools), typeof(ClockTools), typeof(HaloTools), typeof(SlashCommandTools), typeof(StaffTools)];
+        [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(LinkTools), typeof(ImageTools), typeof(ClockTools), typeof(HaloTools), typeof(SlashCommandTools), typeof(ButtonTools), typeof(StaffTools)];
 
     /// <summary>The classes of the tools that queue a pull from Halo (<see cref="ToolEffect.QueuesHaloPull"/>).</summary>
     public static readonly Type[] QueuingHaloPulls = [typeof(HaloPullTools)];
@@ -134,10 +134,16 @@ public static class GrifTools
     /// <summary>The name of the tool that lists the bot's slash commands, offered only to hosts that have them (<c>ChatHost.HasSlashCommands</c>).</summary>
     public const string ListSlashCommands = "list_slash_commands";
 
+    /// <summary>The name of the tool that offers a button under a Discord reply, offered only to the same hosts.</summary>
+    public const string OfferButton = "offer_button";
+
+    /// <summary>The tools only the Discord bot has use for (<c>ChatHost.HasSlashCommands</c>).</summary>
+    public static readonly string[] DiscordOnly = [ListSlashCommands, OfferButton];
+
     public static readonly string[] Chat =
     [
         "who_am_i", "get_current_time", "search", "list_seasons", "get_season", "get_season_standings", "get_season_schedule", "get_team",
-        "get_player", "get_player_rank", "get_season_match", "get_game", "get_recent_games", "get_leaderboards", "get_site_link", "get_player_image", ListSlashCommands, "pull_season_match_games", "pull_xbox_account_games",
+        "get_player", "get_player_rank", "get_season_match", "get_game", "get_recent_games", "get_leaderboards", "get_site_link", "get_player_image", ListSlashCommands, OfferButton, "pull_season_match_games", "pull_xbox_account_games",
         "suggest_draft_picks",
     ];
 

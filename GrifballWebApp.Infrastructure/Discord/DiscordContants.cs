@@ -18,6 +18,12 @@ public class DiscordButtonContants
         return $"{VoteForWinner}:{matchId}:{winnerVote}";
     }
 
+    public const string ChatConfirm = "chatconfirm";
+    public static string ChatConfirmWithParams(string actionId, bool approved)
+    {
+        return $"{ChatConfirm}:{actionId}:{(approved ? "yes" : "no")}";
+    }
+
     public const string Signup = "signup";
     public static string SignupWithParams(int seasonId)
     {

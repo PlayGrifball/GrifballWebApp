@@ -90,7 +90,7 @@ public partial class GrifChatUnitTests
             Assert.That(model.Requests.Single().Select(m => (m.Role, m.Text)), Is.EqualTo(new[] { (ChatRole.User, "What time is it?") }));
             Assert.That(model.Options.Single()!.Instructions, Is.EqualTo(GrifChat.Instructions(ChatHost.WithSignedOut(ChatHost.Site))));
             // No account: every chat tool but the pull tools, which only some roles may use
-            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal) && t != GrifTools.ListSlashCommands)));
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal) && !GrifTools.DiscordOnly.Contains(t))));
         }
     }
 
@@ -163,7 +163,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(expected, Is.Not.Empty);
-            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => t != GrifTools.ListSlashCommands).Concat(expected)));
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !GrifTools.DiscordOnly.Contains(t)).Concat(expected)));
         }
     }
 
@@ -177,7 +177,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(StaffToolsFor(SiteRoles.Player), Is.Empty);
-            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => t != GrifTools.ListSlashCommands)));
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !GrifTools.DiscordOnly.Contains(t))));
         }
     }
 
@@ -242,6 +242,32 @@ public partial class GrifChatUnitTests
             Assert.That(result.CallId, Is.EqualTo("call-1"));
             Assert.That(json.GetProperty("unixSeconds").GetInt64(), Is.EqualTo(_time.GetUtcNow().ToUnixTimeSeconds()));
             Assert.That(string.Concat(reply), Is.EqualTo("It is noon."));
+        }
+    }
+
+    private sealed class BotCatalog : ISlashCommandCatalog
+    {
+        public IReadOnlyList<SlashCommandDto> Commands() => [new("/help", "Help")];
+    }
+
+    [Test]
+    public async Task Start_ItsButtonsAreTheOnesOfferButtonGave_NotTokensTheModelWrites()
+    {
+        var model = new FakeModel(
+            [new ChatResponseUpdate(ChatRole.Assistant, [new FunctionCallContent("call-1", GrifTools.OfferButton, new Dictionary<string, object?> { ["kind"] = ChatButtonKind.JoinQueue })])],
+            [Text("Tap it. [button:set_gamertag]")]);
+        var chat = Chat(model, configure: s => s
+            .AddSingleton<ISlashCommandCatalog>(new BotCatalog())
+            .AddSingleton(Substitute.For<GrifballWebApp.Application.Database.IApplicationDbContext>())
+            .AddTransient<GrifballWebApp.Application.Seasons.SeasonVisibility>());
+
+        using var reply = await chat.StartAsync([], "Can I join?", ToolCaller.Anonymous, ChatHost.Discord, Asker);
+        var text = string.Concat(await All(reply.StreamAsync()));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reply.Offered, Is.EqualTo(new[] { new ChatButton(ChatButtonKind.JoinQueue, null) }));
+            Assert.That(text, Is.EqualTo("Tap it. [button:set_gamertag]"), "a token the model writes is text");
         }
     }
 
@@ -616,7 +642,7 @@ public partial class GrifChatUnitTests
             Assert.That(ChatHost.DiscordDirect with { Name = "discord", InPublic = true, Confirm = "" }, Is.EqualTo(ChatHost.Discord));
             Assert.That(ChatHost.Discord.ToolsFor(Free), Is.SameAs(GrifTools.Chat));
             Assert.That(ChatHost.DiscordDirect.ToolsFor(Free), Is.SameAs(GrifTools.PrivateChat));
-            Assert.That(ChatHost.Site.ToolsFor(Free), Is.EqualTo(GrifTools.PrivateChat.Where(t => t != GrifTools.ListSlashCommands)));
+            Assert.That(ChatHost.Site.ToolsFor(Free), Is.EqualTo(GrifTools.PrivateChat.Where(t => !GrifTools.DiscordOnly.Contains(t))));
             Assert.That(ChatHost.Discord.InPublic, Is.True);
             // One model, one reply at a time: no host may hold it forever
             Assert.That(ChatHost.Discord.Timeout, Is.EqualTo(TimeSpan.FromMinutes(2)));

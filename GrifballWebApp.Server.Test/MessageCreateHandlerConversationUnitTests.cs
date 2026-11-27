@@ -36,6 +36,18 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private const ulong AuthorId = 5;
     private static readonly ulong[] MentionsTheBot = [BotId];
     private static readonly string[] HiThere = ["Hi there"];
+    private static readonly string[] TapIt = ["Tap it to join."];
+    private static readonly string[] ConfirmOrCancelA1 = ["chatconfirm:a1:yes", "chatconfirm:a1:no"];
+
+    /// <summary>The bot's commands, as its registry has them: offer_button is for a host that has some.</summary>
+    private sealed class BotCommands : ISlashCommandCatalog
+    {
+        public IReadOnlyList<SlashCommandDto> Commands() => [new("/help", "Help")];
+    }
+
+    /// <summary>The model's call of offer_button for a <paramref name="kind"/> button.</summary>
+    private static FunctionCallContent OfferButton(ChatButtonKind kind)
+        => new("offer-1", GrifTools.OfferButton, new Dictionary<string, object?> { ["kind"] = kind });
     private static readonly string[] ShownInFull = ["This first chunk is over 25 characters!"];
     private static readonly string[] ChannelQuestion = ["Channel question"];
     private static readonly string[] ChannelQuestionThenHello = ["Channel question", "hello"];
@@ -95,6 +107,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddTransient<GrifballWebApp.Application.Signups.SignupsService>()
             .AddSingleton(Substitute.For<GrifballWebApp.Application.Brackets.IBracketService>())
             .AddSingleton<IChatWaiting, MemoryChatWaiting>()
+            // offer_button's: the bot's commands are there
+            .AddSingleton<GrifballWebApp.Application.Tools.ISlashCommandCatalog>(new BotCommands())
             // The season tools' draft helper, with the leaderboards' careers it reads
             .AddTransient<GrifballWebApp.Application.Draft.DraftHelperService>()
             .AddTransient<GrifballWebApp.Application.Leaderboards.LeaderboardsService>()
@@ -666,6 +680,155 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(model.Messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>().Single().Result?.ToString(), Does.Contain("rejected"));
             Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
             Assert.That(await accounts.WaitingAsync(ChatHost.DiscordDirect, asker), Is.Null, "Answered");
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AButtonTheModelOffered_IsUnderTheReply()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Tap it to join.")) { Call = OfferButton(ChatButtonKind.JoinQueue) };
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var body = _discord.SentMessages().Single().Body;
+        var button = body.GetProperty("components")[0].GetProperty("components")[0];
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(body.GetProperty("content").GetString(), Is.EqualTo("Tap it to join."));
+            Assert.That(button.GetProperty("custom_id").GetString(), Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordButtonContants.JoinQueue));
+            Assert.That(await SavedReplies(), Is.EqualTo(TapIt));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AButtonTokenInTheModelsText_IsNoButton()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Here [button:join_queue]"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var body = _discord.SentMessages().Single().Body;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(body.GetProperty("content").GetString(), Is.EqualTo("Here [button:join_queue]"), "shown as written");
+            Assert.That(body.TryGetProperty("components", out var rows) && rows.GetArrayLength() > 0, Is.False);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AStreamedReplyOfferingAButton_GetsItInTheLastEdit()
+    {
+        var model = new ScriptedChatClient(
+            (TimeSpan.Zero, "This first chunk is over 25 characters"),
+            (TimeSpan.FromMilliseconds(1500), "!"))
+        {
+            Clock = _time,
+            Call = OfferButton(ChatButtonKind.JoinQueue),
+        };
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var edit = _discord.Requests.Last(r => r.Method == HttpMethod.Patch).Json.RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(edit.GetProperty("content").GetString(), Is.EqualTo("This first chunk is over 25 characters!"));
+            Assert.That(edit.GetProperty("components")[0].GetProperty("components")[0].GetProperty("custom_id").GetString(),
+                Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordButtonContants.JoinQueue));
+        }
+    }
+
+    [Test]
+    public async Task HandleClickAsync_ACancelButton_AnswersTheWaitingChangeAsANoDoes()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        DmHolds();
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Left as it was."));
+        var handler = Handler(model);
+        var accounts = new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<ChatAccounts>.Instance);
+        var asker = ChatLimits.Asker(new ToolCaller(user.Id, []), "");
+        await accounts.SaveWaitingAsync(ChatHost.DiscordDirect, asker, new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)",
+            [new ChatActionCall("r1", "call-1", "forfeit_season_match", "{\"seasonMatchID\":12}")]));
+
+        await handler.HandleClickAsync(GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true),
+            AuthorId, "user5", new MessageCreateHandler.ChatClick("a1", false));
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>().Single().Result?.ToString(), Does.Contain("rejected"));
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
+            Assert.That(await accounts.WaitingAsync(ChatHost.DiscordDirect, asker), Is.Null, "Answered");
+        }
+    }
+
+    [Test]
+    public async Task HandleClickAsync_AClickTheChatRefuses_GivesConfirmAndCancelAgain_AsTheChangeStillWaits()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        DmHolds();
+        var handler = Handler(new ScriptedChatClient((TimeSpan.Zero, "Never")));
+        var accounts = new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<ChatAccounts>.Instance);
+        var asker = ChatLimits.Asker(new ToolCaller(user.Id, []), "");
+        await accounts.SaveWaitingAsync(ChatHost.DiscordDirect, asker, new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)",
+            [new ChatActionCall("r1", "call-1", "forfeit_season_match", "{\"seasonMatchID\":12}")]));
+        // Another reply of theirs under way: the yes waits for it
+        var (busy, _) = _limits.TryStart(asker);
+
+        using (busy)
+        {
+            await handler.HandleClickAsync(GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true),
+                AuthorId, "user5", new MessageCreateHandler.ChatClick("a1", true));
+        }
+
+        AssertNothingLogged();
+        var body = _discord.SentMessages().Single().Body;
+        var buttons = body.GetProperty("components")[0].GetProperty("components").EnumerateArray().Select(b => b.GetProperty("custom_id").GetString()).ToList();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(body.GetProperty("content").GetString(), Is.EqualTo(ChatLimits.Busy));
+            Assert.That(buttons, Is.EqualTo(ConfirmOrCancelA1));
+            Assert.That((await accounts.WaitingAsync(ChatHost.DiscordDirect, asker))?.Id, Is.EqualTo("a1"), "Still waits");
+        }
+    }
+
+    [Test]
+    public async Task HandleClickAsync_ANoChangeWaiting_SaysSo()
+    {
+        DmHolds();
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Never"));
+
+        await Handler(model).HandleClickAsync(GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true),
+            AuthorId, "user5", new MessageCreateHandler.ChatClick("gone", true));
+
+        AssertNothingLogged();
+        Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(GrifChat.NothingWaiting));
+    }
+
+    [Test]
+    public async Task HandleClickAsync_AFailure_IsLogged_NotThrown_AndAnErrorOnItsSpan()
+    {
+        using var spans = new ChatSpans();
+        System.Diagnostics.Activity? current = null;
+        _rest.GetMessagesAsync(20ul, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ =>
+        {
+            current = System.Diagnostics.Activity.Current;
+            throw new InvalidOperationException("Discord is down");
+        });
+
+        await Handler(new ScriptedChatClient((TimeSpan.Zero, "Never"))).HandleClickAsync(
+            GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true),
+            AuthorId, "user5", new MessageCreateHandler.ChatClick("a1", true));
+
+        var click = current is null ? null : ChatSpans.Ancestors(current).LastOrDefault() ?? current;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_logger.Entries.Single().Exception, Is.TypeOf<InvalidOperationException>());
+            Assert.That(click?.OperationName, Is.EqualTo(MessageCreateHandler.MessageSpanName));
+            Assert.That(click?.Status, Is.EqualTo(System.Diagnostics.ActivityStatusCode.Error));
+            Assert.That(click?.StatusDescription, Is.EqualTo(nameof(InvalidOperationException)));
         }
     }
 

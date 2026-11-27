@@ -120,3 +120,10 @@ Right-click a Discord user, Apps menu. They take the clicked user's linked site 
 | Profile | `/player profile` for the clicked user. They need a site account with a gamertag |
 | Pull games | `/player pull` for the clicked user's Xbox account. Player, Commissioner or Sysadmin |
 | Set gamertag | A modal asks for the gamertag, then sets it through `/setgamertag`'s service (the agents' `set_user_gamertag`), so the same rules refuse it. Sysadmin. As with `/setgamertag` for oneself, the user's account is used, the one signed in with their Discord, or a new one is made for them (a placeholder linked to them is merged into it); a forced change of a gamertag is the Edit User page |
+
+## Buttons in the chat's replies
+
+When the bot answers a message (a channel mention or a DM), its reply may carry buttons:
+
+- **Offered buttons.** The chat's `offer_button` tool adds a button under the reply that opens one of the bot's own flows: set the gamertag (a form), sign up for a season, set the signup details and times (a form), or join the matchmaking queue. A click is a new interaction, so the form opens as the first response, and the same handler as the announcement's button checks who clicked. The buttons come from the tool's own results, never from the reply's text, and a season's button is only for a season the asker may see whose signups are open.
+- **Confirm and Cancel.** In a DM, a reply that waits for the person's yes or no to a change has Confirm and Cancel buttons. A click answers as typing yes or no does (Confirm and Cancel go at once, so it is answered once; offered buttons stay); typing still works. A click refused for now (another reply under way, the month's limit) leaves the change waiting, and the refusal brings Confirm and Cancel again.

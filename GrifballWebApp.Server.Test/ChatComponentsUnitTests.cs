@@ -1,0 +1,42 @@
+using GrifballWebApp.Application.Chat;
+using GrifballWebApp.Infrastructure.Discord;
+using NetCord.Rest;
+
+namespace GrifballWebApp.Server.Test;
+
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class ChatComponentsUnitTests
+{
+    private static readonly string[] ConfirmAndCancel = ["chatconfirm:a1:yes", "chatconfirm:a1:no"];
+    private static readonly string[] JoinQueue = [DiscordButtonContants.JoinQueue];
+
+    private static string[] Ids(ActionRowProperties row) => [.. row.OfType<ButtonProperties>().Select(b => b.CustomId)];
+
+    [Test]
+    public void For_NothingToShow_IsNull()
+        => Assert.That(ChatComponents.For([], null), Is.Null);
+
+    [Test]
+    public void For_AWaitingChange_HasConfirmAndCancel_ThenTheOfferedButtons()
+    {
+        var waiting = new ChatAction("a1", "ollama", "forfeit_season_match()", []);
+
+        var rows = ChatComponents.For([new ChatButton(ChatButtonKind.JoinQueue, null)], waiting)!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(rows, Has.Count.EqualTo(2));
+            Assert.That(Ids(rows[0]), Is.EqualTo(ConfirmAndCancel));
+            Assert.That(Ids(rows[1]), Is.EqualTo(JoinQueue));
+        }
+    }
+
+    [TestCase(ChatButtonKind.SetGamertag, null, "set_gamertag")]
+    [TestCase(ChatButtonKind.SignupDetails, 7, "signupdetails:7")]
+    [TestCase(ChatButtonKind.Signup, 7, "signup:7")]
+    [TestCase(ChatButtonKind.JoinQueue, null, "join_queue")]
+    public void Describe_OpensTheBotsOwnFlow(ChatButtonKind kind, int? season, string customId)
+        => Assert.That(ChatComponents.Describe(new ChatButton(kind, season)).CustomId, Is.EqualTo(customId));
+}
