@@ -158,13 +158,15 @@ describe('createSpartanScene', () => {
     const canvas = document.createElement('canvas');
     const scene = await createSpartanScene(canvas);
 
+    const before = add.calls.count();
     await Promise.all([scene.show(triangle), scene.show(triangle)]);
-    expect(add).toHaveBeenCalledTimes(1);
+    const afterBoth = add.calls.count();
+    expect(afterBoth - before).toBe(1);
 
     const late = scene.show(triangle);
     scene.dispose();
     await late;
-    expect(add).toHaveBeenCalledTimes(1);
+    expect(add.calls.count()).toBe(afterBoth);
   }, 30000);
 
   it('refuses a model that is not one', async () => {
