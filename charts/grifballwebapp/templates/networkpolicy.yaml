@@ -790,6 +790,14 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
+# The Spartan render service (SpartanRender:BaseAddress, by default its Service in the cluster), on its port.
+- ports:
+    - protocol: TCP
+      port: 8080
+  {{- with $np.backend.spartanRenderTo }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- with $np.backend.extraEgress }}
 {{ toYaml . }}
 {{- end }}
