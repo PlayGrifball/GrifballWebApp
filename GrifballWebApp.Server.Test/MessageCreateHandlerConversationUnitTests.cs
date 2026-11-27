@@ -837,7 +837,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         {
             Assert.That(sent.GetProperty("content").GetString(), Is.EqualTo("Here you go:"));
             Assert.That(sent.TryGetProperty("attachments", out var files) ? files.GetArrayLength() : 0, Is.Zero);
-            Assert.That(await SavedReplies(), Is.EqualTo(new[] { "Here you go:" }));
+        Assert.That(saved.Single(), Is.EqualTo($"[Pictures shown with this reply: {players[0]}-halo-emblem.png]"));
         }
     }
 
