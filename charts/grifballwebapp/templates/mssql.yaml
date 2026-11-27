@@ -164,6 +164,7 @@ spec:
       {{- end }}
     spec:
       automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ $m.terminationGracePeriodSeconds }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -237,6 +238,16 @@ spec:
         - name: grif-mssql
           image: {{ include "grif.image" $m.image }}
           imagePullPolicy: {{ $m.image.pullPolicy }}
+          # The image's PID 1 is a shell script that ignores SIGTERM, so without this SQL Server is
+          # SIGKILLed after the grace period and recovers from its log on every start. SHUTDOWN
+          # checkpoints and stops it cleanly.
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - SQLCMDPASSWORD="$SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -b -Q "SHUTDOWN"
           ports:
             - name: sql
               containerPort: 1433
