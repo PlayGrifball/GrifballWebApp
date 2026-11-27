@@ -31,7 +31,7 @@ public class SpartanService(IApplicationDbContext context, ISpartanCatalogSource
 
     /// <summary>The names a render's files can have.</summary>
     public static readonly IReadOnlyList<string> FileNames =
-        ["stance-glb", "stance-body", "stance-head", "neutral-glb", "neutral-body", "neutral-head"];
+        ["glb", "stance-body", "stance-head", "neutral-body", "neutral-head"];
 
     public Task<SpartanCatalog?> Catalog(CancellationToken ct = default) => catalogs.Get(ct);
 

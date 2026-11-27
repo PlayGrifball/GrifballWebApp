@@ -60,10 +60,6 @@ export class JobsComponent {
 
   /** The job whose runs and schedule are shown. */
   readonly selectedKey = signal<JobKey | null>(null);
-  readonly selected = computed<JobDto | null>(() => {
-    const key = this.selectedKey();
-    return key ? this.jobs().find(j => j.group === key.group && j.name === key.name) ?? null : null;
-  });
   /** The chosen job's last runs; null until they are read. */
   readonly runs = this.store.runs;
   readonly runsFailed = this.store.runsFailed;
@@ -85,7 +81,12 @@ export class JobsComponent {
     return key?.group === job.group && key.name === job.name;
   }
 
+  /** Opens a job's details under its row; its Details button again closes them. */
   select(job: JobDto): void {
+    if (this.isSelected(job)) {
+      this.selectedKey.set(null);
+      return;
+    }
     this.selectedKey.set({ group: job.group, name: job.name });
     this.editInterval(job.intervalSeconds ?? job.defaultIntervalSeconds ?? 60);
   }

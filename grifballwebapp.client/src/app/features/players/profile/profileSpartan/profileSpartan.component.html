@@ -62,6 +62,9 @@
           @for (visor of c.visors; track visor) { <option [value]="visor">{{visor}}</option> }
         </select>
 
+        <label for="spartan-disable-damage">Clean armor</label>
+        <label class="spartan-check"><input id="spartan-disable-damage" type="checkbox" formControlName="disableDamage"> Leave off the damage and grime layer</label>
+
         <div class="spartan-actions">
           <button type="submit" class="hud-btn" [disabled]="!core() || busy()">Save</button>
           <button type="button" class="hud-btn" (click)="cancel()">Cancel</button>

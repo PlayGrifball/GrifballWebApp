@@ -8,7 +8,7 @@ import { ProfileSpartanStore } from './profileSpartan.store';
 const stateUrl = '/api/me/spartan';
 const profile: SpartanProfileDto = { choice: null, files: ['neutral-body'], hasEquippedSet: true, renderError: null, renderState: 'Done', renderedAt: '2026-11-20T10:00:00Z' };
 const catalog: SpartanCatalog = { coatings: ['Ash'], cores: [{ name: 'Mark VII', regions: [] }], pendingCores: [], visors: ['Mirror'] };
-const choice: SpartanChoice = { core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: null, visor: null };
+const choice: SpartanChoice = { core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: null, visor: null, disableDamage: false };
 const refused = [{ title: 'Refused', detail: 'No.' }, { status: 400, statusText: 'Bad Request', headers: { 'Content-Type': 'application/problem+json' } }] as const;
 
 describe('ProfileSpartanStore', () => {

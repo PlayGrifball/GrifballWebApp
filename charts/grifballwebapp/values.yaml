@@ -892,6 +892,8 @@ mssql:
   # With database.logins.app.nativeBackups: room for the Database Backup page's .bak, in an emptyDir at
   # /var/opt/grif-download (one at a time, each overwriting the last).
   downloadSizeLimit: 8Gi
+  # Time SQL Server gets to checkpoint and stop on a pod shutdown (a preStop SHUTDOWN) before it is killed.
+  terminationGracePeriodSeconds: 120
   persistence:
     existingClaim: ""
     claimName: mssql-data-pvc

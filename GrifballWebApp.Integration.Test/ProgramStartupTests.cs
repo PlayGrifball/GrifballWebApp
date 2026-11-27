@@ -94,6 +94,7 @@ public class ProgramStartupTests
         "GrifballWebApp.Server.Matchmaking.ModalInteractions",
         "GrifballWebApp.Server.Matchmaking.StringMenuInteractions",
         "GrifballWebApp.Server.Signups.ButtonInteractions",
+        "GrifballWebApp.Server.Signups.ModalInteractions",
         "GrifballWebApp.Server.Teams.StringMenuInteractions",
     ];
 

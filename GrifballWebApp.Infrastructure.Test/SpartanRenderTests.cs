@@ -97,10 +97,9 @@ public class SpartanRenderTests : SqliteContextFixture
             ? """{"id":"set1","state":"failed","items":[]}"""
             : """
               {"id":"set1","state":"done","items":[
-               {"name":"stance-glb","state":"done","output":"glb","url":"/sets/set1/stance-glb"},
+               {"name":"glb","state":"done","output":"glb","url":"/sets/set1/glb"},
                {"name":"stance-body","state":"done","output":"png","url":"/sets/set1/stance-body"},
                {"name":"stance-head","state":"done","output":"png","url":"/sets/set1/stance-head"},
-               {"name":"neutral-glb","state":"done","output":"glb","url":"/sets/set1/neutral-glb"},
                {"name":"neutral-body","state":"done","output":"png","url":"/sets/set1/neutral-body"},
                {"name":"neutral-head","state":"done","output":"png","url":"/sets/set1/neutral-head"}]}
               """;
@@ -219,11 +218,11 @@ public class SpartanRenderTests : SqliteContextFixture
 
         var render = await RenderOf(userId);
         var head = await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "neutral-head");
-        var glb = await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "neutral-glb");
+        var glb = await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "glb");
         using (Assert.EnterMultipleScope())
         {
             Assert.That((report.Done, report.Failed), Is.EqualTo((1, 0)));
-            Assert.That(await FileNamesOf(userId), Is.EqualTo(new List<string> { "neutral-body", "neutral-glb", "neutral-head" }));
+            Assert.That(await FileNamesOf(userId), Is.EqualTo(new List<string> { "glb", "neutral-body", "neutral-head" }));
             Assert.That((head.ContentType, Encoding.UTF8.GetString(head.Content)), Is.EqualTo(("image/png", "png-head")));
             Assert.That((glb.ContentType, Encoding.UTF8.GetString(glb.Content)), Is.EqualTo(("model/gltf-binary", "glb-body")));
             Assert.That((render.State, render.RenderedAt, render.Error), Is.EqualTo((UserSpartanRenderState.Done, Start.UtcDateTime, (string?)null)));
@@ -231,6 +230,19 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That(_service.Loadouts, Has.Count.EqualTo(3));
             Assert.That(_service.Loadouts[0], Does.Contain("\"core\":\"Mark VII\"").And.Contain("\"helmet\":\"Aviator\""));
         }
+    }
+
+    [Test]
+    public async Task TheDamageLayerIsLeftOff_UnlessTheUserKeepsIt()
+    {
+        await UserAsync(Choice);
+        await Source().RunAsync();
+        Assert.That(_service.Loadouts, Has.Count.EqualTo(3).And.All.Contain("\"disableDamage\":true"));
+
+        _service.Loadouts.Clear();
+        await UserAsync(Choice with { DisableDamage = false });
+        await Source().RunAsync();
+        Assert.That(_service.Loadouts, Has.Count.EqualTo(3).And.All.Contain("\"disableDamage\":false"));
     }
 
     [Test]
@@ -244,7 +256,7 @@ public class SpartanRenderTests : SqliteContextFixture
     }
 
     [Test]
-    public async Task AnEquippedSet_IsRenderedInItsStance_SixFilesFromTheSet()
+    public async Task AnEquippedSet_IsRenderedInItsStance_FiveFilesFromTheSet()
     {
         var (userId, xuid) = await UserAsync();
         await EquipAsync(xuid);
@@ -256,9 +268,9 @@ public class SpartanRenderTests : SqliteContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Done, Is.EqualTo(1));
-            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(6));
+            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(5));
             Assert.That(_service.Loadouts.Single(), Does.Contain("\"stance\":77").And.Contain("\"core\":\"Mark VII\""));
-            Assert.That((await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "stance-glb")).ContentType, Is.EqualTo("model/gltf-binary"));
+            Assert.That((await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "glb")).ContentType, Is.EqualTo("model/gltf-binary"));
             Assert.That((await RenderOf(userId)).State, Is.EqualTo(UserSpartanRenderState.Done));
         }
     }
@@ -275,7 +287,7 @@ public class SpartanRenderTests : SqliteContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(6));
+            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(5));
             Assert.That(_service.Loadouts.Single(), Does.Contain("\"helmet\":\"Aviator\"").And.Contain("\"stance\":77"));
         }
     }
@@ -338,6 +350,7 @@ public class SpartanRenderTests : SqliteContextFixture
         {
             Assert.That((report.Done, report.Failed), Is.EqualTo((0, 1)));
             Assert.That((render.State, render.Error), Is.EqualTo((UserSpartanRenderState.Failed, "No equipped Spartan is known for this account yet")));
+            Assert.That(report.Lines, Is.EqualTo(new[] { $"User (#{userId}): failed, No equipped Spartan is known for this account yet" }));
         }
     }
 
@@ -374,7 +387,7 @@ public class SpartanRenderTests : SqliteContextFixture
         {
             Assert.That((report.Marked, report.Done), Is.EqualTo((1, 1)));
             Assert.That((await RenderOf(userId)).State, Is.EqualTo(UserSpartanRenderState.Done));
-            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(6));
+            Assert.That(await FileNamesOf(userId), Has.Count.EqualTo(5));
         }
     }
 
@@ -464,7 +477,23 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That((render.State, render.RequestedAt), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime.AddMinutes(10))));
             Assert.That(await FileNamesOf(first), Is.Empty);
             Assert.That(await FileNamesOf(second), Has.Count.EqualTo(3));
+            Assert.That(report.Lines, Is.EquivalentTo(new[] { $"User (#{first}): will try again, The render could not be saved", $"User (#{second}): rendered" }));
         }
+    }
+
+    [Test]
+    public async Task TheReport_NamesTheUser_ByTheirDisplayName()
+    {
+        var user = User.Seed(userName: "alice-login", displayName: "Alice", xboxUser: XboxUser.FromXbox(990, "alicegt"));
+        Context.Users.Add(user);
+        await Context.SaveChangesAsync();
+        Context.UserSpartans.Add(new UserSpartan { UserId = user.Id, ChoiceJson = JsonSerializer.Serialize(Choice, SpartanService.Json), UpdatedAt = Start.UtcDateTime });
+        Context.UserSpartanRenders.Add(new UserSpartanRender { UserId = user.Id, State = UserSpartanRenderState.Requested, RequestedAt = Start.UtcDateTime.AddMinutes(-1) });
+        await Context.SaveChangesAsync();
+
+        var report = await Source().RunAsync();
+
+        Assert.That(report.Lines, Is.EqualTo(new[] { $"Alice (#{user.Id}): rendered" }));
     }
 
     [TestCase(HttpStatusCode.ServiceUnavailable)]
@@ -870,5 +899,53 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That((some.Result, some.Summary), Is.EqualTo((JobRunResult.Succeeded, "1 rendered, 1 failed")));
             Assert.That((all.Result, all.Summary), Is.EqualTo((JobRunResult.Succeeded, "1 rendered, 0 failed")));
         }
+    }
+
+    [Test]
+    public void TheReport_NamesWhoseRenderEachWas()
+    {
+        var report = Report(r =>
+        {
+            r.Waiting = 2;
+            r.Done = 1;
+            r.Failed = 1;
+            r.Lines.Add("Alice (#4): rendered");
+            r.Lines.Add("Bob (#9): failed, The render took too long");
+        });
+
+        Assert.That(report.Summary, Is.EqualTo("1 rendered, 1 failed. Alice (#4): rendered; Bob (#9): failed, The render took too long"));
+    }
+
+    [Test]
+    public void TheReport_CapsTheSummary_SoManyLongErrorsCannotMakeItHuge()
+    {
+        var report = Report(r =>
+        {
+            r.Waiting = 20;
+            r.Failed = 20;
+            for (var i = 0; i < 20; i++)
+                r.Lines.Add($"User (#{i}): failed, {new string('x', 500)}");
+        });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Summary, Has.Length.LessThanOrEqualTo(1000));
+            Assert.That(report.Summary, Does.StartWith("0 rendered, 20 failed. User (#0): failed, xxx").And.EndWith("…"));
+        }
+    }
+
+    [Test]
+    public void TheReport_CountsTheRendersToTryAgain_AndNamesThem()
+    {
+        var report = Report(r =>
+        {
+            r.Waiting = 2;
+            r.Done = 1;
+            r.Retrying = 1;
+            r.Lines.Add("Alice (#4): rendered");
+            r.Lines.Add("Bob (#9): will try again, The render service is not answering");
+        });
+
+        Assert.That(report.Summary, Is.EqualTo("1 rendered, 0 failed, 1 to try again. Alice (#4): rendered; Bob (#9): will try again, The render service is not answering"));
     }
 }

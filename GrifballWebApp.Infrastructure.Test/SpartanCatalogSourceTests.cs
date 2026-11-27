@@ -123,6 +123,33 @@ public class SpartanCatalogSourceTests
         Assert.That(seen.Single()!.GetLeftPart(UriPartial.Authority) + "/", Is.EqualTo(new Uri(expected).GetLeftPart(UriPartial.Authority) + "/"));
     }
 
+    [TestCase(null, null)]
+    [TestCase("", null)]
+    [TestCase("  render-key  ", "render-key")]
+    public async Task TheApiKey_IsSentAsTheCallersNameForTheRenderService_WhenSet(string? setting, string? expected)
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(
+            setting is null ? [] : new Dictionary<string, string?> { [SpartanRenderServiceExtensions.ApiKeyKey] = setting }).Build();
+        var keys = new List<string?>();
+        var services = new ServiceCollection().AddLogging().AddSpartanRender(config);
+        services.ConfigureHttpClientDefaults(b => b.ConfigurePrimaryHttpMessageHandler(() => new KeyRecorder(keys)));
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<ISpartanCatalogSource>().Get();
+
+        Assert.That(keys.Single(), Is.EqualTo(expected));
+    }
+
+    private sealed class KeyRecorder(List<string?> keys) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            keys.Add(request.Headers.TryGetValues("X-Api-Key", out var values) ? values.Single() : null);
+            return Task.FromResult(Ok());
+        }
+    }
+
     private sealed class Recorder(List<Uri?> seen) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

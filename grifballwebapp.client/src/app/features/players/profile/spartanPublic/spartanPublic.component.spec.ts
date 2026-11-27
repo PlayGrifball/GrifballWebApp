@@ -16,7 +16,7 @@ describe('SpartanPublicComponent', () => {
 
   beforeEach(() => {
     shown = [];
-    const scene: SpartanScene = { show: async url => { shown.push(url); }, dispose: () => undefined };
+    const scene: SpartanScene = { show: async url => { shown.push(url); }, play: () => undefined, dispose: () => undefined };
     TestBed.configureTestingModule({
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: SPARTAN_SCENE, useValue: async () => scene }],
     });
@@ -37,9 +37,9 @@ describe('SpartanPublicComponent', () => {
   }
 
   it('shows another user\'s Spartan in 3D, without signing in as them', async () => {
-    await answer(profile({ files: ['neutral-body', 'neutral-glb'] }));
+    await answer(profile({ files: ['neutral-body', 'glb'] }));
     expect((fixture.nativeElement as HTMLElement).querySelector('img')!.getAttribute('src')).toBe('/api/users/1014/spartan/neutral-body');
-    expect(shown).toEqual(['/api/users/1014/spartan/neutral-glb']);
+    expect(shown).toEqual(['/api/users/1014/spartan/glb']);
   });
 
   it('shows nothing for a user who has not rendered', async () => {

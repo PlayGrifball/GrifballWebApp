@@ -35,6 +35,10 @@ internal static class DiscordInteractionJson
     public static JsonInteraction UserCommand(string name, ulong targetId, ulong userId) =>
         Parse(Envelope(2, $$$"""{"id":"9","name":"{{{name}}}","type":2,"target_id":"{{{targetId}}}","resolved":{"users":{"{{{targetId}}}":{"id":"{{{targetId}}}","username":"t","discriminator":"0"} } } }""", userId, "u"));
 
+    /// <summary>A submit of modal <paramref name="customId"/> with <paramref name="components"/> (a JSON array) as Discord sends them.</summary>
+    public static JsonInteraction ModalWith(string customId, string components, ulong userId) =>
+        Parse(Envelope(5, $$$"""{"custom_id":"{{{customId}}}","components":{{{components}}}}""", userId, "u"));
+
     /// <summary>Slash command <paramref name="name"/> (command id 9) with no options.</summary>
     public static JsonInteraction SlashCommand(string name, ulong userId) => SlashCommand(name, userId, "u");
 

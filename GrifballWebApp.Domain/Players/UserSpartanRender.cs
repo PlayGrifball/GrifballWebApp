@@ -33,7 +33,7 @@ public enum UserSpartanRenderState
     Failed = 4,
 }
 
-/// <summary>One file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.</summary>
+/// <summary>One file of a user's rendered Spartan: glb (one model with the neutral and stance poses as clips), stance-body, stance-head, neutral-body or neutral-head.</summary>
 public class UserSpartanFile
 {
     public const int MaxNameLength = 40;

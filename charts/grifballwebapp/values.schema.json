@@ -628,6 +628,7 @@
           "properties": { "secretName": { "type": "string" } }
         },
         "downloadSizeLimit": { "type": ["string", "integer"] },
+        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 30 },
         "service": {
           "type": "object",
           "additionalProperties": false,

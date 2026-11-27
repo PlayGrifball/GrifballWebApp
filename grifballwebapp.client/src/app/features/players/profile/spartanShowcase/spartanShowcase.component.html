@@ -4,10 +4,10 @@
     @if (hasFile('stance-body')) { <img [src]="fileUrl('stance-body')" [alt]="name() + ' in their stance'" width="350" height="500"> }
     @if (hasFile('neutral-head')) { <img [src]="fileUrl('neutral-head')" [alt]="name() + '\'s helmet'" width="350" height="500"> }
   </div>
-  @if (modelName(); as model) {
+  @if (hasFile('glb')) {
     <div class="spartan-model">
-      <app-spartan-viewer [url]="fileUrl(model)" [label]="name() + ' in 3D'" />
-      @if (hasFile('stance-glb') && hasFile('neutral-glb')) {
+      <app-spartan-viewer [url]="fileUrl('glb')" [clip]="pose()" [label]="name() + ' in 3D'" />
+      @if (hasFile('stance-body')) {
         <div class="spartan-actions" role="group" aria-label="Pose of the 3D model">
           <button type="button" class="hud-btn" [attr.aria-pressed]="pose() === 'neutral'" (click)="pose.set('neutral')">Neutral pose</button>
           <button type="button" class="hud-btn" [attr.aria-pressed]="pose() === 'stance'" (click)="pose.set('stance')">In stance</button>

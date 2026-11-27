@@ -94,3 +94,24 @@ tests:
       - equal: { path: spec.template.spec.nodeSelector, value: { kubernetes.io/arch: amd64 } }
       - matchRegex: { path: "spec.template.spec.initContainers[0].image", pattern: '^docker\.io/library/busybox:1\.38@sha256:[0-9a-f]{64}$' }
       - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: '^mcr\.microsoft\.com/mssql/server:2025-latest@sha256:[0-9a-f]{64}$' }
+
+  - it: shuts SQL Server down cleanly on a pod stop
+    set:
+      mssql.acceptEula: true
+    documentIndex: 3
+    asserts:
+      - equal: { path: spec.template.spec.terminationGracePeriodSeconds, value: 120 }
+      - matchRegex:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[2]
+          pattern: sqlcmd .*-Q "SHUTDOWN"
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[2]
+          pattern: ' -P '
+
+  - it: takes the grace period from values
+    set:
+      mssql.acceptEula: true
+      mssql.terminationGracePeriodSeconds: 300
+    documentIndex: 3
+    asserts:
+      - equal: { path: spec.template.spec.terminationGracePeriodSeconds, value: 300 }
