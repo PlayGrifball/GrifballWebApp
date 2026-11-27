@@ -1,5 +1,7 @@
 using DiscordInterface.Generated;
+using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Seasons;
+using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -240,17 +242,60 @@ public class CommandLookups
     public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonMatchChoices(string? input, SeasonViewer viewer = SeasonViewer.Public,
         CancellationToken ct = default)
     {
+        var matches = MatchesNamed(input, viewer)
+            .OrderByDescending(x => x.SeasonID)
+            .ThenBy(x => x.ScheduledTime);
+        return await MatchChoices(matches, ct);
+    }
+
+    /// <summary>
+    /// The matches /reschedule request can ask about, with a team whose name has <paramref name="input"/>: both teams set and no result yet.
+    /// A player's are the ones on their teams' rosters, as <see cref="GrifballWebApp.Application.Reschedule.RescheduleRules"/> allows; an
+    /// organizer (who may ask about any) gets their own first, then the rest. None for someone with no account.
+    /// </summary>
+    public async Task<List<ApplicationCommandOptionChoiceProperties>> RescheduleMatchChoices(string? input, ToolCaller caller, CancellationToken ct = default)
+    {
+        if (caller.UserID is not int userID)
+            return [];
+        var teams = await _context.Teams.Rosters().Where(tp => tp.UserID == userID).Select(tp => tp.TeamID).ToListAsync(ct);
+        var organizer = caller.IsInAnyRole(GrifballWebApp.Application.Reschedule.RescheduleRules.OrganizerRoles);
+        var open = MatchesNamed(input, SeasonViewer.Public)
+            .Where(GrifballWebApp.Domain.League.SeasonMatch.Undecided)
+            .Where(x => x.HomeTeamID != null && x.AwayTeamID != null);
+        if (!organizer)
+            open = open.Where(x => teams.Contains(x.HomeTeamID!.Value) || teams.Contains(x.AwayTeamID!.Value));
+        var matches = open
+            .OrderByDescending(x => teams.Contains(x.HomeTeamID!.Value) || teams.Contains(x.AwayTeamID!.Value))
+            .ThenByDescending(x => x.SeasonID)
+            .ThenBy(x => x.ScheduledTime);
+        return await MatchChoices(matches, ct);
+    }
+
+    /// <summary>Season matches with a team whose name has <paramref name="input"/>, of the seasons <paramref name="viewer"/> sees.</summary>
+    private IQueryable<GrifballWebApp.Domain.League.SeasonMatch> MatchesNamed(string? input, SeasonViewer viewer)
+    {
         var name = (input ?? "").Trim();
         var seasons = Visible(viewer);
-        var matches = await _context.SeasonMatches
-            .Where(x => (x.HomeTeam!.TeamName.Contains(name) || x.AwayTeam!.TeamName.Contains(name)) && seasons.Any(s => s.SeasonID == x.SeasonID))
-            .OrderByDescending(x => x.SeasonID)
-            .ThenBy(x => x.ScheduledTime)
+        return _context.SeasonMatches
+            .Where(x => (x.HomeTeam!.TeamName.Contains(name) || x.AwayTeam!.TeamName.Contains(name)) && seasons.Any(s => s.SeasonID == x.SeasonID));
+    }
+
+    /// <summary>The first matches of <paramref name="matches"/> as choices: "Home vs Away (Season)", the match's ID their value.</summary>
+    private static async Task<List<ApplicationCommandOptionChoiceProperties>> MatchChoices(IQueryable<GrifballWebApp.Domain.League.SeasonMatch> matches, CancellationToken ct)
+    {
+        var found = await matches
             .Take(MaxChoices)
             .Select(x => new { x.SeasonMatchID, Home = x.HomeTeam!.TeamName, Away = x.AwayTeam!.TeamName, x.Season.SeasonName })
             .ToListAsync(ct);
-        return matches.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName($"{x.Home ?? "TBD"} vs {x.Away ?? "TBD"} ({x.SeasonName})"), ChoiceValue(x.SeasonMatchID))).ToList();
+        return found.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName($"{x.Home ?? "TBD"} vs {x.Away ?? "TBD"} ({x.SeasonName})"), ChoiceValue(x.SeasonMatchID))).ToList();
     }
+
+    /// <summary>The UTC form a time is shown in to be typed back (<see cref="TryParseUtc"/> reads it).</summary>
+    public const string UtcFormat = "yyyy-MM-dd HH:mm";
+
+    /// <summary>The match's scheduled time, if it has one.</summary>
+    public Task<DateTime?> ScheduledTime(int seasonMatchID, CancellationToken ct = default)
+        => _context.SeasonMatches.Where(x => x.SeasonMatchID == seasonMatchID).Select(x => x.ScheduledTime).FirstOrDefaultAsync(ct);
 
     /// <summary>A time typed in UTC (2026-11-20 20:00, or any invariant date and time): Discord has no date option.</summary>
     public static bool TryParseUtc(string input, out DateTime utc)
@@ -315,6 +360,22 @@ public class SeasonMatchAutocomplete : IAutocompleteProvider<AutocompleteInterac
     public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
         AutocompleteInteractionContext context)
         => await _lookups.SeasonMatchChoices(option.Value);
+}
+
+/// <summary>The choices for /reschedule request's match option: <see cref="CommandLookups.RescheduleMatchChoices"/> for the one asking.</summary>
+public class RescheduleMatchAutocomplete : IAutocompleteProvider<AutocompleteInteractionContext>
+{
+    private readonly CommandLookups _lookups;
+    private readonly DiscordCaller _caller;
+    public RescheduleMatchAutocomplete(CommandLookups lookups, DiscordCaller caller)
+    {
+        _lookups = lookups;
+        _caller = caller;
+    }
+
+    public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
+        AutocompleteInteractionContext context)
+        => await _lookups.RescheduleMatchChoices(option.Value, await _caller.AsToolCaller(context.User.Id));
 }
 
 /// <summary>

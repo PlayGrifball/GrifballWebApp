@@ -389,7 +389,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         await Db.SaveChangesAsync();
         var (discord, _) = await Caller(DiscordCaller.Roles.Sysadmin);
         var handler = await Handler();
-        await handler.DecideClaim(new CommandContextRecorder(discordUserId: 42).Context, claim.GamertagClaimID, approve: false, null);
+        await handler.DecideClaim(new CommandContextRecorder(discordUserId: 42).Context, claim.GamertagClaimID, approve: false, "Not theirs");
 
         var refusal = await Assert.ThrowsAsync<GamertagClaimException>(() => handler.DecideClaim(discord.Context, claim.GamertagClaimID, approve: true, null));
 
@@ -416,5 +416,65 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         Assert.That(discord.Embed().Description, Is.EqualTo(
             $"Recommendation #{recommendation.ScheduleRecommendationID}, not applied\n\n" +
             $"<t:{new DateTimeOffset(sooner).ToUnixTimeSeconds()}> · Home vs Away\n<t:{new DateTimeOffset(later).ToUnixTimeSeconds()}> · Away vs Home"));
+    }
+
+    /// <summary>What modal <paramref name="modal"/>'s text input <paramref name="input"/> starts with.</summary>
+    private static string? Typed(NetCord.Rest.ModalProperties modal, string input)
+        => modal.Components.OfType<NetCord.Rest.LabelProperties>().Select(l => l.Component).OfType<NetCord.Rest.TextInputProperties>().Single(t => t.CustomId == input).Value;
+
+    [Test]
+    public async Task TheMatchModals_OpenForTheMatch_WithItsTimeAndTheReplacedGameFilledIn()
+    {
+        var (time, _) = await Caller(DiscordCaller.Roles.Commissioner);
+        var report = new CommandContextRecorder(discordUserId: 42);
+        var season = await AddSeason("Winter");
+        var match = SeasonMatch.Seed(season.SeasonID, (await AddTeam(season, "Home")).TeamID, (await AddTeam(season, "Away")).TeamID,
+            scheduledTime: new DateTime(2030, 1, 2, 20, 0, 0, DateTimeKind.Utc));
+        Db.SeasonMatches.Add(match);
+        await Db.SaveChangesAsync();
+        var handler = await Handler();
+
+        await handler.SetTime(time.Context, match.SeasonMatchID.ToString(), null);
+        await handler.ReportGame(report.Context, match.SeasonMatchID.ToString(), null, 2);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(time.Modal().CustomId, Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordModalsContants.MatchTimeWithParams(match.SeasonMatchID)));
+            Assert.That(Typed(time.Modal(), AdminCommandsHandler.TimeInput), Is.EqualTo("2030-01-02 20:00"), "the time it has now, to change");
+            Assert.That(report.Modal().CustomId, Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordModalsContants.MatchReportWithParams(match.SeasonMatchID)));
+            Assert.That(Typed(report.Modal(), AdminCommandsHandler.ReplacesInput), Is.EqualTo("2"), "as typed with the command");
+            Assert.That(Typed(report.Modal(), AdminCommandsHandler.GameIdInput), Is.Null);
+        }
+    }
+
+    [Test]
+    public async Task TheModals_AreRefusedToOthers_AndToAnUnknownMatch_BeforeOneOpens()
+    {
+        var (player, _) = await Caller(DiscordCaller.Roles.Player);
+        var rejecting = new CommandContextRecorder(discordUserId: 42);
+        await AddUser(43, "Commish", DiscordCaller.Roles.Commissioner);
+        var unknown = new CommandContextRecorder(discordUserId: 43);
+        var handler = await Handler();
+
+        await handler.SetTime(player.Context, "1", null);
+        await handler.DecideClaim(rejecting.Context, 5, approve: false, null);
+        await handler.ReportGame(unknown.Context, "424242", null, null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(player.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.CommissionerOnly)));
+            Assert.That(rejecting.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.SysadminOnly)));
+            Assert.That(unknown.Message().Content, Is.EqualTo(CommandLookups.NoSuchMatch));
+        }
+    }
+
+    [Test]
+    public async Task RejectingAClaimWithNoReason_OpensItsModal_ForASysadmin()
+    {
+        var (sysadmin, _) = await Caller(DiscordCaller.Roles.Sysadmin);
+
+        await (await Handler()).DecideClaim(sysadmin.Context, 5, approve: false, null);
+
+        Assert.That(sysadmin.Modal().CustomId, Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordModalsContants.ClaimRejectWithParams(5)));
     }
 }

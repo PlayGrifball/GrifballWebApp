@@ -73,6 +73,7 @@ public class RescheduleSuggestionsTests
             Assert.That(all[0].Name, Does.Contain("Mon 1 Jun").And.Contain("8:00 PM ET").And.Contain("4 and 4 players"));
             Assert.That(all[2].Name, Does.Contain("⚠"));
             Assert.That(typed.Select(c => c.StringValue), Is.EqualTo(TheSecondTuesday));
+            Assert.That(await _suggestions.BestTime(_s.Match.SeasonMatchID), Is.EqualTo(all[0].StringValue), "what the request form starts with");
         }
     }
 
@@ -89,6 +90,7 @@ public class RescheduleSuggestionsTests
         {
             Assert.That(_discord.Content(), Does.StartWith("I have no time to suggest for that match"));
             Assert.That(await _suggestions.TimeChoices(tbd.SeasonMatchID.ToString(), null), Is.Empty);
+            Assert.That(await _suggestions.BestTime(tbd.SeasonMatchID), Is.Null);
         }
     }
 
@@ -99,6 +101,7 @@ public class RescheduleSuggestionsTests
         {
             Assert.That(await _suggestions.TimeChoices(null, null), Is.Empty);
             Assert.That(await _suggestions.TimeChoices("999999", null), Is.Empty);
+            Assert.That(await _suggestions.BestTime(999999), Is.Null);
         }
     }
 }

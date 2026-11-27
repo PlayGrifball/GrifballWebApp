@@ -19,6 +19,8 @@ using LabelProperties = NetCord.Rest.LabelProperties;
 using ModalProperties = NetCord.Rest.ModalProperties;
 using RadioGroupOptionProperties = NetCord.Rest.RadioGroupOptionProperties;
 using RadioGroupProperties = NetCord.Rest.RadioGroupProperties;
+using TextInputProperties = NetCord.Rest.TextInputProperties;
+using TextInputStyle = NetCord.Rest.TextInputStyle;
 
 namespace GrifballWebApp.Server.Commands;
 
@@ -32,6 +34,10 @@ public class PersonalCommandsHandler
 {
     public const string NoSuchRegion = "I found no such region.";
     public const string RegionInput = "region";
+    public const string ReasonInput = "reason";
+    public const string NewTimeInput = "new_time";
+    private const int ReasonMaxLength = 1000;
+    private const int NewTimeMaxLength = 100;
     private const int RadioGroupLimit = 10;
 
     private readonly DiscordCaller _caller;
@@ -47,11 +53,13 @@ public class PersonalCommandsHandler
     private readonly RescheduleService _reschedules;
     private readonly UrlService _urls;
     private readonly SignupButtonHandler _signupModal;
+    private readonly RescheduleSuggestions _suggestions;
 
     public PersonalCommandsHandler(DiscordCaller caller, CommandLookups lookups, QueueMembership membership, IQueueRepository queue,
         MatchmakingButtonHandler queueButtons, RegionService regions, UserGamertagClaimService claims, SignupsService signups, SeasonService seasons,
-        AvailabilityService availability, RescheduleService reschedules, UrlService urls, SignupButtonHandler signupModal)
+        AvailabilityService availability, RescheduleService reschedules, UrlService urls, SignupButtonHandler signupModal, RescheduleSuggestions suggestions)
     {
+        _suggestions = suggestions;
         _caller = caller;
         _lookups = lookups;
         _membership = membership;
@@ -280,9 +288,16 @@ public class PersonalCommandsHandler
     /// <summary>
     /// Asks to move a season match, as the site's request form does: the service decides who may (a player on either
     /// team, or a commissioner) and whether the match can be moved; its refusals are the reply (DiscordInteractionPipeline).
+    /// With no reason given, the request modal asks for it, and for the time.
     /// </summary>
-    public async Task RequestReschedule(IDiscordInteractionContext context, string match, string reason, string? newTime)
+    public async Task RequestReschedule(IDiscordInteractionContext context, string match, string? reason, string? newTime)
     {
+        if (reason is null)
+        {
+            await OpenRescheduleModal(context, match, newTime);
+            return;
+        }
+
         await context.Defer(ephemeral: true);
         if (await _caller.Require(context, DiscordCaller.Roles.Anyone) is not { } caller
             || await _lookups.SeasonMatchFor(context, match) is not int seasonMatchID)
@@ -303,4 +318,40 @@ public class PersonalCommandsHandler
 
         await context.Reply($"Your reschedule request is in{(when is { } w ? $", for {w.DiscordTimeEmbed()}" : "")}. A commissioner will decide it.");
     }
+
+    /// <summary>
+    /// The request modal, the first response: the match is looked up first and travels as its ID. Its time starts as the one typed,
+    /// else the match's best time (<see cref="RescheduleSuggestions.BestTime"/>), for the player to keep, change or clear.
+    /// </summary>
+    private async Task OpenRescheduleModal(IDiscordInteractionContext context, string match, string? newTime)
+    {
+        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.Anyone) is null)
+            return;
+        if (await _lookups.SeasonMatch(match) is not int seasonMatchID)
+        {
+            await context.EphemeralResponse(CommandLookups.NoSuchMatch);
+            return;
+        }
+        var time = newTime ?? await _suggestions.BestTime(seasonMatchID);
+        var modal = new ModalProperties(DiscordModalsContants.RescheduleRequestWithParams(seasonMatchID), "Reschedule request")
+        {
+            new LabelProperties("Why it needs to move", new TextInputProperties(ReasonInput, TextInputStyle.Paragraph)
+            {
+                Required = true,
+                MaxLength = ReasonMaxLength,
+            }),
+            new LabelProperties("New time (UTC, like 2026-11-20 20:00)", new TextInputProperties(NewTimeInput, TextInputStyle.Short)
+            {
+                Required = false,
+                MaxLength = NewTimeMaxLength,
+                Value = time?[..Math.Min(time.Length, NewTimeMaxLength)],
+            }),
+        };
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+    /// <summary>The request modal's answers, asked as the command asks them (its reason is required there, so always given).</summary>
+    public Task SaveRescheduleRequest(IDiscordModalInteractionContext context, int seasonMatchID)
+        => RequestReschedule(context, CommandLookups.ChoicePrefix + seasonMatchID, ModalAnswers.Text(context.Components, ReasonInput)!,
+            ModalAnswers.Text(context.Components, NewTimeInput));
 }

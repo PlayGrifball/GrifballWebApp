@@ -79,6 +79,8 @@ public class ProgramStartupTests
         "GrifballWebApp.Server.Commands.QueueCommands",
         "GrifballWebApp.Server.Commands.RegionAutocomplete",
         "GrifballWebApp.Server.Commands.RegionModalInteractions",
+        "GrifballWebApp.Server.Commands.RescheduleMatchAutocomplete",
+        "GrifballWebApp.Server.Commands.RescheduleModalInteractions",
         "GrifballWebApp.Server.Commands.RescheduleCommands",
         "GrifballWebApp.Server.Commands.RescheduleTimeAutocomplete",
         "GrifballWebApp.Server.Commands.SeasonAutocomplete",

@@ -174,6 +174,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
         var seasonMatches = new SeasonMatchService(Db, dataPull, brackets, new ChampionshipService(Db));
         var teams = new TeamService(Db, Substitute.For<IDatabaseLocks>());
         var reschedules = new RescheduleService(Db, Substitute.For<IOutbox>());
+        var suggestions = new RescheduleSuggestions(lookups, new GrifballWebApp.Application.Scheduling.SchedulingService(Db, _time));
         var signups = new SignupsService(Db, _time);
         var vods = new VodService(Db, null!, MsOptions.Create(new YouTubeOptions()), null!);
         var leaderboards = new LeaderboardsService(Db, stats, new MatchmakingStatsService(Db), Substitute.For<IDistributedCache>(), new RecordingLogger<LeaderboardsService>());
@@ -193,8 +194,8 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(admin)
             .AddSingleton(new PersonalCommandsHandler(caller, lookups, membership, queue, null!, new RegionService(Db),
                 new UserGamertagClaimService(Db, new GamertagMatching(Db), _time, MsOptions.Create(new UserClaimOptions())), signups, seasons,
-                new AvailabilityService(Db), reschedules, urls, new SignupButtonHandler(Db, signups, urls)))
-            .AddSingleton(new RescheduleSuggestions(lookups, new GrifballWebApp.Application.Scheduling.SchedulingService(Db, _time)))
+                new AvailabilityService(Db), reschedules, urls, new SignupButtonHandler(Db, signups, urls), suggestions))
+            .AddSingleton(suggestions)
             .AddSingleton(new BrowseCommandsHandler(leaderboards, new MatchmakingStatsService(Db), new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), lookups, urls))
             .AddSingleton(new SeasonCommandsHandler(lookups, seasons, new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db), signups, brackets, urls))
             .AddSingleton(new PlayerCommandsHandler(lookups, caller, new ProfileStatsService(Db, stats, new MatchmakingStatsService(Db)), new ProfileCommendationsService(Db),

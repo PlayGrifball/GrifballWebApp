@@ -44,7 +44,7 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
         [SubSlashCommand("report", "Report a Halo game as one of the match's")]
         public Task Report(
             [SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(StaffSeasonMatchAutocomplete))] string match,
-            [SlashCommandParameter(Name = "match_id", Description = "The game's Halo match ID")] string gameID,
+            [SlashCommandParameter(Name = "match_id", Description = "The game's Halo match ID (default: asked in a form)")] string? gameID = null,
             [SlashCommandParameter(Description = "The series game it replaces (default: none)")] int replaces = 0)
             => _handler.ReportGame(Context.ToDiscordContext(), match, gameID, replaces > 0 ? replaces : null);
 
@@ -61,7 +61,7 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
         [SubSlashCommand("time", "Schedule the match")]
         public Task Time(
             [SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(StaffSeasonMatchAutocomplete))] string match,
-            [SlashCommandParameter(Description = "The time in UTC, like 2026-11-20 20:00")] string time)
+            [SlashCommandParameter(Description = "The time in UTC, like 2026-11-20 20:00 (default: asked in a form)")] string? time = null)
             => _handler.SetTime(Context.ToDiscordContext(), match, time);
     }
 
@@ -209,7 +209,7 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
         [SubSlashCommand("reject", "Reject a claim")]
         public Task Reject(
             [SlashCommandParameter(Description = ClaimDescription)] int claim,
-            [SlashCommandParameter(Description = "Why, for the claimant")] string? reason = null)
+            [SlashCommandParameter(Description = "Why, for the claimant (default: asked in a form)")] string? reason = null)
             => _handler.DecideClaim(Context.ToDiscordContext(), claim, approve: false, reason);
     }
 }

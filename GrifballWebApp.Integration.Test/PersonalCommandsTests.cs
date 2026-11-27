@@ -53,7 +53,7 @@ public class PersonalCommandsTests
         var claims = new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Options.Create(new UserClaimOptions()));
         _handler = new PersonalCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new QueueMembership(queue, _context),
             queue, buttons, new RegionService(_context), claims, new SignupsService(_context), seasons, new AvailabilityService(_context),
-            new RescheduleService(_context, new ContextOutbox(_context)), urls, new SignupButtonHandler(_context, new SignupsService(_context), urls));
+            new RescheduleService(_context, new ContextOutbox(_context)), urls, new SignupButtonHandler(_context, new SignupsService(_context), urls), null!);
 
         _me = await _context.AddUser("me", gamertag: "MeGT", discordName: "me");
         _discord = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);

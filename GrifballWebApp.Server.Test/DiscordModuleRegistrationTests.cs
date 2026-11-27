@@ -38,9 +38,13 @@ public class DiscordModuleRegistrationTests
     private static readonly string[] Modals =
     [
         "bracket_create(Int32 seasonId, Int32 participants, Int32 bestOf) preconditions: 0",
+        "claim_reject(Int32 claim) preconditions: 0",
         "job_pause(String job) preconditions: 0",
         "match_pull(Int32 matchId) preconditions: 0",
+        "match_report(Int32 matchId) preconditions: 0",
+        "match_time(Int32 matchId) preconditions: 0",
         "reschedule_decide(Int32 request) preconditions: 0",
+        "reschedule_request(Int32 matchId) preconditions: 0",
         "set_gamertag() preconditions: 0",
         "set_gamertag_for(UInt64 targetDiscordUserId, String targetUsername) preconditions: 0",
         "set_region() preconditions: 0",
@@ -133,7 +137,7 @@ public class DiscordModuleRegistrationTests
             "/admin claims list \"Pending claims\" permissions: default, preconditions: 0",
             "/admin claims reject \"Reject a claim\" permissions: default, preconditions: 0"
                 + " [claim: Int32 \"The claim's number\" autocomplete: none, preconditions: 0]"
-                + " [reason: String = null \"Why, for the claimant\" autocomplete: none, preconditions: 0]",
+                + " [reason: String = null \"Why, for the claimant (default: asked in a form)\" autocomplete: none, preconditions: 0]",
             "/admin dashboard \"Pending reschedules and overdue matches, counted\" permissions: default, preconditions: 0",
             "/admin draft lock \"Lock the captains\" permissions: default, preconditions: 0"
                 + " [season: String = null \"The season (default: the next to start)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]",
@@ -152,11 +156,11 @@ public class DiscordModuleRegistrationTests
                 + " [side: ForfeitSide \"Who forfeits\" autocomplete: none, preconditions: 0]",
             "/admin match report \"Report a Halo game as one of the match's\" permissions: default, preconditions: 0"
                 + " [match: String \"The match (search by team)\" autocomplete: StaffSeasonMatchAutocomplete, preconditions: 0]"
-                + " [match_id: String \"The game's Halo match ID\" autocomplete: none, preconditions: 0]"
+                + " [match_id: String = null \"The game's Halo match ID (default: asked in a form)\" autocomplete: none, preconditions: 0]"
                 + " [replaces: Int32 = 0 \"The series game it replaces (default: none)\" autocomplete: none, preconditions: 0]",
             "/admin match time \"Schedule the match\" permissions: default, preconditions: 0"
                 + " [match: String \"The match (search by team)\" autocomplete: StaffSeasonMatchAutocomplete, preconditions: 0]"
-                + " [time: String \"The time in UTC, like 2026-11-20 20:00\" autocomplete: none, preconditions: 0]",
+                + " [time: String = null \"The time in UTC, like 2026-11-20 20:00 (default: asked in a form)\" autocomplete: none, preconditions: 0]",
             "/admin match undo \"Undo the match's result\" permissions: default, preconditions: 0"
                 + " [match: String \"The match (search by team)\" autocomplete: StaffSeasonMatchAutocomplete, preconditions: 0]",
             "/admin medals \"Refresh the Halo medals\" permissions: default, preconditions: 0",
@@ -221,8 +225,8 @@ public class DiscordModuleRegistrationTests
                 + " [notes: String = null \"Notes for the players\" autocomplete: none, preconditions: 0]",
             "/reschedule pending \"Requests waiting for a decision (staff)\" permissions: default, preconditions: 0",
             "/reschedule request \"Ask to move one of your matches\" permissions: default, preconditions: 0"
-                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
-                + " [reason: String \"Why it needs to move\" autocomplete: none, preconditions: 0]"
+                + " [match: String \"Your match (search by team)\" autocomplete: RescheduleMatchAutocomplete, preconditions: 0]"
+                + " [reason: String = null \"Why it needs to move (default: asked in a form)\" autocomplete: none, preconditions: 0]"
                 + " [new_time: String = null \"Pick a suggested time, or type one in UTC like 2026-11-20 20:00\" autocomplete: RescheduleTimeAutocomplete, preconditions: 0]",
             "/reschedule suggest \"The best times for a match, from its season's timeslots\" permissions: default, preconditions: 0"
                 + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]",

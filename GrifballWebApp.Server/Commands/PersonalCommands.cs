@@ -121,8 +121,8 @@ public class RescheduleCommands : ApplicationCommandModule<ApplicationCommandCon
 
     [SubSlashCommand("request", "Ask to move one of your matches")]
     public Task Request(
-        [SlashCommandParameter(Description = "The match (search by team)", AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match,
-        [SlashCommandParameter(Description = "Why it needs to move")] string reason,
+        [SlashCommandParameter(Description = "Your match (search by team)", AutocompleteProviderType = typeof(RescheduleMatchAutocomplete))] string match,
+        [SlashCommandParameter(Description = "Why it needs to move (default: asked in a form)")] string? reason = null,
         [SlashCommandParameter(Name = "new_time", Description = "Pick a suggested time, or type one in UTC like 2026-11-20 20:00",
             AutocompleteProviderType = typeof(RescheduleTimeAutocomplete))] string? newTime = null)
         => _handler.RequestReschedule(Context.ToDiscordContext(), match, reason, newTime);
