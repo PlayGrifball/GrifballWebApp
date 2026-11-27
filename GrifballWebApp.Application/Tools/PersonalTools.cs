@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GrifballWebApp.Application.Tools;
 
 /// <summary>The Late League queue: its size, and where the caller stands (null when they have no site account).</summary>
-public sealed record QueueStatusDto(int PlayersInQueue, bool? YouAreInQueue, bool? YouAreInAMatch);
+public sealed record LateLeagueQueueDto(int PlayersInQueue, bool? YouAreInQueue, bool? YouAreInAMatch);
 
 /// <summary>One of the caller's gamertag claims: the gamertag, how it stands, and why it was rejected if it was.</summary>
 public sealed record MyClaimDto(string Gamertag, string Status, string? RejectionReason);
@@ -37,7 +37,7 @@ public class PersonalTools
     }
 
     [Description("The Late League matchmaking queue: how many players are in it, and whether you are in it or in a match (null when you have no site account).")]
-    public async Task<QueueStatusDto> GetQueueStatus(CancellationToken ct = default)
+    public async Task<LateLeagueQueueDto> GetQueueStatus(CancellationToken ct = default)
     {
         if (_caller.UserID is int id && await _queue.PlayerState(id, ct) is { } you)
             return new(you.QueueCount, you.InQueue, you.InMatch);

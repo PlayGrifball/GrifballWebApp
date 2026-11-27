@@ -107,6 +107,9 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddTransient<GrifballWebApp.Application.MatchPlanner.MatchPlannerService>()
             .AddTransient<GrifballWebApp.Application.Grades.GradesService>()
             .AddTransient<GrifballWebApp.Application.Signups.SignupsService>()
+            // get_season_availability's, and get_upcoming_events'
+            .AddTransient<GrifballWebApp.Application.Availability.AvailabilityService>()
+            .AddTransient<GrifballWebApp.Application.Home.HomeEventsService>()
             .AddSingleton(Substitute.For<GrifballWebApp.Application.Brackets.IBracketService>())
             .AddSingleton<IChatWaiting, MemoryChatWaiting>()
             // offer_button's: the bot's commands are there

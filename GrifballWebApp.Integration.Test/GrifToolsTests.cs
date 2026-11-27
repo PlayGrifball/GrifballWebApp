@@ -350,9 +350,9 @@ public class GrifToolsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(anyone, Is.EqualTo(new QueueStatusDto(1, null, null)));
-            Assert.That(captain, Is.EqualTo(new QueueStatusDto(1, false, false)));
-            Assert.That(inIt, Is.EqualTo(new QueueStatusDto(1, true, false)));
+            Assert.That(anyone, Is.EqualTo(new LateLeagueQueueDto(1, null, null)));
+            Assert.That(captain, Is.EqualTo(new LateLeagueQueueDto(1, false, false)));
+            Assert.That(inIt, Is.EqualTo(new LateLeagueQueueDto(1, true, false)));
         }
     }
 
