@@ -184,6 +184,35 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task PullOfDiscordUser_QueuesTheClickedUsersAccount_AsTheCaller()
+    {
+        var caller = await AddUser(6, "Puller", "Player");
+        await AddUser(9, "Target");
+        _accountPulls.Queue(9, caller.Id, Arg.Any<CancellationToken>()).Returns(new OnDemandJobStatusDto { State = OnDemandJobState.Queued });
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
+        var discord = new CommandContextRecorder(discordUserId: 6);
+
+        await handler.PullOfDiscordUser(discord.Context, 9);
+
+        Assert.That(discord.Content(), Does.Contain("The pull of Target's recent games is queued"));
+        await _accountPulls.Received(1).Queue(9, caller.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task PullOfDiscordUser_RefusesACallerWithoutTheRole()
+    {
+        await AddUser(5, "NoRole");
+        await AddUser(9, "Target");
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
+        var discord = new CommandContextRecorder(discordUserId: 5);
+
+        await handler.PullOfDiscordUser(discord.Context, 9);
+
+        Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.MissingRole(GrifTools.RolesByName["pull_xbox_account_games"])));
+        await _accountPulls.DidNotReceiveWithAnyArgs().Queue(default, default);
+    }
+
+    [Test]
     public async Task ThePullCommands_RefuseACallerWithoutTheRole_AndAnAccountTheSiteDoesntKnow()
     {
         await AddUser(5, "NoRole");

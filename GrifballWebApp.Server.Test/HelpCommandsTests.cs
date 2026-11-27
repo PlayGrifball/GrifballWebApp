@@ -29,6 +29,14 @@ public class HelpCommandsTests
     }
 
     [Test]
+    public void TheSlashCommandCatalog_ListsTheSameCommandsSortedByPath()
+    {
+        var commands = new DiscordSlashCommandCatalog(Handler()).Commands();
+
+        Assert.That(commands.Select(c => c.Path), Is.SupersetOf(SomeCommands).And.Ordered.Using<string>(StringComparer.Ordinal));
+    }
+
+    [Test]
     public async Task Help_Should_ListEachCommandOnce_Privately()
     {
         var discord = new CommandContextRecorder();
