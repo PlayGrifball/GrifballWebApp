@@ -46,7 +46,7 @@
     <PackageReference Include="ExcelDataReader" Version="3.9.0" />
     <PackageReference Include="Surprenant.Grunt" Version="0.3.134" />
     <PackageReference Include="Surprenant.Grunt.Gateway.Client" Version="0.3.134" />
-    <PackageReference Include="PlayGrifball.InfiniteSpartanRender.Client" Version="0.1.68" />
+    <PackageReference Include="PlayGrifball.InfiniteSpartanRender.Client" Version="0.1.75" />
     <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.14" />
     <!-- The sheet export (Excel/ExcelService) -->

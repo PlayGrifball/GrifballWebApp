@@ -43,6 +43,9 @@ public static class SpartanRenderServiceExtensions
 {
     public const string BaseAddressKey = "SpartanRender:BaseAddress";
 
+    /// <summary>The key the render service knows this app by (<c>Render:ApiKeys</c> there): its name shows on the service's traces and metrics. Unset: calls go unnamed.</summary>
+    public const string ApiKeyKey = "SpartanRender:ApiKey";
+
     /// <summary>The render service's Service in the cluster it runs in; <c>SpartanRender:BaseAddress</c> overrides it.</summary>
 #pragma warning disable S5332 // an in-cluster Service, which serves only HTTP
     public const string DefaultBaseAddress = "http://infinite-spartan-render.ekur-data.svc:8080/";
@@ -51,7 +54,11 @@ public static class SpartanRenderServiceExtensions
     public static IServiceCollection AddSpartanRender(this IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         var address = configuration[BaseAddressKey];
-        services.AddInfiniteSpartanRenderClient(o => o.BaseAddress = new Uri(string.IsNullOrWhiteSpace(address) ? DefaultBaseAddress : address.Trim()));
+        services.AddInfiniteSpartanRenderClient(o =>
+        {
+            o.BaseAddress = new Uri(string.IsNullOrWhiteSpace(address) ? DefaultBaseAddress : address.Trim());
+            o.ApiKey = configuration[ApiKeyKey];
+        });
         services.AddMemoryCache();
         services.AddScoped<ISpartanCatalogSource, SpartanCatalogSource>();
         return services;
