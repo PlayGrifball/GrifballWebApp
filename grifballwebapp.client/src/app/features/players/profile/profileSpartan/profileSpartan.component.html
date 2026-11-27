@@ -1,0 +1,89 @@
+<section aria-labelledby="spartan-heading">
+  <h2 id="spartan-heading" class="hud-h2">Your Spartan</h2>
+
+  @if (profile(); as p) {
+    <p class="hud-muted">
+      @if (p.choice) {
+        Showing the Spartan you chose.
+      } @else if (p.hasEquippedSet) {
+        Showing the set you have equipped in Halo Infinite.
+      } @else {
+        No equipped set is known for your account yet; choose a Spartan below.
+      }
+      @switch (p.renderState) {
+        @case ('Requested') { It is waiting to render. }
+        @case ('Rendering') { It is rendering. }
+        @case ('Failed') { The last render failed: {{p.renderError}} }
+        @case ('Done') { Rendered {{p.renderedAt | date: 'medium'}}. }
+      }
+    </p>
+
+    <div class="spartan-files">
+      @if (hasFile('neutral-body')) { <img [src]="fileUrl('neutral-body')" alt="Your Spartan, full body" width="350" height="500"> }
+      @if (hasFile('stance-body')) { <img [src]="fileUrl('stance-body')" alt="Your Spartan in your stance" width="350" height="500"> }
+      @if (hasFile('neutral-head')) { <img [src]="fileUrl('neutral-head')" alt="Your Spartan's helmet" width="350" height="500"> }
+    </div>
+    @if (modelName(); as model) {
+      <div class="spartan-model">
+        <app-spartan-viewer [url]="fileUrl(model)" />
+        @if (hasFile('stance-glb') && hasFile('neutral-glb')) {
+          <div class="spartan-actions" role="group" aria-label="Pose of the 3D model">
+            <button type="button" class="hud-btn" [attr.aria-pressed]="pose() === 'neutral'" (click)="pose.set('neutral')">Neutral pose</button>
+            <button type="button" class="hud-btn" [attr.aria-pressed]="pose() === 'stance'" (click)="pose.set('stance')">In your stance</button>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="spartan-actions">
+      <button type="button" class="hud-btn" (click)="edit()" [disabled]="busy()">Choose a Spartan</button>
+      <button type="button" class="hud-btn" (click)="render()" [disabled]="busy()">Render again</button>
+      @if (p.choice) {
+        <button type="button" class="hud-btn" (click)="reset()" [disabled]="busy()">Use my equipped set</button>
+      }
+    </div>
+  }
+
+  @if (editing()) {
+    @if (catalog(); as c) {
+      <form class="spartan-form" [formGroup]="form" (ngSubmit)="save()">
+        <label for="spartan-core">Core</label>
+        <select id="spartan-core" formControlName="core">
+          <option value="">Choose a core</option>
+          @for (entry of cores(); track entry.name) { <option [value]="entry.name">{{entry.name}}</option> }
+        </select>
+
+        <div formGroupName="armor" class="spartan-pieces">
+          @for (region of regions(); track region.key) {
+            <label [for]="'spartan-' + region.key">{{region.key}}</label>
+            <select [id]="'spartan-' + region.key" [formControlName]="region.key">
+              <option value="">Default</option>
+            @for (piece of region.pieces; track piece.permutation) {
+              @if (piece.name) { <option [value]="piece.name">{{piece.name}}</option> }
+            }
+            </select>
+          }
+        </div>
+
+        <label for="spartan-coating">Coating</label>
+        <select id="spartan-coating" formControlName="coating">
+          <option value="">Default</option>
+          @for (style of c.coatings; track style) { <option [value]="style">{{style}}</option> }
+        </select>
+
+        <label for="spartan-visor">Visor</label>
+        <select id="spartan-visor" formControlName="visor">
+          <option value="">Default</option>
+          @for (visor of c.visors; track visor) { <option [value]="visor">{{visor}}</option> }
+        </select>
+
+        <div class="spartan-actions">
+          <button type="submit" class="hud-btn" [disabled]="!core() || busy()">Save</button>
+          <button type="button" class="hud-btn" (click)="cancel()">Cancel</button>
+        </div>
+      </form>
+    } @else {
+      <p class="hud-muted">Loading what you can choose from…</p>
+    }
+  }
+</section>

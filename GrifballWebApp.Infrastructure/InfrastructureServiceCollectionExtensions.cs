@@ -23,6 +23,7 @@ using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Infrastructure.SeasonMatchPage;
 using GrifballWebApp.Infrastructure.Scheduler;
 using GrifballWebApp.Infrastructure.Services;
+using GrifballWebApp.Infrastructure.Spartan;
 using GrifballWebApp.Infrastructure.Teams;
 using GrifballWebApp.Infrastructure.UserManagement;
 using Microsoft.Extensions.Configuration;
@@ -145,6 +146,14 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHttpClient<IXboxImageDownloader, XboxImageDownloader>(XboxImageDownloader.Configure);
         services.AddSingleton<XboxImageThrottle>();
         services.AddTransient<XboxImageSource>();
+        // What every Xbox account that played Halo Infinite has equipped (XboxArmorSource, run by the armor job below)
+        services.AddOptions<XboxArmorOptions>().Bind(configuration.GetSection("XboxArmor"));
+        services.AddSingleton<XboxArmorThrottle>();
+        services.AddTransient<XboxArmorSource>();
+        // The Spartans users asked for, rendered by the Spartan render service (SpartanRenderSource, run by the job below)
+        services.AddOptions<SpartanRenderOptions>().Bind(configuration.GetSection("SpartanRender"));
+        services.AddTransient<SpartanArmorMapper>();
+        services.AddTransient<SpartanRenderSource>();
         // A season match's pull from Halo, queued from its page and the agents' tools
         services.AddTransient<ISeasonMatchPulls, SeasonMatchPulls>();
         // An Xbox account's pull from Halo, queued from its page
@@ -158,6 +167,8 @@ public static class InfrastructureServiceCollectionExtensions
             jobs.Add<XboxPlaceholderJob>(XboxPlaceholderJob.Definition);
             jobs.Add<XboxGamerPictureJob>(XboxGamerPictureJob.Definition);
             jobs.Add<XboxEmblemJob>(XboxEmblemJob.Definition);
+            jobs.Add<XboxArmorJob>(XboxArmorJob.Definition);
+            jobs.Add<SpartanRenderJob>(SpartanRenderJob.Definition);
             // Run from the Jobs page only: it deletes users
             jobs.Add<XboxPlaceholderCleanupJob>(XboxPlaceholderCleanupJob.Definition);
             jobs.Add<ActiveSeasonPullJob>(ActiveSeasonPullJob.Definition);

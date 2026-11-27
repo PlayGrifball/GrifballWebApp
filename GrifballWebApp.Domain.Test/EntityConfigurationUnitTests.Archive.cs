@@ -180,6 +180,22 @@ public partial class EntityConfigurationUnitTests
     }
 
     [Test]
+    public void XboxUserArmorConfiguration_KeysLengthsAndNoHistory()
+    {
+        var armor = Configured(new XboxUserArmorConfiguration());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TableOf(armor), Is.EqualTo(("Xbox", "XboxUserArmor")));
+            Assert.That(armor.IsTemporal(), Is.False, "Rewritten on every change, no history");
+            Assert.That(KeyOf(armor), Is.EqualTo(new List<string> { nameof(XboxUserArmor.XboxUserID) }), "One row an account");
+            Assert.That((MaxLengthOf(armor, nameof(XboxUserArmor.HelmetPath)), MaxLengthOf(armor, nameof(XboxUserArmor.Error))), Is.EqualTo((300, 200)));
+            var byAccount = ForeignKeyOf(armor, nameof(XboxUserArmor.XboxUser));
+            Assert.That((ColumnsOf(byAccount), DeleteOf(byAccount)), Is.EqualTo((new List<string> { nameof(XboxUserArmor.XboxUserID) }, (DeleteBehavior?)DeleteBehavior.Cascade)));
+        }
+    }
+
+    [Test]
     public void XuidLookupAndImportSettingsConfigurations_KeysAndChecks()
     {
         var lookup = Configured(new XuidLookupConfiguration());

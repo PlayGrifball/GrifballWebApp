@@ -6927,7 +6927,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int>("ProfilePicture")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(2);
 
                     b.Property<int?>("RegionID")
                         .HasColumnType("INTEGER");
@@ -6984,7 +6984,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Users_History_Update");
 
-                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "ProfilePicture IN (0, 1)");
+                            t.HasCheckConstraint("CK_Auth_Users_KnownProfilePicture", "ProfilePicture IN (0, 1, 2)");
 
                             t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "RegionSource IS NULL OR RegionSource IN (1, 2, 3)");
 
@@ -7729,6 +7729,128 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.HasAnnotation("Grif:HistoryOf", "UserRoles");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartan", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ChoiceJson")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("TEXT")
+                        .HasComputedColumnSql("'9999-12-31 23:59:59.9999999'", false);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserSpartans", "Xbox", t =>
+                        {
+                            t.HasTrigger("UserSpartans_History_Delete");
+
+                            t.HasTrigger("UserSpartans_History_Update");
+                        });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartan.History", b =>
+                {
+                    b.Property<string>("ChoiceJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ChoiceJson")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UpdatedAt");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("UserId");
+
+                    b.HasIndex("UserId", "PeriodEnd");
+
+                    b.ToTable("UserSpartansHistory", "Xbox");
+
+                    b.HasAnnotation("Grif:HistoryOf", "UserSpartans");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanFile", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.HasKey("UserId", "Name");
+
+                    b.ToTable("UserSpartanFiles", "Xbox");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanRender", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("LoadoutKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("RenderedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("State")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("State", "RequestedAt");
+
+                    b.ToTable("UserSpartanRenders", "Xbox");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Players.VoiceConsent", b =>
                 {
                     b.Property<long>("DiscordUserID")
@@ -8016,6 +8138,147 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.ToTable("XboxUsersHistory", "Xbox");
 
                     b.HasAnnotation("Grif:HistoryOf", "XboxUsers");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUserArmor", b =>
+                {
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ActionPosePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("ArmorFxPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("BodyType")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("ChangedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChestAttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("CoatingPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("CoreId")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("CorePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("GlovePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("HelmetAttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("HelmetPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("HipAttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("KneePadPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("LeftArm")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("LeftLeg")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("LeftShoulderPadPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("MythicFxPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("RightArm")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("RightLeg")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("RightShoulderPadPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("StancePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ThemePath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("VisorPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("WristAttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.HasKey("XboxUserID");
+
+                    b.HasIndex("CheckedAt");
+
+                    b.ToTable("XboxUserArmor", "Xbox");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUserImage", b =>
@@ -9988,10 +10251,54 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartan", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Players.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanFile", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Players.UserSpartanRender", "Render")
+                        .WithMany("Files")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Render");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanRender", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Players.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxGamertagHistory", b =>
                 {
                     b.HasOne("GrifballWebApp.Domain.Players.XboxUser", "XboxUser")
                         .WithMany("PastGamertags")
+                        .HasForeignKey("XboxUserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("XboxUser");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUserArmor", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.Players.XboxUser", "XboxUser")
+                        .WithMany()
                         .HasForeignKey("XboxUserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -10238,6 +10545,11 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Navigation("UserLogins");
 
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.UserSpartanRender", b =>
+                {
+                    b.Navigation("Files");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxUser", b =>

@@ -23,7 +23,7 @@ public static class TableDiagrams
         ["Other"] = "Game versions, regions and user experiences",
         ["Recorded"] = "Recorded games, their teams and participants",
         ["User"] = "Discord users and voice consents",
-        ["Xbox"] = "Xbox users, past gamertags, XUID lookups and images",
+        ["Xbox"] = "Xbox users, past gamertags, XUID lookups, images and equipped armor",
     };
 
     private sealed record Table(string Schema, string Name, List<IEntityType> Types);

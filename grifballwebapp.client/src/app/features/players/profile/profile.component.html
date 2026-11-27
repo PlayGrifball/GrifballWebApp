@@ -69,7 +69,11 @@
         </section>
 
         <section class="hud-section hud-panel hud-panel--soft">
-          <app-profile-identity [regionID]="profileStats()?.regionID ?? null" [profilePicture]="profileStats()?.profilePicture ?? 'Emblem'" (changed)="store.loadStats()" />
+          <app-profile-identity [regionID]="profileStats()?.regionID ?? null" [profilePicture]="profileStats()?.profilePicture ?? 'Spartan'" (changed)="store.loadStats()" />
+        </section>
+
+        <section class="hud-section hud-panel hud-panel--soft">
+          <app-profile-spartan [userID]="userID()" />
         </section>
 
         <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="theme-title">

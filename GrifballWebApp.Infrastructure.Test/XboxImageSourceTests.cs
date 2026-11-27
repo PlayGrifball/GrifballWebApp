@@ -1020,6 +1020,20 @@ public class XboxImageSourceTests : SqliteContextFixture
         }
     }
     [Test]
+    public async Task ANewUser_WhoChoseTheEmblem_KeepsIt_AndOneWhoChoseNothingGetsTheSpartan()
+    {
+        var emblem = GrifballWebApp.Domain.Players.User.Seed(userName: "emblem");
+        emblem.ChooseProfilePicture(ProfilePictureChoice.Emblem);
+        var none = GrifballWebApp.Domain.Players.User.Seed(userName: "none");
+        Context.Users.AddRange(emblem, none);
+        await Context.SaveChangesAsync();
+
+        var stored = await Context.Users.AsNoTracking().Where(u => u.Id == emblem.Id || u.Id == none.Id).ToDictionaryAsync(u => u.Id, u => u.ProfilePicture);
+
+        Assert.That((stored[emblem.Id], stored[none.Id]), Is.EqualTo((ProfilePictureChoice.Emblem, ProfilePictureChoice.Spartan)));
+    }
+
+    [Test]
     public async Task XboxImageService_ShowsTheEmblemUnlessTheUserChoseTheGamerPicture_AndFallsBackToTheOther()
     {
         await AddAccountsAsync(1, 2, 3, 4);

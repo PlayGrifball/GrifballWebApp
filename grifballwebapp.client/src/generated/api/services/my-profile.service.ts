@@ -13,18 +13,34 @@ import { StrictHttpResponse } from '../strict-http-response';
 import { claimGamertag } from '../fn/my-profile/claim-gamertag';
 import { ClaimGamertag$Params } from '../fn/my-profile/claim-gamertag';
 import { ClaimPreviewDto } from '../models/claim-preview-dto';
+import { clearMySpartan } from '../fn/my-profile/clear-my-spartan';
+import { ClearMySpartan$Params } from '../fn/my-profile/clear-my-spartan';
 import { GamertagClaimDto } from '../models/gamertag-claim-dto';
 import { getMyGamertagClaims } from '../fn/my-profile/get-my-gamertag-claims';
 import { GetMyGamertagClaims$Params } from '../fn/my-profile/get-my-gamertag-claims';
+import { getMySpartan } from '../fn/my-profile/get-my-spartan';
+import { GetMySpartan$Params } from '../fn/my-profile/get-my-spartan';
 import { getRegions } from '../fn/my-profile/get-regions';
 import { GetRegions$Params } from '../fn/my-profile/get-regions';
+import { getSpartanCatalog } from '../fn/my-profile/get-spartan-catalog';
+import { GetSpartanCatalog$Params } from '../fn/my-profile/get-spartan-catalog';
+import { getUserSpartanFile$GltfBinary } from '../fn/my-profile/get-user-spartan-file-gltf-binary';
+import { GetUserSpartanFile$GltfBinary$Params } from '../fn/my-profile/get-user-spartan-file-gltf-binary';
+import { getUserSpartanFile$Png } from '../fn/my-profile/get-user-spartan-file-png';
+import { GetUserSpartanFile$Png$Params } from '../fn/my-profile/get-user-spartan-file-png';
 import { previewGamertagClaim } from '../fn/my-profile/preview-gamertag-claim';
 import { PreviewGamertagClaim$Params } from '../fn/my-profile/preview-gamertag-claim';
 import { RegionDto } from '../models/region-dto';
+import { renderMySpartan } from '../fn/my-profile/render-my-spartan';
+import { RenderMySpartan$Params } from '../fn/my-profile/render-my-spartan';
 import { setMyProfilePicture } from '../fn/my-profile/set-my-profile-picture';
 import { SetMyProfilePicture$Params } from '../fn/my-profile/set-my-profile-picture';
 import { setMyRegion } from '../fn/my-profile/set-my-region';
 import { SetMyRegion$Params } from '../fn/my-profile/set-my-region';
+import { setMySpartan } from '../fn/my-profile/set-my-spartan';
+import { SetMySpartan$Params } from '../fn/my-profile/set-my-spartan';
+import { SpartanCatalog } from '../models/spartan-catalog';
+import { SpartanProfileDto } from '../models/spartan-profile-dto';
 
 @Injectable({ providedIn: 'root' })
 export class MyProfileService extends BaseService {
@@ -239,6 +255,248 @@ export class MyProfileService extends BaseService {
     const resp = this.claimGamertag$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<GamertagClaimDto>): GamertagClaimDto => r.body)
+    );
+  }
+
+  /** Path part for operation `getMySpartan()` */
+  static readonly GetMySpartanPath = '/me/spartan';
+
+  /**
+   * The signed-in user's Spartan: their own choice if they made one, and its render.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getMySpartan()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getMySpartan$Response(params?: GetMySpartan$Params, context?: HttpContext): Observable<StrictHttpResponse<SpartanProfileDto>> {
+    const obs = getMySpartan(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The signed-in user's Spartan: their own choice if they made one, and its render.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getMySpartan$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getMySpartan(params?: GetMySpartan$Params, context?: HttpContext): Observable<SpartanProfileDto> {
+    const resp = this.getMySpartan$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<SpartanProfileDto>): SpartanProfileDto => r.body)
+    );
+  }
+
+  /** Path part for operation `setMySpartan()` */
+  static readonly SetMySpartanPath = '/me/spartan';
+
+  /**
+   * Sets the Spartan the signed-in user's profile shows, instead of the one they have equipped, and asks for its render.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `setMySpartan()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  setMySpartan$Response(params?: SetMySpartan$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+    const obs = setMySpartan(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Sets the Spartan the signed-in user's profile shows, instead of the one they have equipped, and asks for its render.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `setMySpartan$Response()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  setMySpartan(params?: SetMySpartan$Params, context?: HttpContext): Observable<void> {
+    const resp = this.setMySpartan$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<void>): void => r.body)
+    );
+  }
+
+  /** Path part for operation `getSpartanCatalog()` */
+  static readonly GetSpartanCatalogPath = '/spartan/catalog';
+
+  /**
+   * What the render service can render: the cores, their pieces by region, the coatings and the visors.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getSpartanCatalog()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getSpartanCatalog$Response(params?: GetSpartanCatalog$Params, context?: HttpContext): Observable<StrictHttpResponse<SpartanCatalog>> {
+    const obs = getSpartanCatalog(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * What the render service can render: the cores, their pieces by region, the coatings and the visors.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getSpartanCatalog$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getSpartanCatalog(params?: GetSpartanCatalog$Params, context?: HttpContext): Observable<SpartanCatalog> {
+    const resp = this.getSpartanCatalog$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<SpartanCatalog>): SpartanCatalog => r.body)
+    );
+  }
+
+  /** Path part for operation `clearMySpartan()` */
+  static readonly ClearMySpartanPath = '/me/spartan/clear';
+
+  /**
+   * Goes back to the Spartan the signed-in user has equipped in Halo Infinite.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `clearMySpartan()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  clearMySpartan$Response(params?: ClearMySpartan$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+    const obs = clearMySpartan(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Goes back to the Spartan the signed-in user has equipped in Halo Infinite.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `clearMySpartan$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  clearMySpartan(params?: ClearMySpartan$Params, context?: HttpContext): Observable<void> {
+    const resp = this.clearMySpartan$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<void>): void => r.body)
+    );
+  }
+
+  /** Path part for operation `renderMySpartan()` */
+  static readonly RenderMySpartanPath = '/me/spartan/render';
+
+  /**
+   * Asks for the render of the signed-in user's Spartan (again); the render job makes it within minutes.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `renderMySpartan()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  renderMySpartan$Response(params?: RenderMySpartan$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+    const obs = renderMySpartan(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Asks for the render of the signed-in user's Spartan (again); the render job makes it within minutes.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `renderMySpartan$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  renderMySpartan(params?: RenderMySpartan$Params, context?: HttpContext): Observable<void> {
+    const resp = this.renderMySpartan$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<void>): void => r.body)
+    );
+  }
+
+  /** Path part for operation `getUserSpartanFile()` */
+  static readonly GetUserSpartanFilePath = '/users/{userId}/spartan/{name}';
+
+  /**
+   * A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserSpartanFile$Png()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserSpartanFile$Png$Response(params: GetUserSpartanFile$Png$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+    const obs = getUserSpartanFile$Png(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserSpartanFile$Png$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserSpartanFile$Png(params: GetUserSpartanFile$Png$Params, context?: HttpContext): Observable<Blob> {
+    const resp = this.getUserSpartanFile$Png$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
+    );
+  }
+
+  /**
+   * A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserSpartanFile$GltfBinary()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserSpartanFile$GltfBinary$Response(params: GetUserSpartanFile$GltfBinary$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+    const obs = getUserSpartanFile$GltfBinary(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserSpartanFile$GltfBinary$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserSpartanFile$GltfBinary(params: GetUserSpartanFile$GltfBinary$Params, context?: HttpContext): Observable<Blob> {
+    const resp = this.getUserSpartanFile$GltfBinary$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
     );
   }
 

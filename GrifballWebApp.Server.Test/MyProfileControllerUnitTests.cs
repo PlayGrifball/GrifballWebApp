@@ -18,7 +18,7 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class MyProfileControllerUnitTests : SqliteGrifballContextFixture
 {
-    private MyProfileController Controller() => new(new RegionService(Db), new ProfilePictureService(Db), null!);
+    private MyProfileController Controller() => new(new RegionService(Db), new ProfilePictureService(Db), null!, null!);
 
     [Test]
     public async Task Regions_ReturnsTheSeededRegions()

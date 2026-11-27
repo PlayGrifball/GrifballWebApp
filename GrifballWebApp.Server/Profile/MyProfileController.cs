@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Spartan;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -18,12 +19,14 @@ public class MyProfileController : ControllerBase
     private readonly RegionService _regions;
     private readonly ProfilePictureService _pictures;
     private readonly UserGamertagClaimService _claims;
+    private readonly SpartanService _spartans;
 
-    public MyProfileController(RegionService regions, ProfilePictureService pictures, UserGamertagClaimService claims)
+    public MyProfileController(RegionService regions, ProfilePictureService pictures, UserGamertagClaimService claims, SpartanService spartans)
     {
         _regions = regions;
         _pictures = pictures;
         _claims = claims;
+        _spartans = spartans;
     }
 
     /// <summary>The regions a player can be in.</summary>
@@ -86,7 +89,75 @@ public class MyProfileController : ControllerBase
     public async Task<ActionResult<List<GamertagClaimDto>>> GamertagClaims(CancellationToken ct)
         => GetUserID() is int userId ? await _claims.ClaimsOf(userId, ct) : this.UnauthorizedProblem(NotSignedIn);
 
+    /// <summary>The signed-in user's Spartan: their own choice if they made one, and its render.</summary>
+    [HttpGet("me/spartan", Name = "GetMySpartan")]
+    [ProducesResponseType<SpartanProfileDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<ActionResult<SpartanProfileDto>> MySpartan(CancellationToken ct)
+    {
+        if (GetUserID() is not int userId)
+            return this.UnauthorizedProblem(NotSignedIn);
+        return await _spartans.Get(userId, ct) is { } dto ? dto : this.NotFoundProblem(ApiProblems.NoSuchUser);
+    }
+
+    /// <summary>What the render service can render: the cores, their pieces by region, the coatings and the visors.</summary>
+    [HttpGet("spartan/catalog", Name = "GetSpartanCatalog")]
+    [ProducesResponseType<SpartanCatalog>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable, "application/problem+json")]
+    public async Task<ActionResult<SpartanCatalog>> CatalogOfSpartans(CancellationToken ct)
+        => await _spartans.Catalog(ct) is { } catalog ? catalog : this.Refusal(StatusCodes.Status503ServiceUnavailable, CatalogDown);
+
+    /// <summary>Sets the Spartan the signed-in user's profile shows, instead of the one they have equipped, and asks for its render.</summary>
+    [HttpPost("me/spartan", Name = "SetMySpartan")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable, "application/problem+json")]
+    public async Task<IActionResult> SetSpartan([FromBody] SpartanChoice choice, CancellationToken ct)
+    {
+        if (GetUserID() is not int userId)
+            return this.UnauthorizedProblem(NotSignedIn);
+        var result = await _spartans.Set(userId, choice, ct);
+        return result.Outcome switch
+        {
+            SetSpartanOutcome.Invalid => this.BadRequestProblem(string.Join("; ", result.Problems)),
+            SetSpartanOutcome.CatalogUnavailable => this.Refusal(StatusCodes.Status503ServiceUnavailable, CatalogDown),
+            SetSpartanOutcome.NoSuchUser => this.NotFoundProblem(ApiProblems.NoSuchUser),
+            _ => NoContent(),
+        };
+    }
+
+    /// <summary>Goes back to the Spartan the signed-in user has equipped in Halo Infinite.</summary>
+    [HttpPost("me/spartan/clear", Name = "ClearMySpartan")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<IActionResult> ClearSpartan(CancellationToken ct)
+        => GetUserID() is not int userId ? this.UnauthorizedProblem(NotSignedIn)
+            : await _spartans.Clear(userId, ct) ? NoContent() : this.NotFoundProblem(ApiProblems.NoSuchUser);
+
+    /// <summary>Asks for the render of the signed-in user's Spartan (again); the render job makes it within minutes.</summary>
+    [HttpPost("me/spartan/render", Name = "RenderMySpartan")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<IActionResult> RenderSpartan(CancellationToken ct)
+        => GetUserID() is not int userId ? this.UnauthorizedProblem(NotSignedIn)
+            : await _spartans.RequestRender(userId, ct) ? Accepted() : this.NotFoundProblem(ApiProblems.NoSuchUser);
+
+    /// <summary>A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.</summary>
+    [AllowAnonymous]
+    [HttpGet("users/{userId:int}/spartan/{name}", Name = "GetUserSpartanFile")]
+    [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "image/png", "model/gltf-binary")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<IActionResult> SpartanFile([FromRoute] int userId, [FromRoute] string name, CancellationToken ct)
+    {
+        if (!SpartanService.FileNames.Contains(name) || await _spartans.File(userId, name, ct) is not { } file)
+            return this.NotFoundProblem("There is no such file");
+        Response.Headers.CacheControl = "public, max-age=300";
+        return File(file.Content, file.ContentType);
+    }
+
     private const string NotSignedIn = "You must be signed in";
+    private const string CatalogDown = "The Spartan render service is not available right now";
 
     private int? GetUserID()
         => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;

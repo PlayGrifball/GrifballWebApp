@@ -1,0 +1,7 @@
+<div class="spartan-viewer">
+  <canvas #canvas [attr.aria-label]="label()" [class.hidden]="state() === 'unavailable'"></canvas>
+  @switch (state()) {
+    @case ('loading') { <p class="hud-muted spartan-viewer-note" role="status">Loading the 3D model...</p> }
+    @case ('unavailable') { <p class="hud-muted spartan-viewer-note" role="status">The 3D model cannot be shown here.</p> }
+  }
+</div>

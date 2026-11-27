@@ -5,7 +5,7 @@ import { ProfilePictureChoice } from '../models/profile-picture-choice';
 export interface SetProfilePictureRequest {
 
   /**
-   * Which of a user's Xbox images stands for them on the site; the other is the fallback when the account has none of it.
+   * Which image stands for a user on the site: their Spartan headshot, Halo emblem or gamer picture; the others are the fallback when it is not stored.
    */
   profilePicture: ProfilePictureChoice;
 }

@@ -46,6 +46,10 @@ public class GrifballContext :
     public virtual DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; }
     public virtual DbSet<XuidLookup> XuidLookups { get; set; }
     public virtual DbSet<XboxUserImage> XboxUserImages { get; set; }
+    public virtual DbSet<XboxUserArmor> XboxUserArmor { get; set; }
+    public virtual DbSet<UserSpartan> UserSpartans { get; set; }
+    public virtual DbSet<UserSpartanRender> UserSpartanRenders { get; set; }
+    public virtual DbSet<UserSpartanFile> UserSpartanFiles { get; set; }
     public virtual DbSet<HistoricalSource> HistoricalSources { get; set; }
     public virtual DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; }
     public virtual DbSet<UserMerge> UserMerges { get; set; }
@@ -160,6 +164,10 @@ public class GrifballContext :
         builder.ApplyConfiguration(new HistoricalImportJobConfiguration());
         builder.ApplyConfiguration(new XuidLookupConfiguration());
         builder.ApplyConfiguration(new XboxUserImageConfiguration());
+        builder.ApplyConfiguration(new XboxUserArmorConfiguration());
+        builder.ApplyConfiguration(new UserSpartanConfiguration());
+        builder.ApplyConfiguration(new UserSpartanRenderConfiguration());
+        builder.ApplyConfiguration(new UserSpartanFileConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceSnapshotConfiguration());
         builder.ApplyConfiguration(new HistoricalImportSettingsConfiguration());

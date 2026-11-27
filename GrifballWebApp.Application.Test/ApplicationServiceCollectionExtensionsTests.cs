@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Spartan;
 using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Calendar;
@@ -142,6 +143,7 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         services.AddScoped(_ => Substitute.For<IGetsertXboxUserService>());
         services.AddScoped(_ => Substitute.For<IPublisher>());
         services.AddScoped(_ => Substitute.For<IDatabaseLocks>());
+        services.AddScoped(_ => Substitute.For<ISpartanCatalogSource>());
         services.AddScoped(_ => Substitute.For<ICurrentUserService>());
         services.AddSingleton(_ => Substitute.For<IDistributedCache>());
         services.AddSingleton(_ => Substitute.For<IChatClientFactory>());

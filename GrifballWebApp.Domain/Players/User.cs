@@ -120,8 +120,8 @@ public class User : IdentityUser<int>, IAuditStamp, IHasDomainEvents
     public RegionSource? RegionSource { get; private set; }
     public string? DisplayName { get; private set; }
     public bool IsDummyUser { get; private set; }
-    /// <summary>Which Xbox image shows for the user: the emblem unless they chose their gamer picture (<see cref="ChooseProfilePicture"/>).</summary>
-    public ProfilePictureChoice ProfilePicture { get; private set; } = ProfilePictureChoice.Emblem;
+    /// <summary>Which Xbox image shows for the user: their Spartan headshot unless they chose another (<see cref="ChooseProfilePicture"/>).</summary>
+    public ProfilePictureChoice ProfilePicture { get; private set; } = ProfilePictureChoice.Spartan;
     /// <summary>The colours and font the user chose for the site (<see cref="ChooseTheme"/>), as JSON the Application validates; null until they chose.</summary>
     public string? Theme { get; private set; }
     public const int ThemeMaxLength = 500;

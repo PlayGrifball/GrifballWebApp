@@ -35,6 +35,10 @@ public interface IApplicationDbContext
     DbSet<HistoricalImportJob> HistoricalImportJobs { get; }
     DbSet<XuidLookup> XuidLookups { get; }
     DbSet<XboxUserImage> XboxUserImages { get; }
+    DbSet<XboxUserArmor> XboxUserArmor { get; }
+    DbSet<UserSpartan> UserSpartans { get; }
+    DbSet<UserSpartanRender> UserSpartanRenders { get; }
+    DbSet<UserSpartanFile> UserSpartanFiles { get; }
     DbSet<HistoricalSource> HistoricalSources { get; }
     DbSet<HistoricalImportSettings> HistoricalImportSettings { get; }
     DbSet<UserMerge> UserMerges { get; }
