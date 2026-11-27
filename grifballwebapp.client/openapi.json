@@ -4800,7 +4800,7 @@
                     "$ref": "#/components/schemas/SpartanChoice"
                   }
                 ],
-                "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off. Anything left out is the core's default."
+                "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise). Anything left out is the core's default."
               }
             }
           }
@@ -18856,7 +18856,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off. Anything left out is the core's default."
+        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise). Anything left out is the core's default."
       },
       "SpartanPartChoice": {
         "required": [
@@ -18894,7 +18894,7 @@
                 "$ref": "#/components/schemas/SpartanChoice"
               }
             ],
-            "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off. Anything left out is the core's default.",
+            "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise). Anything left out is the core's default.",
             "nullable": true
           },
           "hasEquippedSet": {

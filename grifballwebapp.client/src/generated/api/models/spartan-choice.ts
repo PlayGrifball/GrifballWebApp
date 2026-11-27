@@ -4,7 +4,7 @@
 import { SpartanPartChoice } from '../models/spartan-part-choice';
 
 /**
- * A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off. Anything left out is the core's default.
+ * A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise). Anything left out is the core's default.
  */
 export interface SpartanChoice {
   armor: ({
