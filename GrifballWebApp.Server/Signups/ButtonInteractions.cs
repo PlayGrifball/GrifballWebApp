@@ -22,4 +22,10 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
     {
         await _handler.Signup(Context.ToDiscordContext(), seasonId);
     }
+
+    [ComponentInteraction(DiscordButtonContants.SignupDetails)]
+    public async Task SignupDetails(int seasonId)
+    {
+        await _handler.OpenSignupDetails(Context.ToDiscordContext(), seasonId);
+    }
 }

@@ -22,6 +22,7 @@ public class DiscordModuleRegistrationTests
         "leave_queue() preconditions: 0",
         "set_gamertag() preconditions: 0",
         "signup(Int32 seasonId) preconditions: 0",
+        "signupdetails(Int32 seasonId) preconditions: 0",
         "voteforwinner(Int32 matchId, String winner) preconditions: 0",
     ];
 
@@ -34,6 +35,7 @@ public class DiscordModuleRegistrationTests
     private static readonly string[] Modals =
     [
         "set_gamertag() preconditions: 0",
+        "signup(Int32 seasonId) preconditions: 0",
     ];
 
     private static List<string> ComponentInteractions<TContext>() where TContext : IComponentInteractionContext
