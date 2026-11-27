@@ -139,7 +139,7 @@ public class Program
         // The browser's telemetry (ClientTelemetry:*): its spans and logs on to the collector, its Web Vitals as
         // metrics; rate-limited per client while signed out
         builder.Services.AddClientTelemetry(builder.Configuration, telemetry);
-        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff && role.RunsDiscord, haloInfinite: haloHealthCheck);
+        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff && role.RunsDiscord, haloInfinite: haloHealthCheck, spartanRender: true);
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
