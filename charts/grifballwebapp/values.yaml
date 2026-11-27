@@ -1348,6 +1348,10 @@ networkPolicy:
     # The Halo gateway (backend.halo, Gateway mode), on its URL's port. Empty: anywhere on that port.
     haloGatewayTo:
       - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } }
+    # The Spartan render service (the profile's Spartan renders), on port 8080. Empty: anywhere on that port.
+    spartanRenderTo:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ekur-data } }
+        podSelector: { matchLabels: { app.kubernetes.io/name: infinite-spartan-render } }
     # The Kubernetes API, with backupScratch.mode onDemand, on 443 and 6443 (the API Service's port, and the
     # servers' own, which policies see once it's translated). Empty: anywhere on those ports. Ex: the
     # control plane's addresses as ipBlocks.

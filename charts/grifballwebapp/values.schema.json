@@ -913,6 +913,7 @@
               }
             },
             "haloGatewayTo": { "$ref": "#/definitions/peers" },
+            "spartanRenderTo": { "$ref": "#/definitions/peers" },
             "apiServerTo": { "$ref": "#/definitions/peers" },
             "extraIngress": { "$ref": "#/definitions/rules" },
             "extraEgress": { "$ref": "#/definitions/rules" }
