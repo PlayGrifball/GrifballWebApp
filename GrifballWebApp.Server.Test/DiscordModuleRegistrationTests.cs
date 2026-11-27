@@ -36,6 +36,10 @@ public class DiscordModuleRegistrationTests
 
     private static readonly string[] Modals =
     [
+        "bracket_create(Int32 seasonId, Int32 participants, Int32 bestOf) preconditions: 0",
+        "job_pause(String job) preconditions: 0",
+        "match_pull(Int32 matchId) preconditions: 0",
+        "reschedule_decide(Int32 request) preconditions: 0",
         "set_gamertag() preconditions: 0",
         "set_gamertag_for(UInt64 targetDiscordUserId, String targetUsername) preconditions: 0",
         "set_region() preconditions: 0",
@@ -120,7 +124,7 @@ public class DiscordModuleRegistrationTests
                 + " [season: String \"The season (its matches not played yet are replaced)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]"
                 + " [participants: Int32 \"Teams in the bracket\" autocomplete: none, preconditions: 0]"
                 + " [best_of: Int32 \"Games per match\" autocomplete: none, preconditions: 0]"
-                + " [double_elimination: Boolean = False \"Double elimination\" autocomplete: none, preconditions: 0]",
+                + " [double_elimination: Nullable`1 = null \"Double elimination (default: asked in a form)\" autocomplete: none, preconditions: 0]",
             "/admin bracket seed \"Seed the bracket by the standings\" permissions: default, preconditions: 0"
                 + " [season: String = null \"The season (default: the current one)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]",
             "/admin claims approve \"Approve a claim\" permissions: default, preconditions: 0"
@@ -139,7 +143,7 @@ public class DiscordModuleRegistrationTests
             "/admin jobs list \"The jobs and their state\" permissions: default, preconditions: 0",
             "/admin jobs pause \"Pause or resume a job\" permissions: default, preconditions: 0"
                 + " [job: String \"The job, as group/name\" autocomplete: none, preconditions: 0]"
-                + " [paused: Boolean = True \"Pause it (false resumes it)\" autocomplete: none, preconditions: 0]",
+                + " [paused: Nullable`1 = null \"Pause it (false resumes it; default: asked in a form)\" autocomplete: none, preconditions: 0]",
             "/admin jobs run \"Run a job now\" permissions: default, preconditions: 0"
                 + " [job: String \"The job, as group/name\" autocomplete: none, preconditions: 0]",
             "/admin match forfeit \"Forfeit the match\" permissions: default, preconditions: 0"
@@ -186,7 +190,7 @@ public class DiscordModuleRegistrationTests
                 + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]",
             "/match pull \"Pull a season match's players' recent games from Halo (players and staff)\" permissions: default, preconditions: 0"
                 + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
-                + " [back_to_season_start: Boolean = False \"Back to the season's start, for an old match\" autocomplete: none, preconditions: 0]",
+                + " [back_to_season_start: Nullable`1 = null \"Back to the season's start, for an old match (default: asked in a form)\" autocomplete: none, preconditions: 0]",
             "/matches \"Get recent matches\" permissions: default, preconditions: 0"
                 + " [gamertag: String = null \"Gamertag to search matches for\" autocomplete: GamertagAutocomplete, preconditions: 0]",
             "/me claim \"Claim a gamertag you played under before\" permissions: default, preconditions: 0"
@@ -212,7 +216,7 @@ public class DiscordModuleRegistrationTests
             "/queue status \"How many are in the queue, and whether you are\" permissions: default, preconditions: 0",
             "/reschedule decide \"Approve or reject a request (staff)\" permissions: default, preconditions: 0"
                 + " [request: Int32 \"The request's number, from /reschedule pending\" autocomplete: none, preconditions: 0]"
-                + " [approve: Boolean \"Approve it (false rejects it)\" autocomplete: none, preconditions: 0]"
+                + " [approve: Nullable`1 = null \"Approve it (false rejects it; default: asked in a form)\" autocomplete: none, preconditions: 0]"
                 + " [notes: String = null \"Notes for the players\" autocomplete: none, preconditions: 0]",
             "/reschedule pending \"Requests waiting for a decision (staff)\" permissions: default, preconditions: 0",
             "/reschedule request \"Ask to move one of your matches\" permissions: default, preconditions: 0"

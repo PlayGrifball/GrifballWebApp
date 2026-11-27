@@ -40,6 +40,14 @@ public class AdminCommandsTests
     private IDataPullService _dataPull = null!;
     private AdminCommandsHandler _handler = null!;
     private User _commissioner = null!;
+    private static readonly string[] ApproveOrReject = ["approve", "reject"];
+    private static readonly string[] PauseOnly = ["pause"];
+    private static readonly object[] JobNamesTheModalRefuses =
+    [
+        new object[] { "no-slash", AdminCommandsHandler.JobNameHelp },
+        new object[] { "recurring/a:b", AdminCommandsHandler.JobNameNotForTheForm },
+        new object[] { "recurring/" + new string('x', 95), AdminCommandsHandler.JobNameNotForTheForm },
+    ];
 
     [SetUp]
     public async Task SetUp()
@@ -488,5 +496,138 @@ public class AdminCommandsTests
             Assert.That(async () => await _handler.ReportGame(As(_commissioner).Context, match.SeasonMatchID.ToString(), Guid.NewGuid().ToString(), null), Throws.Exception);
         }
         await _dataPull.ReceivedWithAnyArgs(1).GetAndSaveMatch(default);
+    }
+
+    [Test]
+    public async Task CreateBracket_Should_OpenTheBracketModal_When_DoubleEliminationIsNotGiven()
+    {
+        var season = await _context.AddSeason("Bracket Modal");
+        var discord = As(_commissioner);
+
+        await _handler.CreateBracket(discord.Context, season.SeasonID.ToString(), 4, doubleElimination: null, 3);
+
+        var modal = discord.Modal();
+        var checkbox = (NetCord.Rest.CheckboxProperties)modal.Components.OfType<NetCord.Rest.LabelProperties>().Single().Component;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modal.CustomId, Is.EqualTo($"bracket_create:{season.SeasonID}:4:3"));
+            Assert.That(checkbox.CustomId, Is.EqualTo(AdminCommandsHandler.DoubleEliminationInput));
+        }
+    }
+
+    [Test]
+    public async Task CreateBracket_Should_SayThereIsNoSuchSeason_InANewReply_When_DoubleEliminationIsNotGiven()
+    {
+        var discord = As(_commissioner);
+
+        await _handler.CreateBracket(discord.Context, "999999", 4, doubleElimination: null, 3);
+
+        Assert.That(discord.Message().Content, Is.EqualTo(CommandLookups.NoSuchSeason));
+    }
+
+    [Test]
+    public async Task DecideReschedule_Should_OpenTheDecisionModal_WithTheNotesCutToTheColumn_When_ApproveIsNotGiven()
+    {
+        var seeded = await RescheduleTestData.SeedAsync(_context, scheduled: DateTime.UtcNow.AddDays(3));
+        var request = await new RescheduleService(_context, new ContextOutbox(_context)).RequestRescheduleAsync(
+            new RescheduleRequestDto { SeasonMatchID = seeded.Match.SeasonMatchID, Reason = "Travel", NewScheduledTime = DateTime.UtcNow.AddDays(5) }, seeded.Requester.Id);
+        var discord = As(_commissioner);
+        var longNotes = new string('n', 1200);
+
+        await _handler.DecideReschedule(discord.Context, request.MatchRescheduleID, approve: null, notes: longNotes);
+
+        var modal = discord.Modal();
+        var labels = modal.Components.OfType<NetCord.Rest.LabelProperties>().ToList();
+        var decision = (NetCord.Rest.RadioGroupProperties)labels[0].Component;
+        var notes = (NetCord.Rest.TextInputProperties)labels[1].Component;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modal.CustomId, Is.EqualTo($"reschedule_decide:{request.MatchRescheduleID}"));
+            Assert.That(decision.Options.Select(o => o.Value), Is.EqualTo(ApproveOrReject));
+            // The notes column holds 1000 characters: the input takes no more, and a longer given one is cut to fit
+            Assert.That(notes.MaxLength, Is.EqualTo(1000));
+            Assert.That(notes.Value, Is.EqualTo(longNotes[..1000]));
+        }
+    }
+
+    [Test]
+    public async Task DecideReschedule_Should_SayTheRequestIsNotWaiting_InANewReply_When_ApproveIsNotGiven()
+    {
+        var discord = As(_commissioner);
+
+        await _handler.DecideReschedule(discord.Context, 424242, approve: null, notes: null);
+
+        Assert.That(discord.Message().Content, Is.EqualTo(AdminCommandsHandler.NoRequestWaiting));
+    }
+
+    [Test]
+    public async Task CreateBracket_Should_AskForParticipants_InANewReply_When_DoubleEliminationIsNotGiven()
+    {
+        var season = await _context.AddSeason("Bracket Modal");
+        var discord = As(_commissioner);
+
+        await _handler.CreateBracket(discord.Context, season.SeasonID.ToString(), 0, doubleElimination: null, 3);
+
+        Assert.That(discord.Message().Content, Is.EqualTo(AdminCommandsHandler.BracketNeedsParticipants));
+    }
+
+    [Test]
+    public async Task PauseJob_Should_OpenThePauseModal_WithPausePicked_When_PausedIsNotGiven()
+    {
+        var discord = As(await Sysadmin());
+
+        await _handler.PauseJob(discord.Context, " recurring/historical-refresh ", paused: null);
+
+        var modal = discord.Modal();
+        var state = (NetCord.Rest.RadioGroupProperties)modal.Components.OfType<NetCord.Rest.LabelProperties>().Single().Component;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modal.CustomId, Is.EqualTo("job_pause:recurring/historical-refresh"));
+            Assert.That(state.Options.Where(o => o.Default == true).Select(o => o.Value), Is.EqualTo(PauseOnly));
+        }
+    }
+
+    [TestCaseSource(nameof(JobNamesTheModalRefuses))]
+    public async Task PauseJob_Should_SayWhy_When_TheNameCannotGoInTheModal(string job, string reply)
+    {
+        var discord = As(await Sysadmin());
+
+        await _handler.PauseJob(discord.Context, job, paused: null);
+
+        Assert.That(discord.Message().Content, Is.EqualTo(reply));
+    }
+
+    [Test]
+    public async Task StaffModals_Should_RefuseInNewReplies_WithoutTheRole()
+    {
+        var player = await _context.AddUser("player", gamertag: "PlayerGT", discordName: "player");
+        var bracket = As(player);
+        var decide = As(player);
+        var pause = As(_commissioner);
+
+        await _handler.CreateBracket(bracket.Context, "999999", 4, doubleElimination: null, 3);
+        await _handler.DecideReschedule(decide.Context, 424242, approve: null, notes: null);
+        await _handler.PauseJob(pause.Context, "recurring/historical-refresh", paused: null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bracket.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.CommissionerOnly)));
+            Assert.That(decide.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.Staff)));
+            Assert.That(pause.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.SysadminOnly)));
+        }
+    }
+
+    [Test]
+    public async Task DecideReschedule_Should_OpenTheDecisionModal_WithNoNotes_When_NoneAreGiven()
+    {
+        var seeded = await RescheduleTestData.SeedAsync(_context, scheduled: DateTime.UtcNow.AddDays(3));
+        var request = await new RescheduleService(_context, new ContextOutbox(_context)).RequestRescheduleAsync(
+            new RescheduleRequestDto { SeasonMatchID = seeded.Match.SeasonMatchID, Reason = "Travel" }, seeded.Requester.Id);
+        var discord = As(_commissioner);
+
+        await _handler.DecideReschedule(discord.Context, request.MatchRescheduleID, approve: null, notes: null);
+
+        var notes = (NetCord.Rest.TextInputProperties)discord.Modal().Components.OfType<NetCord.Rest.LabelProperties>().Last().Component;
+        Assert.That(notes.Value, Is.Null);
     }
 }

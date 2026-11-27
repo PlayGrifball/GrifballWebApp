@@ -138,7 +138,7 @@ public class RescheduleCommands : ApplicationCommandModule<ApplicationCommandCon
     [SubSlashCommand("decide", "Approve or reject a request (staff)")]
     public Task Decide(
         [SlashCommandParameter(Description = "The request's number, from /reschedule pending")] int request,
-        [SlashCommandParameter(Description = "Approve it (false rejects it)")] bool approve,
+        [SlashCommandParameter(Description = "Approve it (false rejects it; default: asked in a form)")] bool? approve = null,
         [SlashCommandParameter(Description = "Notes for the players")] string? notes = null)
         => _admin.DecideReschedule(Context.ToDiscordContext(), request, approve, notes);
 }

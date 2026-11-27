@@ -75,7 +75,7 @@ test sends every registered command and fails one whose first answer isn't a def
 | `/signup` | The signup form. With nothing to change given, it opens the signup modal: team name, captain, draft help and the times you can play (up to 30; more on the form). With options given, those change and the rest keeps its value (times included). Player or Sysadmin |
 | `/reschedule request` | The reschedule request form. The service decides who may (a player on either team, or a commissioner). `new_time` offers the match's best times (`/reschedule suggest`'s) |
 | `/reschedule suggest` | The best times for a match from its season's timeslots, each with how many of each team's players can play and its warnings. The agents' `suggest_match_times` |
-| `/match pull` | A season match page's Pull buttons: queues the pull of its players' recent games from Halo (back to the season's start, when asked). The agents' `pull_season_match_games`. Player, Commissioner or Sysadmin |
+| `/match pull` | A season match page's Pull buttons: queues the pull of its players' recent games from Halo (back to the season's start, when asked; left out, a modal asks with a checkbox). The agents' `pull_season_match_games`. Player, Commissioner or Sysadmin |
 | `/player pull` | An Xbox account page's Pull button: queues the pull of the account's recent games (yours when no gamertag is given). The agents' `pull_xbox_account_games`. Player, Commissioner or Sysadmin |
 
 ## Staff
@@ -87,6 +87,8 @@ test sends every registered command and fails one whose first answer isn't a def
 | `/admin season generate`, `/admin bracket create\|seed`, `/admin draft lock\|unlock` | Commissioner. Generate and create name their season and are refused once a match is played (on the site too): they replace the matches |
 | `/admin schedule show\|run\|apply` | Commissioner or Sysadmin |
 | `/admin halo pull`, `/admin medals`, `/admin jobs list\|run\|pause`, `/admin claims list\|approve\|reject` | Sysadmin |
+
+A yes/no option left out opens a modal that asks for it, the command's other answers kept: `/reschedule decide` without `approve` (Approve or Reject, with the notes), `/admin bracket create` without `double_elimination` (a checkbox), `/admin jobs pause` without `paused` (Pause or Resume). Given, the command runs as typed.
 
 ## Left on the site
 

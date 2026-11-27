@@ -5,6 +5,9 @@ using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.MatchDetails;
 using GrifballWebApp.Application.SeasonMatchPage;
 using NetCord.Rest;
+using DiscordInterfaces;
+using GrifballWebApp.Infrastructure.Discord;
+using GrifballWebApp.Server.Extensions;
 
 namespace GrifballWebApp.Server.Commands;
 
@@ -16,6 +19,7 @@ public class MatchCommandsHandler
 {
     public const string NoSuchMatch = CommandLookups.NoSuchMatch;
     public const string NoSuchGame = "I found no such game. Give its Halo match ID.";
+    public const string BackToSeasonStartInput = "back_to_season_start";
 
     private readonly CommandLookups _lookups;
     private readonly SeasonMatchService _seasonMatches;
@@ -39,17 +43,46 @@ public class MatchCommandsHandler
     /// Queues the pull of a season match's players' recent games from Halo, as the match page's button does: the agents'
     /// pull_season_match_games, as the caller (players and staff).
     /// </summary>
-    public async Task Pull(IDiscordInteractionContext context, string match, bool backToSeasonStart)
+    public async Task Pull(IDiscordInteractionContext context, string match, bool? backToSeasonStart)
     {
+        if (backToSeasonStart is not { } backToStart)
+        {
+            await OpenPullModal(context, match);
+            return;
+        }
         await context.Defer(ephemeral: true);
         if (await _caller.Require(context, GrifTools.RolesByName["pull_season_match_games"]) is not { } caller)
             return;
         if (await _lookups.SeasonMatchFor(context, match) is not int id)
             return;
         // The caller check and the lookup refuse first, as the tool would: it has nothing left to refuse
-        var status = await _pulls.As(caller).PullSeasonMatchGames(id, backToSeasonStart);
+        var status = await _pulls.As(caller).PullSeasonMatchGames(id, backToStart);
         await context.Reply($"The pull of this match's players' games {PullReplies.State(status)}. The match page shows the games it finds: {_urls.SeasonMatch(id)}");
     }
+
+    /// <summary>
+    /// The pull modal, asking how far back: the match is looked up first (a team name may hold the custom ID's separator),
+    /// and travels as its ID.
+    /// </summary>
+    private async Task OpenPullModal(IDiscordInteractionContext context, string match)
+    {
+        if (await _caller.RequireBeforeResponding(context, GrifTools.RolesByName["pull_season_match_games"]) is null)
+            return;
+        if (await _lookups.SeasonMatch(match) is not int id)
+        {
+            await context.EphemeralResponse(NoSuchMatch);
+            return;
+        }
+        var modal = new ModalProperties(DiscordModalsContants.MatchPullWithParams(id), "Pull the match's games")
+        {
+            new LabelProperties("Back to the season's start", new CheckboxProperties(BackToSeasonStartInput)),
+        };
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+    /// <summary>The pull modal's answer, pulled as the command pulls.</summary>
+    public Task SavePull(IDiscordModalInteractionContext context, int matchID)
+        => Pull(context, CommandLookups.ChoicePrefix + matchID, ModalAnswers.Checked(context.Components, BackToSeasonStartInput));
 
     public async Task Info(IDiscordInteractionContext context, string match)
     {

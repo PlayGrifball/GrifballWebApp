@@ -98,7 +98,7 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
             [SlashCommandParameter(Description = RebuiltSeasonDescription, AutocompleteProviderType = typeof(StaffSeasonAutocomplete))] string season,
             [SlashCommandParameter(Description = "Teams in the bracket")] int participants,
             [SlashCommandParameter(Name = "best_of", Description = "Games per match")] int bestOf,
-            [SlashCommandParameter(Name = "double_elimination", Description = "Double elimination")] bool doubleElimination = false)
+            [SlashCommandParameter(Name = "double_elimination", Description = "Double elimination (default: asked in a form)")] bool? doubleElimination = null)
             => _handler.CreateBracket(Context.ToDiscordContext(), season, participants, doubleElimination, bestOf);
 
         [SubSlashCommand("seed", "Seed the bracket by the standings")]
@@ -184,8 +184,8 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
         [SubSlashCommand("pause", "Pause or resume a job")]
         public Task Pause(
             [SlashCommandParameter(Description = JobDescription)] string job,
-            [SlashCommandParameter(Description = "Pause it (false resumes it)")] bool paused = true)
-            => _handler.Job(Context.ToDiscordContext(), job, paused);
+            [SlashCommandParameter(Description = "Pause it (false resumes it; default: asked in a form)")] bool? paused = null)
+            => _handler.PauseJob(Context.ToDiscordContext(), job, paused);
     }
 
     [SubSlashCommand("claims", "Gamertag claims (sysadmins)")]
