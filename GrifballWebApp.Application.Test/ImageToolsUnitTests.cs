@@ -56,4 +56,16 @@ internal sealed class ImageToolsUnitTests : ApplicationDbContextTests
             await Assert.ThatAsync(() => Tools().GetPlayerImage(9999, PlayerImageKind.HaloEmblem), Throws.InstanceOf<ToolException>());
         }
     }
+
+    [Test]
+    public void GetPlayerImage_Refusal_NamesThePictureByItsSlug_AndSaysWhyWhenItCan()
+    {
+        var noPicture = Assert.ThrowsAsync<ToolException>(() => Tools().GetPlayerImage(_userID, PlayerImageKind.GamerPicture));
+        var noAccount = Assert.ThrowsAsync<ToolException>(() => Tools().GetPlayerImage(_bareUserID, PlayerImageKind.HaloEmblem));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(noPicture.Message, Does.Contain("gamer-picture").And.Not.Contain("GamerPicture"));
+            Assert.That(noAccount.Message, Does.Contain("halo-emblem").And.Contain("no Xbox account").And.Not.Contain("HaloEmblem"));
+        }
+    }
 }

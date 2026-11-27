@@ -24,8 +24,15 @@ public class ImageTools
         [Description("Which picture.")] PlayerImageKind image,
         CancellationToken ct = default)
     {
-        if (!await ChatImages.StoredAsync(_images, new ChatImage(userID, image), ct))
-            throw new ToolException($"The site has no {image} stored for user {userID}: they may have none, or the site hasn't fetched it yet.");
+        var request = new ChatImage(userID, image);
+        if (!await ChatImages.StoredAsync(_images, request, ct))
+        {
+            var slug = ChatImages.Slug(image);
+            var why = image != PlayerImageKind.SpartanHeadshot && await _images.GetXboxUserIdOfAsync(userID, ct) is null
+                ? "they have no Xbox account on the site (or there is no such user)"
+                : "they may have none, or the site hasn't fetched it yet";
+            throw new ToolException($"The site has no {slug} stored for user {userID}: {why}.");
+        }
         // The site's own chat gets a path it shows on the page; anywhere else (Discord, MCP) a whole address
         return (_caller.RelativeLinks ? UrlService.Relative : _urls).PlayerImage(userID, ChatImages.Slug(image));
     }
