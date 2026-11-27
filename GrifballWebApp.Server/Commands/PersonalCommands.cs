@@ -45,7 +45,7 @@ public class MeCommands : ApplicationCommandModule<ApplicationCommandContext>
     }
 
     [SubSlashCommand("region", "Set your region")]
-    public Task Region([SlashCommandParameter(Description = "Your region, or none to clear it", AutocompleteProviderType = typeof(RegionAutocomplete))] string region)
+    public Task Region([SlashCommandParameter(Description = "Your region, or none to clear it (default: pick from a list)", AutocompleteProviderType = typeof(RegionAutocomplete))] string? region = null)
         => _handler.SetRegion(Context.ToDiscordContext(), region);
 
     [SubSlashCommand("claim", "Claim a gamertag you played under before")]

@@ -61,6 +61,14 @@ public sealed class CommandContextRecorder
         return ((InteractionCallbackProperties<InteractionMessageProperties>)callback).Data!;
     }
 
+    /// <summary>The first response was a modal (not deferred): its properties.</summary>
+    public ModalProperties Modal()
+    {
+        var callback = Callbacks.Single();
+        Assert.That(callback.Type, Is.EqualTo(InteractionCallbackType.Modal));
+        return ((InteractionCallbackProperties<ModalProperties>)callback).Data!;
+    }
+
     /// <summary>Whether the response was deferred to the channel (true) or ephemerally (false); fails when it wasn't deferred.</summary>
     public bool DeferredPublicly()
     {

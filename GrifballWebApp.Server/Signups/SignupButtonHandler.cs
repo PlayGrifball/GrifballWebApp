@@ -107,19 +107,27 @@ public class SignupButtonHandler
     {
         var user = await UserGuard(discordContext, discordContext.User.Id);
         if (user is null) return;
+        await OpenModal(discordContext, user.Id, seasonId);
+    }
+
+    /// <summary>
+    /// The signup modal for <paramref name="userId"/>, as the first response (nothing deferred), or that signups are closed.
+    /// </summary>
+    public async Task OpenModal(IDiscordInteractionContext context, int userId, int seasonId)
+    {
         if (!await _signupsService.SignupsAreOpen(seasonId))
         {
-            await discordContext.EphemeralResponse(SignupsClosed);
+            await context.EphemeralResponse(SignupsClosed);
             return;
         }
 
         var signup = await _context.SeasonSignups
-            .Where(Domain.League.SeasonSignup.Of(seasonId, user.Id))
+            .Where(Domain.League.SeasonSignup.Of(seasonId, userId))
             .Select(x => new SignupResponseDto { TeamName = x.TeamName, WillCaptain = x.WillCaptain, RequiresAssistanceDrafting = x.RequiresAssistanceDrafting })
             .AsNoTracking()
             .FirstOrDefaultAsync();
-        var timeslots = await _signupsService.GetTimeslots(seasonId, 0, user.Id);
-        await discordContext.Interaction.SendResponseAsync(InteractionCallback.Modal(BuildModal(seasonId, signup, timeslots)));
+        var timeslots = await _signupsService.GetTimeslots(seasonId, 0, userId);
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(BuildModal(seasonId, signup, timeslots)));
     }
 
     public static ModalProperties BuildModal(int seasonId, SignupResponseDto? signup, IEnumerable<TimeslotDto> timeslots)
