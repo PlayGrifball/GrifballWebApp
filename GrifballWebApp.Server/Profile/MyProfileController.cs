@@ -143,6 +143,14 @@ public class MyProfileController : ControllerBase
         => GetUserID() is not int userId ? this.UnauthorizedProblem(NotSignedIn)
             : await _spartans.RequestRender(userId, ct) ? Accepted() : this.NotFoundProblem(ApiProblems.NoSuchUser);
 
+    /// <summary>A user's Spartan as anyone sees it on their profile: their choice if they made one, and its render.</summary>
+    [AllowAnonymous]
+    [HttpGet("users/{userId:int}/spartan", Name = "GetUserSpartan")]
+    [ProducesResponseType<SpartanProfileDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<ActionResult<SpartanProfileDto>> UserSpartan([FromRoute] int userId, CancellationToken ct)
+        => await _spartans.Get(userId, ct) is { } dto ? dto : this.NotFoundProblem(ApiProblems.NoSuchUser);
+
     /// <summary>A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.</summary>
     [AllowAnonymous]
     [HttpGet("users/{userId:int}/spartan/{name}", Name = "GetUserSpartanFile")]

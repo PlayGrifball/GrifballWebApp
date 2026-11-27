@@ -116,44 +116,11 @@ describe('ProfileSpartanComponent', () => {
     expect(text()).toContain('Rendered Nov 20, 2026');
   });
 
-  it('shows only the files that exist, from the user\'s own URLs', async () => {
-    await load(profile({ files: ['neutral-body', 'neutral-glb', 'stance-glb'], renderedAt: '2026-11-20T10:00:00Z' }));
-    const images = Array.from(el().querySelectorAll('img'));
-    expect(images).toHaveSize(1);
-    expect(images[0].getAttribute('src')).toBe('/api/users/21/spartan/neutral-body?v=2026-11-20T10%3A00%3A00Z');
-    expect(el().querySelector('a[download]')).toBeNull();
+  it('shows its render in the showcase, from the user\'s own URLs', async () => {
+    await load(profile({ files: ['neutral-body', 'neutral-glb'], renderedAt: '2026-11-20T10:00:00Z' }));
+    expect(el().querySelector('img')!.getAttribute('src')).toBe('/api/users/21/spartan/neutral-body?v=2026-11-20T10%3A00%3A00Z');
     await fixture.whenStable();
     expect(shown).toEqual(['/api/users/21/spartan/neutral-glb?v=2026-11-20T10%3A00%3A00Z']);
-  });
-
-  it('switches the 3D model between the neutral pose and the stance', async () => {
-    await load(profile({ files: ['neutral-glb', 'stance-glb'], renderedAt: '2026-11-20T10:00:00Z' }));
-    await fixture.whenStable();
-    button('In your stance')!.click();
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(shown).toEqual(['/api/users/21/spartan/neutral-glb?v=2026-11-20T10%3A00%3A00Z', '/api/users/21/spartan/stance-glb?v=2026-11-20T10%3A00%3A00Z']);
-    expect(button('In your stance')!.getAttribute('aria-pressed')).toBe('true');
-  });
-
-  it('offers no pose choice, and shows the model there is, when only one exists', async () => {
-    await load(profile({ files: ['stance-glb'] }));
-    await fixture.whenStable();
-
-    expect(button('Neutral pose')).toBeUndefined();
-    expect(shown).toEqual(['/api/users/21/spartan/stance-glb']);
-  });
-
-  it('leaves the version out of the addresses while nothing has rendered', async () => {
-    await load(profile({ files: ['neutral-body'] }));
-    expect(el().querySelector('img')!.getAttribute('src')).toBe('/api/users/21/spartan/neutral-body');
-  });
-
-  it('shows no images or downloads when nothing has rendered', async () => {
-    await load(profile());
-    expect(el().querySelector('img')).toBeNull();
-    expect(el().querySelector('a')).toBeNull();
   });
 
   it('opens the chooser with what is chosen now, after loading the catalog', async () => {

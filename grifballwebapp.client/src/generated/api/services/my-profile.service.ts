@@ -24,6 +24,8 @@ import { getRegions } from '../fn/my-profile/get-regions';
 import { GetRegions$Params } from '../fn/my-profile/get-regions';
 import { getSpartanCatalog } from '../fn/my-profile/get-spartan-catalog';
 import { GetSpartanCatalog$Params } from '../fn/my-profile/get-spartan-catalog';
+import { getUserSpartan } from '../fn/my-profile/get-user-spartan';
+import { GetUserSpartan$Params } from '../fn/my-profile/get-user-spartan';
 import { getUserSpartanFile$GltfBinary } from '../fn/my-profile/get-user-spartan-file-gltf-binary';
 import { GetUserSpartanFile$GltfBinary$Params } from '../fn/my-profile/get-user-spartan-file-gltf-binary';
 import { getUserSpartanFile$Png } from '../fn/my-profile/get-user-spartan-file-png';
@@ -430,6 +432,41 @@ export class MyProfileService extends BaseService {
     const resp = this.renderMySpartan$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<void>): void => r.body)
+    );
+  }
+
+  /** Path part for operation `getUserSpartan()` */
+  static readonly GetUserSpartanPath = '/users/{userId}/spartan';
+
+  /**
+   * A user's Spartan as anyone sees it on their profile: their choice if they made one, and its render.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getUserSpartan()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserSpartan$Response(params: GetUserSpartan$Params, context?: HttpContext): Observable<StrictHttpResponse<SpartanProfileDto>> {
+    const obs = getUserSpartan(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * A user's Spartan as anyone sees it on their profile: their choice if they made one, and its render.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getUserSpartan$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getUserSpartan(params: GetUserSpartan$Params, context?: HttpContext): Observable<SpartanProfileDto> {
+    const resp = this.getUserSpartan$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<SpartanProfileDto>): SpartanProfileDto => r.body)
     );
   }
 

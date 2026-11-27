@@ -192,6 +192,26 @@ public class SpartanEndpointsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task UserSpartan_GivesAnyoneAUsersRender_WithoutSigningIn()
+    {
+        var user = await UserAsync();
+        await StoreHeadshotAsync(user.Id, Start.UtcDateTime, "neutral-glb");
+        var anonymous = Profile(null);
+
+        var got = await anonymous.UserSpartan(user.Id, CancellationToken.None);
+
+        Assert.That(got.Value!.Files.Single(), Is.EqualTo("neutral-glb"));
+    }
+
+    [Test]
+    public async Task UserSpartan_IsNotFound_ForAnIdThatIsNoUser()
+    {
+        var got = await Profile(null).UserSpartan(9999, CancellationToken.None);
+
+        got.AssertProblem(StatusCodes.Status404NotFound, "There is no such user");
+    }
+
+    [Test]
     public async Task SpartanFile_GivesARenderedFile_CachedForFiveMinutes()
     {
         var user = await UserAsync();

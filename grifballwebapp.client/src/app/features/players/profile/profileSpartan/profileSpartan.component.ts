@@ -3,13 +3,13 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, On
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, FormRecord, ReactiveFormsModule } from '@angular/forms';
 import type { SpartanCatalogCore, SpartanChoice } from '@api/models';
-import { SpartanViewerComponent } from '../spartanViewer/spartanViewer.component';
+import { SpartanShowcaseComponent } from '../spartanShowcase/spartanShowcase.component';
 import { ProfileSpartanStore } from './profileSpartan.store';
 
 /** The signed-in user's Spartan on their profile: the files rendered for them, and a choice of core, pieces, coating and visor that replaces their equipped set. */
 @Component({
   selector: 'app-profile-spartan',
-  imports: [DatePipe, ReactiveFormsModule, SpartanViewerComponent],
+  imports: [DatePipe, ReactiveFormsModule, SpartanShowcaseComponent],
   templateUrl: './profileSpartan.component.html',
   styleUrl: './profileSpartan.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -23,13 +23,6 @@ export class ProfileSpartanComponent implements OnInit {
   readonly profile = this.store.profile;
   readonly catalog = this.store.catalog;
   readonly busy = this.store.busy;
-
-  /** Which of the two models the 3D view shows; the one in the user's stance when there is none of the other. */
-  readonly pose = signal<'neutral' | 'stance'>('neutral');
-  readonly modelName = computed(() => {
-    const wanted = `${this.pose()}-glb`;
-    return this.hasFile(wanted) ? wanted : ['neutral-glb', 'stance-glb'].find(n => this.hasFile(n)) ?? null;
-  });
 
   readonly editing = signal(false);
   readonly form = new FormGroup({
@@ -47,14 +40,6 @@ export class ProfileSpartanComponent implements OnInit {
   /** The core's regions that name their pieces, which the choice can pick by name. */
   readonly regions = computed(() =>
     (this.selectedCore()?.regions ?? []).filter(r => r.kind === 'REGION' && r.pieces.some(p => p.name)));
-
-  /** The render's time is in the address, so a new render is not shown from the cache of an old one. */
-  readonly fileUrl = (name: string): string => {
-    const rendered = this.profile()?.renderedAt;
-    const version = rendered ? `?v=${encodeURIComponent(rendered)}` : '';
-    return `/api/users/${this.userID()}/spartan/${name}${version}`;
-  };
-  readonly hasFile = (name: string): boolean => !!this.profile()?.files?.includes(name);
 
   constructor() {
     this.form.controls.core.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
