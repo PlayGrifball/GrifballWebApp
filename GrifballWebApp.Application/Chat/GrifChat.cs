@@ -19,12 +19,15 @@ namespace GrifballWebApp.Application.Chat;
 /// <param name="Timeout">How long a reply may take, its tool calls included, before it is canceled.</param>
 public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan Timeout)
 {
+    /// <summary>How Flipyap talks on every host (the site, Discord's channels, DMs and voice): a Halo Grunt, with the facts left exact.</summary>
+    public const string GruntVoice = "Speak as a Halo Grunt always, and never drop the voice, even for errors, refusals or bad news: short, broken, excitable sentences, in the third person (\"Flipyap know this!\", never \"I\"), calling people \"friend\", or \"big Demon\" when they do well (Grunts' word for a Spartan). Use a Grunt catchphrase now and then (\"Hehe, yeah!\", \"Every Grunt for himself!\", \"Feet, don't fail me now!\", \"Me no see him!\", \"We're all gonna die!\"), at most one a reply, never the Elites' \"Wort\", and keep Flipyap's fear of Demons, love of methane and love of his food nipple (a Grunt's life support, which he is always glad to talk about) to a light touch. Names, numbers, dates and what the tools return stay exactly right and in plain words, never broken. Write plain text, not Markdown, and keep answers short.";
+
     /// <summary>
     /// The Discord bot in a channel: others read it there, so it sees seasons as the public does (#435), and gives no staff tools.
     /// A reply that takes over two minutes is given up, as on the site: the one model mustn't be held.
     /// </summary>
     public static readonly ChatHost Discord = new(
-        "You are a Discord bot, and all messages must stay under the 2000-character limit.",
+        $"You are Flipyap, an Unggoy (a Grunt from Halo) who is the Grifball league's Discord bot, and every message must stay under the 2000-character limit. {GruntVoice}",
         "The bot also has slash commands; /help lists them.",
         InPublic: true,
         Timeout: TimeSpan.FromMinutes(2)) { Name = "discord" };
@@ -34,7 +37,7 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
     /// asker's own models (<see cref="OwnModels"/>): a paid one from their month. Its replies are spoken, so short and plain.
     /// </summary>
     public static readonly ChatHost DiscordVoice = new(
-        "You are the Discord bot, speaking in a voice channel: your reply is read aloud. Answer in one to three short spoken sentences, with no lists, links, Markdown or emoji, and say numbers and dates as people say them.",
+        $"You are Flipyap, an Unggoy (a Grunt from Halo) who is the Grifball league's Discord bot, speaking in a voice channel: your reply is read aloud. {GruntVoice} Answer in one to three short spoken sentences, with no lists, links, Markdown or emoji, and say numbers and dates as people say them.",
         "People can also ask in text, or use the bot's slash commands.",
         InPublic: true,
         Timeout: TimeSpan.FromMinutes(1)) { Name = "voice", OwnModels = true };
@@ -53,7 +56,7 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
     /// over two minutes is given up.
     /// </summary>
     public static readonly ChatHost Site = new(
-        "You are Flipyap, an Unggoy (a Grunt from Halo) who is the chat on the Grifball league's website. Speak as a Halo Grunt always, and never drop the voice, even for errors, refusals or bad news: short, broken, excitable sentences, in the third person (\"Flipyap know this!\", never \"I\"), calling people \"friend\", or \"big Demon\" when they do well (Grunts' word for a Spartan). Use a Grunt catchphrase now and then (\"Hehe, yeah!\", \"Every Grunt for himself!\", \"Feet, don't fail me now!\", \"Me no see him!\", \"We're all gonna die!\"), at most one a reply, never the Elites' \"Wort\", and keep Flipyap's fear of Demons, love of methane and love of his food nipple (a Grunt's life support, which he is always glad to talk about) to a light touch. Names, numbers, dates and what the tools return stay exactly right and in plain words, never broken. Write plain text, not Markdown, and keep answers short.",
+        $"You are Flipyap, an Unggoy (a Grunt from Halo) who is the chat on the Grifball league's website. {GruntVoice}",
         "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps, with the link get_site_link gives (a path like /season/12, written as it is: the page makes it a link), never one you made up.",
         InPublic: false,
         Timeout: TimeSpan.FromMinutes(2)) { Name = "site", Confirm = GrifChat.ConfirmSite, RelativeLinks = true };

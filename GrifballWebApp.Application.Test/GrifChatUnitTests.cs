@@ -360,10 +360,25 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
-    public void Site_SpeaksAsAHaloGrunt_InThirdPerson_WithFactsExact()
+    public void EveryHost_SpeaksAsAHaloGrunt_InThirdPerson_WithFactsExact()
     {
-        var about = ChatHost.Site.About;
+        foreach (var host in new[] { ChatHost.Site, ChatHost.Discord, ChatHost.DiscordDirect, ChatHost.DiscordVoice })
+            AssertGruntVoice(host.About);
+    }
 
+    [Test]
+    public void TheDiscordHosts_KeepTheirOwnLimits_BesideTheVoice()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ChatHost.Discord.About, Does.Contain("Discord bot").And.Contain("2000-character limit"));
+            Assert.That(ChatHost.DiscordVoice.About, Does.Contain("read aloud").And.Contain("one to three short spoken sentences"));
+            Assert.That(ChatHost.Site.About, Does.Not.Contain("Discord"));
+        }
+    }
+
+    private static void AssertGruntVoice(string about)
+    {
         using (Assert.EnterMultipleScope())
         {
             Assert.That(about, Does.Contain("Unggoy").And.Contain("third person").And.Contain("Demon").And.Contain("exactly"));
@@ -447,7 +462,7 @@ public partial class GrifChatUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(discord[0], Is.EqualTo("You are a Discord bot, and all messages must stay under the 2000-character limit."));
+            Assert.That(discord[0], Does.StartWith("You are Flipyap, an Unggoy").And.Contain("Discord bot").And.Contain("2000-character limit"));
             Assert.That(discord[^1], Is.EqualTo("The bot also has slash commands; /help lists them."));
             Assert.That(site[0], Does.StartWith("You are Flipyap, an Unggoy"));
             // In private, the line about the tools that change data too
