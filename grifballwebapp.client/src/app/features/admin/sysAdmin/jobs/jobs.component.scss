@@ -199,3 +199,15 @@ input.jb-input {
 .jb-detail-row .jb-detail {
   margin: 0;
 }
+
+// The table scrolls sideways on a narrow screen: the details stay as wide as what shows of it, at its left edge
+.hud-table-wrap {
+  container-type: inline-size;
+}
+
+.jb-detail-row .jb-detail {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  width: 100cqw;
+}
