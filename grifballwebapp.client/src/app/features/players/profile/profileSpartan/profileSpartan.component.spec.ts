@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { SpartanCatalog, SpartanProfileDto } from '@api/models';
+import { SPARTAN_SCENE, SpartanScene } from '../spartanViewer/spartanScene';
 import { ProfileSpartanComponent } from './profileSpartan.component';
 
 const stateUrl = '/api/me/spartan';
@@ -27,11 +28,14 @@ describe('ProfileSpartanComponent', () => {
   let fixture: ComponentFixture<ProfileSpartanComponent>;
   let http: HttpTestingController;
   let snackBar: jasmine.SpyObj<MatSnackBar>;
+  let shown: string[];
 
   beforeEach(() => {
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
+    shown = [];
+    const scene: SpartanScene = { show: async url => { shown.push(url); }, dispose: () => undefined };
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: MatSnackBar, useValue: snackBar }],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: MatSnackBar, useValue: snackBar }, { provide: SPARTAN_SCENE, useValue: async () => scene }],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ProfileSpartanComponent);
@@ -116,8 +120,28 @@ describe('ProfileSpartanComponent', () => {
     const images = Array.from(el().querySelectorAll('img'));
     expect(images).toHaveSize(1);
     expect(images[0].getAttribute('src')).toBe('/api/users/21/spartan/neutral-body?v=2026-11-20T10%3A00%3A00Z');
-    const links = Array.from(el().querySelectorAll('a')).map(a => a.getAttribute('href'));
-    expect(links).toEqual(['/api/users/21/spartan/neutral-glb?v=2026-11-20T10%3A00%3A00Z', '/api/users/21/spartan/stance-glb?v=2026-11-20T10%3A00%3A00Z']);
+    expect(el().querySelector('a[download]')).toBeNull();
+    await fixture.whenStable();
+    expect(shown).toEqual(['/api/users/21/spartan/neutral-glb?v=2026-11-20T10%3A00%3A00Z']);
+  });
+
+  it('switches the 3D model between the neutral pose and the stance', async () => {
+    await load(profile({ files: ['neutral-glb', 'stance-glb'], renderedAt: '2026-11-20T10:00:00Z' }));
+    await fixture.whenStable();
+    button('In your stance')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(shown).toEqual(['/api/users/21/spartan/neutral-glb?v=2026-11-20T10%3A00%3A00Z', '/api/users/21/spartan/stance-glb?v=2026-11-20T10%3A00%3A00Z']);
+    expect(button('In your stance')!.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('offers no pose choice, and shows the model there is, when only one exists', async () => {
+    await load(profile({ files: ['stance-glb'] }));
+    await fixture.whenStable();
+
+    expect(button('Neutral pose')).toBeUndefined();
+    expect(shown).toEqual(['/api/users/21/spartan/stance-glb']);
   });
 
   it('leaves the version out of the addresses while nothing has rendered', async () => {

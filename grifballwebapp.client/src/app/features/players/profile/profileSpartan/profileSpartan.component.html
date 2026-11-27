@@ -23,8 +23,16 @@
       @if (hasFile('stance-body')) { <img [src]="fileUrl('stance-body')" alt="Your Spartan in your stance" width="350" height="500"> }
       @if (hasFile('neutral-head')) { <img [src]="fileUrl('neutral-head')" alt="Your Spartan's helmet" width="350" height="500"> }
     </div>
-    @if (hasFile('neutral-glb')) {
-      <p><a [href]="fileUrl('neutral-glb')" download>Download the 3D model</a>@if (hasFile('stance-glb')) { · <a [href]="fileUrl('stance-glb')" download>in your stance</a> }</p>
+    @if (modelName(); as model) {
+      <div class="spartan-model">
+        <app-spartan-viewer [url]="fileUrl(model)" />
+        @if (hasFile('stance-glb') && hasFile('neutral-glb')) {
+          <div class="spartan-actions" role="group" aria-label="Pose of the 3D model">
+            <button type="button" class="hud-btn" [attr.aria-pressed]="pose() === 'neutral'" (click)="pose.set('neutral')">Neutral pose</button>
+            <button type="button" class="hud-btn" [attr.aria-pressed]="pose() === 'stance'" (click)="pose.set('stance')">In your stance</button>
+          </div>
+        }
+      </div>
     }
 
     <div class="spartan-actions">

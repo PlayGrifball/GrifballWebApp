@@ -1,0 +1,50 @@
+import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, input, signal, viewChild } from '@angular/core';
+import { SPARTAN_SCENE, SpartanScene } from './spartanScene';
+
+/** A rendered Spartan model (a GLB) in 3D that the visitor can turn around. */
+@Component({
+  selector: 'app-spartan-viewer',
+  templateUrl: './spartanViewer.component.html',
+  styleUrl: './spartanViewer.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class SpartanViewerComponent {
+  private readonly createScene = inject(SPARTAN_SCENE);
+  private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+  private readonly scene = signal<SpartanScene | null>(null);
+
+  /** The model's address. */
+  readonly url = input.required<string>();
+  readonly label = input('Your Spartan in 3D');
+
+  /** loading until the model is shown; unavailable when the browser cannot draw it (no WebGL) or the model cannot be read. */
+  readonly state = signal<'loading' | 'ready' | 'unavailable'>('loading');
+
+  constructor() {
+    let destroyed = false;
+    inject(DestroyRef).onDestroy(() => {
+      destroyed = true;
+      this.scene()?.dispose();
+    });
+    afterNextRender(async () => {
+      try {
+        const scene = await this.createScene(this.canvas().nativeElement);
+        if (destroyed) scene.dispose();
+        else this.scene.set(scene);
+      } catch {
+        this.state.set('unavailable');
+      }
+    });
+    effect(onCleanup => {
+      const scene = this.scene();
+      const url = this.url();
+      if (!scene) return;
+      let current = true;
+      onCleanup(() => { current = false; });
+      this.state.set('loading');
+      scene.show(url).then(
+        () => { if (current) this.state.set('ready'); },
+        () => { if (current) this.state.set('unavailable'); });
+    });
+  }
+}

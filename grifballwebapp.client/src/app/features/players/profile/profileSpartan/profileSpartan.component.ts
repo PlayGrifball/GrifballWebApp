@@ -3,12 +3,13 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, On
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, FormRecord, ReactiveFormsModule } from '@angular/forms';
 import type { SpartanCatalogCore, SpartanChoice } from '@api/models';
+import { SpartanViewerComponent } from '../spartanViewer/spartanViewer.component';
 import { ProfileSpartanStore } from './profileSpartan.store';
 
 /** The signed-in user's Spartan on their profile: the files rendered for them, and a choice of core, pieces and coating that replaces their equipped set. */
 @Component({
   selector: 'app-profile-spartan',
-  imports: [DatePipe, ReactiveFormsModule],
+  imports: [DatePipe, ReactiveFormsModule, SpartanViewerComponent],
   templateUrl: './profileSpartan.component.html',
   styleUrl: './profileSpartan.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,6 +23,13 @@ export class ProfileSpartanComponent implements OnInit {
   readonly profile = this.store.profile;
   readonly catalog = this.store.catalog;
   readonly busy = this.store.busy;
+
+  /** Which of the two models the 3D view shows; the one in the user's stance when there is none of the other. */
+  readonly pose = signal<'neutral' | 'stance'>('neutral');
+  readonly modelName = computed(() => {
+    const wanted = `${this.pose()}-glb`;
+    return this.hasFile(wanted) ? wanted : ['neutral-glb', 'stance-glb'].find(n => this.hasFile(n)) ?? null;
+  });
 
   readonly editing = signal(false);
   readonly form = new FormGroup({
