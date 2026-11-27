@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Application.Extensions;
-using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure.Discord;
 using NetCord;
 using NetCord.Rest;
@@ -84,7 +83,7 @@ public class SignupButtonHandler
     public const string DraftHelpChoice = "draft_help";
     public const string TimesInputPrefix = "times_";
 
-    private async Task WithDetailsButton(IDiscordInteractionContext context, int seasonId, string message)
+    private static async Task WithDetailsButton(IDiscordInteractionContext context, int seasonId, string message)
     {
         var button = new ButtonProperties(DiscordButtonContants.SignupDetailsWithParams(seasonId), "Set my details and times", ButtonStyle.Secondary);
         await context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
@@ -113,7 +112,7 @@ public class SignupButtonHandler
             new LabelProperties("Team name (if you captain)", new TextInputProperties(TeamNameInput, TextInputStyle.Short)
             {
                 Required = false,
-                MaxLength = Team.TeamNameMaxLength,
+                MaxLength = Domain.League.Team.TeamNameMaxLength,
                 Value = signup?.TeamName,
             }),
             new LabelProperties("About you", new CheckboxGroupProperties(ChoicesInput,
@@ -208,6 +207,6 @@ public class SignupButtonHandler
         await Reply(context, $"Your signup is saved. {summary}{more}");
     }
 
-    private static Task Reply(IDiscordInteractionContext context, string message)
+    private static Task<IDiscordRestMessage> Reply(IDiscordInteractionContext context, string message)
         => context.Interaction.ModifyResponseAsync(x => x.WithContent(message).WithFlags(MessageFlags.Ephemeral));
 }
