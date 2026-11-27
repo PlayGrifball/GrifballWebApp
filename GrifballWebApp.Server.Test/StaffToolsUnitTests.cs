@@ -384,7 +384,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task SetUserGamertag_SetsItForAUserByIDOrByDiscordID_ThroughTheSameServiceAsThePlayer()
     {
-        var byID = User.Register("ById");
+        var byID = GrifballWebApp.Domain.Players.User.Register("ById");
         Db.Users.Add(byID);
         await Db.SaveChangesAsync();
         var byDiscord = await AddUser(758786051678142464UL, "Linked");
