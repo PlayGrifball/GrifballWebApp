@@ -57,6 +57,7 @@ public class GrifToolsTests
 
     private static readonly string[] Alpha = ["Alpha"];
     private static readonly string[] DiscordSignIn = ["Discord"];
+    private static readonly string[] OldTag = ["OldTag"];
     private static readonly string[] PlayerRole = ["Player"];
     private static readonly string[] Pullers = ["Player", "Commissioner", "Sysadmin"];
     private static readonly string[] Staff = ["Commissioner", "Sysadmin"];
@@ -363,6 +364,8 @@ public class GrifToolsTests
         var region = GrifballWebApp.Domain.Shared.Region.Seed("Tools Region");
         _context.Regions.Add(region);
         _context.UserLogins.Add(new GrifballWebApp.Domain.Players.UserLogin { UserId = _captain.Id, LoginProvider = "Discord", ProviderKey = "42", ProviderDisplayName = "Discord" });
+        var placeholder = await _context.AddUser("OldTag");
+        _context.GamertagClaims.Add(GrifballWebApp.Domain.Archive.GamertagClaim.ClaimedByUser(_captain.Id, null, "OldTag", "OLDTAG", placeholder.Id, null, null));
         await _context.SaveChangesAsync();
         await services.GetRequiredService<RegionService>().Set(_captain.Id, region.RegionID);
 
@@ -375,7 +378,8 @@ public class GrifToolsTests
             Assert.That(mine.UserID, Is.EqualTo(_captain.Id));
             Assert.That(mine.Region, Is.EqualTo("Tools Region"));
             Assert.That(mine.SignIns, Is.EqualTo(DiscordSignIn));
-            Assert.That(mine.GamertagClaims, Is.Empty);
+            Assert.That(mine.GamertagClaims.Select(c => c.Gamertag), Is.EqualTo(OldTag));
+            Assert.That(mine.GamertagClaims.Single().RejectionReason, Is.Null, "not decided yet");
             Assert.That(inPublic?.Message, Is.EqualTo(PersonalTools.NotInPublic));
             Assert.That(noAccount?.Message, Does.Contain("no site account"));
         }
