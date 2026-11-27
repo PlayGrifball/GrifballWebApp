@@ -50,13 +50,17 @@ internal sealed class ButtonToolsUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public void OfferButton_RefusesAMissingOrNeedlessSeason_AndAHostWithoutTheBot()
+    public async Task OfferButton_RefusesAMissingOrNeedlessSeason_AndAHostWithoutTheBot()
     {
+        var noSeason = await Assert.ThrowsAsync<ToolException>(() => Tools().OfferButton(ChatButtonKind.Signup));
+        var needlessSeason = await Assert.ThrowsAsync<ToolException>(() => Tools().OfferButton(ChatButtonKind.JoinQueue, 5));
+        var noBot = await Assert.ThrowsAsync<ToolException>(() => Tools(catalog: new NoSlashCommands()).OfferButton(ChatButtonKind.JoinQueue));
+
         using (Assert.EnterMultipleScope())
         {
-            Assert.ThrowsAsync<ToolException>(() => Tools().OfferButton(ChatButtonKind.Signup));
-            Assert.ThrowsAsync<ToolException>(() => Tools().OfferButton(ChatButtonKind.JoinQueue, 5));
-            Assert.ThrowsAsync<ToolException>(() => Tools(catalog: new NoSlashCommands()).OfferButton(ChatButtonKind.JoinQueue));
+            Assert.That(noSeason?.Message, Does.Contain("needs the season"));
+            Assert.That(needlessSeason?.Message, Does.Contain("not about a season"));
+            Assert.That(noBot?.Message, Does.Contain("Discord bot"));
         }
     }
 
@@ -66,13 +70,17 @@ internal sealed class ButtonToolsUnitTests : ApplicationDbContextTests
         var unannounced = await SeasonAsync(signupsOpenDaysAgo: 1, announced: false);
         var closed = await SeasonAsync(signupsOpenDaysAgo: 8, announced: false);
 
+        var unknown = await Assert.ThrowsAsync<ToolException>(() => Tools().OfferButton(ChatButtonKind.SignupDetails, 999));
+        var hidden = await Assert.ThrowsAsync<ToolException>(() => Tools().OfferButton(ChatButtonKind.Signup, unannounced));
+        var notOpen = await Assert.ThrowsAsync<ToolException>(() => Tools(Staff).OfferButton(ChatButtonKind.Signup, closed));
+        var staffSees = await Tools(Staff).OfferButton(ChatButtonKind.Signup, unannounced);
+
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(Assert.ThrowsAsync<ToolException>(() => Tools().OfferButton(ChatButtonKind.SignupDetails, 999))!.Message, Is.EqualTo(ButtonTools.NoSuchSeason));
-            Assert.That(Assert.ThrowsAsync<ToolException>(() => Tools().OfferButton(ChatButtonKind.Signup, unannounced))!.Message, Is.EqualTo(ButtonTools.NoSuchSeason),
-                "an unannounced season stays out of a public reply");
-            Assert.That(Assert.ThrowsAsync<ToolException>(() => Tools(Staff).OfferButton(ChatButtonKind.Signup, closed))!.Message, Is.EqualTo(ButtonTools.SignupsNotOpen));
-            Assert.That(ChatButtons.In(await Tools(Staff).OfferButton(ChatButtonKind.Signup, unannounced)), Has.Count.EqualTo(1), "staff see it");
+            Assert.That(unknown?.Message, Is.EqualTo(ButtonTools.NoSuchSeason));
+            Assert.That(hidden?.Message, Is.EqualTo(ButtonTools.NoSuchSeason), "an unannounced season stays out of a public reply");
+            Assert.That(notOpen?.Message, Is.EqualTo(ButtonTools.SignupsNotOpen));
+            Assert.That(ChatButtons.In(staffSees), Has.Count.EqualTo(1), "staff see it");
         }
     }
 }
