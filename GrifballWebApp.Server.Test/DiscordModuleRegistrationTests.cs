@@ -34,6 +34,7 @@ public class DiscordModuleRegistrationTests
     private static readonly string[] Modals =
     [
         "set_gamertag() preconditions: 0",
+        "set_gamertag_for(UInt64 targetDiscordUserId) preconditions: 0",
     ];
 
     private static List<string> ComponentInteractions<TContext>() where TContext : IComponentInteractionContext
@@ -63,6 +64,15 @@ public class DiscordModuleRegistrationTests
     public void Modals_Should_KeepTheirCustomIdsAndParameters()
     {
         Assert.That(ComponentInteractions<ModalInteractionContext>(), Is.EqualTo(Modals));
+    }
+
+    [Test]
+    public void UserCommands_Should_KeepTheirNames()
+    {
+        var service = new ApplicationCommandService<UserCommandContext>();
+        service.AddModules(ServerAssembly);
+
+        Assert.That(service.GetCommands().Select(c => c.Name).Order(StringComparer.Ordinal), Is.EqualTo(new[] { "Profile", "Pull games", "Set gamertag" }));
     }
 
     private static string Describe(string name, string description, IEnumerable<SlashCommandParameter<ApplicationCommandContext>> parameters, string extra)

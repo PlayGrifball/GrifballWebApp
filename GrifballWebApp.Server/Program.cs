@@ -300,6 +300,7 @@ public class Program
             .AddGatewayHandlers(typeof(Program).Assembly)
             // DiscordInteractionPipeline sets the audit user and handles exceptions for every command and component
             .AddApplicationCommands(options => DiscordInteractionPipeline.Use(options))
+            .AddApplicationCommands<NetCord.UserCommandInteraction, NetCord.Services.ApplicationCommands.UserCommandContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>(options => DiscordInteractionPipeline.Use(options));
@@ -340,6 +341,7 @@ public class Program
         services.AddTransient<SeasonCommandsHandler>();
         services.AddTransient<TeamCommandsHandler>();
         services.AddTransient<PlayerCommandsHandler>();
+        services.AddTransient<UserCommandsHandler>();
         services.AddTransient<MatchCommandsHandler>();
         services.AddTransient<BrowseCommandsHandler>();
         services.AddTransient<PersonalCommandsHandler>();

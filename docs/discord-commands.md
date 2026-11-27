@@ -108,3 +108,13 @@ These stay on the site, and the matching commands link to them:
    methods, or join an existing group.
 4. Register the handler in `Program.AddDiscordHandlers`, then add the command to `DiscordModuleRegistrationTests`,
    `DiscordTransportTests.Commands` and this page.
+
+## User commands
+
+Right-click a Discord user, Apps menu. They take the clicked user's linked site account and are not in `/help`, which lists slash commands only.
+
+| Command | Does |
+|---|---|
+| Profile | `/player profile` for the clicked user. They need a site account with a gamertag |
+| Pull games | `/player pull` for the clicked user's Xbox account. Player, Commissioner or Sysadmin |
+| Set gamertag | A modal asks for the gamertag, then sets it through `/setgamertag`'s service (the agents' `set_user_gamertag`), so the same rules refuse it. Sysadmin. The user needs a site account already; a forced change is the Edit User page |
