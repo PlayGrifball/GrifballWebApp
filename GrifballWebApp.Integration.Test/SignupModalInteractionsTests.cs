@@ -47,17 +47,17 @@ public class SignupModalInteractionsTests
     private IDiscordModalInteractionContext Submit(int seasonId, string teamName, string[] choices, string[]? times = null)
     {
         var timeGroups = string.Concat((times is null ? Array.Empty<string[]>() : new[] { times }).Select((values, i) =>
-            $$"""
-            ,{"type":18,"id":{{10 + i}},"component":{"type":22,"id":{{20 + i}},"custom_id":"times_{{i}}","values":[{{Quoted(values)}}]}}
+            $$$"""
+            ,{"type":18,"id":{{{10 + i}}},"component":{"type":22,"id":{{{20 + i}}},"custom_id":"times_{{{i}}}","values":[{{{Quoted(values)}}}]}}
             """));
-        var json = $$"""
-        {"id":"1","application_id":"2","type":5,"data":{"custom_id":"signup:{{seasonId}}",
+        var json = $$$"""
+        {"id":"1","application_id":"2","type":5,"data":{"custom_id":"signup:{{{seasonId}}}",
            "components":[
-             {"type":18,"id":1,"component":{"type":4,"id":2,"custom_id":"team_name","value":"{{teamName}}"}},
-             {"type":18,"id":3,"component":{"type":22,"id":4,"custom_id":"choices","values":[{{Quoted(choices)}}]}}
-             {{timeGroups}}]},
+             {"type":18,"id":1,"component":{"type":4,"id":2,"custom_id":"team_name","value":"{{{teamName}}}"}},
+             {"type":18,"id":3,"component":{"type":22,"id":4,"custom_id":"choices","values":[{{{Quoted(choices)}}}]}}
+             {{{timeGroups}}}]},
          "channel_id":"3","channel":{"id":"3","type":0},
-         "user":{"id":"{{DiscordId}}","username":"discorduser","discriminator":"0"},"token":"tok","version":1,
+         "user":{"id":"{{{DiscordId}}}","username":"discorduser","discriminator":"0"},"token":"tok","version":1,
          "locale":"en-US","entitlements":[],"authorizing_integration_owners":{},"context":1}
         """;
         var model = JsonSerializer.Deserialize<JsonInteraction>(json, NumbersFromStrings)!;
