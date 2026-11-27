@@ -450,7 +450,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
 
         var result = await ModalModules.ExecuteAsync(new ModalInteractionContext(interaction, null!), services);
 
-        AssertReplied(result, $"Set: <> has the gamertag NewTag.");
+        AssertReplied(result, "Set: <@909090> has the gamertag NewTag.");
         await _setGamertag.Received(1).SetGamertag(int.Parse(_seeded["{caller}"]), "NewTag", Arg.Any<CancellationToken>());
     }
 }
