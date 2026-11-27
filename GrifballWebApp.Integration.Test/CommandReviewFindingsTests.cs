@@ -93,7 +93,7 @@ public class CommandReviewFindingsTests
             null!, null!, null!, NullLogger<MatchmakingButtonHandler>.Instance);
         return new PersonalCommandsHandler(new DiscordCaller(_context), _lookups, new QueueMembership(queue, _context), queue, buttons,
             new RegionService(_context), new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Options.Create(new UserClaimOptions())),
-            new SignupsService(_context), _seasons, new AvailabilityService(_context), new RescheduleService(_context, new ContextOutbox(_context)), _urls);
+            new SignupsService(_context), _seasons, new AvailabilityService(_context), new RescheduleService(_context, new ContextOutbox(_context)), _urls, null!);
     }
 
     private async Task<(Season Season, Team Home, Team Away)> SeasonWithTeams(string name)

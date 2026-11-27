@@ -56,7 +56,7 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
         var seasons = new SeasonService(Db, null!, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time);
         return new PersonalCommandsHandler(new DiscordCaller(Db), new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), membership, _queue, buttons, null!,
             new UserGamertagClaimService(Db, new GamertagMatching(Db), _time, Options.Create(new UserClaimOptions())),
-            new SignupsService(Db, _time), seasons, new AvailabilityService(Db), new RescheduleService(Db, Substitute.For<IOutbox>()), Urls());
+            new SignupsService(Db, _time), seasons, new AvailabilityService(Db), new RescheduleService(Db, Substitute.For<IOutbox>()), Urls(), null!);
     }
 
     private async Task<(CommandContextRecorder Discord, User Caller)> Caller(params string[] roles)

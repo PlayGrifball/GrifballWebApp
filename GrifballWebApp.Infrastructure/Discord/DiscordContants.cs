@@ -55,6 +55,7 @@ public class DiscordStringMenuContants
 public class DiscordModalsContants
 {
     public const string SetGamertag = "set_gamertag";
+    public const string SetRegion = "set_region";
 
     public const string Signup = "signup";
     public static string SignupWithParams(int seasonId)

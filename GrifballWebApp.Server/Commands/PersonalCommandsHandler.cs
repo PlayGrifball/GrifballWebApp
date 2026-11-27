@@ -1,4 +1,5 @@
 using DiscordInterface.Generated;
+using DiscordInterfaces;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Extensions;
@@ -9,7 +10,15 @@ using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Infrastructure.Discord;
+using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Matchmaking;
+using GrifballWebApp.Server.Signups;
+using InteractionCallback = NetCord.Rest.InteractionCallback;
+using LabelProperties = NetCord.Rest.LabelProperties;
+using ModalProperties = NetCord.Rest.ModalProperties;
+using RadioGroupOptionProperties = NetCord.Rest.RadioGroupOptionProperties;
+using RadioGroupProperties = NetCord.Rest.RadioGroupProperties;
 
 namespace GrifballWebApp.Server.Commands;
 
@@ -22,6 +31,8 @@ namespace GrifballWebApp.Server.Commands;
 public class PersonalCommandsHandler
 {
     public const string NoSuchRegion = "I found no such region.";
+    public const string RegionInput = "region";
+    private const int RadioGroupLimit = 10;
 
     private readonly DiscordCaller _caller;
     private readonly CommandLookups _lookups;
@@ -35,10 +46,11 @@ public class PersonalCommandsHandler
     private readonly AvailabilityService _availability;
     private readonly RescheduleService _reschedules;
     private readonly UrlService _urls;
+    private readonly SignupButtonHandler _signupModal;
 
     public PersonalCommandsHandler(DiscordCaller caller, CommandLookups lookups, QueueMembership membership, IQueueRepository queue,
         MatchmakingButtonHandler queueButtons, RegionService regions, UserGamertagClaimService claims, SignupsService signups, SeasonService seasons,
-        AvailabilityService availability, RescheduleService reschedules, UrlService urls)
+        AvailabilityService availability, RescheduleService reschedules, UrlService urls, SignupButtonHandler signupModal)
     {
         _caller = caller;
         _lookups = lookups;
@@ -52,6 +64,7 @@ public class PersonalCommandsHandler
         _availability = availability;
         _reschedules = reschedules;
         _urls = urls;
+        _signupModal = signupModal;
     }
 
     /// <summary>The queue's size, and the caller's place in it when they have an account.</summary>
@@ -94,9 +107,15 @@ public class PersonalCommandsHandler
         await context.Reply(QueueMessages.For(result));
     }
 
-    /// <summary>Sets the caller's region, by name or ID; "none" clears it.</summary>
-    public async Task SetRegion(IDiscordInteractionContext context, string region)
+    /// <summary>Sets the caller's region, by name or ID; "none" clears it. With none given, the region modal lets them pick.</summary>
+    public async Task SetRegion(IDiscordInteractionContext context, string? region)
     {
+        if (region is null)
+        {
+            await OpenRegionModal(context);
+            return;
+        }
+
         await context.Defer(ephemeral: true);
         if (await _caller.Require(context, DiscordCaller.Roles.Anyone) is not { } caller)
             return;
@@ -107,7 +126,7 @@ public class PersonalCommandsHandler
             regionID = regions.FirstOrDefault(x => x.RegionID.ToString() == region.Trim() || x.RegionName.Equals(region.Trim(), StringComparison.OrdinalIgnoreCase))?.RegionID;
             if (regionID is null)
             {
-                await context.Reply($"{NoSuchRegion} The regions are {string.Join(", ", regions.Select(x => x.RegionName))}.");
+                await context.Reply($"{NoSuchRegion} {RegionsAre(regions)}");
                 return;
             }
         }
@@ -115,6 +134,43 @@ public class PersonalCommandsHandler
         // The region was checked above, and the caller's account exists: it is set
         await _regions.Set(caller.UserID, regionID);
         await context.Reply(regionID is null ? "Your region is cleared." : "Your region is set.");
+    }
+
+    /// <summary>
+    /// The region modal: one radio group of the regions and None, the caller's own picked. A radio group holds 10 options, so
+    /// with more regions than fit it asks for the region option instead.
+    /// </summary>
+    private async Task OpenRegionModal(IDiscordInteractionContext context)
+    {
+        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.Anyone) is not { } caller)
+            return;
+        var regions = await _regions.List();
+        if (regions.Count >= RadioGroupLimit)
+        {
+            await context.EphemeralResponse($"Give your region with the region option. {RegionsAre(regions)}");
+            return;
+        }
+
+        var current = await _regions.Of(caller.UserID);
+        var options = regions
+            .Select(r => new RadioGroupOptionProperties(r.RegionName, r.RegionID.ToString()) { Default = r.RegionID == current })
+            .Append(new RadioGroupOptionProperties("None", "none") { Default = current is null })
+            .ToList();
+        var modal = new ModalProperties(DiscordModalsContants.SetRegion, "Your region")
+        {
+            new LabelProperties("Where you play from", new RadioGroupProperties(RegionInput, options)),
+        };
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+    private static string RegionsAre(IEnumerable<RegionDto> regions) => $"The regions are {string.Join(", ", regions.Select(x => x.RegionName))}.";
+
+    /// <summary>Sets the region picked in the region modal, as one typed is.</summary>
+    public Task SaveRegion(IDiscordModalInteractionContext context)
+    {
+        var picked = context.Components.OfType<NetCord.Label>().Select(l => l.Component).OfType<NetCord.RadioGroup>()
+            .FirstOrDefault(g => g.CustomId == RegionInput)?.SelectedValue;
+        return SetRegion(context, picked ?? "");
     }
 
     /// <summary>Claims a past gamertag for a sysadmin to decide: refused as the site refuses it, when it can't be claimed.</summary>
@@ -159,10 +215,17 @@ public class PersonalCommandsHandler
     /// <summary>
     /// Signs the caller up for a season (by default the next to start), or changes their signup: what isn't given keeps its
     /// value, and the times they picked on the site are kept (the signup form is where they are set). The service's refusals
-    /// (closed, too long a team name) are the reply, as on the site (DiscordInteractionPipeline).
+    /// (closed, too long a team name) are the reply, as on the site (DiscordInteractionPipeline). With nothing to change given,
+    /// the signup modal opens instead, times and all.
     /// </summary>
     public async Task Signup(IDiscordInteractionContext context, string? season, string? teamName, bool? willCaptain, bool? needsDraftHelp)
     {
+        if (teamName is null && willCaptain is null && needsDraftHelp is null)
+        {
+            await OpenSignupModal(context, season);
+            return;
+        }
+
         await context.Defer(ephemeral: true);
         if (await _caller.Require(context, DiscordCaller.Roles.PlayerOrSysadmin) is not { } caller
             || await _lookups.SeasonFor(context, season, SeasonPurpose.Upcoming) is not int seasonID)
@@ -184,6 +247,19 @@ public class PersonalCommandsHandler
         await context.Reply(existing is null
             ? $"You have signed up for {name}. Set the times you can play on {form}."
             : $"Your signup for {name} is changed. Your times are on {form}.");
+    }
+
+    /// <summary>The signup modal, the first response: nothing is deferred, so a refusal is a new ephemeral reply.</summary>
+    private async Task OpenSignupModal(IDiscordInteractionContext context, string? season)
+    {
+        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.PlayerOrSysadmin) is not { } caller)
+            return;
+        if (await _lookups.Season(season, SeasonPurpose.Upcoming) is not int seasonID)
+        {
+            await context.EphemeralResponse(CommandLookups.NoSuchSeason);
+            return;
+        }
+        await _signupModal.OpenModal(context, caller.UserID, seasonID);
     }
 
     /// <summary>The times a season's matches can be played (by default the next season's), in UTC.</summary>

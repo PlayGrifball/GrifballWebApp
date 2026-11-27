@@ -7,6 +7,7 @@ using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Signups;
+using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
@@ -22,6 +23,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using User = GrifballWebApp.Domain.Players.User;
+using LabelProperties = NetCord.Rest.LabelProperties;
+using RadioGroupProperties = NetCord.Rest.RadioGroupProperties;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -50,7 +53,7 @@ public class PersonalCommandsTests
         var claims = new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Options.Create(new UserClaimOptions()));
         _handler = new PersonalCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new QueueMembership(queue, _context),
             queue, buttons, new RegionService(_context), claims, new SignupsService(_context), seasons, new AvailabilityService(_context),
-            new RescheduleService(_context, new ContextOutbox(_context)), urls);
+            new RescheduleService(_context, new ContextOutbox(_context)), urls, new SignupButtonHandler(_context, new SignupsService(_context), urls));
 
         _me = await _context.AddUser("me", gamertag: "MeGT", discordName: "me");
         _discord = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);
@@ -341,5 +344,100 @@ public class PersonalCommandsTests
             Assert.That(second.Content(), Is.EqualTo("Your claim of Older Me is pending: a sysadmin decides it."));
             Assert.That(list.Embed().Description, Does.Contain("Old Me · Pending").And.Contain("Older Me · Rejected · Not you"));
         }
+    }
+
+    private async Task<Season> AnnouncedOpenSeason()
+    {
+        var now = DateTime.UtcNow;
+        var season = Season.Seed(seasonName: "Open").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(6),
+            seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40), publicAt: now.AddDays(-2));
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        return season;
+    }
+
+    [Test]
+    public async Task Signup_Should_OpenTheSignupModal_When_NothingIsGiven()
+    {
+        var season = await AnnouncedOpenSeason();
+        await GivePlayerRole(_me);
+
+        await _handler.Signup(_discord.Context, season.SeasonID.ToString(), null, null, null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.Modal().CustomId, Is.EqualTo($"signup:{season.SeasonID}"));
+            Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task Signup_Should_RefuseInANewReply_When_NothingIsGiven_AndTheCallerIsNoPlayer()
+    {
+        await _handler.Signup(_discord.Context, null, null, null, null);
+
+        var reply = _discord.Message();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reply.Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.PlayerOrSysadmin)));
+            Assert.That(reply.Flags, Is.EqualTo(NetCord.MessageFlags.Ephemeral));
+        }
+    }
+
+    [Test]
+    public async Task Signup_Should_SayThereIsNoSuchSeason_When_NothingIsGiven_AndNoneMatches()
+    {
+        await GivePlayerRole(_me);
+
+        await _handler.Signup(_discord.Context, "999999", null, null, null);
+
+        Assert.That(_discord.Message().Content, Is.EqualTo(CommandLookups.NoSuchSeason));
+    }
+
+    [Test]
+    public async Task SetRegion_Should_OpenTheRegionModal_WithTheCallersRegionPicked_When_NoneIsGiven()
+    {
+        await _handler.SetRegion(new CommandContextRecorder((ulong)_me.DiscordUserID!.Value).Context, "central north america");
+
+        var regionCount = await _context.Regions.CountAsync();
+
+        await _handler.SetRegion(_discord.Context, null);
+
+        var modal = _discord.Modal();
+        var regions = (RadioGroupProperties)modal.Components.OfType<LabelProperties>().Single().Component;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modal.CustomId, Is.EqualTo("set_region"));
+            Assert.That(regions.Options.Select(o => o.Value).Last(), Is.EqualTo("none"));
+            Assert.That(regions.Options, Has.Exactly(regionCount + 1).Items);
+            Assert.That(regions.Options.Where(o => o.Default == true).Select(o => o.Value), Is.EqualTo(new[] { Regions.CentralNorthAmerica.ToString() }));
+        }
+    }
+
+    [Test]
+    public async Task SetRegion_Should_OfferTheSetGamertagButtonInANewReply_When_NoneIsGiven_AndTheCallerHasNoAccount()
+    {
+        var stranger = new CommandContextRecorder(discordUserId: 999);
+
+        await _handler.SetRegion(stranger.Context, null);
+
+        var reply = stranger.Message();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reply.Content, Is.EqualTo(DiscordCaller.NoGamertag));
+            Assert.That(reply.Components, Is.Not.Empty);
+        }
+    }
+
+    [Test]
+    public async Task SetRegion_Should_AskForTheOption_When_NoneIsGiven_AndTheRegionsDoNotFitTheModal()
+    {
+        var missing = 10 - await _context.Regions.CountAsync();
+        _context.Regions.AddRange(Enumerable.Range(1, missing).Select(i => Region.Seed($"Extra {i}")));
+        await _context.SaveChangesAsync();
+
+        await _handler.SetRegion(_discord.Context, null);
+
+        Assert.That(_discord.Message().Content, Does.StartWith("Give your region with the region option."));
     }
 }

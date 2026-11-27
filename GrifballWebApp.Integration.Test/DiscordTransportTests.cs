@@ -421,7 +421,8 @@ public class DiscordTransportTests
         new object[] { "voice optin", Array.Empty<(string, string)>() },
         new object[] { "voice optout", Array.Empty<(string, string)>() },
         new object[] { "me logins", Array.Empty<(string, string)>() },
-        new object[] { "signup", Array.Empty<(string, string)>() },
+        // With nothing given /signup opens the signup modal instead (SlashCommand_Signup_WithNothingGiven_RespondsWithTheSignupModal)
+        new object[] { "signup", new[] { ("will_captain", "false") } },
         new object[] { "availability show", Array.Empty<(string, string)>() },
         new object[] { "reschedule request", new[] { ("match", "Missing"), ("reason", "Busy") } },
         new object[] { "reschedule suggest", new[] { ("match", "Missing") } },
@@ -571,6 +572,70 @@ public class DiscordTransportTests
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.AutocompleteResult));
             Assert.That(requests[0].Data.GetProperty("choices").GetArrayLength(), Is.Positive, path);
+        }
+    }
+
+    [Test]
+    public async Task SlashCommand_Signup_WithNothingGiven_RespondsWithTheSignupModal()
+    {
+        var player = await LinkedUser(6311, "SignupModaller");
+        var season = await _host.WithContextAsync(async context =>
+        {
+            var role = await context.Roles.SingleAsync(r => r.Name == "Player");
+            context.UserRoles.Add(new UserRole { UserId = player.Id, RoleId = role.Id });
+            var now = DateTime.UtcNow;
+            var open = Season.Seed(seasonName: "Transport Signup Modal").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(6),
+                seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40), publicAt: now.AddDays(-2));
+            context.Seasons.Add(open);
+            await context.SaveChangesAsync();
+            return open;
+        });
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.SubCommand("signup", 6311, ("season", season.SeasonID.ToString())));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Routes(requests), Is.EqualTo(new[] { Callback }));
+            Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(requests[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"signup:{season.SeasonID}"));
+        }
+    }
+
+    [Test]
+    public async Task SlashCommand_MeRegion_WithNoRegion_OpensTheRegionModal_WhoseSubmitSetsIt()
+    {
+        var user = await LinkedUser(6321, "RegionPicker");
+
+        var opened = await _host.SendAsync(DiscordInteractionJson.SubCommand("me region", 6321));
+        var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith("set_region",
+            """[{"type":18,"id":1,"component":{"type":21,"id":2,"custom_id":"region","value":"2"}}]""", 6321));
+
+        var region = await _host.WithContextAsync(context => context.Users.AsNoTracking().Where(u => u.Id == user.Id).Select(u => u.RegionID).SingleAsync());
+        var radio = opened[0].Data.GetProperty("components")[0].GetProperty("component");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(opened[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(opened[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo("set_region"));
+            Assert.That(radio.GetProperty("type").GetInt32(), Is.EqualTo(21), "a radio group");
+            // The submit below sends this ID back
+            Assert.That(radio.GetProperty("custom_id").GetString(), Is.EqualTo("region"));
+            Assert.That(Routes(saved), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(saved[1].Content, Is.EqualTo("Your region is set."));
+            Assert.That(region, Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public async Task RegionModal_SubmittedWithoutAPick_SaysThereIsNoSuchRegion()
+    {
+        await LinkedUser(6322, "RegionBlank");
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.ModalWith("set_region", "[]", 6322));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Routes(requests), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(requests[1].Content, Does.StartWith(PersonalCommandsHandler.NoSuchRegion));
         }
     }
 
