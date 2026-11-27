@@ -64,6 +64,24 @@ public class HealthCheckExtensionsUnitTests
     }
 
     [Test]
+    public void AddAppHealthChecks_WithSpartanRender_RegistersItDegradedAndNotReady()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAppHealthChecks(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(), spartanRender: true);
+        using var provider = services.BuildServiceProvider();
+
+        var registrations = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.ToDictionary(r => r.Name);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(registrations, Does.ContainKey("spartan_render"));
+            Assert.That(registrations["spartan_render"].FailureStatus, Is.EqualTo(HealthStatus.Degraded));
+            Assert.That(registrations["spartan_render"].Tags, Does.Not.Contain(HealthCheckExtensions.ReadyTag));
+        }
+    }
+
+    [Test]
     public void AddAppHealthChecks_WithoutExternalServices_LeavesOutDiscordAndHalo()
     {
         var services = new ServiceCollection();

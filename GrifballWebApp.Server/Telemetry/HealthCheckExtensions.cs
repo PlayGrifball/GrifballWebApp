@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using GrifballWebApp.Infrastructure.Discord;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Infrastructure.Spartan;
 
 namespace GrifballWebApp.Server.Telemetry;
 
@@ -34,7 +35,7 @@ public static class HealthCheckExtensions
     /// Microsoft app or tokens there to probe with; previews in the default Gateway mode probe the gateway like any
     /// environment), and <paramref name="discord"/> false when a preview runs without Discord (no gateway client to watch).
     /// </summary>
-    public static IHealthChecksBuilder AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration, bool discord = true, bool haloInfinite = true)
+    public static IHealthChecksBuilder AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration, bool discord = true, bool haloInfinite = true, bool spartanRender = false)
     {
         var maxAllocated = configuration.GetValue("HealthChecks:MaxAllocatedMegabytes", DefaultMaxAllocatedMegabytes);
         services.TryAddSingleton(HealthCheckPaths.FromConfiguration(configuration));
@@ -57,6 +58,10 @@ public static class HealthCheckExtensions
             services.TryAddSingleton(sp => HaloInfiniteHealthCheck.FromConfiguration(sp, configuration));
             checks.AddCheck<HaloInfiniteHealthCheck>("halo_infinite", HealthStatus.Degraded);
         }
+
+        // The render service: Degraded only, so a render outage never takes the website out of service.
+        if (spartanRender)
+            checks.AddCheck<SpartanRenderHealthCheck>("spartan_render", HealthStatus.Degraded);
 
         // Discord messages the outbox gave up on.
         checks.AddCheck<OutboxHealthCheck>("discord_outbox", HealthStatus.Degraded);
