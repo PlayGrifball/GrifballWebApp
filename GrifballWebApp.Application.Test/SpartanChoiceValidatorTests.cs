@@ -76,4 +76,11 @@ public class SpartanChoiceValidatorTests
         {
             "There is no coating '9'",
         }));
+
+    [Test]
+    public void AnUnknownVisor_IsNamed()
+        => Assert.That(Check(new SpartanChoice("Mark VII", Visor: "Nope")), Is.EquivalentTo(new List<string>
+        {
+            "There is no visor 'Nope'",
+        }));
 }
