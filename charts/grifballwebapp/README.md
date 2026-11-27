@@ -285,6 +285,10 @@ the backup folder). The chart's SQL Server gets one: an emptyDir at `/var/opt/gr
 there (`DatabaseBackup__SqlServerDirectory`), overwritten each time. On an external SQL Server, set
 `allowedpathslist` yourself and point `backend.extraEnv` `DatabaseBackup__SqlServerDirectory` at that folder.
 
+The chart's SQL Server stops cleanly: a `preStop` hook runs `SHUTDOWN` through `sqlcmd` (the image's PID 1 ignores
+SIGTERM, so otherwise it is killed uncleanly and recovers from its log on the next start), and
+`mssql.terminationGracePeriodSeconds` (default 120) gives it time to checkpoint.
+
 ### SQLite
 
 `database.provider: sqlite` runs with no database server: the database is a file,
