@@ -812,12 +812,11 @@ public class ProgramStartupTests
             Assert.That(hostedTypes, Does.Not.Contain(typeof(Quartz.QuartzHostedService)), "The jobs are the workers'");
             Assert.That(hostedTypes, Does.Not.Contain(typeof(RecurringJobSeeder)));
             Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Historical.Worker.HistoricalImportWorker)));
+            Assert.That(catalogImplementation, Is.EqualTo(typeof(GrifballWebApp.Server.Commands.DiscordSlashCommandCatalog)), "The bot knows its commands");
         }
 
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
         Assert.That(checks, Does.Contain("discord"));
-
-        Assert.That(catalogImplementation, Is.EqualTo(typeof(GrifballWebApp.Server.Commands.DiscordSlashCommandCatalog)), "The bot knows its commands");
 
         await AssertOk(client, "/health/live");
         foreach (var path in new[] { "/CommitHash", "/seasons", "/internal/backups/abc" })
