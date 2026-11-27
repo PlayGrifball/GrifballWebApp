@@ -658,7 +658,8 @@ public class DiscordTransportTests
         await LinkedUserWithRole(6401, "BracketMaker", "Commissioner");
         var season = await _host.WithContextAsync(async context =>
         {
-            var created = Season.Seed(seasonName: "Transport Bracket Modal");
+            // Dated: an undated season would reach /season list's year as -infinity on Postgres
+            var created = Season.Seed(seasonName: "Transport Bracket Modal").WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
             context.Seasons.Add(created);
             await context.SaveChangesAsync();
             return created;
