@@ -61,7 +61,7 @@ public class GrifToolsTests
     private static readonly string[] Staff = ["Commissioner", "Sysadmin"];
     private static readonly string[] CommissionerOnly = ["Commissioner"];
     private static readonly string[] SysadminOnly = ["Sysadmin"];
-    private static readonly string[] StaffReachingHalo = ["pull_halo_game", "refresh_medals", "report_season_match_game"];
+    private static readonly string[] StaffReachingHalo = ["pull_halo_game", "refresh_medals", "report_season_match_game", "set_user_gamertag"];
 
     [SetUp]
     public async Task SetUp()
