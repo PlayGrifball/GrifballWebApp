@@ -54,8 +54,16 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
 
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
     private readonly IJobControl _jobs = Substitute.For<IJobControl>();
+    private readonly ISetGamertagService _setGamertag = Substitute.For<ISetGamertagService>();
     private readonly IScheduleRecommendationRuns _runs = Substitute.For<IScheduleRecommendationRuns>();
     private readonly IBracketService _brackets = Substitute.For<IBracketService>();
+    private readonly IDiscordGamertagSetter _discordSetter = Substitute.For<IDiscordGamertagSetter>();
+    private readonly IUserMergeService _userMerges = Substitute.For<IUserMergeService>();
+    private readonly GrifballWebApp.Domain.Shared.ICurrentUserService _currentUser = Substitute.For<GrifballWebApp.Domain.Shared.ICurrentUserService>();
+
+    private DuplicateSuggestionService Duplicates() => new(Db, _userMerges, TimeProvider.System);
+
+    private UserMergeAuditService AuditedMerges() => new(Db, TimeProvider.System, _currentUser);
 
     private SeasonService Seasons() => new(Db, new SeasonStatsService(Db), Visibility());
 
@@ -66,7 +74,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     private StaffTools Staff(ToolCaller caller)
     {
         var reschedules = new RescheduleService(Db, Substitute.For<IOutbox>());
-        return new(caller, new CommissionerDashboardService(reschedules, new EventOrganizerService(Db), new StaffStatFlagService(Db)), Claims(), Seasons(), Visibility(), Recommendations(), _runs, _jobs);
+        return new(caller, new CommissionerDashboardService(reschedules, new EventOrganizerService(Db), new StaffStatFlagService(Db)), Claims(), Seasons(), Visibility(), Recommendations(), _runs, _jobs, Duplicates(), AuditedMerges());
     }
 
     private GamertagClaimService Claims() => new(Db, Substitute.For<IUserMergeService>(), null);
@@ -77,7 +85,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         new MatchPlannerService(Db), _brackets,
         new TeamService(Db, Substitute.For<IDatabaseLocks>()), Recommendations(), _runs);
 
-    private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull, new MatchDetailsService(Db), _jobs);
+    private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull, new MatchDetailsService(Db), _jobs, _setGamertag, Db, _discordSetter, Duplicates(), _userMerges, AuditedMerges());
 
     private async Task<int> AMatch()
     {
@@ -378,5 +386,201 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         var refused = await Assert.ThrowsAsync<GamertagClaimException>(() => Sysadmins(Sysadmin).DecideGamertagClaim(987654, approve: true));
 
         Assert.That(refused!.Message, Does.Contain("There is no claim 987654"));
+    }
+
+    [Test]
+    public async Task SetUserGamertag_SetsItForAUserByID_ThroughTheSameServiceAsThePlayer()
+    {
+        var byID = GrifballWebApp.Domain.Players.User.Register("ById");
+        Db.Users.Add(byID);
+        await Db.SaveChangesAsync();
+        _setGamertag.SetGamertag(Arg.Any<int>(), "Mavbrid", Arg.Any<CancellationToken>()).Returns((string?)null);
+
+        var result = await Sysadmins(Sysadmin).SetUserGamertag(" Mavbrid ", userID: byID.Id);
+
+        Assert.That(result, Does.Contain($"user {byID.Id}").And.Contain("Mavbrid"));
+        await _setGamertag.Received(1).SetGamertag(byID.Id, "Mavbrid", Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SetUserGamertag_ByDiscordID_GoesThroughTheDiscordFlow_WithTheUsernameForANewAccount()
+    {
+        _discordSetter.SetGamertagForDiscordUser(758786051678142464UL, "newbie", "Mavbrid", Arg.Any<CancellationToken>()).Returns((string?)null);
+
+        var result = await Sysadmins(Sysadmin).SetUserGamertag(" Mavbrid ", discordUserID: 758786051678142464L, discordUsername: " newbie ");
+
+        Assert.That(result, Does.Contain("758786051678142464").And.Contain("Mavbrid"));
+        await _discordSetter.Received(1).SetGamertagForDiscordUser(758786051678142464UL, "newbie", "Mavbrid", Arg.Any<CancellationToken>());
+        await _setGamertag.DidNotReceiveWithAnyArgs().SetGamertag(default, default!, default);
+    }
+
+    [Test]
+    public async Task SetUserGamertag_ByDiscordID_ASetterRefusalIsTheAnswer_AndANonsenseIDIsRefused()
+    {
+        _discordSetter.SetGamertagForDiscordUser(404UL, null, "Mavbrid", Arg.Any<CancellationToken>()).Returns(NoDiscordGamertagSetter.Refusal);
+
+        var refused = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Mavbrid", discordUserID: 404));
+        var nonsense = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Mavbrid", discordUserID: -5));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(refused!.Message, Is.EqualTo(NoDiscordGamertagSetter.Refusal));
+            Assert.That(nonsense!.Message, Does.Contain("Discord user ID"));
+        }
+    }
+
+    [Test]
+    public async Task SetUserGamertag_RefusesWhatThePlayerIsRefused_AWrongNaming_APlaceholder_AndNonSysadmins()
+    {
+        var real = GrifballWebApp.Domain.Players.User.Register("Real");
+        var placeholder = GrifballWebApp.Domain.Players.User.ImportPlaceholder("historical:OldTag", "OldTag", null);
+        Db.Users.AddRange(real, placeholder);
+        await Db.SaveChangesAsync();
+        _setGamertag.SetGamertag(real.Id, "Taken", Arg.Any<CancellationToken>()).Returns("That gamertag is already attached to a user. Contact sysadmin if you believe this is incorrect");
+
+        var taken = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Taken", userID: real.Id));
+        var noOne = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Mavbrid"));
+        var both = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Mavbrid", userID: 5, discordUserID: 9));
+        var missing = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Mavbrid", userID: 987654));
+        var dummy = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag("Mavbrid", userID: placeholder.Id));
+        var blank = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetUserGamertag(" ", userID: 5));
+        var player = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Player).SetUserGamertag("Mavbrid", userID: 5));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(taken!.Message, Does.Contain("already attached"));
+            Assert.That(noOne!.Message, Does.Contain("userID or by discordUserID"));
+            Assert.That(both!.Message, Does.Contain("userID or by discordUserID"));
+            Assert.That(missing!.Message, Does.Contain("There is no user 987654"));
+            Assert.That(dummy!.Message, Does.Contain("placeholder"));
+            Assert.That(blank!.Message, Does.Contain("Give the gamertag"));
+            Assert.That(player!.Message, Is.EqualTo(SiteRoles.MissingRole(GrifTools.RolesByName["set_user_gamertag"])));
+        }
+        await _setGamertag.DidNotReceive().SetGamertag(Arg.Is<int>(i => i != real.Id), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task MergeDuplicateUser_MergesAPlaceholderIntoTheTarget_AndTheServicesRefusalsAreTheAnswer()
+    {
+        var placeholder = GrifballWebApp.Domain.Players.User.ImportPlaceholder("historical:OldTag", "OldTag", null);
+        var real = GrifballWebApp.Domain.Players.User.Register("Real");
+        Db.Users.AddRange(placeholder, real);
+        await Db.SaveChangesAsync();
+
+        var done = await Sysadmins(Sysadmin).MergeDuplicateUser(placeholder.Id, real.Id);
+        var notPlaceholder = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).MergeDuplicateUser(real.Id, placeholder.Id));
+        var missing = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).MergeDuplicateUser(987654, real.Id));
+        _userMerges.Merge(real.Id, placeholder.Id, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(_ => throw new MergeConflictException("Both are on a team in Winter"));
+        var conflict = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).MergeDuplicateUser(placeholder.Id, real.Id));
+        var player = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Player).MergeDuplicateUser(placeholder.Id, real.Id));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(done, Does.Contain($"user {placeholder.Id}").And.Contain($"user {real.Id}"));
+            Assert.That(notPlaceholder!.Message, Does.Contain("placeholder"));
+            Assert.That(missing!.Message, Does.Contain("987654"));
+            Assert.That(conflict!.Message, Is.EqualTo("Both are on a team in Winter"));
+            Assert.That(player!.Message, Does.StartWith("Only a"));
+        }
+        await _userMerges.Received(2).Merge(real.Id, placeholder.Id, Arg.Is<MergeOptions>(o => o.Trigger == GrifballWebApp.Domain.Players.MergeTrigger.DuplicateSuggestion), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task DismissDuplicateUser_RemembersThePair_AndAUserIsNoDuplicateOfItself()
+    {
+        var a = GrifballWebApp.Domain.Players.User.Register("A");
+        var b = GrifballWebApp.Domain.Players.User.Register("B");
+        Db.Users.AddRange(a, b);
+        await Db.SaveChangesAsync();
+
+        var done = await Sysadmins(Sysadmin).DismissDuplicateUser(a.Id, b.Id);
+        var again = await Sysadmins(Sysadmin).DismissDuplicateUser(b.Id, a.Id);
+        var same = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).DismissDuplicateUser(a.Id, a.Id));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(done, Does.Contain("Dismissed"));
+            Assert.That(again, Does.Contain("Dismissed"));
+            Assert.That(same!.Message, Does.Contain("no duplicate of itself"));
+            Assert.That(await Db.DuplicateDismissals.CountAsync(), Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task MergeUsers_MergesWithTheNamedTransfers_AsTheCaller_AndRefusesWhatTheMergeRefuses()
+    {
+        var done = await Sysadmins(Sysadmin).MergeUsers(10, 11, transferDiscord: false, deleteMergeFrom: false);
+        _userMerges.Merge(10, 12, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(_ => throw new UserNotFoundException(12));
+        _userMerges.Merge(10, 13, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(_ => throw new MergeDeniedToAccessTokenException());
+        _userMerges.Merge(10, 14, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(_ => throw new ArgumentException("A user can't be merged into itself"));
+        _userMerges.Merge(10, 15, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(_ => throw new DbUpdateException("conflict"));
+        var missing = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).MergeUsers(10, 12));
+        var token = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).MergeUsers(10, 13));
+        var argument = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).MergeUsers(10, 14));
+        var data = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).MergeUsers(10, 15));
+        var player = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Player).MergeUsers(10, 11));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(done, Does.Contain("user 11 into user 10"));
+            Assert.That(missing!.Message, Does.Contain("12"));
+            Assert.That(token!.Message, Does.Contain("access token"));
+            Assert.That(argument!.Message, Does.Contain("itself"));
+            Assert.That(data!.Message, Does.Contain("nothing was changed"));
+            Assert.That(player!.Message, Does.StartWith("Only a"));
+        }
+        await _userMerges.Received(1).Merge(10, 11,
+            Arg.Is<MergeOptions>(o => !o.TransferDiscord && o.TransferLogins && o.TransferXbox && !o.DeleteMergeFrom && o.Trigger == GrifballWebApp.Domain.Players.MergeTrigger.Manual && o.TriggeredByUserID == 2),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task UndoUserMerge_PutsAMergeBack()
+    {
+        var keeper = GrifballWebApp.Domain.Players.User.Register("keeper");
+        var merged = GrifballWebApp.Domain.Players.User.Register("merged");
+        Db.Users.AddRange(keeper, merged);
+        await Db.SaveChangesAsync();
+        await new UserMergeService(Db, _currentUser, TimeProvider.System).Merge(keeper.Id, merged.Id, MergeOptions.For(GrifballWebApp.Domain.Players.MergeTrigger.Manual, "test", keeper.Id));
+        var mergeID = (await Db.UserMerges.SingleAsync()).UserMergeID;
+
+        var answer = await Sysadmins(Sysadmin).UndoUserMerge(mergeID, "wrong person");
+
+        Db.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(answer, Is.EqualTo($"Undone: merge {mergeID} is put back."));
+            Assert.That(await Db.Users.AnyAsync(u => u.Id == merged.Id), Is.True);
+        }
+    }
+
+    [Test]
+    public async Task UndoUserMerge_RefusesAMergeThatIsntThere_AndNonSysadmins()
+    {
+        var missing = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).UndoUserMerge(987654, "oops"));
+        var player = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Player).UndoUserMerge(1));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(missing!.Message, Does.Contain("There is no merge 987654"));
+            Assert.That(player!.Message, Does.StartWith("Only a"));
+        }
+    }
+
+    [Test]
+    public async Task ListDuplicateUsers_AndListUserMerges_AreForSysadmins_AndReadTheSitesLists()
+    {
+        var pairs = await Staff(Sysadmin).ListDuplicateUsers();
+        var merges = await Staff(Sysadmin).ListUserMerges(page: 0, pageSize: 5000);
+        var refusedPairs = await Assert.ThrowsAsync<ToolException>(() => Staff(Commissioner).ListDuplicateUsers());
+        var refusedMerges = await Assert.ThrowsAsync<ToolException>(() => Staff(Player).ListUserMerges());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pairs, Is.Empty);
+            Assert.That(merges.TotalCount, Is.Zero);
+            Assert.That(refusedPairs!.Message, Does.StartWith("Only a"));
+            Assert.That(refusedMerges!.Message, Does.StartWith("Only a"));
+        }
     }
 }

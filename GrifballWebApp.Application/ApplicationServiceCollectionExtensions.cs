@@ -120,6 +120,9 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<Tools.HaloTools>();
         services.AddTransient<TeamStandingsService>();
         services.AddTransient<ISetGamertagService, SetGamertagService>();
+        // The defaults of a host with no Discord bot: TryAdd, so the Discord host's own (added before this, in AddDiscord) stands
+        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddTransient<GrifballWebApp.Application.Tools.ISlashCommandCatalog, GrifballWebApp.Application.Tools.NoSlashCommands>(services);
+        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddTransient<IDiscordGamertagSetter, NoDiscordGamertagSetter>(services);
         services.AddTransient<GradesService>();
         services.AddTransient<ScheduleService>();
         services.AddTransient<ScheduleRecommendations>();

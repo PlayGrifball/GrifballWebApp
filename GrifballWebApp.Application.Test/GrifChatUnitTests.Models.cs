@@ -514,7 +514,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(sysadminTools, Does.Contain("list_late_league_seasons"), "Not on the short list: a model that picks well gets it");
-            Assert.That(sysadminTools, Is.SupersetOf(GrifTools.Chat), "The short list's too");
+            Assert.That(sysadminTools, Is.SupersetOf(GrifTools.Chat.Where(t => t != GrifTools.ListSlashCommands)), "The short list's too");
             Assert.That(model.Options[1]!.Tools!.Select(t => t.Name), Does.Not.Contain("list_late_league_seasons"), "A model for the short list keeps it");
             Assert.That(model.Options[2]!.Tools!.Select(t => t.Name), Does.Contain("list_late_league_seasons"), "A Discord DM is private too");
         }
@@ -531,8 +531,8 @@ public partial class GrifChatUnitTests
             Assert.That(GrifTools.EveryPublic, Is.SupersetOf(GrifTools.Chat).And.Contains("list_late_league_seasons").And.Contains("get_game").And.Unique);
             Assert.That(GrifTools.EveryPublic.Intersect(GrifTools.Staff.SelectMany(GrifTools.Methods).Select(GrifTools.Name)), Is.Empty, "A channel is public: no dashboard, claim or change");
             Assert.That(ChatHost.Discord.ToolsFor(Free), Is.EqualTo(GrifTools.Chat));
-            Assert.That(ChatHost.Site.ToolsFor(everyTool), Is.EqualTo(GrifTools.Every));
-            Assert.That(ChatHost.Site.ToolsFor(Free), Is.EqualTo(GrifTools.PrivateChat));
+            Assert.That(ChatHost.Site.ToolsFor(everyTool), Is.EqualTo(GrifTools.Every.Where(t => t != GrifTools.ListSlashCommands)));
+            Assert.That(ChatHost.Site.ToolsFor(Free), Is.EqualTo(GrifTools.PrivateChat.Where(t => t != GrifTools.ListSlashCommands)));
             Assert.That(GrifTools.Every, Is.SupersetOf(GrifTools.PrivateChat).And.Contains("list_late_league_seasons").And.Unique);
         }
     }

@@ -86,6 +86,8 @@ public class ProgramStartupTests
         "GrifballWebApp.Server.Commands.StaffSeasonMatchAutocomplete",
         "GrifballWebApp.Server.Commands.TeamAutocomplete",
         "GrifballWebApp.Server.Commands.TeamCommands",
+        "GrifballWebApp.Server.Commands.UserCommandModals",
+        "GrifballWebApp.Server.Commands.UserCommands",
         "GrifballWebApp.Server.DiscordCommands",
         "GrifballWebApp.Server.GamertagAutocomplete",
         "GrifballWebApp.Server.Matchmaking.ButtonInteractions",
@@ -660,6 +662,9 @@ public class ProgramStartupTests
             Assert.That(hostedTypes, Does.Contain(typeof(GrifballWebApp.Server.SignalR.HubSessionSweep)).And.Contain(typeof(GrifballWebApp.Server.SignalR.HubUserSessionsListener)), "the hubs' pods");
             Assert.That(factory.Services.GetServices<GrifballWebApp.Application.Identity.IUserSessions>().Count(), Is.EqualTo(1), "registered once");
             Assert.That(factory.GatewayClientRegistered, Is.False, "No Discord gateway in the API role");
+            using var scope = factory.Services.CreateScope();
+            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Tools.ISlashCommandCatalog>(), Is.TypeOf<GrifballWebApp.Application.Tools.NoSlashCommands>());
+            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Profile.IDiscordGamertagSetter>(), Is.TypeOf<DiscordSetGamertag>(), "It needs no gateway, so every role has the real one");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Not.Contain(workerOnly));
@@ -792,7 +797,9 @@ public class ProgramStartupTests
         var settings = NormalModeSettings();
         settings[AppRole.ConfigurationKey] = "discord";
 
-        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
+        Type? catalogImplementation = null;
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true, services =>
+            catalogImplementation = services.Last(d => d.ServiceType == typeof(GrifballWebApp.Application.Tools.ISlashCommandCatalog)).ImplementationType);
         using var client = factory.CreateClient();
 
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
@@ -806,6 +813,7 @@ public class ProgramStartupTests
             Assert.That(hostedTypes, Does.Not.Contain(typeof(Quartz.QuartzHostedService)), "The jobs are the workers'");
             Assert.That(hostedTypes, Does.Not.Contain(typeof(RecurringJobSeeder)));
             Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Historical.Worker.HistoricalImportWorker)));
+            Assert.That(catalogImplementation, Is.EqualTo(typeof(GrifballWebApp.Server.Commands.DiscordSlashCommandCatalog)), "The bot knows its commands");
         }
 
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);

@@ -49,9 +49,11 @@ public partial class GrifChatUnitTests
     }
 
     /// <summary>The chat on <paramref name="model"/>, its tools reading <paramref name="clock"/> (else the test's), its logs collected.</summary>
-    private GrifChat Chat(FakeModel model, bool sensitiveData = false, TimeProvider? clock = null)
+    private GrifChat Chat(FakeModel model, bool sensitiveData = false, TimeProvider? clock = null, Action<IServiceCollection>? configure = null)
     {
-        _services = new ServiceCollection().AddSingleton(clock ?? _time).AddFakeLogging().AddSingleton<IChatWaiting, MemoryChatWaiting>().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(clock ?? _time).AddFakeLogging().AddSingleton<IChatWaiting, MemoryChatWaiting>();
+        configure?.Invoke(services);
+        _services = services.BuildServiceProvider();
         _clients.Available.Returns(true);
         _clients.Models.Returns([Free]);
         _clients.Create(Arg.Any<ChatModelOption>()).Returns(model);
@@ -88,8 +90,48 @@ public partial class GrifChatUnitTests
             Assert.That(model.Requests.Single().Select(m => (m.Role, m.Text)), Is.EqualTo(new[] { (ChatRole.User, "What time is it?") }));
             Assert.That(model.Options.Single()!.Instructions, Is.EqualTo(GrifChat.Instructions(ChatHost.WithSignedOut(ChatHost.Site))));
             // No account: every chat tool but the pull tools, which only some roles may use
-            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal))));
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal) && t != GrifTools.ListSlashCommands)));
         }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ToolsFor_ListSlashCommandsOnlyForAHostWithSlashCommands(bool everyTool)
+    {
+        var model = everyTool ? Haiku with { EveryTool = true } : Free;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ChatHost.Discord.ToolsFor(model), Does.Contain(GrifTools.ListSlashCommands));
+            Assert.That(ChatHost.DiscordDirect.ToolsFor(model), Does.Contain(GrifTools.ListSlashCommands));
+            Assert.That(ChatHost.Site.ToolsFor(model), Does.Not.Contain(GrifTools.ListSlashCommands));
+            Assert.That(ChatHost.DiscordVoice.ToolsFor(model), Does.Not.Contain(GrifTools.ListSlashCommands));
+        }
+    }
+
+    [Test]
+    public async Task Start_APersonLookupThatFails_StillStreamsTheReplyWithTheHostsInstructions()
+    {
+        var model = new FakeModel([Text("ok")]);
+        var db = Substitute.For<GrifballWebApp.Application.Database.IApplicationDbContext>();
+        db.Users.Returns(_ => throw new InvalidOperationException("db down"));
+        var chat = Chat(model, configure: s => s.AddScoped(_ => db));
+
+        var reply = await Ask(chat, "Hi", new ToolCaller(7, ["Player"]), ChatHost.Site);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reply, Is.EqualTo(Ok));
+            Assert.That(model.Options.Single()!.Instructions, Is.EqualTo(GrifChat.Instructions(ChatHost.Site)));
+        }
+    }
+
+    [Test]
+    public void WithPerson_AHostWithNothingElseToSay_HasOnlyThePersonLine()
+    {
+        var host = GrifChat.WithPerson(ChatHost.Site with { More = "" }, new ToolCaller(7, ["Player"]), "Tag", null);
+
+        Assert.That(host.More, Does.StartWith("The person you are talking to is site user 7").And.Not.Contain("\n"));
     }
 
     [Test]
@@ -121,7 +163,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(expected, Is.Not.Empty);
-            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Concat(expected)));
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => t != GrifTools.ListSlashCommands).Concat(expected)));
         }
     }
 
@@ -135,7 +177,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(StaffToolsFor(SiteRoles.Player), Is.Empty);
-            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat));
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => t != GrifTools.ListSlashCommands)));
         }
     }
 
@@ -338,6 +380,32 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
+    public void WithPerson_TellsTheModelWhoItTalksTo_AsDataBeforeThePageLine()
+    {
+        var caller = new ToolCaller(12, ["Player", "Sysadmin"]);
+        var host = GrifChat.WithPerson(GrifChat.WithPage(ChatHost.Discord, "/season/3", null), caller, "Grunt\n\"Padre\"", 758786051678142464);
+
+        var lines = GrifChat.Instructions(host).Split('\n');
+
+        var line = lines.Single(l => l.StartsWith("The person you are talking to", StringComparison.Ordinal));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(line, Does.Contain("site user 12").And.Contain("gamertag \"GruntPadre\"").And.Contain("Player, Sysadmin").And.Contain("Discord user ID 758786051678142464"));
+            Assert.That(lines[^1], Does.StartWith("The person is looking at the site's page"), "The page line stays last");
+        }
+    }
+
+    [Test]
+    public void WithPerson_SaysNothing_ForACallerWithNoAccount_AndNotesAMissingGamertag()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(GrifChat.WithPerson(ChatHost.Discord, ToolCaller.Anonymous, null, null), Is.EqualTo(ChatHost.Discord));
+            Assert.That(GrifChat.Instructions(GrifChat.WithPerson(ChatHost.Site, new ToolCaller(5, []), null, null)), Does.Contain("no gamertag set yet").And.Contain("no staff roles"));
+        }
+    }
+
+    [Test]
     public async Task Start_OnTheSite_TellsASignedOutPersonToLogInForTheFrontierModels_ButNotASignedInOne()
     {
         var anonymous = new FakeModel([Text("Hi")]);
@@ -528,7 +596,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(discord[0], Does.StartWith("You are Flipyap, an Unggoy").And.Contain("Discord bot").And.Contain("2000-character limit"));
-            Assert.That(discord[^1], Is.EqualTo("The bot also has slash commands; /help lists them."));
+            Assert.That(discord[^1], Is.EqualTo("The bot also has slash commands; list_slash_commands lists them, and so does /help. When someone asks how to do something in Discord, look the command up there."));
             Assert.That(site[0], Does.StartWith("You are Flipyap, an Unggoy"));
             // In private, the line about the tools that change data too
             Assert.That(site[1..^1], Is.EqualTo(discord[1..^1].Append(GrifChat.PrivateLine)));
@@ -548,7 +616,7 @@ public partial class GrifChatUnitTests
             Assert.That(ChatHost.DiscordDirect with { Name = "discord", InPublic = true, Confirm = "" }, Is.EqualTo(ChatHost.Discord));
             Assert.That(ChatHost.Discord.ToolsFor(Free), Is.SameAs(GrifTools.Chat));
             Assert.That(ChatHost.DiscordDirect.ToolsFor(Free), Is.SameAs(GrifTools.PrivateChat));
-            Assert.That(ChatHost.Site.ToolsFor(Free), Is.SameAs(GrifTools.PrivateChat));
+            Assert.That(ChatHost.Site.ToolsFor(Free), Is.EqualTo(GrifTools.PrivateChat.Where(t => t != GrifTools.ListSlashCommands)));
             Assert.That(ChatHost.Discord.InPublic, Is.True);
             // One model, one reply at a time: no host may hold it forever
             Assert.That(ChatHost.Discord.Timeout, Is.EqualTo(TimeSpan.FromMinutes(2)));

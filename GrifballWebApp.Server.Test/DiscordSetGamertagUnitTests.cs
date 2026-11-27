@@ -170,4 +170,115 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
         Assert.That(discord.Content(), Is.EqualTo("Your account was made, but your past records could not be joined to it: Both played in Winter. Contact a commissioner."));
         await setGamertag.DidNotReceiveWithAnyArgs().SetGamertag(default, default!);
     }
+
+    [Test]
+    public async Task SetGamertagForDiscordUser_MakesAnAccountForSomeoneWithNone_NamedAfterTheirDiscordUsername()
+    {
+        var setGamertag = Substitute.For<ISetGamertagService>();
+        setGamertag.SetGamertag(Arg.Any<int>(), "NewGamertag", Arg.Any<CancellationToken>()).Returns((string?)null);
+
+        var refusal = await new DiscordSetGamertag(Db, RealUsers(), setGamertag, Substitute.For<IUserMergeService>())
+            .SetGamertagForDiscordUser(555555, "TheirName", "NewGamertag");
+
+        var created = await Db.Users.SingleAsync(u => u.DiscordUserID == 555555);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(refusal, Is.Null);
+            Assert.That(created.UserName, Is.EqualTo("TheirName"));
+        }
+        await setGamertag.Received(1).SetGamertag(created.Id, "NewGamertag", Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SetGamertagForDiscordUser_WithNoAccountAndNoUsername_AsksForTheUsername()
+    {
+        var users = Users();
+        var setGamertag = Substitute.For<ISetGamertagService>();
+
+        var refusal = await new DiscordSetGamertag(Db, users, setGamertag, Substitute.For<IUserMergeService>())
+            .SetGamertagForDiscordUser(555555, null, "NewGamertag");
+
+        Assert.That(refusal, Is.EqualTo(DiscordSetGamertag.NeedsDiscordUsername));
+        await users.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await setGamertag.DidNotReceiveWithAnyArgs().SetGamertag(default, default!);
+    }
+
+    [Test]
+    public async Task SetGamertagForDiscordUser_TakesTheAccountSignedInWithTheirDiscord_WithoutAUsername()
+    {
+        var siteAccount = User.Register("SiteUser");
+        Db.Users.Add(siteAccount);
+        await Db.SaveChangesAsync();
+        var users = Users();
+        users.FindByLoginAsync("Discord", "555555").Returns(siteAccount);
+        var setGamertag = Substitute.For<ISetGamertagService>();
+        setGamertag.SetGamertag(siteAccount.Id, "NewGamertag", Arg.Any<CancellationToken>()).Returns((string?)null);
+
+        var refusal = await new DiscordSetGamertag(Db, users, setGamertag, Substitute.For<IUserMergeService>())
+            .SetGamertagForDiscordUser(555555, null, "NewGamertag");
+
+        Db.ChangeTracker.Clear();
+        var linked = (await Db.Users.SingleAsync(u => u.Id == siteAccount.Id)).DiscordUserID;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(refusal, Is.Null);
+            Assert.That(linked, Is.EqualTo(555555));
+        }
+    }
+
+    [Test]
+    public async Task SetGamertagForDiscordUser_RefusesAnAccountLinkedToAnotherDiscord_InTheSysadminsWords()
+    {
+        var users = Users();
+        var elsewhere = User.Register("someoneElse");
+        elsewhere.LinkDiscord(DiscordUser.FromDiscord(111, "other"));
+        users.FindByLoginAsync("Discord", "909090").Returns(elsewhere);
+
+        var refusal = await new DiscordSetGamertag(Db, users, Substitute.For<ISetGamertagService>(), Substitute.For<IUserMergeService>())
+            .SetGamertagForDiscordUser(909090, "TheirName", "NewGamertag");
+
+        Assert.That(refusal, Is.EqualTo(DiscordSetGamertag.TheirsLinkedToOtherDiscord));
+    }
+
+    [Test]
+    public async Task SetGamertagForDiscordUser_MergesAPlaceholderLinkedToThem_IntoTheirAccount()
+    {
+        var (placeholder, siteAccount, users) = await PlaceholderAndSiteAccount();
+        var merges = Substitute.For<IUserMergeService>();
+        merges.Merge(siteAccount.Id, placeholder.Id, Arg.Any<MergeOptions?>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            placeholder.UnlinkDiscord();
+            await Db.SaveChangesAsync();
+            siteAccount.LinkDiscord(555555);
+            await Db.SaveChangesAsync();
+        });
+        var setGamertag = Substitute.For<ISetGamertagService>();
+        setGamertag.SetGamertag(Arg.Any<int>(), "NewGamertag", Arg.Any<CancellationToken>()).Returns((string?)null);
+
+        var refusal = await new DiscordSetGamertag(Db, users, setGamertag, merges).SetGamertagForDiscordUser(555555, "NewPlayer", "NewGamertag");
+
+        Assert.That(refusal, Is.Null);
+        await merges.Received(1).Merge(siteAccount.Id, placeholder.Id, Arg.Is<MergeOptions?>(o => o != null && o.Reason == "Discord set gamertag by a sysadmin"), Arg.Any<CancellationToken>());
+        await setGamertag.Received(1).SetGamertag(siteAccount.Id, "NewGamertag", Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SetGamertagForDiscordUser_WhenThePlaceholderCantBeMerged_SaysSoAboutThem()
+    {
+        var (_, _, users) = await PlaceholderAndSiteAccount();
+        var merges = Substitute.For<IUserMergeService>();
+        merges.Merge(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<MergeOptions?>(), Arg.Any<CancellationToken>()).ThrowsAsync(new MergeConflictException("Both played in Winter."));
+
+        var refusal = await new DiscordSetGamertag(Db, users, Substitute.For<ISetGamertagService>(), merges).SetGamertagForDiscordUser(555555, "NewPlayer", "NewGamertag");
+
+        Assert.That(refusal, Is.EqualTo("Their account was made, but their past records could not be joined to it: Both played in Winter. Merge them on the site."));
+    }
+
+    [Test]
+    public async Task NoDiscordGamertagSetter_RefusesEverything()
+    {
+        var refusal = await new NoDiscordGamertagSetter().SetGamertagForDiscordUser(1, "x", "y");
+
+        Assert.That(refusal, Is.EqualTo(NoDiscordGamertagSetter.Refusal));
+    }
 }

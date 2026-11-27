@@ -17,6 +17,7 @@ namespace GrifballWebApp.Server.Commands;
 public class PlayerCommandsHandler
 {
     public const string NoSuchPlayer = "I found no such player.";
+    public const string NoLinkedAccount = "That Discord user has no site account with a gamertag. They link one with /setgamertag.";
 
     private readonly CommandLookups _lookups;
     private readonly DiscordCaller _caller;
@@ -68,6 +69,23 @@ public class PlayerCommandsHandler
     {
         if (await PlayerFor(context, player) is not { } p)
             return;
+        await ShowProfile(context, p);
+    }
+
+    /// <summary>The profile of the user a right-click on a Discord user names (their linked account), as /player profile shows it.</summary>
+    public async Task ProfileOfDiscordUser(IDiscordInteractionContext context, ulong discordUserId)
+    {
+        await context.Defer(ephemeral: false);
+        if (await _caller.Find(discordUserId) is not { } found)
+        {
+            await context.Reply(NoLinkedAccount);
+            return;
+        }
+        await ShowProfile(context, (await _profiles.GetAsync(found.UserID))!);
+    }
+
+    private async Task ShowProfile(IDiscordInteractionContext context, ProfileStatsDto p)
+    {
         var embed = CommandReplies.Embed(Name(p), _urls.Profile(p.UserID));
         var career = p.OverallCareer;
         embed.Fields =
@@ -148,6 +166,25 @@ public class PlayerCommandsHandler
             await context.Reply(CommandLookups.NoSuchXboxAccount);
             return;
         }
+        await PullOf(context, caller, found);
+    }
+
+    /// <summary>The pull of the account of the Discord user a right-click names, as /player pull does, for players and staff.</summary>
+    public async Task PullOfDiscordUser(IDiscordInteractionContext context, ulong discordUserId)
+    {
+        await context.Defer(ephemeral: true);
+        if (await _caller.Require(context, GrifTools.RolesByName["pull_xbox_account_games"]) is not { } caller)
+            return;
+        if (await _caller.Find(discordUserId) is not { } target)
+        {
+            await context.Reply(NoLinkedAccount);
+            return;
+        }
+        await PullOf(context, caller, (target.XboxUserID, target.Gamertag));
+    }
+
+    private async Task PullOf(IDiscordInteractionContext context, CallerUser caller, (long XboxUserID, string Gamertag) found)
+    {
         // The caller check and the lookup refuse first, as the tool would. It refuses only an account removed since the lookup
         // read it (a merge in that moment): rare enough for the generic error
         var pulled = await _pulls.As(caller).PullXboxAccountGamesOf(found.XboxUserID, found.Gamertag);

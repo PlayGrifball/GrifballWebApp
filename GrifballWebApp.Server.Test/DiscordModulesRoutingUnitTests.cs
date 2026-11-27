@@ -72,6 +72,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     private static readonly JobKey PullJob = OnDemandJobs.JobKeyOf(typeof(SeasonMatchPullJob));
 
     private static readonly ApplicationCommandService<ApplicationCommandContext, AutocompleteInteractionContext> SlashCommands = CommandsOf();
+    private static readonly ApplicationCommandService<UserCommandContext> UserCommandModules = UserCommandsOf();
     private static readonly ComponentInteractionService<ButtonInteractionContext> ButtonModules = ComponentsOf<ButtonInteractionContext>();
     private static readonly ComponentInteractionService<StringMenuInteractionContext> StringMenuModules = ComponentsOf<StringMenuInteractionContext>();
     private static readonly ComponentInteractionService<ModalInteractionContext> ModalModules = ComponentsOf<ModalInteractionContext>();
@@ -79,6 +80,13 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     private static ApplicationCommandService<ApplicationCommandContext, AutocompleteInteractionContext> CommandsOf()
     {
         var service = new ApplicationCommandService<ApplicationCommandContext, AutocompleteInteractionContext>();
+        service.AddModules(typeof(Program).Assembly);
+        return service;
+    }
+
+    private static ApplicationCommandService<UserCommandContext> UserCommandsOf()
+    {
+        var service = new ApplicationCommandService<UserCommandContext>();
         service.AddModules(typeof(Program).Assembly);
         return service;
     }
@@ -94,6 +102,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     private readonly List<InteractionCallbackProperties> _callbacks = [];
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(Now));
     private readonly ISetGamertagService _setGamertag = Substitute.For<ISetGamertagService>();
+    private readonly IDiscordGamertagSetter _discordSetter = Substitute.For<IDiscordGamertagSetter>();
     private ServiceProvider? _services;
 
     /// <summary>The seeded rows the cases name: the caller, the season, the match, two pending claims, the pull job.</summary>
@@ -170,6 +179,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
         var leaderboards = new LeaderboardsService(Db, stats, new MatchmakingStatsService(Db), Substitute.For<IDistributedCache>(), new RecordingLogger<LeaderboardsService>());
         var recentMatches = new DiscordCommandsHandler(lookups, new GrifballWebApp.Application.Tools.HaloTools(Db, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)));
         _setGamertag.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
+        _discordSetter.SetGamertagForDiscordUser(Arg.Any<ulong>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
         var admin = new AdminCommandsHandler(caller, lookups, reschedules,
             new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(reschedules, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(Db),
                 new GrifballWebApp.Application.StatFlags.StaffStatFlagService(Db)), seasonMatches, new MatchPlannerService(Db), brackets, teams,
@@ -192,6 +202,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(new TeamCommandsHandler(lookups, new TeamPageService(Db, _time), new TeamHistoryService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), vods, urls))
             .AddSingleton(new MatchCommandsHandler(lookups, seasonMatches, new MatchDetailsService(Db), urls, null!, null!))
             .AddSingleton(recentMatches)
+            .AddSingleton(new UserCommandsHandler(caller, _discordSetter))
             .AddSingleton(new DiscordSetGamertag(Db, Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null), _setGamertag, Substitute.For<IUserMergeService>()))
             .AddSingleton(new MatchmakingButtonHandler(membership, Substitute.For<IServiceScopeFactory>(), Db, null!, null!, new RecordingLogger<MatchmakingButtonHandler>()))
             .AddSingleton(new SignupButtonHandler(Db, signups, urls))
@@ -401,5 +412,47 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
 
         AssertReplied(result, "Gamertag has been set");
         await _setGamertag.Received(1).SetGamertag(int.Parse(_seeded["{caller}"]), "NewTag", Arg.Any<CancellationToken>());
+    }
+
+    [TestCase("Profile")]
+    [TestCase("Pull games")]
+    public async Task AUserCommand_ReachesItsHandlerMethod_WithTheClickedUser(string name)
+    {
+        await Seed();
+        var services = Services();
+        var interaction = new UserCommandInteraction(DiscordInteractionJson.UserCommand(name, 7, CallerDiscordID), null, SendResponse, Rest());
+
+        var result = await UserCommandModules.ExecuteAsync(new UserCommandContext(interaction, null!), services);
+
+        AssertReplied(result, PlayerCommandsHandler.NoLinkedAccount);
+    }
+
+    [Test]
+    public async Task TheSetGamertagUserCommand_OpensItsModal_ForTheClickedUser()
+    {
+        await Seed();
+        var services = Services();
+        var interaction = new UserCommandInteraction(DiscordInteractionJson.UserCommand("Set gamertag", 7, CallerDiscordID), null, SendResponse, Rest());
+
+        var result = await UserCommandModules.ExecuteAsync(new UserCommandContext(interaction, null!), services);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.Not.InstanceOf<IFailResult>(), (result as IFailResult)?.Message);
+            Assert.That(_callbacks.Single().Type, Is.EqualTo(InteractionCallbackType.Modal));
+        }
+    }
+
+    [Test]
+    public async Task TheSetGamertagForModal_SetsTheClickedUsersGamertag()
+    {
+        await Seed();
+        var services = Services();
+        var interaction = new ModalInteraction(DiscordInteractionJson.Modal($"set_gamertag_for:{CallerDiscordID}:clicked", "gamertag", "NewTag", CallerDiscordID), null, SendResponse, Rest());
+
+        var result = await ModalModules.ExecuteAsync(new ModalInteractionContext(interaction, null!), services);
+
+        AssertReplied(result, "Set: <@909090> has the gamertag NewTag.");
+        await _discordSetter.Received(1).SetGamertagForDiscordUser(CallerDiscordID, "clicked", "NewTag", Arg.Any<CancellationToken>());
     }
 }

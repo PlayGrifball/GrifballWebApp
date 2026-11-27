@@ -300,11 +300,13 @@ public class Program
             .AddGatewayHandlers(typeof(Program).Assembly)
             // DiscordInteractionPipeline sets the audit user and handles exceptions for every command and component
             .AddApplicationCommands(options => DiscordInteractionPipeline.Use(options))
+            .AddApplicationCommands<NetCord.UserCommandInteraction, NetCord.Services.ApplicationCommands.UserCommandContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>(options => DiscordInteractionPipeline.Use(options));
             // /help reads the commands from the gateway's command service: only this role has it
             builder.Services.AddTransient<HelpCommandsHandler>();
+            builder.Services.AddTransient<GrifballWebApp.Application.Tools.ISlashCommandCatalog, GrifballWebApp.Server.Commands.DiscordSlashCommandCatalog>();
             // The bot's voice channels (/voice): this role runs the gateway they are joined through
             builder.Services.AddSingleton<GrifballWebApp.Server.Voice.IVoiceConnector, GrifballWebApp.Server.Voice.NetCordVoiceConnector>();
             builder.Services.AddSingleton(new GrifballWebApp.Server.Voice.VoiceOptions(TimeSpan.FromMilliseconds(builder.Configuration.GetValue("Speech:EndOfLineMilliseconds", 700)),
@@ -328,6 +330,7 @@ public class Program
     private static void AddDiscordHandlers(IServiceCollection services)
     {
         services.AddTransient<DiscordSetGamertag>();
+        services.AddTransient<GrifballWebApp.Application.Profile.IDiscordGamertagSetter, DiscordSetGamertag>();
         services.AddTransient<MatchmakingButtonHandler>();
         services.AddTransient<MatchmakingStringMenuHandler>();
         services.AddTransient<SignupButtonHandler>();
@@ -339,6 +342,7 @@ public class Program
         services.AddTransient<SeasonCommandsHandler>();
         services.AddTransient<TeamCommandsHandler>();
         services.AddTransient<PlayerCommandsHandler>();
+        services.AddTransient<UserCommandsHandler>();
         services.AddTransient<MatchCommandsHandler>();
         services.AddTransient<BrowseCommandsHandler>();
         services.AddTransient<PersonalCommandsHandler>();

@@ -13,6 +13,30 @@ public interface ISetGamertagService
     Task<string?> SetGamertag(int userID, string gamertag, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Sets the gamertag of a Discord user a sysadmin names, as /setgamertag does for the one who types it: their site account, the one signed in
+/// with their Discord, or a new one made for them (a placeholder linked to them is merged into it), then the player's rules. The Discord host
+/// has it; any other host refuses.
+/// </summary>
+public interface IDiscordGamertagSetter
+{
+    /// <param name="discordUserId">The Discord user.</param>
+    /// <param name="discordUsername">Needed only when the user has no account yet: the new account is named after it.</param>
+    /// <param name="gamertag">The Xbox gamertag to set.</param>
+    /// <param name="ct">Cancels the work.</param>
+    /// <returns>The refusal, null when it is set.</returns>
+    Task<string?> SetGamertagForDiscordUser(ulong discordUserId, string? discordUsername, string gamertag, CancellationToken ct = default);
+}
+
+/// <summary>The setter of a host that runs no Discord bot.</summary>
+public sealed class NoDiscordGamertagSetter : IDiscordGamertagSetter
+{
+    public const string Refusal = "Only the Discord bot makes an account for a Discord user: name the user by their site user ID, or do it in Discord.";
+
+    public Task<string?> SetGamertagForDiscordUser(ulong discordUserId, string? discordUsername, string gamertag, CancellationToken ct = default)
+        => Task.FromResult<string?>(Refusal);
+}
+
 public class SetGamertagService : ISetGamertagService
 {
     private readonly IApplicationDbContext _context;
