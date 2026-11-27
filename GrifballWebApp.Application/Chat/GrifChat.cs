@@ -604,6 +604,24 @@ public sealed class ChatReply : IDisposable
     /// </summary>
     public ChatAction? Waiting { get; private set; }
 
+    /// <summary>
+    /// The buttons the model offered (<see cref="GrifTools.OfferButton"/>), once the reply has streamed: read from that tool's results, which
+    /// only its checks write, never from the reply's text.
+    /// </summary>
+    public IReadOnlyList<ChatButton> Offered { get; private set; } = [];
+
+    /// <summary>The <see cref="GrifTools.OfferButton"/> calls of this reply in <paramref name="contents"/> noted, and their results' buttons added to <paramref name="offered"/>.</summary>
+    private void Offer(IEnumerable<AIContent> contents, HashSet<string> buttonCalls, List<ChatButton> offered)
+    {
+        foreach (var content in contents)
+        {
+            if (content is FunctionCallContent { Name: GrifTools.OfferButton } call && !Replayed.Contains(call.CallId))
+                buttonCalls.Add(call.CallId);
+            else if (content is FunctionResultContent result && buttonCalls.Contains(result.CallId))
+                offered.AddRange(ChatButtons.In($"{result.Result}"));
+        }
+    }
+
     /// <summary>Where a paid reply's cost goes (the caller's month).</summary>
     private ChatAccounts Accounts { get; }
 
@@ -645,6 +663,8 @@ public sealed class ChatReply : IDisposable
         var spent = new Spending(this);
         // A change the model asks for (a tool that changes data): the function invocation hands it back instead of running it
         var requests = new List<ToolApprovalRequestContent>();
+        var buttonCalls = new HashSet<string>();
+        var offered = new List<ChatButton>();
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -662,6 +682,7 @@ public sealed class ChatReply : IDisposable
             while (await NextAsync(updates, timeout, cancellationToken))
             {
                 requests.AddRange(updates.Current.Contents.OfType<ToolApprovalRequestContent>());
+                Offer(updates.Current.Contents, buttonCalls, offered);
                 // The month's limit reached within the reply: no next call
                 if (spent.Add(updates.Current))
                     throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
@@ -670,6 +691,7 @@ public sealed class ChatReply : IDisposable
             // A provider may end its stream quietly when canceled: past the timeout, that is no whole answer either
             if (timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                 throw new ChatRefusedException(GrifChat.TookTooLong);
+            Offered = [.. offered.Distinct().Take(ChatButtons.MaxButtons)];
             if (requests.Count > 0)
             {
                 // Kept on the server for their answer, and said: the person decides, not the model

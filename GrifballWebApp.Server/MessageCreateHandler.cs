@@ -171,9 +171,9 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         // The chat's limits, as on the site: the question's length, the history's, and the author's (their site account's when
         // linked, so they count alike here and on the site; else their Discord account's)
         ChatReply reply;
+        var asker = ChatLimits.Asker(caller, ChatLimits.Discord(authorId));
         try
         {
-            var asker = ChatLimits.Asker(caller, ChatLimits.Discord(authorId));
             // In a DM, a yes or no answers the change waiting for the author (GrifChat.ConfirmAsync): anything else is a question
             if (click is not null)
                 reply = await chat.ConfirmAsync(history, click.ActionId, click.Approved, caller, host, asker);
@@ -186,7 +186,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         catch (ChatRefusedException refused)
         {
             // Neither the question nor why is kept: the model never had it (a DM's are left out of its history, GrifChat.WithoutRefusals)
-            await message.ReplyAsync(refused.Message);
+            await RefuseAsync(message, refused.Message, click, host, asker);
             return null;
         }
         catch (Exception e)
@@ -206,6 +206,18 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     }
 
     /// <summary>
+    /// Why the chat won't answer, as the reply. A click's change that still waits (refused for the asker's limits or month, GrifChat.ConfirmAsync
+    /// keeps it) gets its Confirm and Cancel again with it: the clicked ones are gone.
+    /// </summary>
+    private async Task RefuseAsync(NetCord.Rest.RestMessage message, string refusal, ChatClick? click, ChatHost host, string asker)
+    {
+        var reply = new NetCord.Rest.ReplyMessageProperties().WithContent(refusal);
+        if (click is not null && await chat.WaitingAsync(host, asker) is { } waiting && waiting.Id == click.ActionId)
+            reply = reply.WithComponents(ChatComponents.For([], waiting)!);
+        await message.ReplyAsync(reply);
+    }
+
+    /// <summary>
     /// The reply shown as it streams in, then whole, and saved (to <paramref name="saveTo"/>, a channel's; none from a DM). A reply cut
     /// short (it took too long) is followed by why, which is returned.
     /// </summary>
@@ -218,9 +230,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         // Background task for incremental updates
         var started = Time.GetTimestamp();
         var pictures = new List<ChatImage>();
-        var offered = new List<ChatButton>();
         var baseUrl = configuration["BaseUrl"] ?? "";
-        var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, saveTo, UserId, BotID, Time, started, pictures, offered, baseUrl));
+        var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, saveTo, UserId, BotID, Time, started, pictures, baseUrl));
 
         string? cutShort = null;
         try
@@ -242,9 +253,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         // The pictures it names (get_player_image's addresses, in the earlier messages too) are attached to its last message, and the addresses left out of the text
         var rest = responseBuilder.ToString();
         pictures.AddRange(ChatImages.In(rest, baseUrl));
-        offered.AddRange(ChatButtons.In(rest));
-        responseBuilder.Clear().Append(ChatButtons.Without(ChatImages.Without(rest, baseUrl)));
-        var components = ChatComponents.For([.. offered.Distinct().Take(ChatButtons.MaxButtons)], reply.Waiting);
+        responseBuilder.Clear().Append(ChatImages.Without(rest, baseUrl));
+        var components = ChatComponents.For(reply.Offered, reply.Waiting);
         using var files = await PicturesAsync([.. pictures.Distinct()]);
         await FinishReplyAsync(message, restMessage, responseBuilder, saveTo, UserId, BotID, files?.Files, components);
         if (cutShort is not null)
@@ -329,7 +339,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// 2000 characters as a message of its own (saved). Returns the message still being written, if any.
     /// </summary>
     private static async Task<NetCord.Rest.RestMessage?> StreamReplyAsync(ChannelReader<(string Text, long ArrivedAt)> chunks, StringBuilder responseBuilder, NetCord.Rest.RestMessage message,
-        GrifballContext? context, long UserId, long BotID, TimeProvider time, long started, List<ChatImage> pictures, List<ChatButton> offered, string baseUrl)
+        GrifballContext? context, long UserId, long BotID, TimeProvider time, long started, List<ChatImage> pictures, string baseUrl)
     {
         NetCord.Rest.RestMessage? restMessage = null;
         var timeThreshold = TimeSpan.FromSeconds(1);
@@ -347,7 +357,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
                 while (currentResponse.Length > 2000)
                 {
                     var cut = CutAt(currentResponse);
-                    var shown = Shown(currentResponse[..cut], pictures, offered, baseUrl); // its pictures are kept for the last message
+                    var shown = Shown(currentResponse[..cut], pictures, baseUrl); // its pictures are kept for the last message
                     restMessage = await SendFullAsync(message, restMessage, shown, context, UserId, BotID);
                     restMessage = null; // Null out the message so we do not try to save or send it again
                     currentResponse = currentResponse[cut..]; // Get everything after the first 2000 characters
@@ -375,11 +385,10 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     }
 
     /// <summary>A part of the reply as shown: the pictures it names are added to <paramref name="pictures"/>, and their addresses left out.</summary>
-    private static string Shown(string part, List<ChatImage> pictures, List<ChatButton> offered, string baseUrl)
+    private static string Shown(string part, List<ChatImage> pictures, string baseUrl)
     {
         pictures.AddRange(ChatImages.In(part, baseUrl));
-        offered.AddRange(ChatButtons.In(part));
-        return ChatButtons.Without(ChatImages.Without(part, baseUrl));
+        return ChatImages.Without(part, baseUrl);
     }
 
     /// <summary>A full message of the reply, sent (or the one streamed so far made whole) and saved; nothing of it left (only pictures) is nothing to send.</summary>

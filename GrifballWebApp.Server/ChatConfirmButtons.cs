@@ -8,7 +8,8 @@ namespace GrifballWebApp.Server;
 
 /// <summary>
 /// The Confirm and Cancel buttons of a DM reply that waits for the person's yes or no: a click is their answer, as typing yes or no
-/// is (<see cref="MessageCreateHandler.HandleClickAsync"/>). The buttons go at once, so the answer is given once.
+/// is (<see cref="MessageCreateHandler.HandleClickAsync"/>). Confirm and Cancel go at once, so the answer is given once; the buttons the
+/// reply offered stay.
 /// </summary>
 public class ChatConfirmButtonHandler
 {
@@ -21,7 +22,7 @@ public class ChatConfirmButtonHandler
 
     public async Task Click(IDiscordButtonInteractionContext context, string actionId, bool approved)
     {
-        await context.Interaction.SendResponseAsync(InteractionCallback.ModifyMessage(x => x.WithComponents([])));
+        await context.Interaction.SendResponseAsync(InteractionCallback.ModifyMessage(x => x.WithComponents(ChatComponents.WithoutConfirm(context.Message.Original.Components))));
         await _chat.HandleClickAsync(context.Message.Original, context.User.Id, context.User.Username, new MessageCreateHandler.ChatClick(actionId, approved));
     }
 }

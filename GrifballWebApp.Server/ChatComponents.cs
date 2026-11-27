@@ -38,4 +38,11 @@ public static class ChatComponents
         }
         return rows.Count == 0 ? null : rows;
     }
+
+    /// <summary>The rows of a reply once its Confirm and Cancel are answered: the offered buttons stay as they were.</summary>
+    public static IReadOnlyList<ActionRowProperties> WithoutConfirm(IEnumerable<IMessageComponent> components)
+        => [.. components.OfType<ActionRow>()
+            .Select(row => row.Components.OfType<Button>().ToList())
+            .Where(buttons => !buttons.Exists(b => b.CustomId.StartsWith($"{DiscordButtonContants.ChatConfirm}:", StringComparison.Ordinal)))
+            .Select(buttons => new ActionRowProperties([.. buttons.Select(b => new ButtonProperties(b.CustomId, b.Label!, b.Style))]))];
 }

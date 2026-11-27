@@ -158,18 +158,29 @@ public class DiscordTransportTests
         }
     }
 
-    // What follows the click is the chat's answer (MessageCreateHandlerConversationUnitTests): here, the buttons go at once
+    // What follows the click is the chat's answer (MessageCreateHandlerConversationUnitTests): here, Confirm and Cancel go at once,
+    // and the button the reply offered stays
     [Test]
-    public async Task ChatConfirmButton_TakesTheButtonsOffTheMessage_AsItsResponse()
+    public async Task ChatConfirmButton_TakesConfirmAndCancelOffTheMessage_AsItsResponse()
     {
-        var requests = await _host.SendAsync(DiscordInteractionJson.Button("chatconfirm:a1:no", 5951));
+        const string rows = """
+            [{"type":1,"components":[{"type":2,"style":3,"label":"Confirm","custom_id":"chatconfirm:a1:yes"},{"type":2,"style":4,"label":"Cancel","custom_id":"chatconfirm:a1:no"}]},
+             {"type":1,"components":[{"type":2,"style":1,"label":"Join the queue","custom_id":"join_queue"}]}]
+            """;
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.ButtonOn("chatconfirm:a1:no", 5951, rows));
 
         var response = requests[0];
+        var left = response.Data.GetProperty("components");
+        var offered = left[0].GetProperty("components")[0];
         using (Assert.EnterMultipleScope())
         {
             Assert.That(response.Route, Is.EqualTo("/interactions/1/tok/callback"));
             Assert.That(response.CallbackType, Is.EqualTo(DiscordRequest.UpdateMessage));
-            Assert.That(response.Data.GetProperty("components").GetArrayLength(), Is.Zero);
+            Assert.That(left.GetArrayLength(), Is.EqualTo(1));
+            Assert.That(offered.GetProperty("custom_id").GetString(), Is.EqualTo("join_queue"));
+            Assert.That(offered.GetProperty("label").GetString(), Is.EqualTo("Join the queue"));
+            Assert.That(offered.GetProperty("style").GetInt32(), Is.EqualTo((int)ButtonStyle.Primary));
         }
     }
 

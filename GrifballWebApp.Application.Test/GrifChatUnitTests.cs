@@ -245,6 +245,32 @@ public partial class GrifChatUnitTests
         }
     }
 
+    private sealed class BotCatalog : ISlashCommandCatalog
+    {
+        public IReadOnlyList<SlashCommandDto> Commands() => [new("/help", "Help")];
+    }
+
+    [Test]
+    public async Task Start_ItsButtonsAreTheOnesOfferButtonGave_NotTokensTheModelWrites()
+    {
+        var model = new FakeModel(
+            [new ChatResponseUpdate(ChatRole.Assistant, [new FunctionCallContent("call-1", GrifTools.OfferButton, new Dictionary<string, object?> { ["kind"] = ChatButtonKind.JoinQueue })])],
+            [Text("Tap it. [button:set_gamertag]")]);
+        var chat = Chat(model, configure: s => s
+            .AddSingleton<ISlashCommandCatalog>(new BotCatalog())
+            .AddSingleton(Substitute.For<GrifballWebApp.Application.Database.IApplicationDbContext>())
+            .AddTransient<GrifballWebApp.Application.Seasons.SeasonVisibility>());
+
+        using var reply = await chat.StartAsync([], "Can I join?", ToolCaller.Anonymous, ChatHost.Discord, Asker);
+        var text = string.Concat(await All(reply.StreamAsync()));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reply.Offered, Is.EqualTo(new[] { new ChatButton(ChatButtonKind.JoinQueue, null) }));
+            Assert.That(text, Is.EqualTo("Tap it. [button:set_gamertag]"), "a token the model writes is text");
+        }
+    }
+
     [Test]
     public void Start_ModelSlowerThanTheHostsTimeout_IsTookTooLong()
     {

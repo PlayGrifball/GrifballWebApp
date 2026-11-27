@@ -19,17 +19,14 @@ public sealed record ChatButton(ChatButtonKind Kind, int? SeasonID)
 }
 
 /// <summary>
-/// The buttons in a chat reply: the tokens <c>offer_button</c> gives, found in its text. Discord's host turns each into a button under the
-/// reply (the click opens the bot's modal or flow, where the clicker is checked) and leaves the token out of the text.
+/// The buttons of a chat reply: the token <c>offer_button</c> returns names one, and the reply reads it from that tool's result
+/// (<see cref="ChatReply.Offered"/>), never from the reply's text. Discord's host shows each under the reply (the click opens the bot's
+/// modal or flow, where the clicker is checked).
 /// </summary>
 public static partial class ChatButtons
 {
     /// <summary>The most buttons one reply shows (Discord's row holds five).</summary>
     public const int MaxButtons = 5;
-
-    /// <summary>The token a button is written as in a reply.</summary>
-    public static string Token(ChatButton button)
-        => button.SeasonID is { } season ? $"[button:{Names[button.Kind]}:{season}]" : $"[button:{Names[button.Kind]}]";
 
     private static readonly Dictionary<ChatButtonKind, string> Names = new()
     {
@@ -39,8 +36,11 @@ public static partial class ChatButtons
         [ChatButtonKind.JoinQueue] = "join_queue",
     };
 
-    // The token with the blanks around it: they go with it
-    [GeneratedRegex(@"[ \t]*\[button:(?<kind>[a-z_]+)(?::(?<season>\d{1,9}))?\][ \t]*")]
+    /// <summary>The token a button is written as in <c>offer_button</c>'s result.</summary>
+    public static string Token(ChatButton button)
+        => button.SeasonID is { } season ? $"[button:{Names[button.Kind]}:{season}]" : $"[button:{Names[button.Kind]}]";
+
+    [GeneratedRegex(@"\[button:(?<kind>[a-z_]+)(?::(?<season>\d{1,9}))?\]")]
     private static partial Regex Pattern();
 
     private static ChatButton? Parse(Match match)
@@ -58,22 +58,4 @@ public static partial class ChatButtons
     /// <summary>The buttons <paramref name="text"/> names, each once, in order, at most <see cref="MaxButtons"/>.</summary>
     public static IReadOnlyList<ChatButton> In(string text)
         => [.. Pattern().Matches(text).Select(Parse).OfType<ChatButton>().Distinct().Take(MaxButtons)];
-
-    /// <summary><paramref name="text"/> without the tokens (as <see cref="In"/> finds them); the rest is as it was.</summary>
-    public static string Without(string text)
-    {
-        var removed = false;
-        var result = Pattern().Replace(text, m =>
-        {
-            if (Parse(m) is null)
-                return m.Value;
-            removed = true;
-            var end = m.Index + m.Length;
-            var blanks = m.Value.StartsWith(' ') || m.Value.StartsWith('\t') || m.Value.EndsWith(' ') || m.Value.EndsWith('\t');
-            var before = m.Index == 0 ? '\n' : text[m.Index - 1];
-            var after = end >= text.Length ? '\n' : text[end];
-            return blanks && before != '\n' && after != '\n' && !",.;:!?)".Contains(after) ? " " : "";
-        });
-        return removed ? result.Trim() : text;
-    }
 }

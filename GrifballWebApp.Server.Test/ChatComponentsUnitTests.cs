@@ -5,6 +5,7 @@ using NetCord.Rest;
 namespace GrifballWebApp.Server.Test;
 
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class ChatComponentsUnitTests
 {
