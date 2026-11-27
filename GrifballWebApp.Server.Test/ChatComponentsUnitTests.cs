@@ -8,6 +8,9 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class ChatComponentsUnitTests
 {
+    private static readonly string[] ConfirmAndCancel = ["chatconfirm:a1:yes", "chatconfirm:a1:no"];
+    private static readonly string[] JoinQueue = [DiscordButtonContants.JoinQueue];
+
     private static string[] Ids(ActionRowProperties row) => [.. row.OfType<ButtonProperties>().Select(b => b.CustomId)];
 
     [Test]
@@ -24,8 +27,8 @@ public class ChatComponentsUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(rows, Has.Count.EqualTo(2));
-            Assert.That(Ids(rows[0]), Is.EqualTo(new[] { "chatconfirm:a1:yes", "chatconfirm:a1:no" }));
-            Assert.That(Ids(rows[1]), Is.EqualTo(new[] { DiscordButtonContants.JoinQueue }));
+            Assert.That(Ids(rows[0]), Is.EqualTo(ConfirmAndCancel));
+            Assert.That(Ids(rows[1]), Is.EqualTo(JoinQueue));
         }
     }
 

@@ -36,6 +36,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private const ulong AuthorId = 5;
     private static readonly ulong[] MentionsTheBot = [BotId];
     private static readonly string[] HiThere = ["Hi there"];
+    private static readonly string[] TapThis = ["Tap this to set your times."];
     private static readonly string[] ShownInFull = ["This first chunk is over 25 characters!"];
     private static readonly string[] ChannelQuestion = ["Channel question"];
     private static readonly string[] ChannelQuestionThenHello = ["Channel question", "hello"];
@@ -683,7 +684,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         {
             Assert.That(body.GetProperty("content").GetString(), Is.EqualTo("Tap this to set your times."));
             Assert.That(button.GetProperty("custom_id").GetString(), Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordButtonContants.SignupDetailsWithParams(12)));
-            Assert.That(await SavedReplies(), Is.EqualTo(new[] { "Tap this to set your times." }));
+            Assert.That(await SavedReplies(), Is.EqualTo(TapThis));
         }
     }
 
