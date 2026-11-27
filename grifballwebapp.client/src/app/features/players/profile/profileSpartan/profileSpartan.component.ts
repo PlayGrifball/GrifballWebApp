@@ -6,7 +6,7 @@ import type { SpartanCatalogCore, SpartanChoice } from '@api/models';
 import { SpartanViewerComponent } from '../spartanViewer/spartanViewer.component';
 import { ProfileSpartanStore } from './profileSpartan.store';
 
-/** The signed-in user's Spartan on their profile: the files rendered for them, and a choice of core, pieces and coating that replaces their equipped set. */
+/** The signed-in user's Spartan on their profile: the files rendered for them, and a choice of core, pieces, coating and visor that replaces their equipped set. */
 @Component({
   selector: 'app-profile-spartan',
   imports: [DatePipe, ReactiveFormsModule, SpartanViewerComponent],
@@ -36,6 +36,7 @@ export class ProfileSpartanComponent implements OnInit {
     core: new FormControl('', { nonNullable: true }),
     armor: new FormRecord<FormControl<string>>({}),
     coating: new FormControl('', { nonNullable: true }),
+    visor: new FormControl('', { nonNullable: true }),
   });
   /** The pieces the open form starts from, for the controls a region's arrival creates. */
   private seed: Record<string, string> = {};
@@ -75,6 +76,7 @@ export class ProfileSpartanComponent implements OnInit {
     const choice = this.profile()?.choice;
     this.form.controls.core.setValue(choice?.core ?? '');
     this.form.controls.coating.setValue(choice?.coating ?? '');
+    this.form.controls.visor.setValue(choice?.visor ?? '');
     this.seed = { ...(choice?.armor ?? {}) };
     this.syncPieces();
     this.store.loadCatalog();
@@ -86,12 +88,13 @@ export class ProfileSpartanComponent implements OnInit {
   }
 
   save(): void {
-    const { core, coating, armor } = this.form.getRawValue();
+    const { core, coating, visor, armor } = this.form.getRawValue();
     const choice: SpartanChoice = {
       core,
       armor: Object.fromEntries(Object.entries(armor).filter(([, piece]) => piece)),
       parts: this.profile()?.choice?.core === core ? this.profile()?.choice?.parts ?? null : null,
       coating: coating || null,
+      visor: visor || null,
     };
     this.store.save(choice);
     this.editing.set(false);

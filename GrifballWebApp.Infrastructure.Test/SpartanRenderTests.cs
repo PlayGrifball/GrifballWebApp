@@ -34,7 +34,7 @@ public class SpartanRenderTests : SqliteContextFixture
 {
     private static readonly DateTimeOffset Start = new(2026, 11, 26, 12, 0, 0, TimeSpan.Zero);
     private static readonly SpartanCatalog Catalog = new(
-        [new SpartanCatalogCore("Mark VII", [new("REGION", "helmet", 1, [new(1, "Aviator")])])], ["111"], []);
+        [new SpartanCatalogCore("Mark VII", [new("REGION", "helmet", 1, [new(1, "Aviator")])])], ["111"], [], ["Reflection"]);
     private static readonly SpartanChoice Choice = new("Mark VII", new Dictionary<string, string> { ["helmet"] = "Aviator" });
 
     private sealed class FakeCatalogs(SpartanCatalog? catalog) : ISpartanCatalogSource
@@ -230,6 +230,16 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That(_service.Loadouts, Has.Count.EqualTo(3));
             Assert.That(_service.Loadouts[0], Does.Contain("\"core\":\"Mark VII\"").And.Contain("\"helmet\":\"Aviator\""));
         }
+    }
+
+    [Test]
+    public async Task AVisor_IsSentWithEveryNeutralLoadout()
+    {
+        await UserAsync(Choice with { Visor = "Reflection" });
+
+        await Source().RunAsync();
+
+        Assert.That(_service.Loadouts, Has.Count.EqualTo(3).And.All.Contain("\"visor\":\"Reflection\""));
     }
 
     [Test]
@@ -755,6 +765,7 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", reordered, [new(1, 1), new(2, 1)], "111"), 5), Is.EqualTo(key));
             Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "111"), null), Is.Not.EqualTo(key));
             Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "222"), 5), Is.Not.EqualTo(key));
+            Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "111", "Reflection"), 5), Is.Not.EqualTo(key));
             Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("D", armor, [new(2, 1), new(1, 1)], "111"), 5), Is.Not.EqualTo(key));
             Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", null, null), null), Has.Length.EqualTo(64));
         }

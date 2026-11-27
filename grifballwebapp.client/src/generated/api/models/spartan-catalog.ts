@@ -10,4 +10,5 @@ export interface SpartanCatalog {
   coatings: Array<string>;
   cores: Array<SpartanCatalogCore>;
   pendingCores: Array<string>;
+  visors: Array<string>;
 }

@@ -36,6 +36,8 @@ public static class SpartanChoiceValidator
 
         if (choice.Coating is not null && !catalog.Coatings.Contains(choice.Coating, StringComparer.Ordinal))
             problems.Add($"There is no coating '{choice.Coating}'");
+        if (choice.Visor is not null && !catalog.Visors.Contains(choice.Visor, StringComparer.Ordinal))
+            problems.Add($"There is no visor '{choice.Visor}'");
         return problems;
     }
 }

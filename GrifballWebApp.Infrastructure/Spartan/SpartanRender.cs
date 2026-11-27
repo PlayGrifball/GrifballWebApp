@@ -298,7 +298,7 @@ public sealed class SpartanRenderSource(
         var files = new Dictionary<string, SpartanFileDto>();
         if (stance is int id)
         {
-            var set = await client.SubmitSetAsync(new SpartanSetRequest { Core = choice.Core, Armor = armor, Parts = parts, Coating = choice.Coating, Stance = id }, ct);
+            var set = await client.SubmitSetAsync(new SpartanSetRequest { Core = choice.Core, Armor = armor, Parts = parts, Coating = choice.Coating, Visor = choice.Visor, Stance = id }, ct);
             set = await client.WaitAsync(set, TimeSpan.FromSeconds(5), ct);
             if (set.IsFailed)
                 throw new InvalidOperationException("The render service could not render this Spartan");
@@ -310,7 +310,7 @@ public sealed class SpartanRenderSource(
         {
             var bytes = await client.RenderAsync(new SpartanLoadout
             {
-                Core = choice.Core, Armor = armor, Parts = parts, Coating = choice.Coating, Output = output, Framing = framing,
+                Core = choice.Core, Armor = armor, Parts = parts, Coating = choice.Coating, Visor = choice.Visor, Output = output, Framing = framing,
             }, TimeSpan.FromSeconds(5), ct);
             files[name] = new SpartanFileDto(ContentTypeOf(output), bytes);
         }
@@ -327,6 +327,7 @@ public sealed class SpartanRenderSource(
             Armor = (choice.Armor ?? new Dictionary<string, string>()).OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value}"),
             Parts = (choice.Parts ?? []).OrderBy(p => p.Region).Select(p => $"{p.Region}:{p.Permutation}"),
             choice.Coating,
+            choice.Visor,
             Stance = stance,
         });
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));

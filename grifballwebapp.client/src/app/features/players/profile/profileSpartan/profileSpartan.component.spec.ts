@@ -9,6 +9,7 @@ import { ProfileSpartanComponent } from './profileSpartan.component';
 const stateUrl = '/api/me/spartan';
 const catalog: SpartanCatalog = {
   coatings: ['Ash'],
+  visors: ['Mirror'],
   pendingCores: [],
   cores: [
     { name: 'Mark VII', regions: [
@@ -81,7 +82,7 @@ describe('ProfileSpartanComponent', () => {
   });
 
   it('says the chosen Spartan shows, and offers going back to the equipped set', async () => {
-    await load(profile({ choice: { core: 'Mark VII', armor: null, parts: null, coating: null } }));
+    await load(profile({ choice: { core: 'Mark VII', armor: null, parts: null, coating: null, visor: null } }));
     expect(text()).toContain('Showing the Spartan you chose.');
     button('Use my equipped set')!.click();
     http.expectOne({ method: 'POST', url: '/api/me/spartan/clear' }).flush(null, { status: 204, statusText: 'No Content' });
@@ -156,7 +157,7 @@ describe('ProfileSpartanComponent', () => {
   });
 
   it('opens the chooser with what is chosen now, after loading the catalog', async () => {
-    await load(profile({ choice: { core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash' } }));
+    await load(profile({ choice: { core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash', visor: 'Mirror' } }));
     button('Choose a Spartan')!.click();
     fixture.detectChanges();
     expect(text()).toContain('Loading what you can choose from');
@@ -166,6 +167,7 @@ describe('ProfileSpartanComponent', () => {
     expect(el().querySelector<HTMLSelectElement>('#spartan-core')!.value).toBe('Mark VII');
     expect(el().querySelector<HTMLSelectElement>('#spartan-helmet')!.value).toBe('Eod');
     expect(el().querySelector<HTMLSelectElement>('#spartan-coating')!.value).toBe('Ash');
+    expect(el().querySelector<HTMLSelectElement>('#spartan-visor')!.value).toBe('Mirror');
   });
 
   it('keeps Save off until a core is picked, and offers only named pieces of regions', async () => {
@@ -180,15 +182,16 @@ describe('ProfileSpartanComponent', () => {
     expect(el().querySelector('#spartan-unnamed')).toBeNull();
   });
 
-  it('saves the picked core, piece and coating, and closes the form', async () => {
+  it('saves the picked core, piece, coating and visor, and closes the form', async () => {
     await openForm(profile());
     pick('#spartan-core', 'Mark VII');
     pick('#spartan-helmet', 'Eod');
     pick('#spartan-coating', 'Ash');
+    pick('#spartan-visor', 'Mirror');
     button('Save')!.click();
     fixture.detectChanges();
     const save = http.expectOne({ method: 'POST', url: stateUrl });
-    expect(save.request.body).toEqual({ core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash' });
+    expect(save.request.body).toEqual({ core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash', visor: 'Mirror' });
     save.flush('', { status: 200, statusText: 'OK' });
     http.expectOne({ method: 'GET', url: stateUrl }).flush(profile());
     expect(el().querySelector('form')).toBeNull();
@@ -207,7 +210,7 @@ describe('ProfileSpartanComponent', () => {
 
   it('keeps the saved parts only while the core is the same', async () => {
     const parts = [{ region: 'helmet', permutation: 3 }] as never;
-    await openForm(profile({ choice: { core: 'Mark VII', armor: null, parts, coating: null } }));
+    await openForm(profile({ choice: { core: 'Mark VII', armor: null, parts, coating: null, visor: null } }));
     button('Save')!.click();
     const same = http.expectOne({ method: 'POST', url: stateUrl });
     expect(same.request.body.parts).toEqual(parts);
@@ -228,7 +231,7 @@ describe('ProfileSpartanComponent', () => {
   });
 
   it('clears the choice from the component and closes the form', async () => {
-    await openForm(profile({ choice: { core: 'Mark VII', armor: null, parts: null, coating: null } }));
+    await openForm(profile({ choice: { core: 'Mark VII', armor: null, parts: null, coating: null, visor: null } }));
     fixture.componentInstance.reset();
     fixture.detectChanges();
     expect(el().querySelector('form')).toBeNull();

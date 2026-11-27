@@ -12,7 +12,8 @@ public sealed record SpartanCatalogCore(string Name, IReadOnlyList<SpartanCatalo
 public sealed record SpartanCatalog(
     IReadOnlyList<SpartanCatalogCore> Cores,
     IReadOnlyList<string> Coatings,
-    IReadOnlyList<string> PendingCores);
+    IReadOnlyList<string> PendingCores,
+    IReadOnlyList<string> Visors);
 
 /// <summary>The render service's catalog, kept for a few minutes; null when the service cannot be reached.</summary>
 public interface ISpartanCatalogSource
@@ -23,9 +24,10 @@ public interface ISpartanCatalogSource
 /// <summary>A piece by the game's ids, for the pieces that have no name.</summary>
 public sealed record SpartanPartChoice(int Region, int Permutation);
 
-/// <summary>A Spartan as a player chose it: the core, pieces by region key, pieces by ids and the coating. Anything left out is the core's default.</summary>
+/// <summary>A Spartan as a player chose it: the core, pieces by region key, pieces by ids and the coating and the visor. Anything left out is the core's default.</summary>
 public sealed record SpartanChoice(
     string Core,
     IReadOnlyDictionary<string, string>? Armor = null,
     IReadOnlyList<SpartanPartChoice>? Parts = null,
-    string? Coating = null);
+    string? Coating = null,
+    string? Visor = null);

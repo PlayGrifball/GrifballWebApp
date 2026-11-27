@@ -25,7 +25,7 @@ public class SpartanArmorMapperTests
             new("REGION", "glove", 4, [new(1, "Grip")]),
             new("KIT", "kit", 5, [new(9, null)]),
         ]),
-    ], ["111"], []);
+    ], ["111"], [], ["Reflection"]);
 
     private readonly IHaloInfiniteClient _halo = Substitute.For<IHaloInfiniteClient>();
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
@@ -166,6 +166,19 @@ public class SpartanArmorMapperTests
         }), Catalog, CancellationToken.None);
 
         Assert.That((mapped!.Choice.Coating, mapped.Stance), Is.EqualTo(("111", (int?)39388885)));
+    }
+
+    [Test]
+    public async Task AVisorInTheCatalog_ByItsTitle_IsKept_AndOneItDoesNotHaveIsLeftOut()
+    {
+        Serve("cores/mk7.json", Found("Mark VII"));
+        Serve("visors/known.json", Found("reflection"));
+        Serve("visors/other.json", Found("Mirage"));
+
+        var known = await Mapper().Map(Armor(a => a.VisorPath = "visors/known.json"), Catalog, CancellationToken.None);
+        var other = await Mapper().Map(Armor(a => a.VisorPath = "visors/other.json"), Catalog, CancellationToken.None);
+
+        Assert.That((known!.Choice.Visor, other!.Choice.Visor), Is.EqualTo(("Reflection", (string?)null)));
     }
 
     [Test]

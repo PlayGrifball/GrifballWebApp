@@ -18663,7 +18663,8 @@
         "required": [
           "coatings",
           "cores",
-          "pendingCores"
+          "pendingCores",
+          "visors"
         ],
         "type": "object",
         "properties": {
@@ -18680,6 +18681,12 @@
             }
           },
           "pendingCores": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visors": {
             "type": "array",
             "items": {
               "type": "string"
@@ -18761,7 +18768,8 @@
           "armor",
           "coating",
           "core",
-          "parts"
+          "parts",
+          "visor"
         ],
         "type": "object",
         "properties": {
@@ -18785,10 +18793,14 @@
           "coating": {
             "type": "string",
             "nullable": true
+          },
+          "visor": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false,
-        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids and the coating. Anything left out is the core's default."
+        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating and the visor. Anything left out is the core's default."
       },
       "SpartanPartChoice": {
         "required": [

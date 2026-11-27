@@ -66,9 +66,12 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
         string? coating = null;
         if ((await ItemOf(armor.CoatingPath, ct))?.StyleId is int style && catalog.Coatings.Contains(style.ToString(), StringComparer.Ordinal))
             coating = style.ToString();
+        string? visor = null;
+        if ((await ItemOf(armor.VisorPath, ct))?.Title is { } visorTitle)
+            visor = catalog.Visors.FirstOrDefault(v => string.Equals(v, visorTitle, StringComparison.OrdinalIgnoreCase));
         var stance = await StanceOf(armor, ct);
 
-        return new MappedSpartan(new SpartanChoice(core.Name, pieces, null, coating), stance);
+        return new MappedSpartan(new SpartanChoice(core.Name, pieces, null, coating, visor), stance);
     }
 
     /// <summary>The stance of the armor row's action pose, or null when it has none. Throws when Halo failed.</summary>

@@ -100,7 +100,7 @@ public class MyProfileController : ControllerBase
         return await _spartans.Get(userId, ct) is { } dto ? dto : this.NotFoundProblem(ApiProblems.NoSuchUser);
     }
 
-    /// <summary>What the render service can render: the cores, their pieces by region, and the coatings.</summary>
+    /// <summary>What the render service can render: the cores, their pieces by region, the coatings and the visors.</summary>
     [HttpGet("spartan/catalog", Name = "GetSpartanCatalog")]
     [ProducesResponseType<SpartanCatalog>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable, "application/problem+json")]

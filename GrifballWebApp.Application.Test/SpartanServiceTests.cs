@@ -16,7 +16,7 @@ internal sealed class SpartanServiceTests : ApplicationDbContextTests
     private static readonly DateTimeOffset Start = new(2026, 11, 26, 12, 0, 0, TimeSpan.Zero);
     private static readonly SpartanCatalog Catalog = new(
         [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, "Mark VII"), new(2, "Eaglestrike")])])],
-        ["111"], []);
+        ["111"], [], ["Reflection"]);
 
     private sealed class FakeCatalogs(SpartanCatalog? catalog) : ISpartanCatalogSource
     {
@@ -136,7 +136,7 @@ internal sealed class SpartanServiceTests : ApplicationDbContextTests
         {
             Assert.That(result.Outcome, Is.EqualTo(SetSpartanOutcome.Saved));
             Assert.That(result.Problems, Is.Empty);
-            Assert.That(row.ChoiceJson, Is.EqualTo("""{"core":"Mark VII","armor":{"helmet":"Eaglestrike"},"parts":null,"coating":"111"}"""));
+            Assert.That(row.ChoiceJson, Is.EqualTo("""{"core":"Mark VII","armor":{"helmet":"Eaglestrike"},"parts":null,"coating":"111","visor":null}"""));
             Assert.That(row.UpdatedAt, Is.EqualTo(Start.UtcDateTime));
             Assert.That((render.State, render.RequestedAt, render.Error), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime, (string?)null)));
         }
@@ -184,7 +184,7 @@ internal sealed class SpartanServiceTests : ApplicationDbContextTests
     {
         var piece = new string('x', UserSpartan.MaxChoiceLength);
         var catalog = new SpartanCatalog(
-            [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, piece)])])], [], []);
+            [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, piece)])])], [], [], []);
 
         var result = await Service(catalog).Set(_userId, new SpartanChoice("Mark VII", new Dictionary<string, string> { ["helmet"] = piece }));
 

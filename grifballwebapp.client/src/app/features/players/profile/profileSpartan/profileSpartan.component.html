@@ -71,6 +71,12 @@
           @for (style of c.coatings; track style) { <option [value]="style">{{style}}</option> }
         </select>
 
+        <label for="spartan-visor">Visor</label>
+        <select id="spartan-visor" formControlName="visor">
+          <option value="">Default</option>
+          @for (visor of c.visors; track visor) { <option [value]="visor">{{visor}}</option> }
+        </select>
+
         <div class="spartan-actions">
           <button type="submit" class="hud-btn" [disabled]="!core() || busy()">Save</button>
           <button type="button" class="hud-btn" (click)="cancel()">Cancel</button>

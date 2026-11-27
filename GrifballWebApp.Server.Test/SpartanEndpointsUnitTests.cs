@@ -23,7 +23,7 @@ public class SpartanEndpointsUnitTests : SqliteGrifballContextFixture
     private static readonly byte[] Head = [0x89, 0x50, 0x4E, 0x47, 9];
     private static readonly byte[] Emblem = [0x89, 0x50, 0x4E, 0x47, 1];
     private static readonly SpartanCatalog Catalog = new(
-        [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, "Aviator")])])], ["111"], []);
+        [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, "Aviator")])])], ["111"], [], ["Reflection"]);
 
     private sealed class FakeCatalogs(SpartanCatalog? catalog) : ISpartanCatalogSource
     {

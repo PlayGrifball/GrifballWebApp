@@ -12,7 +12,7 @@ public class SpartanChoiceValidatorTests
             new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, "Mark VII"), new(2, "Eaglestrike")]),
             new SpartanCatalogRegion("KIT", "kit", 200, [new(7, null)]),
         ])],
-        ["111", "222"], ["Chimera"]);
+        ["111", "222"], ["Chimera"], ["Reflection"]);
 
     private static IReadOnlyList<string> Check(SpartanChoice choice) => SpartanChoiceValidator.Validate(choice, Catalog);
 
@@ -20,7 +20,7 @@ public class SpartanChoiceValidatorTests
     public void ANullOrEmptyPieceName_IsRefused_EvenWhereARegionHasANamelessPiece()
     {
         var catalog = new SpartanCatalog(
-            [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, null), new(2, "Eaglestrike")])])], [], []);
+            [new SpartanCatalogCore("Mark VII", [new SpartanCatalogRegion("REGION", "helmet", 100, [new(1, null), new(2, "Eaglestrike")])])], [], [], []);
 
         var problems = SpartanChoiceValidator.Validate(new SpartanChoice("Mark VII", new Dictionary<string, string> { ["helmet"] = null!, ["x"] = "" }), catalog);
 
@@ -32,7 +32,7 @@ public class SpartanChoiceValidatorTests
 
     [Test]
     public void EverythingListed_IsAccepted() => Assert.That(Check(new SpartanChoice("Mark VII",
-        new Dictionary<string, string> { ["helmet"] = "Eaglestrike" }, [new(200, 7)], "222")), Is.Empty);
+        new Dictionary<string, string> { ["helmet"] = "Eaglestrike" }, [new(200, 7)], "222", "Reflection")), Is.Empty);
 
     [Test]
     public void AnUnknownCore_IsRefused_AndNothingElseIsChecked()
