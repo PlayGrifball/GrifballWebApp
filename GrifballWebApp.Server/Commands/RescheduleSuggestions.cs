@@ -55,7 +55,7 @@ public class RescheduleSuggestions(CommandLookups lookups, SchedulingService sch
 
     /// <summary>The match's best time in the UTC form a request reads (what the request form starts with); null when there is none.</summary>
     public async Task<string?> BestTime(int seasonMatchID)
-        => (await scheduling.SuggestAsync(seasonMatchID, count: 1))?.FirstOrDefault()?.StartsAt.ToString(CommandLookups.UtcFormat, CultureInfo.InvariantCulture);
+        => await scheduling.SuggestAsync(seasonMatchID, count: 1) is [var best, ..] ? best.StartsAt.ToString(CommandLookups.UtcFormat, CultureInfo.InvariantCulture) : null;
 
     private static string Players(TimeSuggestion s) => $"{s.HomePlayersAvailable} and {s.AwayPlayersAvailable} players can play";
 }
