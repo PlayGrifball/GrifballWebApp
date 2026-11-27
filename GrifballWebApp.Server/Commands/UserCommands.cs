@@ -30,5 +30,5 @@ public class UserCommands : ApplicationCommandModule<UserCommandContext>
     public Task Pull(User user) => _players.PullOfDiscordUser(Context.ToDiscordContext(), user.Id);
 
     [UserCommand(SetGamertagName)]
-    public Task SetGamertag(User user) => _handler.OpenSetGamertag(Context.ToDiscordContext(), user.Id);
+    public Task SetGamertag(User user) => _handler.OpenSetGamertag(Context.ToDiscordContext(), user.Id, user.Username);
 }

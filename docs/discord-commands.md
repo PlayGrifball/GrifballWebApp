@@ -117,4 +117,4 @@ Right-click a Discord user, Apps menu. They take the clicked user's linked site 
 |---|---|
 | Profile | `/player profile` for the clicked user. They need a site account with a gamertag |
 | Pull games | `/player pull` for the clicked user's Xbox account. Player, Commissioner or Sysadmin |
-| Set gamertag | A modal asks for the gamertag, then sets it through `/setgamertag`'s service (the agents' `set_user_gamertag`), so the same rules refuse it. Sysadmin. The user needs a site account already; a forced change is the Edit User page |
+| Set gamertag | A modal asks for the gamertag, then sets it through `/setgamertag`'s service (the agents' `set_user_gamertag`), so the same rules refuse it. Sysadmin. As with `/setgamertag` for oneself, the user's account is used, the one signed in with their Discord, or a new one is made for them (a placeholder linked to them is merged into it); a forced change of a gamertag is the Edit User page |

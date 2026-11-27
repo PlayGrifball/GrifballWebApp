@@ -106,6 +106,8 @@ done by someone (a schedule applied, a job paused) is the token's user name (`To
 | --- | --- | --- |
 | `get_commissioner_dashboard` | Commissioner, Sysadmin | Pending reschedules, overdue matches, seasons that won't be public by their signups, and the counts |
 | `list_pending_gamertag_claims` | Sysadmin | The claims waiting for a decision |
+| `list_duplicate_users` | Sysadmin | Possible duplicate users, as the claims page lists them |
+| `list_user_merges` | Sysadmin | The merges of users, newest first, with their IDs |
 | `decide_reschedule` | Commissioner, Sysadmin | Approves or rejects a reschedule request |
 | `report_season_match_game` | Commissioner | Reports a Halo game as one of a season match's games |
 | `forfeit_season_match` | Commissioner | Home, away or both forfeit |
@@ -116,7 +118,11 @@ done by someone (a schedule applied, a job paused) is the token's user name (`To
 | `seed_season_bracket` | Commissioner | Seeds the bracket by the standings |
 | `set_captains_locked` | Commissioner | Locks or unlocks the draft's captains |
 | `decide_gamertag_claim` | Sysadmin | Approves or rejects a gamertag claim |
-| `set_user_gamertag` | Sysadmin | Sets a user's gamertag by site user ID or Discord ID, with the player's own rules (`/setgamertag`) |
+| `set_user_gamertag` | Sysadmin | Sets a user's gamertag by site user ID or Discord ID, with the player's own rules (`/setgamertag`). A Discord user with no account gets one made (give `discordUsername`), or takes over the account signed in with their Discord or a placeholder linked to them |
+| `merge_duplicate_user` | Sysadmin | Merges a placeholder into the user it duplicates, as the claims page does (audited) |
+| `dismiss_duplicate_user` | Sysadmin | Says a suggested pair are different players |
+| `merge_users` | Sysadmin | Merges one user into another with the merge page's transfers (audited) |
+| `undo_user_merge` | Sysadmin | Puts back what a merge changed |
 | `pull_halo_game` | Sysadmin | Pulls one Halo game's stats; refused when Halo has no such team game |
 | `refresh_medals` | Sysadmin | Downloads Halo's medals, once (refused once they're downloaded) |
 | `get_schedule_recommendation` | Commissioner, Sysadmin | A season's latest schedule recommendation, and whether one is being worked out |

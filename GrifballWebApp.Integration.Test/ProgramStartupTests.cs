@@ -661,6 +661,9 @@ public class ProgramStartupTests
             Assert.That(hostedTypes, Does.Contain(typeof(GrifballWebApp.Server.SignalR.HubSessionSweep)).And.Contain(typeof(GrifballWebApp.Server.SignalR.HubUserSessionsListener)), "the hubs' pods");
             Assert.That(factory.Services.GetServices<GrifballWebApp.Application.Identity.IUserSessions>().Count(), Is.EqualTo(1), "registered once");
             Assert.That(factory.GatewayClientRegistered, Is.False, "No Discord gateway in the API role");
+            using var scope = factory.Services.CreateScope();
+            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Tools.ISlashCommandCatalog>(), Is.TypeOf<GrifballWebApp.Application.Tools.NoSlashCommands>());
+            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Profile.IDiscordGamertagSetter>(), Is.TypeOf<GrifballWebApp.Application.Profile.NoDiscordGamertagSetter>());
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Not.Contain(workerOnly));
@@ -811,6 +814,13 @@ public class ProgramStartupTests
 
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
         Assert.That(checks, Does.Contain("discord"));
+
+        using var scope = factory.Services.CreateScope();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Tools.ISlashCommandCatalog>(), Is.TypeOf<GrifballWebApp.Server.Commands.DiscordSlashCommandCatalog>(), "The bot knows its commands");
+            Assert.That(scope.ServiceProvider.GetRequiredService<GrifballWebApp.Application.Profile.IDiscordGamertagSetter>(), Is.TypeOf<DiscordSetGamertag>(), "The bot makes accounts for Discord users");
+        }
 
         await AssertOk(client, "/health/live");
         foreach (var path in new[] { "/CommitHash", "/seasons", "/internal/backups/abc" })

@@ -1,8 +1,10 @@
 using System.ComponentModel;
 using GrifballWebApp.Application.Commissioner;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Dtos;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Domain.Archive;
@@ -27,9 +29,12 @@ public class StaffTools
     private readonly ScheduleRecommendations _recommendations;
     private readonly IScheduleRecommendationRuns _runs;
     private readonly IJobControl _jobs;
+    private readonly DuplicateSuggestionService _duplicates;
+    private readonly UserMergeAuditService _merges;
 
     public StaffTools(ToolCaller caller, CommissionerDashboardService dashboard, GamertagClaimService claims, SeasonService seasons,
-        SeasonVisibility visibility, ScheduleRecommendations recommendations, IScheduleRecommendationRuns runs, IJobControl jobs)
+        SeasonVisibility visibility, ScheduleRecommendations recommendations, IScheduleRecommendationRuns runs, IJobControl jobs,
+        DuplicateSuggestionService duplicates, UserMergeAuditService merges)
     {
         _caller = caller;
         _dashboard = dashboard;
@@ -39,6 +44,8 @@ public class StaffTools
         _recommendations = recommendations;
         _runs = runs;
         _jobs = jobs;
+        _duplicates = duplicates;
+        _merges = merges;
     }
 
     [Description("The commissioner dashboard: the pending reschedule requests (each one's ID for decide_reschedule), the matches overdue to be "
@@ -49,6 +56,29 @@ public class StaffTools
     {
         _caller.RequireRolesOf();
         return await _dashboard.GetAsync(ct);
+    }
+
+    [Description("The possible duplicate users, as the claims page lists them: a placeholder (a gamertag from the archive) and another user (signed up, or a placeholder) "
+        + "whose gamertags are close and whose seasons don't conflict, strongest match first, each with both users' IDs and seasons. merge_duplicate_user merges a pair, "
+        + "dismiss_duplicate_user says it isn't one. Sysadmins.")]
+    [ToolRoles(SiteRoles.Sysadmin)]
+    public async Task<List<DuplicateSuggestionDto>> ListDuplicateUsers(
+        [Description("How many pairs at most; default 50.")] int max = 50,
+        CancellationToken ct = default)
+    {
+        _caller.RequireRolesOf();
+        return await _duplicates.List(Math.Clamp(max, 1, 200), ct);
+    }
+
+    [Description("The merges of users, newest first, as the merges page lists them: each one's ID (for undo_user_merge), who was merged into whom, why, and whether it was undone. Sysadmins.")]
+    [ToolRoles(SiteRoles.Sysadmin)]
+    public async Task<PaginationResult<UserMergeDto>> ListUserMerges(
+        [Description("The page, from 1; default 1.")] int page = 1,
+        [Description("How many merges to a page; default 20.")] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        _caller.RequireRolesOf();
+        return await _merges.List(new PaginationFilter { PageNumber = page, PageSize = Math.Clamp(pageSize, 1, 100) }, ct);
     }
 
     [Description("The gamertag claims waiting for a decision: each one's ID (for decide_gamertag_claim), the gamertag, who claims it and the "

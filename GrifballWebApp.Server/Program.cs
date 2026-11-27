@@ -330,6 +330,7 @@ public class Program
     private static void AddDiscordHandlers(IServiceCollection services)
     {
         services.AddTransient<DiscordSetGamertag>();
+        services.AddTransient<GrifballWebApp.Application.Profile.IDiscordGamertagSetter, DiscordSetGamertag>();
         services.AddTransient<MatchmakingButtonHandler>();
         services.AddTransient<MatchmakingStringMenuHandler>();
         services.AddTransient<SignupButtonHandler>();

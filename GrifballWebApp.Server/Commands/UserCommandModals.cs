@@ -15,6 +15,6 @@ public class UserCommandModals : ComponentInteractionModule<ModalInteractionCont
     }
 
     [ComponentInteraction(UserCommandsHandler.ModalPrefix)]
-    public Task SetGamertag(ulong targetDiscordUserId)
-        => _handler.SetGamertag(Context.ToDiscordContext(), targetDiscordUserId, ((TextInput)((Label)Context.Components[0]).Component).Value);
+    public Task SetGamertag(ulong targetDiscordUserId, string targetUsername)
+        => _handler.SetGamertag(Context.ToDiscordContext(), targetDiscordUserId, targetUsername, ((TextInput)((Label)Context.Components[0]).Component).Value);
 }

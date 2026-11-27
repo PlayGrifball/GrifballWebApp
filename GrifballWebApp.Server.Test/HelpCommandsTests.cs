@@ -32,8 +32,17 @@ public class HelpCommandsTests
     public void TheSlashCommandCatalog_ListsTheSameCommandsSortedByPath()
     {
         var commands = new DiscordSlashCommandCatalog(Handler()).Commands();
+        var slash = commands.SkipLast(3);
 
-        Assert.That(commands.Select(c => c.Command), Is.SupersetOf(SomeCommands).And.Ordered.Using<string>(StringComparer.Ordinal));
+        Assert.That(slash.Select(c => c.Command), Is.SupersetOf(SomeCommands).And.Ordered.Using<string>(StringComparer.Ordinal));
+    }
+
+    [Test]
+    public void TheSlashCommandCatalog_AlsoListsTheRightClickUserCommands()
+    {
+        var commands = new DiscordSlashCommandCatalog(Handler()).Commands().Select(c => c.Command);
+
+        Assert.That(commands, Is.SupersetOf(new[] { UserCommands.ProfileName, UserCommands.PullName, UserCommands.SetGamertagName }));
     }
 
     [Test]

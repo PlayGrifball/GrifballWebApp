@@ -40,7 +40,7 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
         $"{Flipyap("the Grifball league's Discord bot, and every message must stay under the 2000-character limit")} {GruntVoice}",
         "The bot also has slash commands; list_slash_commands lists them, and so does /help. When someone asks how to do something in Discord, look the command up there.",
         InPublic: true,
-        Timeout: TimeSpan.FromMinutes(2)) { Name = "discord" };
+        Timeout: TimeSpan.FromMinutes(2)) { Name = "discord", HasSlashCommands = true };
 
     /// <summary>
     /// The Discord bot in a voice channel: others hear it, so in public (public tools, seasons as the public sees them), but each
@@ -105,10 +105,14 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
     /// </summary>
     public IReadOnlyCollection<string> ToolsFor(ChatModelOption model)
     {
-        if (model.EveryTool)
-            return InPublic ? GrifTools.EveryPublic : GrifTools.Every;
-        return InPublic ? GrifTools.Chat : GrifTools.PrivateChat;
+        var tools = model.EveryTool
+            ? (InPublic ? GrifTools.EveryPublic : GrifTools.Every)
+            : (InPublic ? GrifTools.Chat : GrifTools.PrivateChat);
+        return HasSlashCommands ? tools : tools.Except([GrifTools.ListSlashCommands]).ToArray();
     }
+
+    /// <summary>Whether the host runs the Discord bot, which has slash commands to list (list_slash_commands): any other host would send the model to a tool that answers with nothing.</summary>
+    public bool HasSlashCommands { get; init; }
 }
 
 /// <summary>
@@ -611,9 +615,17 @@ public sealed class ChatReply : IDisposable
         await using var scope = _scopes.CreateAsyncScope();
         if (scope.ServiceProvider.GetService<GrifballWebApp.Application.Database.IApplicationDbContext>() is not { } db)
             return _host;
-        var person = await db.Users.AsNoTracking().Where(u => u.Id == id)
-            .Select(u => new { Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null, u.DiscordUserID }).FirstOrDefaultAsync(ct);
-        return GrifChat.WithPerson(_host, _caller, person?.Gamertag, person?.DiscordUserID);
+        // The line is a courtesy: a database that fails here must not fail the reply
+        try
+        {
+            var person = await db.Users.AsNoTracking().Where(u => u.Id == id)
+                .Select(u => new { Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null, u.DiscordUserID }).FirstOrDefaultAsync(ct);
+            return GrifChat.WithPerson(_host, _caller, person?.Gamertag, person?.DiscordUserID);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return _host;
+        }
     }
 
     /// <summary>

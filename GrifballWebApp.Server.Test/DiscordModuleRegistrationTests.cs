@@ -36,7 +36,7 @@ public class DiscordModuleRegistrationTests
     private static readonly string[] Modals =
     [
         "set_gamertag() preconditions: 0",
-        "set_gamertag_for(UInt64 targetDiscordUserId) preconditions: 0",
+        "set_gamertag_for(UInt64 targetDiscordUserId, String targetUsername) preconditions: 0",
     ];
 
     private static List<string> ComponentInteractions<TContext>() where TContext : IComponentInteractionContext

@@ -339,6 +339,8 @@ public class GrifToolsTests
             Assert.That(GrifTools.EffectByName["get_season_standings"], Is.EqualTo(ToolEffect.ReadsOnly));
             Assert.That(GrifTools.EffectByName["pull_season_match_games"], Is.EqualTo(ToolEffect.QueuesHaloPull));
             Assert.That(GrifTools.EffectByName["decide_gamertag_claim"], Is.EqualTo(ToolEffect.ChangesData));
+            Assert.That(GrifTools.EffectByName["merge_users"], Is.EqualTo(ToolEffect.ChangesData));
+            Assert.That(GrifTools.EffectByName["list_duplicate_users"], Is.EqualTo(ToolEffect.ReadsOnly));
             Assert.That(GrifTools.EffectByName.Keys, Is.EquivalentTo(AllTools().Select(GrifTools.Name)));
         }
     }
@@ -514,6 +516,12 @@ public class GrifToolsTests
             Assert.That(GrifTools.RolesByName["forfeit_season_match"], Is.EquivalentTo(CommissionerOnly));
             Assert.That(GrifTools.RolesByName["decide_gamertag_claim"], Is.EquivalentTo(SysadminOnly));
             Assert.That(GrifTools.RolesByName["list_pending_gamertag_claims"], Is.EquivalentTo(SysadminOnly));
+            Assert.That(GrifTools.RolesByName["list_duplicate_users"], Is.EquivalentTo(SysadminOnly));
+            Assert.That(GrifTools.RolesByName["list_user_merges"], Is.EquivalentTo(SysadminOnly));
+            Assert.That(GrifTools.RolesByName["merge_duplicate_user"], Is.EquivalentTo(SysadminOnly));
+            Assert.That(GrifTools.RolesByName["dismiss_duplicate_user"], Is.EquivalentTo(SysadminOnly));
+            Assert.That(GrifTools.RolesByName["merge_users"], Is.EquivalentTo(SysadminOnly));
+            Assert.That(GrifTools.RolesByName["undo_user_merge"], Is.EquivalentTo(SysadminOnly));
             Assert.That(GrifTools.Methods(typeof(SeasonTools)).Concat(GrifTools.Methods(typeof(TeamTools))).Select(m => GrifTools.RolesByName[GrifTools.Name(m)]), Has.All.Empty, "the site's public pages' tools are for anyone");
             Assert.That(GrifTools.Methods(typeof(StaffTools)).Concat(GrifTools.Methods(typeof(CommissionerTools))).Concat(GrifTools.Methods(typeof(SysadminTools)))
                 .Select(m => GrifTools.RolesByName[GrifTools.Name(m)]), Has.None.Empty, "every staff tool names its roles");

@@ -531,8 +531,8 @@ public partial class GrifChatUnitTests
             Assert.That(GrifTools.EveryPublic, Is.SupersetOf(GrifTools.Chat).And.Contains("list_late_league_seasons").And.Contains("get_game").And.Unique);
             Assert.That(GrifTools.EveryPublic.Intersect(GrifTools.Staff.SelectMany(GrifTools.Methods).Select(GrifTools.Name)), Is.Empty, "A channel is public: no dashboard, claim or change");
             Assert.That(ChatHost.Discord.ToolsFor(Free), Is.EqualTo(GrifTools.Chat));
-            Assert.That(ChatHost.Site.ToolsFor(everyTool), Is.EqualTo(GrifTools.Every));
-            Assert.That(ChatHost.Site.ToolsFor(Free), Is.EqualTo(GrifTools.PrivateChat));
+            Assert.That(ChatHost.Site.ToolsFor(everyTool), Is.EqualTo(GrifTools.Every.Where(t => t != GrifTools.ListSlashCommands)));
+            Assert.That(ChatHost.Site.ToolsFor(Free), Is.EqualTo(GrifTools.PrivateChat.Where(t => t != GrifTools.ListSlashCommands)));
             Assert.That(GrifTools.Every, Is.SupersetOf(GrifTools.PrivateChat).And.Contains("list_late_league_seasons").And.Unique);
         }
     }
