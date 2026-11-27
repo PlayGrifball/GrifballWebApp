@@ -27,7 +27,7 @@ internal sealed class ButtonToolsUnitTests : ApplicationDbContextTests
     /// <summary>A season whose signups opened <paramref name="signupsOpenDaysAgo"/> days ago, for five days; announced or not.</summary>
     private async Task<int> SeasonAsync(int signupsOpenDaysAgo, bool announced)
     {
-        var season = Season.Seed(seasonName: "Winter");
+        var season = Season.Seed(seasonName: $"Winter {signupsOpenDaysAgo} {announced}");
         var open = Now.AddDays(-signupsOpenDaysAgo);
         season.Schedule(signupsOpen: open, signupsClose: open.AddDays(5), draftStart: open.AddDays(10), seasonStart: open.AddDays(20), seasonEnd: open.AddDays(60));
         if (announced)
