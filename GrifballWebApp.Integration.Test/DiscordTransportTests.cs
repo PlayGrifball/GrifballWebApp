@@ -206,6 +206,61 @@ public class DiscordTransportTests
         }
     }
 
+    private Task<Season> OpenSignupSeason(string name) => _host.WithContextAsync(async context =>
+    {
+        var now = DateTime.UtcNow;
+        var season = Season.Seed(seasonName: name).WithDates(publicAt: now.AddDays(-1), signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(7), draftStart: now.AddDays(8), seasonStart: now.AddDays(14), seasonEnd: now.AddDays(60));
+        context.Seasons.Add(season);
+        await context.SaveChangesAsync();
+        return season;
+    });
+
+    [Test]
+    public async Task SignupDetailsButton_RespondsWithTheSignupModal()
+    {
+        await LinkedUser(5311, "Detailer");
+        var season = await OpenSignupSeason("Transport Details Season");
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.Button($"signupdetails:{season.SeasonID}", 5311));
+
+        Assert.That(Routes(requests), Is.EqualTo(new[] { Callback }));
+        var modal = requests[0].Data;
+        var choices = modal.GetProperty("components")[1].GetProperty("component");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(modal.GetProperty("custom_id").GetString(), Is.EqualTo($"signup:{season.SeasonID}"));
+            Assert.That(choices.GetProperty("type").GetInt32(), Is.EqualTo(22), "a checkbox group");
+            // The modal test below submits these IDs back
+            Assert.That(choices.GetProperty("custom_id").GetString(), Is.EqualTo("choices"));
+        }
+    }
+
+    [Test]
+    public async Task SignupModal_DefersThenSavesTheSignupAndEditsInTheReply()
+    {
+        var user = await LinkedUser(5312, "ModalSigner");
+        var season = await OpenSignupSeason("Transport Modal Season");
+        const string components = """
+            [{"type":18,"id":1,"component":{"type":4,"id":2,"custom_id":"team_name","value":"Bombers"}},
+             {"type":18,"id":3,"component":{"type":22,"id":4,"custom_id":"choices","values":["captain"]}}]
+            """;
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.ModalWith($"signup:{season.SeasonID}", components, 5312));
+
+        var signup = await _host.WithContextAsync(context => context.SeasonSignups.AsNoTracking().SingleAsync(s => s.SeasonID == season.SeasonID));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Routes(requests), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.DeferredChannelMessage));
+            Assert.That(requests[1].Content, Is.EqualTo("Your signup is saved. No times set yet."));
+            Assert.That(requests[1].Flags, Is.EqualTo(MessageFlags.Ephemeral));
+            Assert.That(signup.UserID, Is.EqualTo(user.Id));
+            Assert.That(signup.TeamName, Is.EqualTo("Bombers"));
+            Assert.That(signup.WillCaptain, Is.True);
+        }
+    }
+
     [Test]
     public async Task DraftStringMenu_DefersThenEditsInTheOutcome()
     {

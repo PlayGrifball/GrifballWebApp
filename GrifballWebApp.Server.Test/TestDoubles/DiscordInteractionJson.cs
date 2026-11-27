@@ -31,6 +31,10 @@ internal static class DiscordInteractionJson
             {"custom_id":"{{{customId}}}","components":[{"type":18,"id":1,"component":{"type":4,"id":2,"custom_id":"{{{inputId}}}","value":{{{JsonSerializer.Serialize(value)}}}}}]}
             """, userId, username));
 
+    /// <summary>A submit of modal <paramref name="customId"/> with <paramref name="components"/> (a JSON array) as Discord sends them.</summary>
+    public static JsonInteraction ModalWith(string customId, string components, ulong userId) =>
+        Parse(Envelope(5, $$$"""{"custom_id":"{{{customId}}}","components":{{{components}}}}""", userId, "u"));
+
     /// <summary>Slash command <paramref name="name"/> (command id 9) with no options.</summary>
     public static JsonInteraction SlashCommand(string name, ulong userId) => SlashCommand(name, userId, "u");
 

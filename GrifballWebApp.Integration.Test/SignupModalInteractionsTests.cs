@@ -139,6 +139,49 @@ public class SignupModalInteractionsTests
     }
 
     [Test]
+    public async Task Submit_WithoutAnAccount_AsksForAGamertagAndSavesNothing()
+    {
+        var season = await SignupTestData.OpenSeason(_context);
+
+        await _handler.SignupDetails(Submit(season.SeasonID, "Grifs", ["captain"]), season.SeasonID);
+
+        var reply = ((InteractionCallbackProperties<InteractionMessageProperties>)_callbacks.Single()).Data!;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reply.Content, Is.EqualTo("You must set your gamertag first"));
+            Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task Submit_MoreTimesThanFit_KeepsTheRestAndLinksTheForm()
+    {
+        var user = await AddLinkedUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        // 31 times: Monday 00:01-23:01, then Tuesday 00:01-06:01; the modal shows the first 30
+        var slots = Enumerable.Range(0, 24).Select(h => (DayOfWeek.Monday, new TimeOnly(h, 1)))
+            .Concat(Enumerable.Range(0, 7).Select(h => (DayOfWeek.Tuesday, new TimeOnly(h, 1)))).ToArray();
+        var options = await SignupTestData.Options(_context, season, slots);
+        await new SignupsService(_context).UpsertSignup(new SignupRequestDto
+        {
+            SeasonID = season.SeasonID,
+            UserID = user.Id,
+            Timeslots = [new TimeslotDto { OptionID = options[30].AvailabilityOptionID, IsChecked = true }],
+        });
+
+        await _handler.SignupDetails(Submit(season.SeasonID, "", [], [options[0].AvailabilityOptionID.ToString()]), season.SeasonID);
+
+        var signup = await _context.SeasonSignups.Include(s => s.SignupAvailability).AsNoTracking().SingleAsync(s => s.UserID == user.Id);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(signup.SignupAvailability.Select(a => a.AvailabilityOptionID).Order(),
+                Is.EqualTo(new[] { options[0].AvailabilityOptionID, options[30].AvailabilityOptionID }.Order()));
+            Assert.That(Reply(), Is.EqualTo("Your signup is saved. Times (UTC): Mon 00:01, Tue 06:01. This season has more times than fit here: set them "
+                + $"[on the signup form](https://grif.test/login?followUp=/season/{season.SeasonID}/signupForm)."));
+        }
+    }
+
+    [Test]
     public async Task Submit_SignupsClosed_MakesNoSignup()
     {
         var user = await AddLinkedUser();
