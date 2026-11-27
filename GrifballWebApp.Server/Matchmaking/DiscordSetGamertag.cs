@@ -130,8 +130,8 @@ public class DiscordSetGamertag : IDiscordGamertagSetter
     private async Task<string?> MakeAccount(Domain.Players.DiscordUser discordUser, Domain.Players.User? placeholder, bool own)
     {
         var newUser = Domain.Players.User.Register(discordUser.DiscordUsername); // Need to avoid conflicts
-        if (placeholder is null && LinkOrRefuse(newUser, discordUser, own) is { } refusal)
-            return refusal;
+        if (placeholder is null)
+            newUser.LinkDiscord(discordUser); // a new account has no other Discord to be linked to
         // Signed in on the site with this Discord account already: that account is theirs
         var signedIn = placeholder is null ? null : await _userManager.FindByLoginAsync("Discord", discordUser.DiscordUserID.ToString());
         if (signedIn is not null)

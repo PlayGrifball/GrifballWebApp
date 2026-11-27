@@ -127,6 +127,14 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
+    public void WithPerson_AHostWithNothingElseToSay_HasOnlyThePersonLine()
+    {
+        var host = GrifChat.WithPerson(ChatHost.Site with { More = "" }, new ToolCaller(7, ["Player"]), "Tag", null);
+
+        Assert.That(host.More, Does.StartWith("The person you are talking to is site user 7").And.Not.Contain("\n"));
+    }
+
+    [Test]
     public async Task Start_ACallerWithAPlayersRole_GetsThePullToolsToo()
     {
         var model = new FakeModel([Text("Hi")]);

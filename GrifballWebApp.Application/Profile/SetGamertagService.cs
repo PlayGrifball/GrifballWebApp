@@ -20,7 +20,10 @@ public interface ISetGamertagService
 /// </summary>
 public interface IDiscordGamertagSetter
 {
+    /// <param name="discordUserId">The Discord user.</param>
     /// <param name="discordUsername">Needed only when the user has no account yet: the new account is named after it.</param>
+    /// <param name="gamertag">The Xbox gamertag to set.</param>
+    /// <param name="ct">Cancels the work.</param>
     /// <returns>The refusal, null when it is set.</returns>
     Task<string?> SetGamertagForDiscordUser(ulong discordUserId, string? discordUsername, string gamertag, CancellationToken ct = default);
 }

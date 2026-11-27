@@ -535,6 +535,26 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task UndoUserMerge_PutsAMergeBack()
+    {
+        var keeper = GrifballWebApp.Domain.Players.User.Register("keeper");
+        var merged = GrifballWebApp.Domain.Players.User.Register("merged");
+        Db.Users.AddRange(keeper, merged);
+        await Db.SaveChangesAsync();
+        await new UserMergeService(Db, _currentUser, TimeProvider.System).Merge(keeper.Id, merged.Id, MergeOptions.For(MergeTrigger.Manual, "test", keeper.Id));
+        var mergeID = (await Db.UserMerges.SingleAsync()).UserMergeID;
+
+        var answer = await Sysadmins(Sysadmin).UndoUserMerge(mergeID, "wrong person");
+
+        Db.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(answer, Is.EqualTo($"Undone: merge {mergeID} is put back."));
+            Assert.That(await Db.Users.AnyAsync(u => u.Id == merged.Id), Is.True);
+        }
+    }
+
+    [Test]
     public async Task UndoUserMerge_RefusesAMergeThatIsntThere_AndNonSysadmins()
     {
         var missing = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).UndoUserMerge(987654, "oops"));
