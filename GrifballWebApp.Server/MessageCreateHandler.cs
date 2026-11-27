@@ -162,7 +162,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         // season not announced yet stays out of it whoever asks (#435), and no staff tools.
         var host = direct ? ChatHost.DiscordDirect : ChatHost.Discord;
         var saveTo = direct ? null : context;
-        var history = direct ? await DirectHistoryAsync(message, click is not null) : await ChatHistoryAsync(context, UserId, BotID);
+        var earlier = direct ? await DirectMessagesAsync(message, click is not null) : null;
+        var history = earlier is null ? await ChatHistoryAsync(context, UserId, BotID) : AsHistory(earlier);
 
         // The tools, as the author: their linked site account and its roles, or no account (every tool not about "you").
         // Each tool call runs in a scope of its own: this scope's context saves the streamed reply meanwhile
@@ -199,6 +200,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         }
         using (reply)
         {
+            // A reply started: the change waiting in the DM is answered or forgotten (GrifChat), so its buttons go
+            await TakeOffAnsweredConfirmsAsync(earlier);
             if (saveTo is not null)
                 await SaveQuestionAsync(saveTo, message, UserId, BotID);
             return await AnswerAsync(message, reply, saveTo, UserId, BotID);
@@ -322,16 +325,36 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// A DM's conversation so far, as Discord keeps it in the DM channel: its last <see cref="GrifChat.HistoryLimit"/> messages before
     /// this one, oldest first. Never from DiscordMessages, the channels' conversation, which keeps none of a DM.
     /// </summary>
-    private async Task<List<ChatMessage>> DirectHistoryAsync(NetCord.Rest.RestMessage message, bool includeMessage)
+    private async Task<List<IDiscordRestMessage>> DirectMessagesAsync(NetCord.Rest.RestMessage message, bool includeMessage)
     {
         var earlier = await discordClient.GetMessagesAsync(message.ChannelId, new NetCord.Rest.PaginationProperties<ulong> { BatchSize = GrifChat.HistoryLimit + 1 })
             .Where(m => m.Id < message.Id || (includeMessage && m.Id == message.Id))
             .Take(GrifChat.HistoryLimit)
             .ToListAsync();
-        return earlier
-            .OrderBy(m => m.Id)
-            .Select(m => new ChatMessage(m.Author.Id == BotId ? ChatRole.Assistant : ChatRole.User, m.Content))
-            .ToList();
+        return [.. earlier.OrderBy(m => m.Id)];
+    }
+
+    /// <summary>A DM's messages (<see cref="DirectMessagesAsync"/>) as the chat's history.</summary>
+    private List<ChatMessage> AsHistory(List<IDiscordRestMessage> messages)
+        => [.. messages.Select(m => new ChatMessage(m.Author.Id == BotId ? ChatRole.Assistant : ChatRole.User, m.Content))];
+
+    /// <summary>
+    /// Confirm and Cancel taken off the bot's earlier DM messages (<paramref name="earlier"/>; none in a channel), the buttons they offered left as
+    /// they were. A message that can't be changed now is logged: the reply goes on.
+    /// </summary>
+    private async Task TakeOffAnsweredConfirmsAsync(List<IDiscordRestMessage>? earlier)
+    {
+        foreach (var answered in (earlier ?? []).Where(m => m.Author.Id == BotId && ChatComponents.HasConfirm(m.Components.Select(c => c.Original))))
+        {
+            try
+            {
+                await answered.ModifyAsync(x => x.WithComponents(ChatComponents.WithoutConfirm(answered.Components.Select(c => c.Original))));
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "Could not take Confirm and Cancel off Discord message {MessageId}", answered.Id);
+            }
+        }
     }
 
     /// <summary>

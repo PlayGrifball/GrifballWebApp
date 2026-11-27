@@ -1,25 +1,32 @@
 using System.ComponentModel;
+using GrifballWebApp.Application.Home;
 using GrifballWebApp.Application.LateLeague;
 using GrifballWebApp.Application.Leaderboards;
 using GrifballWebApp.Application.Search;
 
 namespace GrifballWebApp.Application.Tools;
 
-/// <summary>Finding things: search, the all-time leaderboards and Late League, open to everyone on the site.</summary>
+/// <summary>Finding things: search, the all-time leaderboards, Late League and the calendar, open to everyone on the site.</summary>
 public class BrowseTools
 {
     private readonly ToolCaller _caller;
     private readonly QuickSearchService _search;
     private readonly LeaderboardsService _leaderboards;
     private readonly MatchmakingStatsService _lateLeague;
+    private readonly HomeEventsService _events;
 
-    public BrowseTools(ToolCaller caller, QuickSearchService search, LeaderboardsService leaderboards, MatchmakingStatsService lateLeague)
+    public BrowseTools(ToolCaller caller, QuickSearchService search, LeaderboardsService leaderboards, MatchmakingStatsService lateLeague, HomeEventsService events)
     {
+        _events = events;
         _caller = caller;
         _search = search;
         _leaderboards = leaderboards;
         _lateLeague = lateLeague;
     }
+
+    [Description("The calendar, as the home page and /events show it: current and upcoming signups, drafts and seasons, soonest first, each with its season's ID, its start and its end (UTC).")]
+    public Task<Event[]> GetUpcomingEvents(CancellationToken ct = default)
+        => _events.CurrentAndFuture(_caller.Viewer, ct);
 
     [Description("Searches players (by gamertag, current or past, Discord or display name), teams and seasons (by name or a year they ran in): "
         + "up to 8 hits of each kind, each with the ID the other tools take. The query needs at least 2 characters.")]

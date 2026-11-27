@@ -38,6 +38,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private static readonly string[] HiThere = ["Hi there"];
     private static readonly string[] TapIt = ["Tap it to join."];
     private static readonly string[] ConfirmOrCancelA1 = ["chatconfirm:a1:yes", "chatconfirm:a1:no"];
+    private static readonly string[] OfferedOnly = [GrifballWebApp.Infrastructure.Discord.DiscordButtonContants.JoinQueue];
 
     /// <summary>The bot's commands, as its registry has them: offer_button is for a host that has some.</summary>
     private sealed class BotCommands : ISlashCommandCatalog
@@ -680,6 +681,114 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(model.Messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>().Single().Result?.ToString(), Does.Contain("rejected"));
             Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
             Assert.That(await accounts.WaitingAsync(ChatHost.DiscordDirect, asker), Is.Null, "Answered");
+        }
+    }
+
+    /// <summary>
+    /// The DM holds the bot's message 5 with <paramref name="rows"/> of buttons (each row its custom IDs), before the author's "hello" (10):
+    /// the message, to see what is done to it.
+    /// </summary>
+    private IDiscordRestMessage DmHoldsButtons(params string[][] rows)
+    {
+        var built = GatewayMessages.Build(BotId, direct: true,
+            components: [.. rows.Select(row => (object)new { type = 1, components = row.Select(id => new { type = 2, style = 1, label = id, custom_id = id }).ToArray() })]);
+        var wrapped = new List<IDiscordMessageComponent>();
+        foreach (var component in built.Components)
+        {
+            var wrapper = Substitute.For<IDiscordMessageComponent>();
+            wrapper.Original.Returns(component);
+            wrapped.Add(wrapper);
+        }
+        var withButtons = Substitute.For<IDiscordRestMessage>();
+        withButtons.Id.Returns(5ul);
+        withButtons.Author.Id.Returns(BotId);
+        withButtons.Content.Returns("This waits for you.");
+        withButtons.Components.Returns(wrapped);
+        var hello = Substitute.For<IDiscordRestMessage>();
+        hello.Id.Returns(10ul);
+        hello.Author.Id.Returns(AuthorId);
+        hello.Content.Returns("hello");
+        IDiscordRestMessage[] messages = [hello, withButtons];
+        _rest.GetMessagesAsync(20ul, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => messages.ToAsyncEnumerable());
+        return withButtons;
+    }
+
+    /// <summary>A change waiting for <paramref name="user"/>'s answer in their DM, as "a1".</summary>
+    private async Task<string> WaitingFor(GrifballWebApp.Domain.Players.User user)
+    {
+        var accounts = new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<ChatAccounts>.Instance);
+        var asker = ChatLimits.Asker(new ToolCaller(user.Id, []), "");
+        await accounts.SaveWaitingAsync(ChatHost.DiscordDirect, asker, new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)",
+            [new ChatActionCall("r1", "call-1", "forfeit_season_match", "{\"seasonMatchID\":12}")]));
+        return asker;
+    }
+
+    private NetCord.Gateway.Message TypedInTheDm(string content)
+        => GatewayMessages.Build(AuthorId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true, content: content);
+
+    private static int Modified(IDiscordRestMessage message) => message.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(IDiscordRestMessage.ModifyAsync));
+
+    [Test]
+    public async Task HandleAsync_ATypedAnswer_TakesConfirmAndCancelOffTheEarlierMessage_TheOfferedButtonsStay()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        var withButtons = DmHoldsButtons(ConfirmOrCancelA1, OfferedOnly);
+        Action<IDiscordMessageOptions>? edit = null;
+        withButtons.ModifyAsync(Arg.Do<Action<IDiscordMessageOptions>>(a => edit = a), Arg.Any<RestRequestProperties?>(), Arg.Any<CancellationToken>()).Returns(withButtons);
+        var handler = Handler(new ScriptedChatClient((TimeSpan.Zero, "Left as it was.")));
+        await WaitingFor(user);
+
+        await handler.HandleAsync(TypedInTheDm("no"));
+
+        var options = Substitute.For<IDiscordMessageOptions>();
+        IEnumerable<IMessageComponentProperties>? kept = null;
+        options.WithComponents(Arg.Do<IEnumerable<IMessageComponentProperties>?>(c => kept = c)).Returns(options);
+        edit?.Invoke(options);
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(kept?.OfType<ActionRowProperties>().Select(row => string.Join(",", row.OfType<ButtonProperties>().Select(b => b.CustomId))),
+                Is.EqualTo(OfferedOnly));
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_ATypedAnswerTheChatRefuses_LeavesConfirmAndCancel_AsTheChangeStillWaits()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        var withButtons = DmHoldsButtons(ConfirmOrCancelA1);
+        var handler = Handler(new ScriptedChatClient((TimeSpan.Zero, "Never")));
+        var asker = await WaitingFor(user);
+        var (busy, _) = _limits.TryStart(asker);
+
+        using (busy)
+            await handler.HandleAsync(TypedInTheDm("yes"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(ChatLimits.Busy));
+            Assert.That(Modified(withButtons), Is.Zero);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_ConfirmAndCancelThatCantBeTakenOff_AreLogged_AndTheReplyGoesOn()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        var withButtons = DmHoldsButtons(ConfirmOrCancelA1);
+        withButtons.ModifyAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<RestRequestProperties?>(), Arg.Any<CancellationToken>())
+            .Returns(_ => throw new InvalidOperationException("Discord is down"));
+        var handler = Handler(new ScriptedChatClient((TimeSpan.Zero, "Left as it was.")));
+        await WaitingFor(user);
+
+        await handler.HandleAsync(TypedInTheDm("no"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_logger.Entries.Single().Level, Is.EqualTo(LogLevel.Warning));
+            Assert.That(_logger.Entries.Single().Exception, Is.TypeOf<InvalidOperationException>());
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
         }
     }
 

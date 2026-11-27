@@ -112,7 +112,7 @@ public static class GrifTools
 {
     /// <summary>The classes of the tools that only read: open to anyone on the site, but staff's (<see cref="StaffTools"/>), each for its roles.</summary>
     public static readonly Type[] ReadOnly =
-        [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(LinkTools), typeof(ImageTools), typeof(ClockTools), typeof(HaloTools), typeof(SlashCommandTools), typeof(ButtonTools), typeof(StaffTools)];
+        [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(LinkTools), typeof(ImageTools), typeof(ClockTools), typeof(HaloTools), typeof(SlashCommandTools), typeof(ButtonTools), typeof(PersonalTools), typeof(StaffTools)];
 
     /// <summary>The classes of the tools that queue a pull from Halo (<see cref="ToolEffect.QueuesHaloPull"/>).</summary>
     public static readonly Type[] QueuingHaloPulls = [typeof(HaloPullTools)];
@@ -144,7 +144,7 @@ public static class GrifTools
     [
         "who_am_i", "get_current_time", "search", "list_seasons", "get_season", "get_season_standings", "get_season_schedule", "get_team",
         "get_player", "get_player_rank", "get_season_match", "get_game", "get_recent_games", "get_leaderboards", "get_site_link", "get_player_image", ListSlashCommands, OfferButton, "pull_season_match_games", "pull_xbox_account_games",
-        "suggest_draft_picks",
+        "suggest_draft_picks", "get_season_availability", "get_upcoming_events", "get_queue_status", "get_my_account",
     ];
 
     /// <summary>

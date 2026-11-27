@@ -43,6 +43,12 @@ public static class ChatComponents
     public static IReadOnlyList<ActionRowProperties> WithoutConfirm(IEnumerable<IMessageComponent> components)
         => [.. components.OfType<ActionRow>()
             .Select(row => row.Components.OfType<Button>().ToList())
-            .Where(buttons => !buttons.Exists(b => b.CustomId.StartsWith($"{DiscordButtonContants.ChatConfirm}:", StringComparison.Ordinal)))
+            .Where(buttons => !buttons.Exists(IsConfirm))
             .Select(buttons => new ActionRowProperties([.. buttons.Select(b => new ButtonProperties(b.CustomId, b.Label!, b.Style))]))];
+
+    /// <summary>Whether a message's rows have Confirm and Cancel (<see cref="DiscordButtonContants.ChatConfirm"/>).</summary>
+    public static bool HasConfirm(IEnumerable<IMessageComponent> components)
+        => components.OfType<ActionRow>().Any(row => row.Components.OfType<Button>().Any(IsConfirm));
+
+    private static bool IsConfirm(Button button) => button.CustomId.StartsWith($"{DiscordButtonContants.ChatConfirm}:", StringComparison.Ordinal);
 }

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Dtos;
 using GrifballWebApp.Application.Grades;
@@ -30,10 +31,13 @@ public class SeasonTools
     private readonly SignupsService _signups;
     private readonly IBracketService _brackets;
     private readonly Draft.DraftHelperService _draft;
+    private readonly AvailabilityService _availability;
 
     public SeasonTools(ToolCaller caller, SeasonService seasons, SeasonVisibility visibility, TeamStandingsService standings,
-        MatchPlannerService matchPlanner, GradesService grades, SignupsService signups, IBracketService brackets, Draft.DraftHelperService draft)
+        MatchPlannerService matchPlanner, GradesService grades, SignupsService signups, IBracketService brackets, Draft.DraftHelperService draft,
+        AvailabilityService availability)
     {
+        _availability = availability;
         _draft = draft;
         _caller = caller;
         _seasons = seasons;
@@ -89,6 +93,10 @@ public class SeasonTools
     [Description("A season's player grades: each player's totals, per-minute rates and letter grades.")]
     public async Task<GradesDto> GetSeasonGrades([Description("The season's ID; left out, the running season, else the one that ended last.")] int? seasonID = null, CancellationToken ct = default)
         => await _grades.GetGrades(await SeasonOrDefault(seasonID, SeasonPurpose.Current, ct), ct);
+
+    [Description("The times a season's matches can be played, as /availability show gives them: each day of the week and its times, in UTC. Players pick theirs on the signup form.")]
+    public async Task<Availability.TimeslotDto[]> GetSeasonAvailability([Description("The season's ID; left out, the next season to start, else the running one.")] int? seasonID = null, CancellationToken ct = default)
+        => await _availability.GetSeasonAvailability(await SeasonOrDefault(seasonID, SeasonPurpose.Upcoming, ct), ct);
 
     [Description("Who signed up for a season, and whether each will captain.")]
     public async Task<List<SignupResponseDto>> GetSeasonSignups([Description("The season's ID; left out, the next season to start, else the running one.")] int? seasonID = null, CancellationToken ct = default)

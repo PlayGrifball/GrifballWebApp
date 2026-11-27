@@ -56,6 +56,7 @@ public class GrifToolsTests
     private User _captain = null!;
 
     private static readonly string[] Alpha = ["Alpha"];
+    private static readonly string[] DiscordSignIn = ["Discord"];
     private static readonly string[] PlayerRole = ["Player"];
     private static readonly string[] Pullers = ["Player", "Commissioner", "Sysadmin"];
     private static readonly string[] Staff = ["Commissioner", "Sysadmin"];
@@ -80,7 +81,8 @@ public class GrifToolsTests
     }
 
     private SeasonTools SeasonTools(ToolCaller? caller = null) => new(caller ?? ToolCaller.Anonymous, _seasons, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), new TeamStandingsService(_context), new MatchPlannerService(_context), new GradesService(_context),
-        new SignupsService(_context, _time), Substitute.For<IBracketService>(), new GrifballWebApp.Application.Draft.DraftHelperService(_context, Leaderboards()));
+        new SignupsService(_context, _time), Substitute.For<IBracketService>(), new GrifballWebApp.Application.Draft.DraftHelperService(_context, Leaderboards()),
+        new GrifballWebApp.Application.Availability.AvailabilityService(_context));
 
     private VodService Vods() => new(_context, new YouTubeClient(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))),
         Options.Create(new YouTubeOptions()), NullLogger<VodService>.Instance);
@@ -299,7 +301,8 @@ public class GrifToolsTests
     [Test]
     public async Task BrowseTools_Search_AndRefuseAnUnknownLateLeagueSeason()
     {
-        var tools = new BrowseTools(ToolCaller.Anonymous, new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time)), Leaderboards(), new MatchmakingStatsService(_context));
+        var tools = new BrowseTools(ToolCaller.Anonymous, new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time)), Leaderboards(), new MatchmakingStatsService(_context),
+            new GrifballWebApp.Application.Home.HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), _time));
 
         var hits = await tools.Search("Captain");
         var leaderboards = await tools.GetLeaderboards();
@@ -310,6 +313,71 @@ public class GrifToolsTests
             Assert.That(leaderboards.RingLeaders, Is.Empty, "no titles yet");
             Assert.That(await tools.ListLateLeagueSeasons(), Is.Empty);
             Assert.That((await Assert.ThrowsAsync<ToolException>(() => tools.GetLateLeagueSeason(4242)))!.Message, Does.Contain("list_late_league_seasons"));
+        }
+    }
+
+    [Test]
+    public async Task BrowseTools_UpcomingEvents_AreTheCalendars_AndSeasonTools_GiveASeasonsTimes()
+    {
+        var browse = new BrowseTools(ToolCaller.Anonymous, new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time)), Leaderboards(),
+            new MatchmakingStatsService(_context), new GrifballWebApp.Application.Home.HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), _time));
+
+        var events = await browse.GetUpcomingEvents();
+        var times = await SeasonTools().GetSeasonAvailability(_season.SeasonID);
+        var unknown = await Assert.ThrowsAsync<ToolException>(() => SeasonTools().GetSeasonAvailability(_season.SeasonID + 1000));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(events.Select(e => (e.SeasonID, e.EventType)), Does.Contain((_season.SeasonID, GrifballWebApp.Application.Home.EventType.Season)), "it runs until March");
+            Assert.That(times, Is.Empty, "none set");
+            Assert.That(unknown?.Message, Does.Contain("list_seasons"));
+        }
+    }
+
+    private static PersonalTools Personal(IServiceProvider services, ToolCaller caller) => ActivatorUtilities.CreateInstance<PersonalTools>(services, caller);
+
+    [Test]
+    public async Task PersonalTools_QueueStatus_IsTheQueuesSize_AndWhereTheCallerStands()
+    {
+        await using var services = ChatServices();
+        var queued = await _context.AddUser("queued", gamertag: "QueuedGT");
+        _context.QueuedPlayer.Add(GrifballWebApp.Domain.LateLeague.QueuedPlayer.Seed(queued.Id, _time.GetUtcNow().UtcDateTime));
+        await _context.SaveChangesAsync();
+
+        var anyone = await Personal(services, ToolCaller.Anonymous).GetQueueStatus();
+        var captain = await Personal(services, new ToolCaller(_captain.Id, PlayerRole)).GetQueueStatus();
+        var inIt = await Personal(services, new ToolCaller(queued.Id, PlayerRole)).GetQueueStatus();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(anyone, Is.EqualTo(new QueueStatusDto(1, null, null)));
+            Assert.That(captain, Is.EqualTo(new QueueStatusDto(1, false, false)));
+            Assert.That(inIt, Is.EqualTo(new QueueStatusDto(1, true, false)));
+        }
+    }
+
+    [Test]
+    public async Task PersonalTools_MyAccount_IsTheCallersInPrivate_AndRefusedInPublicOrWithoutAnAccount()
+    {
+        await using var services = ChatServices();
+        var region = GrifballWebApp.Domain.Shared.Region.Seed("Tools Region");
+        _context.Regions.Add(region);
+        _context.UserLogins.Add(new GrifballWebApp.Domain.Players.UserLogin { UserId = _captain.Id, LoginProvider = "Discord", ProviderKey = "42", ProviderDisplayName = "Discord" });
+        await _context.SaveChangesAsync();
+        await services.GetRequiredService<RegionService>().Set(_captain.Id, region.RegionID);
+
+        var mine = await Personal(services, new ToolCaller(_captain.Id, PlayerRole)).GetMyAccount();
+        var inPublic = await Assert.ThrowsAsync<ToolException>(() => Personal(services, new ToolCaller(_captain.Id, PlayerRole) { InPublic = true }).GetMyAccount());
+        var noAccount = await Assert.ThrowsAsync<ToolException>(() => Personal(services, ToolCaller.Anonymous).GetMyAccount());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(mine.UserID, Is.EqualTo(_captain.Id));
+            Assert.That(mine.Region, Is.EqualTo("Tools Region"));
+            Assert.That(mine.SignIns, Is.EqualTo(DiscordSignIn));
+            Assert.That(mine.GamertagClaims, Is.Empty);
+            Assert.That(inPublic?.Message, Is.EqualTo(PersonalTools.NotInPublic));
+            Assert.That(noAccount?.Message, Does.Contain("no site account"));
         }
     }
 
