@@ -541,7 +541,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         var merged = GrifballWebApp.Domain.Players.User.Register("merged");
         Db.Users.AddRange(keeper, merged);
         await Db.SaveChangesAsync();
-        await new UserMergeService(Db, _currentUser, TimeProvider.System).Merge(keeper.Id, merged.Id, MergeOptions.For(MergeTrigger.Manual, "test", keeper.Id));
+        await new UserMergeService(Db, _currentUser, TimeProvider.System).Merge(keeper.Id, merged.Id, MergeOptions.For(GrifballWebApp.Domain.Players.MergeTrigger.Manual, "test", keeper.Id));
         var mergeID = (await Db.UserMerges.SingleAsync()).UserMergeID;
 
         var answer = await Sysadmins(Sysadmin).UndoUserMerge(mergeID, "wrong person");
