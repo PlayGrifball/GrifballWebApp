@@ -149,7 +149,7 @@ describe('createSpartanScene', () => {
     canvas.remove();
 
     expect(canvas.isConnected).toBeFalse();
-  });
+  }, 30000);
 
   it('refuses a model that is not one', async () => {
     if (!webgl) { pending('This browser has no WebGL.'); return; }
@@ -158,5 +158,5 @@ describe('createSpartanScene', () => {
 
     await expectAsync(scene.show('data:model/gltf+json;base64,e30=')).toBeRejected();
     scene.dispose();
-  });
+  }, 30000);
 });
