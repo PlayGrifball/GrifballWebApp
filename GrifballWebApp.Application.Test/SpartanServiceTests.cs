@@ -94,7 +94,7 @@ internal sealed class SpartanServiceTests : ApplicationDbContextTests
         render.RenderedAt = Start.UtcDateTime;
         Context.UserSpartanFiles.AddRange(
             new UserSpartanFile { UserId = _userId, Name = "neutral-head", ContentType = "image/png", Content = [1] },
-            new UserSpartanFile { UserId = _userId, Name = "stance-glb", ContentType = "model/gltf-binary", Content = [2] },
+            new UserSpartanFile { UserId = _userId, Name = "glb", ContentType = "model/gltf-binary", Content = [2] },
             new UserSpartanFile { UserId = _userId, Name = "mystery", ContentType = "image/png", Content = [3] });
         await Context.SaveChangesAsync();
 
@@ -108,7 +108,7 @@ internal sealed class SpartanServiceTests : ApplicationDbContextTests
             Assert.That(dto.RenderState, Is.EqualTo("Failed"));
             Assert.That(dto.RenderError, Is.EqualTo("boom"));
             Assert.That(dto.RenderedAt, Is.EqualTo(Start.UtcDateTime));
-            Assert.That(dto.Files, Is.EqualTo(new List<string> { "stance-glb", "neutral-head" }));
+            Assert.That(dto.Files, Is.EqualTo(new List<string> { "glb", "neutral-head" }));
         }
     }
 
@@ -136,7 +136,7 @@ internal sealed class SpartanServiceTests : ApplicationDbContextTests
         {
             Assert.That(result.Outcome, Is.EqualTo(SetSpartanOutcome.Saved));
             Assert.That(result.Problems, Is.Empty);
-            Assert.That(row.ChoiceJson, Is.EqualTo("""{"core":"Mark VII","armor":{"helmet":"Eaglestrike"},"parts":null,"coating":"111","visor":null}"""));
+            Assert.That(row.ChoiceJson, Is.EqualTo("""{"core":"Mark VII","armor":{"helmet":"Eaglestrike"},"parts":null,"coating":"111","visor":null,"disableDamage":true}"""));
             Assert.That(row.UpdatedAt, Is.EqualTo(Start.UtcDateTime));
             Assert.That((render.State, render.RequestedAt, render.Error), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime, (string?)null)));
         }

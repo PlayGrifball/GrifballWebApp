@@ -4,13 +4,15 @@ import { SpartanViewerComponent } from './spartanViewer.component';
 
 describe('SpartanViewerComponent', () => {
   let shown: string[];
+  let played: string[];
   let disposed: number;
   let scene: SpartanScene;
 
   beforeEach(() => {
     shown = [];
+    played = [];
     disposed = 0;
-    scene = { show: async url => { shown.push(url); }, dispose: () => { disposed++; } };
+    scene = { show: async url => { shown.push(url); }, play: clip => { played.push(clip); }, dispose: () => { disposed++; } };
   });
 
   function create(factory: SpartanSceneFactory, url = '/a.glb'): ComponentFixture<SpartanViewerComponent> {
@@ -40,6 +42,18 @@ describe('SpartanViewerComponent', () => {
     expect(shown).toEqual(['/a.glb']);
     expect(fixture.componentInstance.state()).toBe('ready');
     expect(text(fixture)).not.toContain('3D model');
+  });
+
+  it('poses the model with the clip, and again when the clip changes', async () => {
+    const fixture = create(async () => scene);
+    fixture.componentRef.setInput('clip', 'neutral');
+    await settle(fixture);
+
+    fixture.componentRef.setInput('clip', 'stance');
+    await settle(fixture);
+
+    expect(played).toContain('neutral');
+    expect(played.at(-1)).toBe('stance');
   });
 
   it('shows the next model when the address changes', async () => {
@@ -125,17 +139,20 @@ describe('createSpartanScene', () => {
   const webgl = (() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; } })();
 
   // A one-triangle glTF, as a data address
-  const triangle = (() => {
-    const bytes = new Uint8Array(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]).buffer);
+  const triangleWith = (clip: string | null): string => {
+    const bytes = new Uint8Array(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5, 0, 0]).buffer);
+    const animated = clip !== null;
     const gltf = {
       asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0 }],
       meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
-      accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', min: [0, 0, 0], max: [1, 1, 0] }],
-      bufferViews: [{ buffer: 0, byteLength: 36 }],
-      buffers: [{ byteLength: 36, uri: `data:application/octet-stream;base64,${btoa(String.fromCharCode(...bytes))}` }],
+      accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', min: [0, 0, 0], max: [1, 1, 0] }, ...(animated ? [{ bufferView: 0, byteOffset: 36, componentType: 5126, count: 1, type: 'SCALAR', min: [0], max: [0] }, { bufferView: 0, byteOffset: 40, componentType: 5126, count: 1, type: 'VEC3' }] : [])],
+      ...(animated ? { animations: [{ name: clip, samplers: [{ input: 1, output: 2 }], channels: [{ sampler: 0, target: { node: 0, path: 'translation' } }] }] } : {}),
+      bufferViews: [{ buffer: 0, byteLength: 52 }],
+      buffers: [{ byteLength: 52, uri: `data:application/octet-stream;base64,${btoa(String.fromCharCode(...bytes))}` }],
     };
     return `data:model/gltf+json;base64,${btoa(JSON.stringify(gltf))}`;
-  })();
+  };
+  const triangle = triangleWith(null);
 
   it('shows a model and lets go of it, where the browser can draw WebGL', async () => {
     if (!webgl) { pending('This browser has no WebGL.'); return; }
@@ -167,6 +184,23 @@ describe('createSpartanScene', () => {
     scene.dispose();
     await late;
     expect(add.calls.count()).toBe(afterBoth);
+  }, 30000);
+
+  it('poses the model with the clip asked for, before or after it loads, and leaves it be for a clip it lacks', async () => {
+    if (!webgl) { pending('This browser has no WebGL.'); return; }
+    const THREE = await import('three');
+    const stop = spyOn(THREE.AnimationMixer.prototype, 'stopAllAction').and.callThrough();
+    const canvas = document.createElement('canvas');
+    const scene = await createSpartanScene(canvas);
+
+    scene.play('stance');
+    await scene.show(triangleWith('stance'));
+    expect(stop).toHaveBeenCalledTimes(1);
+    scene.play('stance');
+    expect(stop).toHaveBeenCalledTimes(2);
+    scene.play('missing');
+    expect(stop).toHaveBeenCalledTimes(2);
+    scene.dispose();
   }, 30000);
 
   it('refuses a model that is not one', async () => {

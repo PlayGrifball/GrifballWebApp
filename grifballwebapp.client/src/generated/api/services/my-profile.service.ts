@@ -474,7 +474,7 @@ export class MyProfileService extends BaseService {
   static readonly GetUserSpartanFilePath = '/users/{userId}/spartan/{name}';
 
   /**
-   * A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.
+   * A file of a user's rendered Spartan: glb (one model with the neutral and stance poses as clips), stance-body, stance-head, neutral-body or neutral-head.
    *
    *
    *
@@ -489,7 +489,7 @@ export class MyProfileService extends BaseService {
   }
 
   /**
-   * A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.
+   * A file of a user's rendered Spartan: glb (one model with the neutral and stance poses as clips), stance-body, stance-head, neutral-body or neutral-head.
    *
    *
    *
@@ -506,7 +506,7 @@ export class MyProfileService extends BaseService {
   }
 
   /**
-   * A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.
+   * A file of a user's rendered Spartan: glb (one model with the neutral and stance poses as clips), stance-body, stance-head, neutral-body or neutral-head.
    *
    *
    *
@@ -521,7 +521,7 @@ export class MyProfileService extends BaseService {
   }
 
   /**
-   * A file of a user's rendered Spartan: stance-glb, stance-body, stance-head, neutral-glb, neutral-body or neutral-head.
+   * A file of a user's rendered Spartan: glb (one model with the neutral and stance poses as clips), stance-body, stance-head, neutral-body or neutral-head.
    *
    *
    *

@@ -30,6 +30,7 @@ export class ProfileSpartanComponent implements OnInit {
     armor: new FormRecord<FormControl<string>>({}),
     coating: new FormControl('', { nonNullable: true }),
     visor: new FormControl('', { nonNullable: true }),
+    disableDamage: new FormControl(true, { nonNullable: true }),
   });
   /** The pieces the open form starts from, for the controls a region's arrival creates. */
   private seed: Record<string, string> = {};
@@ -62,6 +63,7 @@ export class ProfileSpartanComponent implements OnInit {
     this.form.controls.core.setValue(choice?.core ?? '');
     this.form.controls.coating.setValue(choice?.coating ?? '');
     this.form.controls.visor.setValue(choice?.visor ?? '');
+    this.form.controls.disableDamage.setValue(choice?.disableDamage ?? true);
     this.seed = { ...(choice?.armor ?? {}) };
     this.syncPieces();
     this.store.loadCatalog();
@@ -73,13 +75,14 @@ export class ProfileSpartanComponent implements OnInit {
   }
 
   save(): void {
-    const { core, coating, visor, armor } = this.form.getRawValue();
+    const { core, coating, visor, disableDamage, armor } = this.form.getRawValue();
     const choice: SpartanChoice = {
       core,
       armor: Object.fromEntries(Object.entries(armor).filter(([, piece]) => piece)),
       parts: this.profile()?.choice?.core === core ? this.profile()?.choice?.parts ?? null : null,
       coating: coating || null,
       visor: visor || null,
+      disableDamage,
     };
     this.store.save(choice);
     this.editing.set(false);

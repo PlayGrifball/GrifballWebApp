@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import type { SpartanProfileDto } from '@api/models';
 import { SpartanViewerComponent } from '../spartanViewer/spartanViewer.component';
 
@@ -15,12 +15,8 @@ export class SpartanShowcaseComponent {
   readonly profile = input.required<SpartanProfileDto | null>();
   readonly name = input('Spartan');
 
-  /** Which of the two models the 3D view shows; the one there is when there is none of the other. */
+  /** Which pose the one 3D model is in. */
   readonly pose = signal<'neutral' | 'stance'>('neutral');
-  readonly modelName = computed(() => {
-    const wanted = `${this.pose()}-glb`;
-    return this.hasFile(wanted) ? wanted : ['neutral-glb', 'stance-glb'].find(n => this.hasFile(n)) ?? null;
-  });
 
   /** The render's time is in the address, so a new render is not shown from the cache of an old one. */
   readonly fileUrl = (name: string): string => {

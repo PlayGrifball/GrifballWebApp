@@ -1,8 +1,10 @@
 import { InjectionToken } from '@angular/core';
 
-/** A 3D view of one model in a canvas: show a model by its address, and let go of everything the view holds. */
+/** A 3D view of one model in a canvas: show a model by its address, pose it with one of its clips, and let go of everything the view holds. */
 export interface SpartanScene {
   show(url: string): Promise<void>;
+  /** Poses the model with the clip of that name, now or once the model has loaded; a model without the clip stays as it is. */
+  play(clip: string): void;
   dispose(): void;
 }
 
@@ -48,9 +50,19 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
   controls.autoRotateSpeed = 1.5;
   const loader = new GLTFLoader();
   let model: InstanceType<typeof THREE.Group> | null = null;
+  let mixer: InstanceType<typeof THREE.AnimationMixer> | null = null;
+  let clips: InstanceType<typeof THREE.AnimationClip>[] = [];
+  let wanted: string | null = null;
   let latest = 0;
   let disposed = false;
 
+  const pose = () => {
+    const clip = mixer && clips.find(c => c.name === wanted);
+    if (!mixer || !clip) return;
+    mixer.stopAllAction();
+    mixer.clipAction(clip).play();
+    mixer.update(0);
+  };
   const resize = () => {
     const { clientWidth: width, clientHeight: height } = canvas;
     if (width === 0 || height === 0) return;
@@ -76,7 +88,10 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
       }
       if (model) releaseModel(THREE, scene, model);
       model = gltf.scene;
+      mixer = new THREE.AnimationMixer(model);
+      clips = gltf.animations;
       scene.add(model);
+      pose();
       const box = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
@@ -84,6 +99,10 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
       camera.position.set(center.x, center.y, center.z + distance + size.z / 2);
       controls.target.copy(center);
       controls.update();
+    },
+    play(clip) {
+      wanted = clip;
+      pose();
     },
     dispose() {
       disposed = true;
