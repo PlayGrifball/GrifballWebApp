@@ -31,6 +31,8 @@ public class DiscordModuleRegistrationTests
         "votetokick(Int32 matchId) preconditions: 0",
     ];
 
+    private static readonly string[] UserCommandNames = ["Profile", "Pull games", "Set gamertag"];
+
     private static readonly string[] Modals =
     [
         "set_gamertag() preconditions: 0",
@@ -72,7 +74,7 @@ public class DiscordModuleRegistrationTests
         var service = new ApplicationCommandService<UserCommandContext>();
         service.AddModules(ServerAssembly);
 
-        Assert.That(service.GetCommands().Select(c => c.Name).Order(StringComparer.Ordinal), Is.EqualTo(new[] { "Profile", "Pull games", "Set gamertag" }));
+        Assert.That(service.GetCommands().Select(c => c.Name).Order(StringComparer.Ordinal), Is.EqualTo(UserCommandNames));
     }
 
     private static string Describe(string name, string description, IEnumerable<SlashCommandParameter<ApplicationCommandContext>> parameters, string extra)
