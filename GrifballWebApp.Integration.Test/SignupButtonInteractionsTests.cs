@@ -136,4 +136,73 @@ public class SignupButtonInteractionsTests
             Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
         }
     }
+
+    [Test]
+    public async Task Signup_NewSignup_OffersTheDetailsButton()
+    {
+        await AddLinkedUser();
+        var season = await SignupTestData.OpenSeason(_context);
+
+        await _handler.Signup(_discordContext, season.SeasonID);
+
+        var data = ((InteractionCallbackProperties<InteractionMessageProperties>)_callbacks.Last()).Data;
+        var button = data!.Components!.OfType<ActionRowProperties>().Single().OfType<ButtonProperties>().Single();
+        Assert.That(button.CustomId, Is.EqualTo($"signupdetails:{season.SeasonID}"));
+    }
+
+    [Test]
+    public async Task SignupDetails_OpensTheModalWithTheSeasonsTimesInWeekOrderAndTheSignupFilledIn()
+    {
+        var user = await AddLinkedUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        var options = await SignupTestData.Options(_context, season, (DayOfWeek.Sunday, new TimeOnly(18, 1)), (DayOfWeek.Tuesday, new TimeOnly(20, 1)), (DayOfWeek.Monday, new TimeOnly(19, 1)));
+        await new SignupsService(_context).UpsertSignup(new SignupRequestDto
+        {
+            SeasonID = season.SeasonID,
+            UserID = user.Id,
+            TeamName = "Grifs",
+            WillCaptain = true,
+            Timeslots = [new TimeslotDto { OptionID = options[2].AvailabilityOptionID, IsChecked = true }],
+        });
+
+        await _handler.SignupDetails(_discordContext, season.SeasonID);
+
+        var modal = ((InteractionCallbackProperties<ModalProperties>)_callbacks.Single()).Data!;
+        var labels = modal.Components.OfType<LabelProperties>().ToList();
+        var teamName = (TextInputProperties)labels[0].Component;
+        var choices = (CheckboxGroupProperties)labels[1].Component;
+        var times = (CheckboxGroupProperties)labels[2].Component;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modal.CustomId, Is.EqualTo($"signup:{season.SeasonID}"));
+            Assert.That(teamName.Value, Is.EqualTo("Grifs"));
+            Assert.That(choices.Options.Select(o => (o.Value, o.Default)), Is.EqualTo(new[] { ("captain", true), ("draft_help", false) }));
+            Assert.That(times.Options.Select(o => (o.Label, o.Default)), Is.EqualTo(new[] { ("Mon 19:01", true), ("Tue 20:01", false), ("Sun 18:01", false) }));
+        }
+    }
+
+    [Test]
+    public async Task SignupDetails_SplitsMoreThanTenTimesIntoGroups()
+    {
+        await AddLinkedUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        await SignupTestData.Options(_context, season, Enumerable.Range(0, 12).Select(i => (DayOfWeek.Monday, new TimeOnly(i, 1))).ToArray());
+
+        await _handler.SignupDetails(_discordContext, season.SeasonID);
+
+        var modal = ((InteractionCallbackProperties<ModalProperties>)_callbacks.Single()).Data!;
+        var groups = modal.Components.OfType<LabelProperties>().Skip(2).Select(l => ((CheckboxGroupProperties)l.Component).Options.Count()).ToList();
+        Assert.That(groups, Is.EqualTo(new[] { 10, 2 }));
+    }
+
+    [Test]
+    public async Task SignupDetails_NoGamertag_SendsTempResponseInsteadOfTheModal()
+    {
+        await AddLinkedUser(withGamertag: false);
+        var season = await SignupTestData.OpenSeason(_context);
+
+        await _handler.SignupDetails(_discordContext, season.SeasonID);
+
+        Assert.That(LastMessage(), Is.EqualTo("You must set your gamertag first"));
+    }
 }

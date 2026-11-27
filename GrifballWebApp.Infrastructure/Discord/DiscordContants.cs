@@ -23,6 +23,12 @@ public class DiscordButtonContants
     {
         return $"{Signup}:{seasonId}";
     }
+
+    public const string SignupDetails = "signupdetails";
+    public static string SignupDetailsWithParams(int seasonId)
+    {
+        return $"{SignupDetails}:{seasonId}";
+    }
 }
 
 /// <summary>
@@ -49,4 +55,10 @@ public class DiscordStringMenuContants
 public class DiscordModalsContants
 {
     public const string SetGamertag = "set_gamertag";
+
+    public const string Signup = "signup";
+    public static string SignupWithParams(int seasonId)
+    {
+        return $"{Signup}:{seasonId}";
+    }
 }
