@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Historical.Vods;
+using GrifballWebApp.Application.LateLeague;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Server.Commands;
