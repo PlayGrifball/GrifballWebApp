@@ -46,6 +46,9 @@ public class AdminCommandsHandler
 {
     public const string Done = "Done.";
     public const string JobNameHelp = "Name the job as group/name: /admin jobs list shows them.";
+    public const string JobNameNotForTheForm = "That job name can't go in the form: give paused (true or false) with the command instead.";
+    public const string NoRequestWaiting = "No request with that number waits for a decision: /reschedule pending lists the ones that do.";
+    public const string BracketNeedsParticipants = "A bracket needs participants.";
     public const string DoubleEliminationInput = "double_elimination";
     public const string JobStateInput = "state";
     public const string DecisionInput = "decision";
@@ -53,6 +56,8 @@ public class AdminCommandsHandler
     /// <summary>Discord's limits on a component's custom ID and on a label's text.</summary>
     private const int CustomIdLimit = 100;
     private const int LabelLimit = 45;
+    /// <summary>The longest notes a decision keeps (MatchRescheduleConfiguration's column).</summary>
+    private const int NotesMaxLength = 1000;
 
     private readonly DiscordCaller _caller;
     private readonly CommandLookups _lookups;
@@ -168,6 +173,11 @@ public class AdminCommandsHandler
     {
         if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.Staff) is null)
             return;
+        if (!await _reschedules.AwaitsDecisionAsync(rescheduleID))
+        {
+            await context.EphemeralResponse(NoRequestWaiting);
+            return;
+        }
         var modal = new ModalProperties(DiscordModalsContants.RescheduleDecideWithParams(rescheduleID), $"Reschedule request #{rescheduleID}")
         {
             new LabelProperties("Decision", new RadioGroupProperties(DecisionInput,
@@ -178,7 +188,8 @@ public class AdminCommandsHandler
             new LabelProperties("Notes for the players", new TextInputProperties(NotesInput, TextInputStyle.Paragraph)
             {
                 Required = false,
-                Value = notes,
+                MaxLength = NotesMaxLength,
+                Value = notes?[..Math.Min(notes.Length, NotesMaxLength)],
             }),
         };
         await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
@@ -262,7 +273,7 @@ public class AdminCommandsHandler
             return;
         if (participants <= 0)
         {
-            await context.Reply("A bracket needs participants.");
+            await context.Reply(BracketNeedsParticipants);
             return;
         }
         await _brackets.CreateBracket(participants, id, doubleElim, bestOf);
@@ -277,6 +288,11 @@ public class AdminCommandsHandler
         if (await _lookups.Season(season, SeasonPurpose.Active, SeasonViewer.Staff) is not int id)
         {
             await context.EphemeralResponse(CommandLookups.NoSuchSeason);
+            return;
+        }
+        if (participants <= 0)
+        {
+            await context.EphemeralResponse(BracketNeedsParticipants);
             return;
         }
         var modal = new ModalProperties(DiscordModalsContants.BracketCreateWithParams(id, participants, bestOf), "Make the bracket")
@@ -383,10 +399,15 @@ public class AdminCommandsHandler
         if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.SysadminOnly) is null)
             return;
         var name = job.Trim();
-        // The name travels in the modal's custom ID: one that can't (no group/name, the ID's separator, too long) is refused here
-        if (name.Split('/', 2).Length != 2 || name.Contains(':') || DiscordModalsContants.JobPauseWithParams(name).Length > CustomIdLimit)
+        if (ParseJob(name) is null)
         {
             await context.EphemeralResponse(JobNameHelp);
+            return;
+        }
+        // The name travels in the modal's custom ID, which can't hold its separator or a long one
+        if (name.Contains(':') || DiscordModalsContants.JobPauseWithParams(name).Length > CustomIdLimit)
+        {
+            await context.EphemeralResponse(JobNameNotForTheForm);
             return;
         }
         var modal = new ModalProperties(DiscordModalsContants.JobPauseWithParams(name), "Pause or resume the job")
@@ -409,13 +430,11 @@ public class AdminCommandsHandler
     {
         if (await Staff(context, DiscordCaller.Roles.SysadminOnly) is not { } caller)
             return;
-        var parts = job.Trim().Split('/', 2);
-        if (parts.Length != 2)
+        if (ParseJob(job) is not { } key)
         {
             await context.Reply(JobNameHelp);
             return;
         }
-        var key = new JobKey(parts[1], parts[0]);
         var change = pause is { } paused ? await _jobs.SetPaused(key, paused, caller.Gamertag) : await _jobs.RunNow(key, caller.UserID);
         await context.Reply(change switch
         {
@@ -424,6 +443,10 @@ public class AdminCommandsHandler
             _ => Done,
         });
     }
+
+    /// <summary>The job named group/name; null when the name isn't one.</summary>
+    private static JobKey? ParseJob(string job)
+        => job.Trim().Split('/', 2) is [var group, var name] ? new JobKey(name, group) : null;
 
     public async Task Claims(IDiscordInteractionContext context)
     {

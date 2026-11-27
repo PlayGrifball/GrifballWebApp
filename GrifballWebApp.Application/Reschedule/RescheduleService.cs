@@ -123,6 +123,10 @@ public class RescheduleService
         return user.ToDisplayName() ?? "a commissioner";
     }
 
+    /// <summary>Whether request <paramref name="rescheduleId"/> waits for a decision (<see cref="MatchReschedule.IsPending"/>).</summary>
+    public Task<bool> AwaitsDecisionAsync(int rescheduleId, CancellationToken ct = default)
+        => _context.MatchReschedules.Where(MatchReschedule.IsPending).AnyAsync(mr => mr.MatchRescheduleID == rescheduleId, ct);
+
     public async Task<List<RescheduleDto>> GetPendingReschedulesAsync(CancellationToken ct = default)
     {
         var pendingReschedules = await _context.MatchReschedules

@@ -683,7 +683,7 @@ public class DiscordTransportTests
     }
 
     [Test]
-    public async Task RescheduleDecide_WithoutApprove_OpensTheModal_WhoseSubmitGoesToTheService()
+    public async Task RescheduleDecide_WithoutApprove_RefusesARequestNotWaiting_AndTheModalsSubmitGoesToTheService()
     {
         await LinkedUserWithRole(6402, "Decider", "Commissioner");
 
@@ -695,7 +695,9 @@ public class DiscordTransportTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(opened[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            // No request 424242 waits: said before a modal opens (a submit, below, still goes to the service, which refuses it)
+            Assert.That(opened[0].CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
+            Assert.That(opened[0].Content, Is.EqualTo(AdminCommandsHandler.NoRequestWaiting));
             Assert.That(Routes(saved), Is.EqualTo(new[] { Callback, EditOriginal }));
             Assert.That(saved[1].Content, Is.EqualTo("Reschedule request not found"));
             Assert.That(blankNotes[1].Content, Is.EqualTo("Reschedule request not found"));

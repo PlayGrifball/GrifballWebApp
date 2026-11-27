@@ -42,7 +42,12 @@ public class AdminCommandsTests
     private User _commissioner = null!;
     private static readonly string[] ApproveOrReject = ["approve", "reject"];
     private static readonly string[] PauseOnly = ["pause"];
-    private static readonly string[] JobNamesThatCannotTravel = ["no-slash", "recurring/a:b", "recurring/" + new string('x', 95)];
+    private static readonly object[] JobNamesTheModalRefuses =
+    [
+        new object[] { "no-slash", AdminCommandsHandler.JobNameHelp },
+        new object[] { "recurring/a:b", AdminCommandsHandler.JobNameNotForTheForm },
+        new object[] { "recurring/" + new string('x', 95), AdminCommandsHandler.JobNameNotForTheForm },
+    ];
 
     [SetUp]
     public async Task SetUp()
@@ -521,11 +526,15 @@ public class AdminCommandsTests
     }
 
     [Test]
-    public async Task DecideReschedule_Should_OpenTheDecisionModal_WithTheNotes_When_ApproveIsNotGiven()
+    public async Task DecideReschedule_Should_OpenTheDecisionModal_WithTheNotesCutToTheColumn_When_ApproveIsNotGiven()
     {
+        var seeded = await RescheduleTestData.SeedAsync(_context, scheduled: DateTime.UtcNow.AddDays(3));
+        var request = await new RescheduleService(_context, new ContextOutbox(_context)).RequestRescheduleAsync(
+            new RescheduleRequestDto { SeasonMatchID = seeded.Match.SeasonMatchID, Reason = "Travel", NewScheduledTime = DateTime.UtcNow.AddDays(5) }, seeded.Requester.Id);
         var discord = As(_commissioner);
+        var longNotes = new string('n', 1200);
 
-        await _handler.DecideReschedule(discord.Context, 424242, approve: null, notes: "Fine by us");
+        await _handler.DecideReschedule(discord.Context, request.MatchRescheduleID, approve: null, notes: longNotes);
 
         var modal = discord.Modal();
         var labels = modal.Components.OfType<NetCord.Rest.LabelProperties>().ToList();
@@ -533,10 +542,33 @@ public class AdminCommandsTests
         var notes = (NetCord.Rest.TextInputProperties)labels[1].Component;
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(modal.CustomId, Is.EqualTo("reschedule_decide:424242"));
+            Assert.That(modal.CustomId, Is.EqualTo($"reschedule_decide:{request.MatchRescheduleID}"));
             Assert.That(decision.Options.Select(o => o.Value), Is.EqualTo(ApproveOrReject));
-            Assert.That(notes.Value, Is.EqualTo("Fine by us"));
+            // The notes column holds 1000 characters: the input takes no more, and a longer given one is cut to fit
+            Assert.That(notes.MaxLength, Is.EqualTo(1000));
+            Assert.That(notes.Value, Is.EqualTo(longNotes[..1000]));
         }
+    }
+
+    [Test]
+    public async Task DecideReschedule_Should_SayTheRequestIsNotWaiting_InANewReply_When_ApproveIsNotGiven()
+    {
+        var discord = As(_commissioner);
+
+        await _handler.DecideReschedule(discord.Context, 424242, approve: null, notes: null);
+
+        Assert.That(discord.Message().Content, Is.EqualTo(AdminCommandsHandler.NoRequestWaiting));
+    }
+
+    [Test]
+    public async Task CreateBracket_Should_AskForParticipants_InANewReply_When_DoubleEliminationIsNotGiven()
+    {
+        var season = await _context.AddSeason("Bracket Modal");
+        var discord = As(_commissioner);
+
+        await _handler.CreateBracket(discord.Context, season.SeasonID.ToString(), 0, doubleElimination: null, 3);
+
+        Assert.That(discord.Message().Content, Is.EqualTo(AdminCommandsHandler.BracketNeedsParticipants));
     }
 
     [Test]
@@ -555,14 +587,14 @@ public class AdminCommandsTests
         }
     }
 
-    [TestCaseSource(nameof(JobNamesThatCannotTravel))]
-    public async Task PauseJob_Should_AskForGroupAndName_When_TheNameCannotTravelInTheModal(string job)
+    [TestCaseSource(nameof(JobNamesTheModalRefuses))]
+    public async Task PauseJob_Should_SayWhy_When_TheNameCannotGoInTheModal(string job, string reply)
     {
         var discord = As(await Sysadmin());
 
         await _handler.PauseJob(discord.Context, job, paused: null);
 
-        Assert.That(discord.Message().Content, Is.EqualTo(AdminCommandsHandler.JobNameHelp));
+        Assert.That(discord.Message().Content, Is.EqualTo(reply));
     }
 
     [Test]
@@ -583,5 +615,19 @@ public class AdminCommandsTests
             Assert.That(decide.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.Staff)));
             Assert.That(pause.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.SysadminOnly)));
         }
+    }
+
+    [Test]
+    public async Task DecideReschedule_Should_OpenTheDecisionModal_WithNoNotes_When_NoneAreGiven()
+    {
+        var seeded = await RescheduleTestData.SeedAsync(_context, scheduled: DateTime.UtcNow.AddDays(3));
+        var request = await new RescheduleService(_context, new ContextOutbox(_context)).RequestRescheduleAsync(
+            new RescheduleRequestDto { SeasonMatchID = seeded.Match.SeasonMatchID, Reason = "Travel" }, seeded.Requester.Id);
+        var discord = As(_commissioner);
+
+        await _handler.DecideReschedule(discord.Context, request.MatchRescheduleID, approve: null, notes: null);
+
+        var notes = (NetCord.Rest.TextInputProperties)discord.Modal().Components.OfType<NetCord.Rest.LabelProperties>().Last().Component;
+        Assert.That(notes.Value, Is.Null);
     }
 }
