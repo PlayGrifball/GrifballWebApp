@@ -625,6 +625,20 @@ public class DiscordTransportTests
         }
     }
 
+    [Test]
+    public async Task RegionModal_SubmittedWithoutAPick_SaysThereIsNoSuchRegion()
+    {
+        await LinkedUser(6322, "RegionBlank");
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.ModalWith("set_region", "[]", 6322));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Routes(requests), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(requests[1].Content, Does.StartWith(PersonalCommandsHandler.NoSuchRegion));
+        }
+    }
+
     /// <summary>Review finding 2 (#390): /signup with one option changed keeps the ones left out, as Discord leaves them out.</summary>
     [Test]
     public async Task SlashCommand_Signup_KeepsWhatItWasNotGiven()

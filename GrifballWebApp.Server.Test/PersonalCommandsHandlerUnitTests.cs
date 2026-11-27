@@ -59,7 +59,7 @@ public class PersonalCommandsHandlerUnitTests : SqliteGrifballContextFixture
     public Task Logins_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.Logins(d.Context));
 
     [Test]
-    public Task Signup_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.Signup(d.Context, "season", null, null, null));
+    public Task Signup_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.Signup(d.Context, "season", null, willCaptain: false, null));
 
     [Test]
     public Task RequestReschedule_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.RequestReschedule(d.Context, "match", "reason", null));
@@ -71,7 +71,7 @@ public class PersonalCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await AddUser(discordUserId: 42, gamertag: "Grifter1", roles: DiscordCaller.Roles.Player);
         var discord = new CommandContextRecorder(discordUserId: 42);
 
-        await Handler().Signup(discord.Context, "nonsense", null, null, null);
+        await Handler().Signup(discord.Context, "nonsense", null, null, needsDraftHelp: false);
 
         Assert.That(discord.Content(), Is.EqualTo(CommandLookups.NoSuchSeason));
     }
