@@ -241,7 +241,7 @@ internal sealed class HistoricalImportProvenanceUnitTests : ApplicationDbContext
             Assert.That(users.Select(u => (u.Kind, u.Sheet, u.Cells)), Has.All.EqualTo((HistoricalProvenanceKind.Created, (string?)"Links", (string?)"B2")),
                 "each player's placeholder, made for their Xbox account from the link that listed their game");
             Assert.That(users.Select(u => u.Detail), Has.All.Contains("which no user or placeholder holds"));
-            Assert.That(await Rows(nameof(Domain.League.SeasonMatch)), Has.Some.Matches<HistoricalProvenance>(p => p.Cells == "B2"), "the series of the listed game");
+            Assert.That(await Rows(nameof(Domain.League.SeasonMatch)), Has.Some.Matches<HistoricalProvenance>(p => p?.Cells == "B2"), "the series of the listed game");
         }
     }
 }

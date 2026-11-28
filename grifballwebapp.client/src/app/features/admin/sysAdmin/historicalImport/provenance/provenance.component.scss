@@ -32,7 +32,14 @@
 
 .pv-select,
 .pv-input {
-  min-height: 32px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0 8px;
+  border: 1px solid var(--hud-control-outline);
+  background: var(--hud-input);
+  color: var(--hud-text);
+  font: inherit;
+  font-size: 14px;
 }
 
 .pv-list {
