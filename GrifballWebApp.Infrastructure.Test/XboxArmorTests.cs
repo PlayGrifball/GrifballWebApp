@@ -387,6 +387,9 @@ public class XboxArmorTests : SqliteContextFixture
                 new WeaponCore { CoreType = "WeaponAR", CoreId = "ar-a", IsEquipped = false, Themes = [new WeaponCoreTheme { IsEquipped = true, CoatingPath = "coatings/ar-a.json" }] },
                 new WeaponCore { CoreType = "WeaponAR", CoreId = "ar-b", IsEquipped = true, Themes = [new WeaponCoreTheme { IsEquipped = true, CoatingPath = "coatings/ar-b.json" }] },
                 new WeaponCore { CoreType = "WeaponSniper", CoreId = "s7", IsEquipped = false, Themes = [new WeaponCoreTheme { IsEquipped = true, CoatingPath = " " }] },
+                // No themes, or none equipped: no coating for that type
+                new WeaponCore { CoreType = "WeaponNeedler", CoreId = "n", IsEquipped = true, Themes = null! },
+                new WeaponCore { CoreType = "WeaponMangler", CoreId = "m", IsEquipped = true, Themes = [new WeaponCoreTheme { IsEquipped = false, CoatingPath = "coatings/m.json" }] },
             ],
         };
         return data;

@@ -317,12 +317,14 @@ public class SpartanArmorMapperTests
     public async Task TheEquippedCoatingOfAWeaponType_IsTheStyleIdOfItsCoatingItem_OrNone()
     {
         Serve("coatings/adrenal.json", Found(style: -976095822));
-        var armor = Armor(a => a.WeaponCoatingsJson = """{"WeaponCommando":"coatings/adrenal.json"}""");
+        Serve("coatings/nostyle.json", Found("No style"));
+        var armor = Armor(a => a.WeaponCoatingsJson = """{"WeaponCommando":"coatings/adrenal.json","WeaponHammer":"coatings/nostyle.json"}""");
 
         var commando = await Mapper().WeaponCoatingOf(armor, "WeaponCommando", CancellationToken.None);
         var sniper = await Mapper().WeaponCoatingOf(armor, "WeaponSniper", CancellationToken.None);
+        var hammer = await Mapper().WeaponCoatingOf(armor, "WeaponHammer", CancellationToken.None);
 
-        Assert.That((commando, sniper), Is.EqualTo(("-976095822", (string?)null)));
+        Assert.That((commando, sniper, hammer), Is.EqualTo(("-976095822", (string?)null, (string?)null)));
     }
 
     private static readonly SpartanCatalogCore TwoHelmets = new("C",

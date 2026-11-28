@@ -33,6 +33,18 @@ public class SpartanChoiceValidatorTests
     };
 
     [Test]
+    public void ThePoseWeapon_IsTheOneWithItsTag_OrNoneForNoTag_AnUnknownTag_OrACatalogWithoutWeapons()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(WithWeapons.WeaponOf(-40348340)?.Name, Is.EqualTo("VK78 Commando Rifle"));
+            Assert.That(WithWeapons.WeaponOf(null), Is.Null);
+            Assert.That(WithWeapons.WeaponOf(5), Is.Null);
+            Assert.That(Catalog.WeaponOf(-40348340), Is.Null);
+        }
+    }
+
+    [Test]
     public void AWeaponCoating_MustBeOneOfThatWeaponsCoatings()
     {
         var problems = SpartanChoiceValidator.Validate(new SpartanChoice("Mark VII", WeaponCoatings: new Dictionary<string, string>

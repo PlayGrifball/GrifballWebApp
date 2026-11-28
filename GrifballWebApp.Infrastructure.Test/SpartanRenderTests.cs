@@ -355,6 +355,42 @@ public class SpartanRenderTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task AChoiceWithNoEquippedSet_StillCarriesTheHammerAndSwordPoses_InTheirDefaultCoatings()
+    {
+        _catalogs = new FakeCatalogs(WithGrifballWeapons);
+        await UserAsync(Choice);
+
+        await Source().RunAsync();
+
+        var set = JsonDocument.Parse(_service.Loadouts.Single()).RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(set.GetProperty("extraPoses").GetArrayLength(), Is.EqualTo(2));
+            Assert.That(set.TryGetProperty("weaponCoatings", out var coatings) && coatings.ValueKind == JsonValueKind.Object && coatings.EnumerateObject().Any(), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task AChoice_IsRenderedWhenHaloCannotAnswerForAnEquippedWeaponCoating_ThatWeaponInItsDefault()
+    {
+        _catalogs = new FakeCatalogs(WithGrifballWeapons);
+        var (userId, xuid) = await UserAsync(Choice);
+        await EquipAsync(xuid, weaponCoatings: """{"WeaponGravityHammer":"coatings/hammer.json"}""");
+        Serve("poses/p.json", stance: 77);
+        _halo.GameCmsGetItem("coatings/hammer.json", string.Empty).Returns(new HaloApiResultContainer<InGameItem, HaloApiErrorContainer>(
+            null!, new HaloApiErrorContainer { Code = 503 }));
+
+        var report = await Source().RunAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Done, report.Failed, report.Retrying), Is.EqualTo((1, 0, 0)));
+            Assert.That(_service.Loadouts.Single(), Does.Not.Contain("Gravity Hammer\":"));
+            Assert.That(await FileNamesOf(userId), Is.Not.Empty);
+        }
+    }
+
+    [Test]
     public async Task AWeaponTheCatalogDoesNotHave_LeavesTheHandsEmpty_AndAnEquippedCoatingItDoesNotHave_TheDefault()
     {
         _catalogs = new FakeCatalogs(WithCommando);
