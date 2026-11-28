@@ -95,7 +95,7 @@ public class XboxImageJobsTests : SqliteContextFixture
 
         var report = await RunAsync(new XboxGamerPictureJob(Source(), new FakeLogger<XboxGamerPictureJob>()));
 
-        Assert.That((report.Result, report.Summary), Is.EqualTo((JobRunResult.Failed, "1 of 1 accounts checked: 0 stored, 0 unchanged, 0 without one, 1 failed")));
+        Assert.That((report.Result, report.Summary), Is.EqualTo((JobRunResult.Failed, "1 of 1 accounts checked: 0 stored, 0 unchanged, 0 without one, 1 failed. Failed: Halo answered 503: Player1 (1)")));
     }
 
     [Test]
