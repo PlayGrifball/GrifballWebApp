@@ -40,7 +40,7 @@ describe('ProfileSpartanComponent', () => {
   beforeEach(() => {
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     shown = [];
-    const scene: SpartanScene = { show: async url => { shown.push(url); }, play: () => undefined, dispose: () => undefined };
+    const scene: SpartanScene = { show: async url => { shown.push(url); return []; }, play: () => undefined, dispose: () => undefined };
     TestBed.configureTestingModule({
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: MatSnackBar, useValue: snackBar }, { provide: SPARTAN_SCENE, useValue: async () => scene }],
     });

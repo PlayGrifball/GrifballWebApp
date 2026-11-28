@@ -12,7 +12,7 @@ describe('SpartanViewerComponent', () => {
     shown = [];
     played = [];
     disposed = 0;
-    scene = { show: async url => { shown.push(url); }, play: clip => { played.push(clip); }, dispose: () => { disposed++; } };
+    scene = { show: async url => { shown.push(url); return ["neutral", "stance"]; }, play: clip => { played.push(clip); }, dispose: () => { disposed++; } };
   });
 
   function create(factory: SpartanSceneFactory, url = '/a.glb'): ComponentFixture<SpartanViewerComponent> {
@@ -54,6 +54,15 @@ describe('SpartanViewerComponent', () => {
 
     expect(played).toContain('neutral');
     expect(played.at(-1)).toBe('stance');
+  });
+
+  it('tells which clips the model has once it is shown', async () => {
+    const fixture = create(async () => scene);
+    const named: (readonly string[])[] = [];
+    fixture.componentInstance.clipNames.subscribe(names => named.push(names));
+    await settle(fixture);
+
+    expect(named).toEqual([['neutral', 'stance']]);
   });
 
   it('shows the next model when the address changes', async () => {
@@ -176,7 +185,7 @@ describe('createSpartanScene', () => {
     const scene = await createSpartanScene(canvas);
 
     const before = add.calls.count();
-    await Promise.all([scene.show(triangle), scene.show(triangle)]);
+    expect(await Promise.all([scene.show(triangle), scene.show(triangle)])).toEqual([[], []], 'an older model is never shown, and the newer has no clips');
     const afterBoth = add.calls.count();
     expect(afterBoth - before).toBe(1);
 
@@ -194,7 +203,7 @@ describe('createSpartanScene', () => {
     const scene = await createSpartanScene(canvas);
 
     scene.play('stance');
-    await scene.show(triangleWith('stance'));
+    expect(await scene.show(triangleWith('stance'))).toEqual(['stance']);
     expect(stop).toHaveBeenCalledTimes(1);
     scene.play('stance');
     expect(stop).toHaveBeenCalledTimes(2);
