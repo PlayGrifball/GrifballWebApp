@@ -272,6 +272,39 @@ describe('JobsComponent', () => {
     expect(el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!.value).toBe('1');
   });
 
+  it('fills in the default after a reset only if that job is still open', async () => {
+    await load([job('historical-refresh', { intervalSeconds: 600, defaultIntervalSeconds: 86400 }), job('xbox-placeholders', { intervalSeconds: 600 })]);
+    await details('historical-refresh');
+    button('Reset to default (every 1 day)').click();
+    fixture.detectChanges();
+    const reset = http.expectOne('/api/jobs/recurring/historical-refresh/schedule/reset');
+
+    // Another job opened before the reset answered
+    await details('xbox-placeholders');
+    reset.flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
+    http.expectOne('/api/jobs').flush(overview(shown));
+    http.expectOne(r => r.url.endsWith('/runs')).flush([run()]);
+    await settle();
+
+    expect(el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!.value).toBe('10');
+    expect(el().querySelector<HTMLSelectElement>('.jb-schedule select')!.value).toBe('minutes');
+  });
+
+  it('resets a job without a default to a minute', async () => {
+    await load([job('historical-refresh', { intervalSeconds: 600, defaultIntervalSeconds: null })]);
+    await details('historical-refresh');
+
+    // The schedule's last button, Reset to default
+    el().querySelector<HTMLButtonElement>('.jb-schedule button:last-of-type')!.click();
+    await answer('/api/jobs/recurring/historical-refresh/schedule/reset', null);
+    http.expectOne(r => r.url.endsWith('/runs')).flush([run()]);
+    await settle();
+
+    expect(el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!.value).toBe('1');
+    expect(el().querySelector<HTMLSelectElement>('.jb-schedule select')!.value).toBe('minutes');
+  });
+
   it('refuses an interval under 5 seconds', async () => {
     await load([job('historical-refresh')]);
     await details('historical-refresh');

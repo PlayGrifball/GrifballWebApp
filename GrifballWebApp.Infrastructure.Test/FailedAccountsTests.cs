@@ -82,6 +82,7 @@ public class FailedAccountsTests : SqliteContextFixture
             Assert.That(cut, Is.EqualTo("ab…"));
             Assert.That(JobSummary.Shorten("abcdef", 4), Is.EqualTo("abc…"));
             Assert.That(JobSummary.Shorten("abc", 4), Is.EqualTo("abc"));
+            Assert.That(JobSummary.Shorten("abc", 1), Is.EqualTo("…"), "room for the ellipsis alone");
         }
     }
 }
