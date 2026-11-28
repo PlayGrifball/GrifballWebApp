@@ -65,6 +65,24 @@ describe('SpartanViewerComponent', () => {
     expect(named).toEqual([['neutral', 'stance']]);
   });
 
+  it('tells only the clips of the newest model when a slow one is overtaken', async () => {
+    const pending: ((names: string[]) => void)[] = [];
+    scene.show = url => { shown.push(url); return new Promise(resolve => pending.push(resolve)); };
+    const fixture = create(async () => scene);
+    const named: (readonly string[])[] = [];
+    fixture.componentInstance.clipNames.subscribe(names => named.push(names));
+    await settle(fixture);
+    fixture.componentRef.setInput('url', '/b.glb');
+    await settle(fixture);
+
+    pending[1](['neutral', 'Ruthless War Club']);
+    pending[0](['neutral', 'stance']);
+    await settle(fixture);
+
+    expect(shown).toEqual(['/a.glb', '/b.glb']);
+    expect(named).toEqual([['neutral', 'Ruthless War Club']]);
+  });
+
   it('shows the next model when the address changes', async () => {
     const fixture = create(async () => scene);
     await settle(fixture);
@@ -185,7 +203,8 @@ describe('createSpartanScene', () => {
     const scene = await createSpartanScene(canvas);
 
     const before = add.calls.count();
-    expect(await Promise.all([scene.show(triangle), scene.show(triangle)])).toEqual([[], []], 'an older model is never shown, and the newer has no clips');
+    // The older model is never shown, and the newer one has no clips
+    expect(await Promise.all([scene.show(triangle), scene.show(triangle)])).toEqual([[], []]);
     const afterBoth = add.calls.count();
     expect(afterBoth - before).toBe(1);
 
