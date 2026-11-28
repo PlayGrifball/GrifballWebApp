@@ -54,7 +54,12 @@ export class SpartanViewerComponent {
           this.state.set('ready');
           this.clipNames.emit(names);
         },
-        () => { if (current) this.state.set('unavailable'); });
+        () => {
+          if (!current) return;
+          this.state.set('unavailable');
+          // No model shown, so no poses to pick from
+          this.clipNames.emit([]);
+        });
     });
     effect(() => {
       const clip = this.clip();
