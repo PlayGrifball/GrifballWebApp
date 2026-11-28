@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, input, model, output } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -16,10 +16,10 @@ import { GUID_ERROR_MESSAGE, GUID_PATTERN } from '@shared/validation/guid';
   selector: 'app-report-match-form',
   imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, ErrorMessageComponent],
   template: `
-    <form class="app-form" (ngSubmit)="submit()">
+    <form class="app-form" [formGroup]="form" (ngSubmit)="submit()">
       <mat-form-field appearance="outline" class="app-full-width">
         <mat-label>Match ID</mat-label>
-        <input matInput required [formControl]="matchIDControl" name="MatchID">
+        <input matInput required formControlName="matchID" name="MatchID">
         <app-error-message [control]="matchIDControl" />
       </mat-form-field>
       <button mat-flat-button [disabled]="matchIDControl.invalid || busy()">
@@ -45,6 +45,10 @@ export class ReportMatchFormComponent {
     nonNullable: true,
     validators: [Validators.required, regexMatchValidValidator(new RegExp(GUID_PATTERN), GUID_ERROR_MESSAGE)],
   });
+
+  /** Just the one control, but a FormGroup on the <form> is what gives it (ngSubmit): without a form directive there,
+   * the native submit event fires unchecked (a full page reload), not this component's submit(). */
+  protected readonly form = new FormGroup({ matchID: this.matchIDControl });
 
   constructor() {
     // Two copies of the same value, kept in step both ways: typing updates matchID, and matchID changing from

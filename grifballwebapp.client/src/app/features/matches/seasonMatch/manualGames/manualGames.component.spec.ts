@@ -225,7 +225,7 @@ describe('ManualGamesComponent', () => {
     createAsCommissioner();
     component.startAdd();
     component.save({ ...component.initialForm, homeTeamScore: 4, awayTeamScore: 4 });
-    httpMock.expectNone('/api/season-matches/7/manual-games');
+    expect(httpMock.match(() => true)).withContext('requests sent').toEqual([]);
   });
 
   it('switches which game is being edited without closing first: the new target, not a mix of the two', async () => {
