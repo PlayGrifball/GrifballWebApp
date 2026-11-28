@@ -7,11 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace GrifballWebApp.Architecture.Test;
 
 /// <summary>
-/// Default-deny for personal access tokens (#549): every Sysadmin-only action (<see cref="Authorize"/> naming that role
-/// alone, on the action or its controller), and every action on an Identity or external-login controller (self-service
-/// account actions, which aren't Sysadmin-gated but are just as sensitive), must choose explicitly whether a token may
-/// call it (<see cref="DenyAccessTokenAttribute"/> or <see cref="AllowAccessTokenAttribute"/>). A new sensitive action
-/// that forgets fails this test instead of staying open by default.
+/// Default-deny for personal access tokens (#549): every staff-only action (<see cref="Authorize"/> naming one or more
+/// roles, none of which is <c>Player</c> - <c>Roles = "Sysadmin"</c> and <c>Roles = "Commissioner,Sysadmin"</c> both
+/// qualify, and so does plain <c>Roles = "Commissioner"</c>; #561 marked <c>StaffStatFlagsController</c> by hand before
+/// this test could see its kind, #566 widened the test from "Sysadmin alone" to this), and every action on an Identity
+/// or external-login controller (self-service account actions, which aren't Sysadmin-gated but are just as sensitive),
+/// must choose explicitly whether a token may call it (<see cref="DenyAccessTokenAttribute"/> or
+/// <see cref="AllowAccessTokenAttribute"/>). A new sensitive action that forgets fails this test instead of staying
+/// open by default.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -58,18 +61,25 @@ public class AccessTokenAuthorizationTests
     private static string[] RolesOf(AuthorizeAttribute authorize)
         => authorize.Roles?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
 
+    /// <summary>Any role named at all, none of them <c>Player</c>: staff-only, whether it's Sysadmin alone, a plain
+    /// <c>Commissioner</c>, or several roles together such as <c>Commissioner,Sysadmin</c> (an OR, not an AND -
+    /// still staff-only, since every option named is staff). Narrowing a Sysadmin-only action to plain Commissioner
+    /// (or the reverse) must not drop out of this rule just because the set changed shape.</summary>
+    private static bool IsStaffOnly(string[] roles) => roles.Length > 0 && !roles.Contains("Player");
+
     private static bool IsAllowAnonymous(Action action)
         => action.Method.GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null
             || action.Method.DeclaringType!.GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null
             || action.Controller.GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null;
 
     /// <summary>
-    /// Sysadmin-only: not <see cref="AllowAnonymousAttribute"/> (which skips authorization outright, whatever
-    /// <see cref="AuthorizeAttribute"/> says), and at least one applicable <c>[Authorize]</c>, by itself, names
-    /// Sysadmin and no other role. Or a controller this rule names regardless of its own roles.
+    /// Staff-only (<see cref="IsStaffOnly"/>): not <see cref="AllowAnonymousAttribute"/> (which skips authorization
+    /// outright, whatever <see cref="AuthorizeAttribute"/> says), and at least one applicable <c>[Authorize]</c>, by
+    /// itself, names one or more roles with no Player among them. Or a controller this rule names regardless of its
+    /// own roles.
     /// </summary>
     private static bool IsSensitive(Action action)
-        => (!IsAllowAnonymous(action) && Authorizes(action).Any(a => RolesOf(a) is ["Sysadmin"]))
+        => (!IsAllowAnonymous(action) && Authorizes(action).Any(a => IsStaffOnly(RolesOf(a))))
             || AccountControllers.Contains(action.Controller);
 
     private static bool HasAnExplicitChoice(Action action)
@@ -90,7 +100,8 @@ public class AccessTokenAuthorizationTests
         {
             // Both rules actually match something today, so a change to the rules themselves can't silently stop testing anything.
             Assert.That(sensitive, Is.Not.Empty);
-            Assert.That(sensitive.Any(a => Authorizes(a).Any(x => RolesOf(x) is ["Sysadmin"])), Is.True, "the Sysadmin-only rule matches something");
+            Assert.That(sensitive.Any(a => Authorizes(a).Any(x => RolesOf(x) is ["Sysadmin"])), Is.True, "the staff-only rule matches a single-role (Sysadmin) action");
+            Assert.That(sensitive.Any(a => Authorizes(a).Any(x => RolesOf(x).Length > 1 && IsStaffOnly(RolesOf(x)))), Is.True, "the staff-only rule matches a several-roles action");
             Assert.That(sensitive.Any(a => AccountControllers.Contains(a.Controller)), Is.True, "the account-controller rule matches something");
             Assert.That(undecided, Is.Empty, "mark it [DenyAccessToken] or [AllowAccessToken]");
         }
@@ -141,6 +152,49 @@ public class AccessTokenAuthorizationTests
         Assert.That(IsSensitive(new Action(typeof(RolesFixture), method)), Is.False);
     }
 
+    /// <summary>Several roles, none of them Player (as <c>Commissioner,Sysadmin</c> is): staff-only, even though no
+    /// single applicable [Authorize] names Sysadmin alone.</summary>
+    [Test]
+    public void IsSensitive_SeveralStaffRolesNoneOfThemPlayer_IsSensitive()
+    {
+        var method = typeof(SeveralRolesFixture).GetMethod(nameof(SeveralRolesFixture.CommissionerAndSysadmin), FixtureMethod)!;
+
+        Assert.That(IsSensitive(new Action(typeof(SeveralRolesFixture), method)), Is.True);
+    }
+
+    /// <summary>A single non-Sysadmin role (plain Commissioner): staff-only too, so narrowing a Sysadmin-only action
+    /// to Commissioner can't drop it out of the rule (#566: the gap the review found - Availability, Brackets,
+    /// MatchPlanner, SeasonMatch and Teams all had plain-Commissioner actions with no access-token choice).</summary>
+    [Test]
+    public void IsSensitive_ASingleNonPlayerRole_IsSensitive()
+    {
+        var method = typeof(SeveralRolesFixture).GetMethod(nameof(SeveralRolesFixture.CommissionerAlone), FixtureMethod)!;
+
+        Assert.That(IsSensitive(new Action(typeof(SeveralRolesFixture), method)), Is.True);
+    }
+
+    private static readonly string[] CommissionerAndPlayer = ["Commissioner", "Player"];
+    private static readonly string[] CommissionerAlone = ["Commissioner"];
+    private static readonly string[] NoRoles = [];
+
+    /// <summary>Several roles including Player: open to ordinary players too, so not staff-only (the action may
+    /// still be sensitive some other way, just not this one).</summary>
+    [Test]
+    public void IsStaffOnly_RolesIncludingPlayer_IsFalse()
+        => Assert.That(IsStaffOnly(CommissionerAndPlayer), Is.False);
+
+    /// <summary>A single non-Player role is staff-only: the general rule (#566) catches what the old
+    /// several-roles-only one missed.</summary>
+    [Test]
+    public void IsStaffOnly_ASingleNonPlayerRole_IsTrue()
+        => Assert.That(IsStaffOnly(CommissionerAlone), Is.True);
+
+    /// <summary>No role named at all isn't staff-only by this rule (an unauthenticated or any-signed-in-user action):
+    /// the account-controller and Identity rules catch sensitivity that names no role, not this one.</summary>
+    [Test]
+    public void IsStaffOnly_NoRoles_IsFalse()
+        => Assert.That(IsStaffOnly(NoRoles), Is.False);
+
     /// <summary>
     /// An action inherited from a base fixture, never overridden by the concrete one: still sensitive, because
     /// <see cref="Authorizes"/> reads the method's declaring type (the base), not only the concrete controller - the
@@ -176,6 +230,17 @@ public class AccessTokenAuthorizationTests
 
         [AllowAnonymous]
         public static void AnonymousDespiteSysadmin() { }
+    }
+
+    /// <summary>No class-level role, unlike <see cref="RolesFixture"/>: isolates each case (several staff roles, a
+    /// single non-Sysadmin role) from the Sysadmin-alone one.</summary>
+    private sealed class SeveralRolesFixture
+    {
+        [Authorize(Roles = "Commissioner,Sysadmin")]
+        public static void CommissionerAndSysadmin() { }
+
+        [Authorize(Roles = "Commissioner")]
+        public static void CommissionerAlone() { }
     }
 
     /// <summary>

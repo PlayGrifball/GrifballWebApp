@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using GrifballWebApp.Application.Draft;
 using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Teams;
 
@@ -73,6 +74,7 @@ public class TeamsController : ControllerBase
 
     /// <summary>Makes a signup a captain, with a team of their own: answers the team.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/draft/captains", Name = "AddCaptain")]
     [ProducesResponseType<CaptainAddedResponseDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -87,6 +89,7 @@ public class TeamsController : ControllerBase
 
     /// <summary>Moves a captain to another place in the draft order.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/draft/captains/resort", Name = "ResortCaptain")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -101,6 +104,7 @@ public class TeamsController : ControllerBase
 
     /// <summary>Removes a captain and disbands their team, returning its players to the pool.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/draft/captains/remove", Name = "RemoveCaptain")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -115,6 +119,7 @@ public class TeamsController : ControllerBase
 
     /// <summary>Removes a player from their team, back into the draft's player pool.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/draft/players/remove", Name = "RemovePlayerFromTeam")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -129,6 +134,7 @@ public class TeamsController : ControllerBase
 
     /// <summary>Moves a player from one team to another, a commissioner's override outside the normal picks.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/draft/players/move", Name = "MovePlayerToTeam")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -161,6 +167,7 @@ public class TeamsController : ControllerBase
 
     /// <summary>Locks the draft order so captains can no longer be resorted or removed.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/draft/captains/lock", Name = "LockCaptains")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
@@ -173,6 +180,7 @@ public class TeamsController : ControllerBase
 
     /// <summary>Unlocks the draft order, allowing captains to be resorted or removed again.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/draft/captains/unlock", Name = "UnlockCaptains")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Brackets;
 
@@ -18,6 +19,7 @@ public class BracketsController : ControllerBase
 
     /// <summary>Makes the season's bracket for this many teams, single or double elimination, best of this many.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/bracket", Name = "CreateBracket")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -54,6 +56,7 @@ public class BracketsController : ControllerBase
 
     /// <summary>Seeds the bracket by the season's standings.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/bracket/seeds/default", Name = "SetSeeds")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
@@ -66,6 +69,7 @@ public class BracketsController : ControllerBase
 
     /// <summary>Seeds the bracket in the organizer's order.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/bracket/seeds", Name = "SetCustomSeeds")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

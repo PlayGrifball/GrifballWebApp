@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using GrifballWebApp.Application.Reschedule;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Reschedule;
 
@@ -48,6 +49,7 @@ public class RescheduleController : ControllerBase
     /// <summary>Approves or rejects a reschedule request.</summary>
     [HttpPost("reschedules/{rescheduleID:int}/decision", Name = "ProcessReschedule")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
+    [AllowAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
@@ -71,6 +73,7 @@ public class RescheduleController : ControllerBase
     /// <summary>The reschedule requests still awaiting a decision.</summary>
     [HttpGet("reschedules/pending", Name = "GetPendingReschedules")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
+    [AllowAccessToken]
     [ProducesResponseType<List<RescheduleDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
     public Task<List<RescheduleDto>> GetPendingReschedules(CancellationToken ct)
@@ -81,6 +84,7 @@ public class RescheduleController : ControllerBase
     /// <summary>Opens the request's Discord thread, for the teams and organizers to talk it over.</summary>
     [HttpPost("reschedules/{rescheduleID:int}/discord-thread", Name = "CreateDiscordThread")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
+    [AllowAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson)]

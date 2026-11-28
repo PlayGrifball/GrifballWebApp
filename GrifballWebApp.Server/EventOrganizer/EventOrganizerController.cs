@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.EventOrganizer;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.EventOrganizer;
 
 /// <summary>The organizers' seasons: each season's settings (dates, league, format), and the choices they are made from.</summary>
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
+[AllowAccessToken]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 public class EventOrganizerController : ControllerBase

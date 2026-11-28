@@ -6,6 +6,7 @@ using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Scheduler;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Scheduler;
 
@@ -16,6 +17,7 @@ namespace GrifballWebApp.Server.Scheduler;
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
+[AllowAccessToken]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 public class SchedulerController : ControllerBase

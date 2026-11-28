@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Excel;
 
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
+[AllowAccessToken]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 public class ExcelController : ControllerBase

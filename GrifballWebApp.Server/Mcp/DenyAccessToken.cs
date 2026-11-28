@@ -19,10 +19,11 @@ namespace GrifballWebApp.Server.Mcp;
 public sealed class DenyAccessTokenAttribute : Attribute;
 
 /// <summary>
-/// Marks a sensitive action (Sysadmin-only, or on an Identity or external-login controller) that a reasonable script may
-/// still call with a token: a read, or a normal staff write that doesn't touch sign-in, roles, or the account itself. The
-/// architecture test that requires one of this or <see cref="DenyAccessTokenAttribute"/> on every sensitive action is the
-/// record of that choice having been made on purpose, not an extra check at request time.
+/// Marks a sensitive action (staff-only - one or more roles named, none of them Player, however many - or on an
+/// Identity or external-login controller) that a reasonable script may still call with a token: a read, or a normal
+/// staff write that doesn't touch sign-in, roles, or the account itself. The architecture test that requires one of
+/// this or <see cref="DenyAccessTokenAttribute"/> on every sensitive action is the record of that choice having been
+/// made on purpose, not an extra check at request time.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class)]
 public sealed class AllowAccessTokenAttribute : Attribute;

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Availability;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Availability;
 
@@ -26,6 +27,7 @@ public class AvailabilityController : ControllerBase
 
     /// <summary>Replaces a season's offered timeslots. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/availability", Name = "UpdateSeasonAvailability")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

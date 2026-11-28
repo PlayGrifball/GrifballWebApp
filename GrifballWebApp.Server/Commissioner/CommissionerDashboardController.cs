@@ -2,11 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Commissioner;
 using GrifballWebApp.Application.Reschedule;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Commissioner;
 
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
+[AllowAccessToken]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 public class CommissionerDashboardController : ControllerBase
