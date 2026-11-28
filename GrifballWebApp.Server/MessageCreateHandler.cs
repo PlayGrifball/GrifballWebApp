@@ -378,8 +378,11 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     private List<ChatMessage> AsHistory(List<IDiscordRestMessage> messages)
         => [.. messages.Select(m => new ChatMessage(m.Author.Id == BotId && !IsFormAnswers(m) ? ChatRole.Assistant : ChatRole.User, m.Content))];
 
+    /// <summary>Discord's interaction type of a modal's submit (5).</summary>
+    public const NetCord.InteractionType ModalSubmit = (NetCord.InteractionType)5;
+
     private bool IsFormAnswers(IDiscordRestMessage message)
-        => message.InteractionMetadata is { Type: NetCord.InteractionType.ModalSubmit } submit && submit.User.Id != BotId && ChatForms.AreAnswers(message.Content);
+        => message.InteractionMetadata is { Type: ModalSubmit } submit && submit.User.Id != BotId && ChatForms.AreAnswers(message.Content);
 
     /// <summary>
     /// Confirm and Cancel taken off the bot's earlier DM messages (<paramref name="earlier"/>; none in a channel), but those of <paramref name="keep"/>,

@@ -892,7 +892,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         answers.Id.Returns(4ul);
         answers.Author.Id.Returns(BotId);
         answers.Content.Returns("My answers to \"Your team\":\n- Team name: Bombers");
-        answers.InteractionMetadata!.Type.Returns(NetCord.InteractionType.ModalSubmit);
+        answers.InteractionMetadata!.Type.Returns(MessageCreateHandler.ModalSubmit);
         answers.InteractionMetadata!.User.Id.Returns(AuthorId);
         var reply = Substitute.For<IDiscordRestMessage>();
         reply.Id.Returns(5ul);
