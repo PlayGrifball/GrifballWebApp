@@ -186,9 +186,13 @@ input.jb-input {
 }
 
 // The tables' hidden headings (.jb-sr) are placed in the table that scrolls sideways: not past it, widening the page
-// The table scrolls sideways on a narrow screen: the details stay as wide as what shows of it, at its left edge
 .hud-table-wrap {
   position: relative;
+}
+
+// The jobs table scrolls sideways on a narrow screen: the details stay as wide as what shows of it, at its left edge. Only the jobs
+// table is the container: the Recent runs table inside the details is not
+.jb-jobs-wrap {
   container-type: inline-size;
 }
 

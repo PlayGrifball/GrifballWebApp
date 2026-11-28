@@ -23,6 +23,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 public class XboxImageSourceTests : SqliteContextFixture
 {
     private static readonly byte[] Png = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
+    private static readonly string[] Player1TooLarge = ["The picture is too large: Player1 (1)"];
     private readonly IHaloInfiniteClient _halo = Substitute.For<IHaloInfiniteClient>();
     private readonly IXboxImageDownloader _downloader = Substitute.For<IXboxImageDownloader>();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 24, 12, 0, 0, TimeSpan.Zero));
@@ -213,6 +214,35 @@ public class XboxImageSourceTests : SqliteContextFixture
 
         var row = await RowAsync(1, XboxUserImageKind.GamerPicture);
         Assert.That((row.Source, row.ContentType, row.Content), Is.EqualTo(("https://x/new.jpg", "image/jpeg", new byte[] { 9, 9 })));
+    }
+
+    [Test]
+    public async Task GamerPictures_TheAccountsThatFailed_AreNamedByGamertag_InTheSummary()
+    {
+        await AddAccountsAsync(1, 2);
+        GivenUsers((1, new Gamerpic { large = "https://x/1.png" }), (2, new Gamerpic { large = "https://x/2.png" }));
+        _downloader.DownloadAsync("https://x/1.png", Arg.Any<CancellationToken>()).Returns<DownloadedImage>(_ => throw new InvalidOperationException("The picture is too large"));
+        _downloader.DownloadAsync("https://x/2.png", Arg.Any<CancellationToken>()).Returns(new DownloadedImage(Png, "image/png"));
+
+        var report = await Source().RunGamerPicturesAsync();
+        var summary = XboxImageJobReports.Of(report, "gamer picture", new Microsoft.Extensions.Logging.Testing.FakeLogger<XboxGamerPictureJob>()).Summary;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.FailedAccounts.Lines, Is.EqualTo(Player1TooLarge));
+            Assert.That(summary, Does.EndWith(". Failed: The picture is too large: Player1 (1)"));
+        }
+    }
+
+    [Test]
+    public async Task ARunWithoutFailures_NamesNoAccounts()
+    {
+        await AddAccountsAsync(1);
+        GivenUsers((1, null));
+
+        var report = await Source().RunGamerPicturesAsync();
+
+        Assert.That(report.FailedAccounts.Lines, Is.Empty);
     }
 
     [Test]

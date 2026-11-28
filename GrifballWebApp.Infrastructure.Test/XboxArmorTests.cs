@@ -228,6 +228,8 @@ public class XboxArmorTests : SqliteContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(failed.Failed, Is.EqualTo(1));
+            Assert.That(failed.FailedAccounts.Lines, Has.Count.EqualTo(1).And.All.StartWith("Halo answered 503: ").And.All.EndWith($"({xuid})"), "named by gamertag in the summary");
+            Assert.That(XboxArmorJob.Report(failed, new FakeLogger<XboxArmorJob>()).Summary, Does.Contain("failed. Failed: Halo answered 503: ").And.EndWith($"({xuid})"));
             Assert.That(tooSoon.Due, Is.Zero, "a failure is tried again after RetryFailedAfter, not at once");
             Assert.That((thrown.Checked, thrown.Failed), Is.EqualTo((1, 1)));
             Assert.That((row.Status, row.Error, row.HelmetPath), Is.EqualTo((XboxUserArmorStatus.Failed, "gateway down", "helmets/a.json")));

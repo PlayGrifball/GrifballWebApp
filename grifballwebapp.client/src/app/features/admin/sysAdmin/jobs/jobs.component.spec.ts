@@ -193,6 +193,60 @@ describe('JobsComponent', () => {
     expect(snackBar.open).toHaveBeenCalledWith('xbox-placeholders is resumed.', 'Close', { duration: 4000 });
   });
 
+  it('spans every column of the table with the details row', async () => {
+    await load([job('historical-refresh')]);
+    await details('historical-refresh');
+
+    const columns = el().querySelectorAll('[aria-label="Jobs"] > table > thead th').length;
+    expect(columns).toBe(7);
+    expect(el().querySelector('.jb-detail-row > td')!.getAttribute('colspan')).toBe(String(columns));
+  });
+
+  it('keeps an unsaved interval as typed while another job’s details are open, and drops it once set back', async () => {
+    await load([job('historical-refresh', { intervalSeconds: 86400 }), job('xbox-placeholders', { intervalSeconds: 600 })]);
+    await details('historical-refresh');
+    const interval = () => el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!;
+    const unit = () => el().querySelector<HTMLSelectElement>('.jb-schedule select')!;
+    interval().value = '120';
+    interval().dispatchEvent(new Event('input'));
+    unit().value = 'minutes';
+    unit().dispatchEvent(new Event('change'));
+    await settle();
+
+    await details('xbox-placeholders');
+    expect([interval().value, unit().value]).toEqual(['10', 'minutes']);
+
+    await details('historical-refresh');
+    expect([interval().value, unit().value]).toEqual(['120', 'minutes']);
+
+    // Set back to its schedule, the edit isn't kept
+    interval().value = '1';
+    interval().dispatchEvent(new Event('input'));
+    unit().value = 'days';
+    unit().dispatchEvent(new Event('change'));
+    await settle();
+    await details('xbox-placeholders');
+    await details('historical-refresh');
+    expect([interval().value, unit().value]).toEqual(['1', 'days']);
+  });
+
+  it('keeps no draft of an interval left untouched: a schedule changed meanwhile shows when the job opens again', async () => {
+    await load([job('historical-refresh', { intervalSeconds: 86400 }), job('xbox-placeholders', { intervalSeconds: 600 })]);
+    await details('historical-refresh');
+    await details('xbox-placeholders');
+
+    // Changed elsewhere: the list read again after an action answers with it
+    shown = [job('historical-refresh', { intervalSeconds: 21600 }), job('xbox-placeholders', { intervalSeconds: 600 })];
+    button('Run now xbox-placeholders').click();
+    await answer('/api/jobs/recurring/xbox-placeholders/run', null);
+    http.expectOne(r => r.url.endsWith('/runs')).flush([run()]);
+    await settle();
+
+    await details('historical-refresh');
+    expect(el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!.value).toBe('6');
+    expect(el().querySelector<HTMLSelectElement>('.jb-schedule select')!.value).toBe('hours');
+  });
+
   it('changes how often a job runs, and resets it', async () => {
     await load([job('historical-refresh', { intervalSeconds: 86400, defaultIntervalSeconds: 86400 })]);
     await details('historical-refresh');
@@ -216,6 +270,39 @@ describe('JobsComponent', () => {
     http.expectOne(r => r.url.endsWith('/runs')).flush([run()]);
     await settle();
     expect(el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!.value).toBe('1');
+  });
+
+  it('fills in the default after a reset only if that job is still open', async () => {
+    await load([job('historical-refresh', { intervalSeconds: 600, defaultIntervalSeconds: 86400 }), job('xbox-placeholders', { intervalSeconds: 600 })]);
+    await details('historical-refresh');
+    button('Reset to default (every 1 day)').click();
+    fixture.detectChanges();
+    const reset = http.expectOne('/api/jobs/recurring/historical-refresh/schedule/reset');
+
+    // Another job opened before the reset answered
+    await details('xbox-placeholders');
+    reset.flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
+    http.expectOne('/api/jobs').flush(overview(shown));
+    http.expectOne(r => r.url.endsWith('/runs')).flush([run()]);
+    await settle();
+
+    expect(el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!.value).toBe('10');
+    expect(el().querySelector<HTMLSelectElement>('.jb-schedule select')!.value).toBe('minutes');
+  });
+
+  it('resets a job without a default to a minute', async () => {
+    await load([job('historical-refresh', { intervalSeconds: 600, defaultIntervalSeconds: null })]);
+    await details('historical-refresh');
+
+    // The schedule's last button, Reset to default
+    el().querySelector<HTMLButtonElement>('.jb-schedule button:last-of-type')!.click();
+    await answer('/api/jobs/recurring/historical-refresh/schedule/reset', null);
+    http.expectOne(r => r.url.endsWith('/runs')).flush([run()]);
+    await settle();
+
+    expect(el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!.value).toBe('1');
+    expect(el().querySelector<HTMLSelectElement>('.jb-schedule select')!.value).toBe('minutes');
   });
 
   it('refuses an interval under 5 seconds', async () => {

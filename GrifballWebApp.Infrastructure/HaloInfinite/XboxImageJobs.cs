@@ -65,8 +65,8 @@ internal static partial class XboxImageJobReports
         var summary = report.Disabled ? "Xbox images are turned off (XboxImages:Enabled)"
             : report.Due == 0
             ? $"Every Xbox account has its {what} checked"
-            : $"{report.Checked} of {report.Due} accounts checked: {report.Stored} stored, {report.Unchanged} unchanged, {report.NotFound} without one, {report.Failed} failed"
-              + (report.ThrottledFor is { } w ? $"; Halo is throttling, stopped (wait {w})" : "");
+            : report.FailedAccounts.After($"{report.Checked} of {report.Due} accounts checked: {report.Stored} stored, {report.Unchanged} unchanged, {report.NotFound} without one, {report.Failed} failed"
+              + (report.ThrottledFor is { } w ? $"; Halo is throttling, stopped (wait {w})" : ""));
         var result = report.Disabled || report.Due == 0 ? JobRunReport.Skipped(summary)
             : report.Failed > 0 && report.Stored + report.Unchanged + report.NotFound == 0 ? JobRunReport.Failed(summary)
             : JobRunReport.Succeeded(summary);

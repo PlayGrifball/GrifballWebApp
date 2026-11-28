@@ -15,16 +15,13 @@
   }
 
   @if (loaded()) {
-    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Jobs"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+    <div class="hud-table-wrap jb-jobs-wrap" tabindex="0" role="region" aria-label="Jobs"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
       <table class="jb-table">
         <thead>
           <tr>
-            <th scope="col">Job</th>
-            <th scope="col">Every</th>
-            <th scope="col">State</th>
-            <th scope="col">Next run</th>
-            <th scope="col">Last run</th>
-            <th scope="col">Runs</th>
+            @for (heading of headings; track heading) {
+              <th scope="col">{{heading}}</th>
+            }
             <th scope="col"><span class="jb-sr">Actions</span></th>
           </tr>
         </thead>
@@ -80,7 +77,7 @@
               </td>
             </tr>
           @if (isSelected(job)) {
-            <tr class="jb-detail-row"><td colspan="7">
+            <tr class="jb-detail-row"><td [attr.colspan]="columns">
         <section class="jb-detail hud-panel" aria-labelledby="jb-detail">
           <h2 id="jb-detail" class="jb-heading">{{job.displayName}}</h2>
           @if (job.description) {
@@ -165,7 +162,7 @@
             </td></tr>
           }
           } @empty {
-            <tr><td colspan="7" class="hud-empty">No jobs yet: the worker makes them as it starts.</td></tr>
+            <tr><td [attr.colspan]="columns" class="hud-empty">No jobs yet: the worker makes them as it starts.</td></tr>
           }
         </tbody>
       </table>
