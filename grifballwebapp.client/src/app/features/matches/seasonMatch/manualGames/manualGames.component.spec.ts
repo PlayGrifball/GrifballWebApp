@@ -2,7 +2,7 @@ import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testin
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ManualGamesComponent } from './manualGames.component';
-import { INFINITE_GAME_VERSION_ID, toLocalInput } from './manualGameForm';
+import { INFINITE_GAME_VERSION_ID, isFormValid, ManualGameForm, toLocalInput } from './manualGameForm';
 import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
 import type { TeamPagePlayerDto } from '@api/models';
 import { renderDeferBlocks } from '@shared/testing/renderDeferBlocks';
@@ -73,6 +73,14 @@ describe('ManualGamesComponent', () => {
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
   const button = (label: string) => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
     .find(b => b.textContent!.trim() === label) as HTMLButtonElement | undefined;
+  /** Types into one of the rendered editor's own fields (its FormGroup, not component.initialForm, hears it). */
+  async function type(name: string, value: string): Promise<void> {
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
+    input.value = value;
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -96,7 +104,7 @@ describe('ManualGamesComponent', () => {
 
   it('does nothing with nothing to save or delete', () => {
     createAsCommissioner();
-    component.save();
+    component.save(component.initialForm);
     component.confirmDelete();
     expect(httpMock.match(() => true)).withContext('requests sent').toEqual([]);
   });
@@ -124,17 +132,18 @@ describe('ManualGamesComponent', () => {
 
     button('Enter a game by hand')!.click();
     await opened();
-    expect(component.form.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
-    expect(component.form.players.map(p => [p.userID, p.gamertag, p.isHomeTeam, p.played, p.goals]))
+    expect(component.initialForm.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
+    expect(component.initialForm.players.map(p => [p.userID, p.gamertag, p.isHomeTeam, p.played, p.goals]))
       .toEqual([[1, 'Grif', true, false, 0], [2, 'Unknown Spartan', true, false, 0], [3, 'Tucker', false, false, 0]]);
     expect(button('Save game')!.disabled).toBeTrue();
     expect((fixture.nativeElement as HTMLElement).querySelector('input[aria-label="Tucker goals"]')).not.toBeNull();
 
-    component.form.homeTeamScore = 3;
-    component.form.awayTeamScore = 5;
-    component.form.map = ' Pit ';
-    Object.assign(component.form.players[2], { played: true, kills: 8, deaths: 2, assists: 1, goals: 3, score: 4 });
-    component.save();
+    // The editor's own form, edited and emitted on save (never the initial form it started from)
+    const entered: ManualGameForm = {
+      ...component.initialForm, homeTeamScore: 3, awayTeamScore: 5, map: 'Pit',
+      players: component.initialForm.players.map((p, i) => i === 2 ? { ...p, played: true, kills: 8, deaths: 2, assists: 1, goals: 3, score: 4 } : p),
+    };
+    component.save(entered);
 
     const request = httpMock.expectOne('/api/season-matches/7/manual-games');
     expect(request.request.method).toBe('POST');
@@ -176,11 +185,11 @@ describe('ManualGamesComponent', () => {
   it("submits the rendered editor's own form to save the game, not component.save() called directly", async () => {
     createAsCommissioner();
     component.startAdd();
-    // Set before the editor first renders: it is an OnPush child reading the same form object, so a mutation
-    // after it has already rendered would not refresh its view (its siblings above set the form before opened() too).
-    component.form.homeTeamScore = 5;
-    component.form.awayTeamScore = 0;
     await opened();
+    // Filled in through the editor's own rendered fields, not component.initialForm (the editor owns its FormGroup
+    // from here; ManualGamesComponent only saves what it emits)
+    await type('homeTeamScore', '5');
+    await type('awayTeamScore', '0');
 
     button('Save game')!.click();
     const request = httpMock.expectOne('/api/season-matches/7/manual-games');
@@ -194,13 +203,13 @@ describe('ManualGamesComponent', () => {
   it('will not save equal scores, and says why', async () => {
     createAsCommissioner();
     component.startAdd();
-    component.form.homeTeamScore = 4;
-    component.form.awayTeamScore = 4;
     await opened();
+    await type('homeTeamScore', '4');
+    await type('awayTeamScore', '4');
 
-    expect(component.formValid()).toBeFalse();
     expect(text()).toContain("the two scores can't be equal");
-    component.save();
+    expect(button('Save game')!.disabled).toBeTrue();
+    button('Save game')!.click();
     httpMock.expectNone('/api/season-matches/7/manual-games');
   });
 
@@ -223,14 +232,13 @@ describe('ManualGamesComponent', () => {
     await opened();
     expect(component.editing()).toBe(41);
     expect(text()).toContain('Edit game');
-    expect([component.form.gameVersionID, component.form.map, component.form.gametype, component.form.homeTeamScore, component.form.awayTeamScore])
+    expect([component.initialForm.gameVersionID, component.initialForm.map, component.initialForm.gametype, component.initialForm.homeTeamScore, component.initialForm.awayTeamScore])
       .toEqual([1, 'Foundry', 'Grifball', 5, 2]);
-    expect(component.form.playedAt).toBe(toLocalInput('2026-01-10T20:30:00Z'));
-    expect(component.form.players.map(p => [p.userID, p.isHomeTeam, p.played, p.kills, p.goals]))
+    expect(component.initialForm.playedAt).toBe(toLocalInput('2026-01-10T20:30:00Z'));
+    expect(component.initialForm.players.map(p => [p.userID, p.isHomeTeam, p.played, p.kills, p.goals]))
       .toEqual([[1, true, true, 9, 2], [2, true, false, 0, 0], [3, false, false, 0, 0], [99, false, true, 1, 0]]);
 
-    component.form.homeTeamScore = 1;
-    component.save();
+    component.save({ ...component.initialForm, homeTeamScore: 1 });
     const request = httpMock.expectOne('/api/season-matches/7/manual-games/41');
     expect(request.request.body.homeTeamScore).toBe(1);
     expect(request.request.body.playedAt).toBe('2026-01-10T20:30:00.000Z');
@@ -242,25 +250,23 @@ describe('ManualGamesComponent', () => {
   it('edits a game entered without a map, gametype, time, players or game version', () => {
     createAsCommissioner(page({ reportedGames: [game()] }));
     component.startEdit(game({ map: null, gametype: null, gameVersionID: null, homeScore: null, awayScore: null, homePlayers: undefined, awayPlayers: undefined }));
-    expect([component.form.map, component.form.gametype, component.form.playedAt]).toEqual(['', '', '']);
-    expect(component.form.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
-    expect([component.form.homeTeamScore, component.form.awayTeamScore]).toEqual([null, null]);
-    expect(component.form.players.every(p => !p.played)).toBeTrue();
+    expect([component.initialForm.map, component.initialForm.gametype, component.initialForm.playedAt]).toEqual(['', '', '']);
+    expect(component.initialForm.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
+    expect([component.initialForm.homeTeamScore, component.initialForm.awayTeamScore]).toEqual([null, null]);
+    expect(component.initialForm.players.every(p => !p.played)).toBeTrue();
   });
 
   it('asks whether a game entered by hand is new or replaces one, picking neither, and sends the game it replaces', () => {
     createAsCommissioner(page({ reportedGames: [game({ seriesGameID: 60, matchID: 'g-1', recordedGameID: null, isManual: false })] }));
     component.startAdd();
-    component.form.homeTeamScore = 5;
-    component.form.awayTeamScore = 1;
-    fixture.detectChanges();
-    expect(component.form.slot).toBeNull();
-    expect(component.formValid()).toBeFalse();
+    const withScores = { ...component.initialForm, homeTeamScore: 5, awayTeamScore: 1 };
+    expect(withScores.slot).toBeNull();
+    expect(isFormValid(withScores, component.editing())).toBeFalse();
     expect(component.slots().map(choice => choice.label)).toEqual(['A new game (game 2)', 'Replaces game 1 (from Waypoint)']);
 
-    component.form.slot = 60;
-    expect(component.formValid()).toBeTrue();
-    component.save();
+    const withSlot = { ...withScores, slot: 60 };
+    expect(isFormValid(withSlot, component.editing())).toBeTrue();
+    component.save(withSlot);
     expect(httpMock.expectOne('/api/season-matches/7/manual-games').request.body.replacesSeriesGameID).toBe(60);
   });
 
@@ -310,9 +316,7 @@ describe('ManualGamesComponent', () => {
   it('falls back to a message of its own when the server gives none', () => {
     createAsCommissioner();
     component.startAdd();
-    component.form.homeTeamScore = 5;
-    component.form.awayTeamScore = 0;
-    component.save();
+    component.save({ ...component.initialForm, homeTeamScore: 5, awayTeamScore: 0 });
     httpMock.expectOne('/api/season-matches/7/manual-games').flush(null, { status: 500, statusText: 'Server Error' });
     expect(component.error()).toBe('The server could not save that.');
   });
@@ -390,7 +394,7 @@ describe('ManualGamesComponent', () => {
   it('while saving, shows what is sent, starts and cancels nothing, and goes back to it when the server refuses', async () => {
     createAsCommissioner(page({ reportedGames: [game()] }));
     component.startEdit(game());
-    component.save();
+    component.save(component.initialForm);
     const request = httpMock.expectOne('/api/season-matches/7/manual-games/41');
     await opened();
     expect(component.mode()).toEqual({ kind: 'saving', from: { kind: 'entering', target: 41 } });
@@ -398,10 +402,11 @@ describe('ManualGamesComponent', () => {
     expect(button('Save game')!.disabled).toBeTrue();
     expect(button('Cancel')!.disabled).toBeTrue();
 
+    // Nothing here starts, cancels or saves anything while a save is in flight, whatever is passed in
     component.cancel();
     component.startAdd();
     component.requestDelete(game());
-    component.save();
+    component.save(component.initialForm);
     expect(component.mode().kind).toBe('saving');
 
     request.flush('No such game', { status: 400, statusText: 'Bad Request' });
@@ -451,11 +456,11 @@ describe('ManualGamesComponent', () => {
     create(page(), true);
     httpMock.expectOne('/api/game-versions').flush([{ gameVersionID: 2, name: 'Halo Reach' }]);
     component.startAdd();
-    expect(component.form.gameVersionID).toBe(2);
+    expect(component.initialForm.gameVersionID).toBe(2);
 
     create(page(), true);
     httpMock.expectOne('/api/game-versions').flush(null, { status: 500, statusText: 'Server Error' });
     component.startAdd();
-    expect(component.form.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
+    expect(component.initialForm.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
   });
 });

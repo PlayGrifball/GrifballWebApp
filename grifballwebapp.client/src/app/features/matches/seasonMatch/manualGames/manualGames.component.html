@@ -18,8 +18,8 @@
 @if (editing() !== null) {
 <!-- The form's code (form fields, selects, checkboxes) loads only when a commissioner opens it -->
 @defer (on immediate) {
-<app-manual-game-editor [form]="form" [editing]="editing()!" [match]="match()" [slots]="slots()" [gameVersions]="gameVersions()"
-  [saving]="saving()" [blocked]="blocked()" (saved)="save()" (cancelled)="cancel()" />
+<app-manual-game-editor [form]="initialForm" [editing]="editing()!" [match]="match()" [slots]="slots()" [gameVersions]="gameVersions()"
+  [saving]="saving()" [blocked]="blocked()" (saved)="save($event)" (cancelled)="cancel()" />
 } @placeholder {
 <app-skeleton label="the game form" shape="block" height="420px" />
 } @error {

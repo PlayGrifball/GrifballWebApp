@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, input, model, output } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
-import { RegexMatchValidValidatorDirective } from '@shared/validation/directives/regexMatchValidValidatorDirective.directive';
+import { regexMatchValidValidator } from '@shared/validation/validators/regexMatchValidator';
 import { GUID_ERROR_MESSAGE, GUID_PATTERN } from '@shared/validation/guid';
 
 /**
@@ -13,15 +13,15 @@ import { GUID_ERROR_MESSAGE, GUID_PATTERN } from '@shared/validation/guid';
  */
 @Component({
   selector: 'app-report-match-form',
-  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, ErrorMessageComponent, RegexMatchValidValidatorDirective],
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, ErrorMessageComponent],
   template: `
-    <form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="submitted.emit(matchID())">
+    <form class="app-form" (ngSubmit)="submit()">
       <mat-form-field appearance="outline" class="app-full-width">
         <mat-label>Match ID</mat-label>
-        <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="guidErrorMessage">
-        <app-error-message [control]="reportMatchForm.controls['MatchID']" />
+        <input matInput [formControl]="matchIDControl" name="MatchID">
+        <app-error-message [control]="matchIDControl" />
       </mat-form-field>
-      <button mat-flat-button [disabled]="!reportMatchForm.form.valid || busy()">
+      <button mat-flat-button [disabled]="matchIDControl.invalid || busy()">
         Submit
       </button>
     </form>
@@ -36,6 +36,19 @@ export class ReportMatchFormComponent {
   /** Report this match ID (a GUID). */
   readonly submitted = output<string>();
 
-  protected readonly regex = GUID_PATTERN;
-  protected readonly guidErrorMessage = GUID_ERROR_MESSAGE;
+  /** The match ID typed in, valid only as a GUID (bare or wrapped in balanced braces). GUID_PATTERN is fully anchored
+   * (^...$), so one RegExp kept for the control's life is fine: no 'g' flag, so no lastIndex to go stale between checks. */
+  protected readonly matchIDControl = new FormControl(this.matchID(), {
+    nonNullable: true,
+    validators: regexMatchValidValidator(new RegExp(GUID_PATTERN), GUID_ERROR_MESSAGE),
+  });
+
+  constructor() {
+    this.matchIDControl.valueChanges.subscribe(value => this.matchID.set(value));
+  }
+
+  submit(): void {
+    if (this.matchIDControl.valid)
+      this.submitted.emit(this.matchID());
+  }
 }

@@ -1286,9 +1286,7 @@ describe('SeasonMatchComponent with manual entry', () => {
     press('Enter a game by hand');
     expect(component.confirming()).toBeNull();
     expect(text()).not.toContain('The home team forfeits');
-    manual().form.homeTeamScore = 5;
-    manual().form.awayTeamScore = 2;
-    manual().save();
+    manual().save({ ...manual().initialForm, homeTeamScore: 5, awayTeamScore: 2 });
     httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/manual-games' }).flush(41);
     httpMock.expectOne('/api/season-matches/7').flush(decidedByIt());
     fixture.detectChanges();
