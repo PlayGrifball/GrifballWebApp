@@ -65,6 +65,19 @@ describe('SpartanViewerComponent', () => {
     expect(named).toEqual([['neutral', 'stance']]);
   });
 
+  it('tells there are no clips when the next model cannot be read', async () => {
+    const fixture = create(async () => scene);
+    const named: (readonly string[])[] = [];
+    fixture.componentInstance.clipNames.subscribe(names => named.push(names));
+    await settle(fixture);
+
+    scene.show = async () => { throw new Error('bad glb'); };
+    fixture.componentRef.setInput('url', '/b.glb');
+    await settle(fixture);
+
+    expect(named).toEqual([['neutral', 'stance'], []]);
+  });
+
   it('tells only the clips of the newest model when a slow one is overtaken', async () => {
     const pending: ((names: string[]) => void)[] = [];
     scene.show = url => { shown.push(url); return new Promise(resolve => pending.push(resolve)); };
