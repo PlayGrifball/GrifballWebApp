@@ -163,6 +163,28 @@ public sealed class JsonOnlyOperationFilter : IOperationFilter
 }
 
 /// <summary>
+/// Describes a response that may be any of several image types (a stored picture is a PNG, JPEG or WebP, whichever Xbox or Halo gave)
+/// as one, image/* (Program.cs): which one comes is the stored image's, not the caller's to choose, and one media type gives the
+/// generated client one method per operation, not one a type. A response of a single image type stays as it is.
+/// </summary>
+public sealed class ImagesAsOneMediaTypeOperationFilter : IOperationFilter
+{
+    public const string AnyImage = "image/*";
+
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        foreach (var response in operation.Responses?.Values ?? [])
+        {
+            if (response.Content is not { Count: > 1 } content || !content.Keys.All(k => k.StartsWith("image/", StringComparison.OrdinalIgnoreCase)))
+                continue;
+            var media = content.Values.First();
+            content.Clear();
+            content[AnyImage] = media;
+        }
+    }
+}
+
+/// <summary>
 /// Names query parameters as the API's JSON names its properties (its naming policy, camelCase) (Program.cs): an action
 /// that binds its query to a class (a list's paging and filters) would otherwise list them by property name, PascalCase,
 /// and the generated client would send them so. Binding ignores case either way; the URLs stay the ones the client always

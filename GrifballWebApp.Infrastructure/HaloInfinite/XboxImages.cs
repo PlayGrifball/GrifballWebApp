@@ -157,14 +157,18 @@ public class XboxImageSource
 
     public Task<int> CountDueAsync(XboxUserImageKind kind, CancellationToken ct) => Due(kind).CountAsync(ct);
 
-    /// <summary>The image row of the account (made, unsaved, when it has none), stamped as checked now.</summary>
-    private async Task<XboxUserImage> RowAsync(long xuid, XboxUserImageKind kind, CancellationToken ct)
+    /// <summary>The image rows the accounts already have, by account: one query for a call's (or a run's) accounts.</summary>
+    private Task<Dictionary<long, XboxUserImage>> RowsAsync(IReadOnlyCollection<long> xuids, XboxUserImageKind kind, CancellationToken ct)
+        => _context.XboxUserImages.Where(i => i.Kind == kind && xuids.Contains(i.XboxUserID)).ToDictionaryAsync(i => i.XboxUserID, ct);
+
+    /// <summary>The image row of the account among <paramref name="rows"/> (made, unsaved, when it has none), stamped as checked now.</summary>
+    private XboxUserImage Row(Dictionary<long, XboxUserImage> rows, long xuid, XboxUserImageKind kind)
     {
-        var row = await _context.XboxUserImages.FirstOrDefaultAsync(i => i.XboxUserID == xuid && i.Kind == kind, ct);
-        if (row is null)
+        if (!rows.TryGetValue(xuid, out var row))
         {
             row = new XboxUserImage { XboxUserID = xuid, Kind = kind };
             _context.XboxUserImages.Add(row);
+            rows[xuid] = row;
         }
         row.CheckedAt = _time.GetUtcNow().UtcDateTime;
         return row;
@@ -276,9 +280,10 @@ public class XboxImageSource
             return true;
         }
         var users = response.Result;
+        var rows = await RowsAsync(xuids, XboxUserImageKind.GamerPicture, ct);
         foreach (var xuid in xuids)
         {
-            var row = await RowAsync(xuid, XboxUserImageKind.GamerPicture, ct);
+            var row = Row(rows, xuid, XboxUserImageKind.GamerPicture);
             report.Checked++;
             if (users is null)
             {
@@ -358,24 +363,33 @@ public class XboxImageSource
             throw new InvalidOperationException("The emblem mapping isn't available: " + Describe(mapping));
 
         var gap = Gap(_options.EmblemCallsPerMinute);
-        var downloaded = new Dictionary<string, DownloadedImage?>();
-        var itemImages = new Dictionary<string, string?>();
+        var run = new EmblemRun(mapping.Result, gap, await RowsAsync(due, XboxUserImageKind.HaloEmblem, ct));
         var first = true;
         foreach (var xuid in due)
         {
             if (!first)
                 await Delay(gap, ct);
             first = false;
-            if (await EmblemAsync(xuid, mapping.Result, gap, downloaded, itemImages, report, ct))
+            if (await EmblemAsync(xuid, run, report, ct))
                 break;
             await _context.SaveChangesAsync(ct);
         }
         return report;
     }
 
+    /// <summary>
+    /// What a run of the emblems shares: the mapping, the gap between calls, the image rows its accounts already have (one query), and what
+    /// it has downloaded and looked up so far, so a shared emblem or item is asked for once.
+    /// </summary>
+    private sealed record EmblemRun(Dictionary<string, Dictionary<string, Surprenant.Grunt.Models.HaloInfinite.EmblemImageAssets>> Mapping, TimeSpan Gap,
+        Dictionary<long, XboxUserImage> Rows)
+    {
+        public Dictionary<string, DownloadedImage?> Downloaded { get; } = [];
+        public Dictionary<string, string?> ItemImages { get; } = [];
+    }
+
     /// <summary>The emblem of one account. Returns true when Halo throttled the run (nothing recorded for the account).</summary>
-    private async Task<bool> EmblemAsync(long xuid, Dictionary<string, Dictionary<string, Surprenant.Grunt.Models.HaloInfinite.EmblemImageAssets>> mapping, TimeSpan gap,
-        Dictionary<string, DownloadedImage?> downloaded, Dictionary<string, string?> itemImages, XboxImagesReport report, CancellationToken ct)
+    private async Task<bool> EmblemAsync(long xuid, EmblemRun run, XboxImagesReport report, CancellationToken ct)
     {
         HaloApiResultContainer<Surprenant.Grunt.Models.HaloInfinite.CustomizationData, HaloApiErrorContainer> response;
         string? callError = null;
@@ -394,7 +408,7 @@ public class XboxImageSource
             return true;
         }
 
-        var row = await RowAsync(xuid, XboxUserImageKind.HaloEmblem, ct);
+        var row = Row(run.Rows, xuid, XboxUserImageKind.HaloEmblem);
         report.Checked++;
         if (response.Result is null)
         {
@@ -412,13 +426,13 @@ public class XboxImageSource
         }
 
         var emblem = response.Result.Appearance?.Emblem;
-        var path = ImagePathOf(emblem, mapping);
+        var path = ImagePathOf(emblem, run.Mapping);
         var ofItem = false;
         if (path is null && !string.IsNullOrWhiteSpace(emblem?.EmblemPath))
         {
             try
             {
-                var (itemPath, throttled) = await ItemImagePathAsync(emblem.EmblemPath, itemImages, report, gap, ct);
+                var (itemPath, throttled) = await ItemImagePathAsync(emblem.EmblemPath, run.ItemImages, report, run.Gap, ct);
                 if (throttled)
                 {
                     report.Checked--;
@@ -439,7 +453,7 @@ public class XboxImageSource
             NotFound(row, keepStored: !string.IsNullOrWhiteSpace(emblem?.EmblemPath));
             report.NotFound++;
         }
-        else if (await StoreEmblemAsync(row, path, ofItem, downloaded, report, ct))
+        else if (await StoreEmblemAsync(row, path, ofItem, run.Downloaded, report, ct))
         {
             report.Checked--;
             return true;

@@ -477,3 +477,57 @@ public class NumberEnumSchemaFilterTests
         Assert.That(missing, Is.Empty);
     }
 }
+
+/// <summary>
+/// A response of several image types described as image/* (OpenApiSchemas.cs): the stored picture's type is not the caller's to pick, and
+/// one media type gives the generated client one method per image endpoint.
+/// </summary>
+[TestFixture]
+public class ImagesAsOneMediaTypeOperationFilterTests
+{
+    private static readonly string[] AnyImage = [ImagesAsOneMediaTypeOperationFilter.AnyImage];
+    private static readonly string[] Png = ["image/png"];
+    private static readonly string[] Problem = ["application/problem+json"];
+    private static readonly string[] JsonAndPng = ["application/json", "image/png"];
+
+    private static Dictionary<string, OpenApiMediaType> Content(params string[] types)
+        => types.ToDictionary(t => t, _ => new OpenApiMediaType());
+
+    [Test]
+    public void Apply_SeveralImageTypes_AreOne_AnyImage_TheirSchemaKept()
+    {
+        var binary = new OpenApiMediaType();
+        var images = new Dictionary<string, OpenApiMediaType> { ["image/png"] = binary, ["image/jpeg"] = new(), ["image/webp"] = new() };
+        var operation = new OpenApiOperation
+        {
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse { Content = images },
+                ["201"] = new OpenApiResponse { Content = Content("image/png") },
+                ["202"] = new OpenApiResponse { Content = Content("application/json", "image/png") },
+                ["404"] = new OpenApiResponse { Content = Content("application/problem+json") },
+            },
+        };
+
+        new ImagesAsOneMediaTypeOperationFilter().Apply(operation, null!);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(operation.Responses["200"].Content!.Keys, Is.EqualTo(AnyImage));
+            Assert.That(operation.Responses["200"].Content![ImagesAsOneMediaTypeOperationFilter.AnyImage], Is.SameAs(binary));
+            Assert.That(operation.Responses["201"].Content!.Keys, Is.EqualTo(Png), "a single image type stays");
+            Assert.That(operation.Responses["202"].Content!.Keys, Is.EqualTo(JsonAndPng), "not only images: left alone");
+            Assert.That(operation.Responses["404"].Content!.Keys, Is.EqualTo(Problem));
+        }
+    }
+
+    [Test]
+    public void Apply_AnOperationWithoutResponses_IsLeftAlone()
+    {
+        var bare = new OpenApiOperation { Responses = null };
+
+        new ImagesAsOneMediaTypeOperationFilter().Apply(bare, null!);
+
+        Assert.That(bare.Responses, Is.Null);
+    }
+}

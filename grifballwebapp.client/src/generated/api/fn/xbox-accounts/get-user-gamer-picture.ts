@@ -8,18 +8,18 @@ import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
 
-export interface GetXboxAccountGamerPicture$Jpeg$Params {
-  xboxUserID: number;
+export interface GetUserGamerPicture$Params {
+  userID: number;
 }
 
-export function getXboxAccountGamerPicture$Jpeg(http: HttpClient, rootUrl: string, params: GetXboxAccountGamerPicture$Jpeg$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
-  const rb = new RequestBuilder(rootUrl, getXboxAccountGamerPicture$Jpeg.PATH, 'get');
+export function getUserGamerPicture(http: HttpClient, rootUrl: string, params: GetUserGamerPicture$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+  const rb = new RequestBuilder(rootUrl, getUserGamerPicture.PATH, 'get');
   if (params) {
-    rb.path('xboxUserID', params.xboxUserID, {});
+    rb.path('userID', params.userID, {});
   }
 
   return http.request(
-    rb.build({ responseType: 'blob', accept: 'image/jpeg', context })
+    rb.build({ responseType: 'blob', accept: 'image/*', context })
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
@@ -28,4 +28,4 @@ export function getXboxAccountGamerPicture$Jpeg(http: HttpClient, rootUrl: strin
   );
 }
 
-getXboxAccountGamerPicture$Jpeg.PATH = '/xbox-accounts/{xboxUserID}/gamer-picture';
+getUserGamerPicture.PATH = '/users/{userID}/gamer-picture';

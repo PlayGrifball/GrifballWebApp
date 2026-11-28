@@ -81,6 +81,63 @@ public class XboxImageSourceTests : SqliteContextFixture
         }
     }
 
+    /// <summary>Counts the queries that read image rows themselves (not the due accounts' query, which only looks at them).</summary>
+    private sealed class RowReads : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+    {
+        private int _count;
+
+        public int Count { get => _count; set => _count = value; }
+
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader>> ReaderExecutingAsync(
+            System.Data.Common.DbCommand command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FROM \"XboxUserImages\" AS", StringComparison.Ordinal) && !command.CommandText.Contains("\"XboxUsers\"", StringComparison.Ordinal))
+                Interlocked.Increment(ref _count);
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
+    }
+
+    private readonly RowReads _rowReads = new();
+
+    protected override GrifballContext CreateContext() =>
+        new(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString).AddInterceptors(_rowReads).Options);
+
+    [Test]
+    public async Task GamerPictures_ReadTheRowsOfACallsAccounts_InOneQuery()
+    {
+        await AddAccountsAsync(Enumerable.Range(1, 25).Select(i => (long)i).ToArray());
+        GivenUsers();
+        _rowReads.Count = 0;
+
+        var report = await Source().RunGamerPicturesAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Checked, Is.EqualTo(25));
+            Assert.That(_rowReads.Count, Is.EqualTo(2), "one for each of the two Users calls, not one an account");
+        }
+    }
+
+    [Test]
+    public async Task Emblems_ReadTheRunsRows_InOneQuery()
+    {
+        await AddAccountsAsync(1, 2, 3);
+        GivenMapping();
+        foreach (var xuid in new long[] { 1, 2, 3 })
+            GivenEmblem(xuid, "/inventory/armor/emblems/013-001-aaaa.json");
+        _halo.GameCmsWaypointGetImage("images/emblems/a7.png").Returns(Ok(Png));
+        _rowReads.Count = 0;
+
+        var report = await Source().RunEmblemsAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Stored, Is.EqualTo(3));
+            Assert.That(_rowReads.Count, Is.EqualTo(1), "one for the run, not one an account");
+        }
+    }
+
     [Test]
     public async Task GamerPictures_AskHaloTwentyAccountsToACall_SpacedToTheCallsAMinute()
     {

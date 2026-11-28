@@ -8,18 +8,18 @@ import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
 
-export interface GetUserProfilePicture$Png$Params {
+export interface GetUserProfilePicture$Params {
   userID: number;
 }
 
-export function getUserProfilePicture$Png(http: HttpClient, rootUrl: string, params: GetUserProfilePicture$Png$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
-  const rb = new RequestBuilder(rootUrl, getUserProfilePicture$Png.PATH, 'get');
+export function getUserProfilePicture(http: HttpClient, rootUrl: string, params: GetUserProfilePicture$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+  const rb = new RequestBuilder(rootUrl, getUserProfilePicture.PATH, 'get');
   if (params) {
     rb.path('userID', params.userID, {});
   }
 
   return http.request(
-    rb.build({ responseType: 'blob', accept: 'image/png', context })
+    rb.build({ responseType: 'blob', accept: 'image/*', context })
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
@@ -28,4 +28,4 @@ export function getUserProfilePicture$Png(http: HttpClient, rootUrl: string, par
   );
 }
 
-getUserProfilePicture$Png.PATH = '/users/{userID}/profile-picture';
+getUserProfilePicture.PATH = '/users/{userID}/profile-picture';
