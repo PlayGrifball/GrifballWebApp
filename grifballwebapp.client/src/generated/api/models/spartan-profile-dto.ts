@@ -4,12 +4,12 @@
 import { SpartanChoice } from '../models/spartan-choice';
 
 /**
- * What a user's Spartan stands at: their own choice if they made one, and the render of it.
+ * What a user's Spartan stands at: their own choice if they made one, and the render of it, with the weapon its stance holds.
  */
 export interface SpartanProfileDto {
 
   /**
-   * A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise). Anything left out is the core's default.
+   * A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise), and per weapon (by name) the coating it wears when a stance holds it. Anything left out is the core's default (a weapon's: the coating equipped in Halo).
    */
   choice: SpartanChoice | null;
   files: Array<string>;
@@ -17,4 +17,5 @@ export interface SpartanProfileDto {
   renderError: string | null;
   renderState: string | null;
   renderedAt: string | null;
+  weapon: string | null;
 }

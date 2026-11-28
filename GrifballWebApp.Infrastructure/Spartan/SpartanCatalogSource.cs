@@ -36,7 +36,9 @@ public sealed class SpartanCatalogSource(InfiniteSpartanRenderClient client, IMe
                 [.. r.Pieces.Select(p => new Application.Spartan.SpartanCatalogPiece(p.Permutation, p.Name))]))]))],
         [.. catalog.Coatings],
         [.. catalog.PendingCores],
-        [.. catalog.Visors]);
+        [.. catalog.Visors],
+        [.. (catalog.Weapons ?? []).Select(w => new Application.Spartan.SpartanCatalogWeapon(w.Name, w.CoreType, [.. w.Tags], [.. w.Coatings]))],
+        [.. (catalog.Poses ?? []).Select(p => new Application.Spartan.SpartanCatalogPose(p.Name, p.Stance, p.Weapon))]);
 }
 
 public static class SpartanRenderServiceExtensions

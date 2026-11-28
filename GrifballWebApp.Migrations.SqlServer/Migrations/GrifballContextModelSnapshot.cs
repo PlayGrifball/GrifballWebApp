@@ -4412,6 +4412,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int>("State")
                         .HasColumnType("int");
 
+                    b.Property<string>("Weapon")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.HasKey("UserId");
 
                     b.HasIndex("State", "RequestedAt");
@@ -4687,6 +4691,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<string>("VisorPath")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("WeaponCoatingsJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("WristAttachmentPath")
                         .HasMaxLength(300)

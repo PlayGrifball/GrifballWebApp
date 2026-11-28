@@ -7,8 +7,11 @@ using Surprenant.Grunt.Models.HaloInfinite;
 
 namespace GrifballWebApp.Infrastructure.Spartan;
 
-/// <summary>An equipped set as the render service names it, and the stance of the equipped action pose (null when it has none).</summary>
-public sealed record MappedSpartan(SpartanChoice Choice, int? Stance);
+/// <summary>An equipped set as the render service names it, and the stance of the equipped action pose and the weapon it holds (null when it has none).</summary>
+public sealed record MappedSpartan(SpartanChoice Choice, int? Stance, int? WeaponTagId = null);
+
+/// <summary>An action pose: its stance and the weaponTagId of the weapon it holds (each null when it has none).</summary>
+public sealed record SpartanPose(int? Stance, int? WeaponTagId);
 
 /// <summary>Halo did not give an answer to use (a passing problem); <see cref="Wait"/> is how long it asked to be left alone.</summary>
 public sealed class HaloAnswerException(string message, TimeSpan? wait = null) : HttpRequestException(message)
@@ -29,7 +32,7 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
     /// <summary>Waits between two calls to Halo; replaceable in tests.</summary>
     public Func<TimeSpan, CancellationToken, Task> Delay { get; set; } = (delay, ct) => Task.Delay(delay, ct);
 
-    private sealed record Item(string? Title, int? StyleId, int? StanceId);
+    private sealed record Item(string? Title, int? StyleId, int? StanceId, int? WeaponTagId = null);
 
     private sealed record Slot(string? Path, params string[] Hints);
 
@@ -69,13 +72,18 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
         string? visor = null;
         if ((await ItemOf(armor.VisorPath, ct))?.Title is { } visorTitle)
             visor = catalog.Visors.FirstOrDefault(v => string.Equals(v, visorTitle, StringComparison.OrdinalIgnoreCase));
-        var stance = await StanceOf(armor, ct);
+        var pose = await PoseOf(armor, ct);
 
-        return new MappedSpartan(new SpartanChoice(core.Name, pieces, null, coating, visor), stance);
+        return new MappedSpartan(new SpartanChoice(core.Name, pieces, null, coating, visor), pose.Stance, pose.WeaponTagId);
     }
 
-    /// <summary>The stance of the armor row's action pose, or null when it has none. Throws when Halo failed.</summary>
-    public async Task<int?> StanceOf(XboxUserArmor armor, CancellationToken ct) => (await ItemOf(armor.ActionPosePath, ct))?.StanceId;
+    /// <summary>The stance of the armor row's action pose and the weapon it holds. Throws when Halo failed.</summary>
+    public async Task<SpartanPose> PoseOf(XboxUserArmor armor, CancellationToken ct)
+        => await ItemOf(armor.ActionPosePath, ct) is { } pose ? new(pose.StanceId, pose.WeaponTagId) : new(null, null);
+
+    /// <summary>The coating (its style id) the account has equipped on a weapon type (a weapon core type, e.g. WeaponCommando), or null. Throws when Halo failed.</summary>
+    public async Task<string?> WeaponCoatingOf(XboxUserArmor armor, string coreType, CancellationToken ct)
+        => armor.WeaponCoatingPaths.TryGetValue(coreType, out var path) && (await ItemOf(path, ct))?.StyleId is int style ? style.ToString() : null;
 
     private static string CatalogNameOf(SpartanCatalogCore core, string regionKey, string title)
         => core.Regions.First(r => r.Key == regionKey).Pieces.First(p => string.Equals(p.Name, title, StringComparison.OrdinalIgnoreCase)).Name ?? title;
@@ -126,6 +134,7 @@ public sealed class SpartanArmorMapper(IHaloInfiniteClient halo, IMemoryCache ca
         return new Item(
             string.IsNullOrWhiteSpace(title) ? null : title.Trim(),
             r.StyleId?.MIdentifier,
-            r.StanceId is { MIdentifier: not 0 } stance ? stance.MIdentifier : null);
+            r.StanceId is { MIdentifier: not 0 } stance ? stance.MIdentifier : null,
+            r.WeaponTagId is not (null or 0) ? r.WeaponTagId : null);
     }
 }

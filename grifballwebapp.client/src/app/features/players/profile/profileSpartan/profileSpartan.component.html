@@ -62,6 +62,16 @@
           @for (visor of c.visors; track visor) { <option [value]="visor">{{visor}}</option> }
         </select>
 
+        <ng-container formGroupName="weaponCoatings">
+          @for (w of coatableWeapons(); track w.name) {
+            <label [for]="coatingId(w)">{{w.name}} coating</label>
+            <select [id]="coatingId(w)" [formControlName]="w.name">
+              <option value="">Equipped in Halo</option>
+              @for (style of w.coatings; track style) { <option [value]="style">{{style}}</option> }
+            </select>
+          }
+        </ng-container>
+
         <label for="spartan-disable-damage">Clean armor</label>
         <label class="spartan-check"><input id="spartan-disable-damage" type="checkbox" formControlName="disableDamage"> Leave off the damage and grime layer</label>
 

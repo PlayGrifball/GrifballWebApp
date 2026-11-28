@@ -4,7 +4,7 @@
 import { SpartanPartChoice } from '../models/spartan-part-choice';
 
 /**
- * A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise). Anything left out is the core's default.
+ * A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise), and per weapon (by name) the coating it wears when a stance holds it. Anything left out is the core's default (a weapon's: the coating equipped in Halo).
  */
 export interface SpartanChoice {
   armor: ({
@@ -15,4 +15,7 @@ export interface SpartanChoice {
   disableDamage: boolean;
   parts: Array<SpartanPartChoice> | null;
   visor: string | null;
+  weaponCoatings: ({
+[key: string]: string;
+}) | null;
 }

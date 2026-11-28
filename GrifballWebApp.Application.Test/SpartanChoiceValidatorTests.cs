@@ -27,6 +27,43 @@ public class SpartanChoiceValidatorTests
         Assert.That(problems, Is.EqualTo(new List<string> { "The region 'helmet' of 'Mark VII' has no piece ''", "The core 'Mark VII' has no region 'x'" }));
     }
 
+    private static readonly SpartanCatalog WithWeapons = Catalog with
+    {
+        Weapons = [new SpartanCatalogWeapon("VK78 Commando Rifle", "WeaponCommando", [-40348340], ["5", "6"])],
+    };
+
+    [Test]
+    public void ThePoseWeapon_IsTheOneWithItsTag_OrNoneForNoTag_AnUnknownTag_OrACatalogWithoutWeapons()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(WithWeapons.WeaponOf(-40348340)?.Name, Is.EqualTo("VK78 Commando Rifle"));
+            Assert.That(WithWeapons.WeaponOf(null), Is.Null);
+            Assert.That(WithWeapons.WeaponOf(5), Is.Null);
+            Assert.That(Catalog.WeaponOf(-40348340), Is.Null);
+        }
+    }
+
+    [Test]
+    public void AWeaponCoating_MustBeOneOfThatWeaponsCoatings()
+    {
+        var problems = SpartanChoiceValidator.Validate(new SpartanChoice("Mark VII", WeaponCoatings: new Dictionary<string, string>
+        {
+            ["VK78 Commando Rifle"] = "6",
+            ["Energy Sword"] = "1",
+            ["VK78 Commando Rifle "] = "5",
+        }), WithWeapons);
+        var ok = SpartanChoiceValidator.Validate(new SpartanChoice("Mark VII", WeaponCoatings: new Dictionary<string, string> { ["VK78 Commando Rifle"] = "5" }), WithWeapons);
+        var wrongCoating = SpartanChoiceValidator.Validate(new SpartanChoice("Mark VII", WeaponCoatings: new Dictionary<string, string> { ["VK78 Commando Rifle"] = "7" }), WithWeapons);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(problems, Is.EqualTo(new List<string> { "There is no weapon 'Energy Sword'", "There is no weapon 'VK78 Commando Rifle '" }));
+            Assert.That(ok, Is.Empty);
+            Assert.That(wrongCoating, Is.EqualTo(new List<string> { "The weapon 'VK78 Commando Rifle' has no coating '7'" }));
+        }
+    }
+
     [Test]
     public void ACoreAlone_IsAccepted() => Assert.That(Check(new SpartanChoice("Mark VII")), Is.Empty);
 

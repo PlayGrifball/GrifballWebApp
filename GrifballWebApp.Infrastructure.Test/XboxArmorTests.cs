@@ -370,6 +370,63 @@ public class XboxArmorTests : SqliteContextFixture
         Assert.That((row.HelmetPath!.Length, row.VisorPath), Is.EqualTo((300, (string?)null)));
     }
 
+    private static CustomizationData WithWeapons(string commandoCoating = "coatings/commando.json")
+    {
+        var data = Armor();
+        data.WeaponCores = new WeaponCoreCollection
+        {
+            WeaponCores =
+            [
+                // A weapon type with one core, not marked equipped (as Halo answers): its equipped theme counts
+                new WeaponCore
+                {
+                    CoreType = "WeaponCommando", CoreId = "commando", IsEquipped = false,
+                    Themes = [new WeaponCoreTheme { IsEquipped = false, CoatingPath = "coatings/old.json" }, new WeaponCoreTheme { IsEquipped = true, CoatingPath = commandoCoating }],
+                },
+                // Two cores of one type: the equipped core's equipped theme
+                new WeaponCore { CoreType = "WeaponAR", CoreId = "ar-a", IsEquipped = false, Themes = [new WeaponCoreTheme { IsEquipped = true, CoatingPath = "coatings/ar-a.json" }] },
+                new WeaponCore { CoreType = "WeaponAR", CoreId = "ar-b", IsEquipped = true, Themes = [new WeaponCoreTheme { IsEquipped = true, CoatingPath = "coatings/ar-b.json" }] },
+                new WeaponCore { CoreType = "WeaponSniper", CoreId = "s7", IsEquipped = false, Themes = [new WeaponCoreTheme { IsEquipped = true, CoatingPath = " " }] },
+                // No themes, or none equipped: no coating for that type
+                new WeaponCore { CoreType = "WeaponNeedler", CoreId = "n", IsEquipped = true, Themes = null! },
+                new WeaponCore { CoreType = "WeaponMangler", CoreId = "m", IsEquipped = true, Themes = [new WeaponCoreTheme { IsEquipped = false, CoatingPath = "coatings/m.json" }] },
+            ],
+        };
+        return data;
+    }
+
+    [Test]
+    public void Apply_StoresTheEquippedCoatingOfEachWeaponType()
+    {
+        var row = new XboxUserArmor { XboxUserID = 1 };
+
+        XboxArmorSource.Apply(row, WithWeapons(), Day);
+
+        Assert.That(row.WeaponCoatingPaths, Is.EqualTo(new Dictionary<string, string>
+        {
+            ["WeaponAR"] = "coatings/ar-b.json",
+            ["WeaponCommando"] = "coatings/commando.json",
+        }));
+    }
+
+    [Test]
+    public void Apply_ANewWeaponCoating_IsAChange_AndNoWeaponsStoresNone()
+    {
+        var row = new XboxUserArmor { XboxUserID = 1 };
+        XboxArmorSource.Apply(row, WithWeapons(), Day);
+
+        var changed = XboxArmorSource.Apply(row, WithWeapons("coatings/adrenal.json"), Day.AddDays(1));
+        var withoutWeapons = new XboxUserArmor { XboxUserID = 2 };
+        XboxArmorSource.Apply(withoutWeapons, Armor(), Day);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((changed, row.ChangedAt), Is.EqualTo((true, Day.AddDays(1))));
+            Assert.That(row.WeaponCoatingPaths["WeaponCommando"], Is.EqualTo("coatings/adrenal.json"));
+            Assert.That((withoutWeapons.WeaponCoatingsJson, withoutWeapons.WeaponCoatingPaths.Count), Is.EqualTo(((string?)null, 0)));
+        }
+    }
+
     [Test]
     public async Task Job_WithNothingDue_IsSkipped()
     {

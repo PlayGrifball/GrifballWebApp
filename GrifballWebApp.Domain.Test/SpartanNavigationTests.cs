@@ -25,6 +25,18 @@ public class SpartanNavigationTests
     }
 
     [Test]
+    public void TheWeaponCoatingPaths_AreTheStoredJson_OrNoneForNullOrJsonNull()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(new XboxUserArmor { WeaponCoatingsJson = """{"WeaponCommando":"coatings/w.json"}""" }.WeaponCoatingPaths,
+                Is.EqualTo(new Dictionary<string, string> { ["WeaponCommando"] = "coatings/w.json" }));
+            Assert.That(new XboxUserArmor { WeaponCoatingsJson = null }.WeaponCoatingPaths, Is.Empty);
+            Assert.That(new XboxUserArmor { WeaponCoatingsJson = "null" }.WeaponCoatingPaths, Is.Empty);
+        }
+    }
+
+    [Test]
     public void TheEquippedArmor_PointsBackAtItsXboxUser()
     {
         var account = XboxUser.FromXbox(1, "Gamer");

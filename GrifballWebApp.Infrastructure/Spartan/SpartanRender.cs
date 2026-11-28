@@ -206,17 +206,20 @@ public sealed class SpartanRenderSource(
 
     private async Task<Outcome> MakeAsync(UserSpartanRender render, DateTime asked, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
     {
-        var (choice, stance, problem, passing) = await WhatToRenderAsync(render.UserId, catalog, ct);
-        if (choice is null)
-            return await NothingToRenderAsync(render, asked, problem ?? "There is no Spartan to render", passing, ct);
+        var plan = await WhatToRenderAsync(render.UserId, catalog, ct);
+        // Every plan without a choice says why
+        if (plan.Choice is not { } choice)
+            return await NothingToRenderAsync(render, asked, plan.Problem!, plan.Passing, ct);
 
-        var key = KeyOf(choice, stance);
+        var stance = plan.Stance;
+        var key = KeyOf(choice, stance, plan.Weapon, plan.WeaponCoating, plan.ExtraPoses, plan.WeaponCoatings);
         var have = await context.UserSpartanFiles.CountAsync(f => f.UserId == render.UserId, ct);
         if (render.LoadoutKey == key && have == (stance is null ? 3 : 6))
         {
             render.State = UserSpartanRenderState.Done;
             render.RenderedAt = time.GetUtcNow().UtcDateTime;
             render.Error = null;
+            render.Weapon = plan.Weapon;
             await context.SaveChangesAsync(ct);
             return Outcome.Done;
         }
@@ -226,7 +229,7 @@ public sealed class SpartanRenderSource(
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(_options.Timeout);
-        var files = await MakeFilesAsync(choice, stance, timeout.Token);
+        var files = await MakeFilesAsync(plan, timeout.Token);
 
         await using var transaction = await context.Database.BeginTransactionAsync(ct);
         await DeleteFilesAsync(render.UserId, ct);
@@ -240,6 +243,7 @@ public sealed class SpartanRenderSource(
             .SetProperty(r => r.State, r => r.RequestedAt == asked ? UserSpartanRenderState.Done : UserSpartanRenderState.Requested)
             .SetProperty(r => r.RenderedAt, renderedAt)
             .SetProperty(r => r.LoadoutKey, key)
+            .SetProperty(r => r.Weapon, plan.Weapon)
             .SetProperty(r => r.Error, (string?)null), ct);
         await transaction.CommitAsync(ct);
         await context.Entry(render).ReloadAsync(ct);
@@ -300,7 +304,11 @@ public sealed class SpartanRenderSource(
             await context.Entry(render).ReloadAsync(ct);
     }
 
-    private sealed record Plan(SpartanChoice? Choice, int? Stance, string? Problem = null, bool Passing = false);
+    private sealed record Plan(SpartanChoice? Choice, int? Stance, string? Problem = null, bool Passing = false, string? Weapon = null, string? WeaponCoating = null,
+        IReadOnlyList<int>? ExtraPoses = null, IReadOnlyDictionary<string, string>? WeaponCoatings = null);
+
+    /// <summary>Grifball's own weapons: every model also carries the poses that hold them, each weapon in the player's coating for it.</summary>
+    internal static readonly string[] ExtraPoseWeapons = ["Gravity Hammer", "Energy Sword"];
 
     private async Task<Plan> WhatToRenderAsync(int userId, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
     {
@@ -313,38 +321,92 @@ public sealed class SpartanRenderSource(
             if (armor is null)
                 return new(null, null, "No equipped Spartan is known for this account yet");
             var equipped = await mapper.Map(armor, catalog, ct);
-            return equipped is null
-                ? new(null, null, "The render service does not have the equipped core yet", Passing: true)
-                : new(equipped.Choice, equipped.Stance);
+            if (equipped is null)
+                return new(null, null, "The render service does not have the equipped core yet", Passing: true);
+            var (weapon, coating) = await WeaponOfAsync(armor, equipped.WeaponTagId, equipped.Choice, catalog, false, ct);
+            var (poses, coatings) = await ExtrasAsync(armor, equipped.Choice, catalog, false, ct);
+            return new(equipped.Choice, equipped.Stance, Weapon: weapon, WeaponCoating: coating, ExtraPoses: poses, WeaponCoatings: coatings);
         }
         var choice = JsonSerializer.Deserialize<SpartanChoice>(json, SpartanService.Json)!;
         var problems = SpartanChoiceValidator.Validate(choice, catalog);
-        return problems.Count > 0 ? new(null, null, string.Join("; ", problems)) : new(choice, await StanceOfAsync(armor, ct));
+        if (problems.Count > 0)
+            return new(null, null, string.Join("; ", problems));
+        var pose = await PoseOfAsync(armor, ct);
+        var (held, heldCoating) = await WeaponOfAsync(armor, pose.WeaponTagId, choice, catalog, true, ct);
+        var (extra, extraCoatings) = await ExtrasAsync(armor, choice, catalog, true, ct);
+        return new(choice, pose.Stance, Weapon: held, WeaponCoating: heldCoating, ExtraPoses: extra, WeaponCoatings: extraCoatings);
     }
 
-    // The user's own Spartan needs nothing from Halo but the stance they have equipped: without it, only the neutral pose is made
-    private async Task<int?> StanceOfAsync(XboxUserArmor? armor, CancellationToken ct)
+    // The poses that hold Grifball's weapons, and each of those weapons' coatings
+    private async Task<(List<int> Poses, Dictionary<string, string> Coatings)> ExtrasAsync(XboxUserArmor? armor, SpartanChoice choice,
+        Application.Spartan.SpartanCatalog catalog, bool tolerant, CancellationToken ct)
+    {
+        var weapons = (catalog.Weapons ?? []).Where(w => ExtraPoseWeapons.Contains(w.Name, StringComparer.Ordinal)).ToList();
+        var poses = (catalog.Poses ?? []).Where(p => p.Weapon is { } held && weapons.Any(w => w.Name == held)).Select(p => p.Stance).Take(16).ToList();
+        var coatings = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var weapon in weapons)
+        {
+            if (await CoatingOfAsync(weapon, armor, choice, tolerant, ct) is { } coating)
+                coatings[weapon.Name] = coating;
+        }
+        return (poses, coatings);
+    }
+
+    // The user's own Spartan needs nothing from Halo but the pose they have equipped: without it, only the neutral pose is made
+    private async Task<SpartanPose> PoseOfAsync(XboxUserArmor? armor, CancellationToken ct)
     {
         if (armor is null)
-            return null;
+            return new(null, null);
         try
         {
-            return await mapper.StanceOf(armor, ct);
+            return await mapper.PoseOf(armor, ct);
         }
         catch (HttpRequestException) when (!ct.IsCancellationRequested)
         {
+            return new(null, null);
+        }
+    }
+
+    // The weapon the pose holds, and its coating
+    private async Task<(string? Weapon, string? Coating)> WeaponOfAsync(XboxUserArmor? armor, int? weaponTagId, SpartanChoice choice,
+        Application.Spartan.SpartanCatalog catalog, bool tolerant, CancellationToken ct)
+        => catalog.WeaponOf(weaponTagId) is { } weapon ? (weapon.Name, await CoatingOfAsync(weapon, armor, choice, tolerant, ct)) : (null, null);
+
+    // The coating the player chose for a weapon, else the one equipped on it in Halo, else none (its default). A player's own
+    // Spartan is rendered even when Halo does not answer (tolerant); an equipped set waits for Halo like the rest of it.
+    private async Task<string?> CoatingOfAsync(Application.Spartan.SpartanCatalogWeapon weapon, XboxUserArmor? armor, SpartanChoice choice, bool tolerant,
+        CancellationToken ct)
+    {
+        if (choice.WeaponCoatings is { } chosen && chosen.TryGetValue(weapon.Name, out var coating) && weapon.Coatings.Contains(coating, StringComparer.Ordinal))
+            return coating;
+        if (armor is null || weapon.CoreType is null)
+            return null;
+        try
+        {
+            var equipped = await mapper.WeaponCoatingOf(armor, weapon.CoreType, ct);
+            return equipped is not null && weapon.Coatings.Contains(equipped, StringComparer.Ordinal) ? equipped : null;
+        }
+        catch (HttpRequestException) when (tolerant && !ct.IsCancellationRequested)
+        {
             return null;
         }
     }
 
-    private async Task<Dictionary<string, SpartanFileDto>> MakeFilesAsync(SpartanChoice choice, int? stance, CancellationToken ct)
+    private async Task<Dictionary<string, SpartanFileDto>> MakeFilesAsync(Plan plan, CancellationToken ct)
     {
+        var choice = plan.Choice!;
         var armor = choice.Armor?.ToDictionary(p => p.Key, p => p.Value) ?? [];
         var parts = (choice.Parts ?? []).Select(p => new SpartanPart(p.Region, p.Permutation)).ToList();
         var files = new Dictionary<string, SpartanFileDto>();
-        if (stance is int id)
+        if (plan.Stance is int id)
         {
-            var set = await client.SubmitSetAsync(new SpartanSetRequest { Core = choice.Core, Armor = armor, Parts = parts, Coating = choice.Coating, Visor = choice.Visor, DisableDamage = choice.DisableDamage, Stance = id }, ct);
+            var set = await client.SubmitSetAsync(new SpartanSetRequest
+            {
+                Core = choice.Core, Armor = armor, Parts = parts, Coating = choice.Coating, Visor = choice.Visor, DisableDamage = choice.DisableDamage, Stance = id,
+                Weapon = plan.Weapon, WeaponCoating = plan.WeaponCoating,
+                ExtraPoses = plan.ExtraPoses is { Count: > 0 } extra ? [.. extra] : null,
+                WeaponCoatings = plan.WeaponCoatings is { Count: > 0 } coatings ? coatings.ToDictionary(c => c.Key, c => c.Value) : null,
+            }, ct);
             set = await client.WaitAsync(set, TimeSpan.FromSeconds(5), ct);
             if (set.IsFailed)
                 throw new InvalidOperationException("The render service could not render this Spartan");
@@ -354,9 +416,13 @@ public sealed class SpartanRenderSource(
         }
         foreach (var (name, output, framing) in new[] { ("glb", "glb", "body"), ("neutral-body", "png", "body"), ("neutral-head", "png", "head") })
         {
+            // Without a pose of their own, the model still carries the hammer and sword poses
+            var model = output == "glb";
             var bytes = await client.RenderAsync(new SpartanLoadout
             {
                 Core = choice.Core, Armor = armor, Parts = parts, Coating = choice.Coating, Visor = choice.Visor, DisableDamage = choice.DisableDamage, Output = output, Framing = framing,
+                ExtraPoses = model && plan.ExtraPoses is { Count: > 0 } extra ? [.. extra] : null,
+                WeaponCoatings = model && plan.WeaponCoatings is { Count: > 0 } coatings ? coatings.ToDictionary(c => c.Key, c => c.Value) : null,
             }, TimeSpan.FromSeconds(5), ct);
             files[name] = new SpartanFileDto(ContentTypeOf(output), bytes);
         }
@@ -365,7 +431,8 @@ public sealed class SpartanRenderSource(
 
     private static string ContentTypeOf(string output) => output == "glb" ? "model/gltf-binary" : "image/png";
 
-    internal static string KeyOf(SpartanChoice choice, int? stance)
+    internal static string KeyOf(SpartanChoice choice, int? stance, string? weapon = null, string? weaponCoating = null,
+        IReadOnlyList<int>? extraPoses = null, IReadOnlyDictionary<string, string>? weaponCoatings = null)
     {
         var canonical = JsonSerializer.Serialize(new
         {
@@ -376,6 +443,10 @@ public sealed class SpartanRenderSource(
             choice.Visor,
             choice.DisableDamage,
             Stance = stance,
+            Weapon = weapon,
+            WeaponCoating = weaponCoating,
+            ExtraPoses = (extraPoses ?? []).Order(),
+            WeaponCoatings = (weaponCoatings ?? new Dictionary<string, string>()).OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value}"),
         });
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }

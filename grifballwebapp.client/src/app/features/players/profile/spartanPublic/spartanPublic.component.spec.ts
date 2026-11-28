@@ -6,7 +6,7 @@ import { SPARTAN_SCENE, SpartanScene } from '../spartanViewer/spartanScene';
 import { SpartanPublicComponent } from './spartanPublic.component';
 
 function profile(changes: Partial<SpartanProfileDto> = {}): SpartanProfileDto {
-  return { choice: null, files: [], hasEquippedSet: true, renderError: null, renderState: null, renderedAt: null, ...changes };
+  return { choice: null, files: [], hasEquippedSet: true, renderError: null, renderState: null, renderedAt: null, weapon: null, ...changes };
 }
 
 describe('SpartanPublicComponent', () => {

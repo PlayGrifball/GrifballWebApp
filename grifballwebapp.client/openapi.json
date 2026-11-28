@@ -4800,7 +4800,7 @@
                     "$ref": "#/components/schemas/SpartanChoice"
                   }
                 ],
-                "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise). Anything left out is the core's default."
+                "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise), and per weapon (by name) the coating it wears when a stance holds it. Anything left out is the core's default (a weapon's: the coating equipped in Halo)."
               }
             }
           }
@@ -18716,7 +18716,9 @@
           "coatings",
           "cores",
           "pendingCores",
-          "visors"
+          "poses",
+          "visors",
+          "weapons"
         ],
         "type": "object",
         "properties": {
@@ -18743,6 +18745,20 @@
             "items": {
               "type": "string"
             }
+          },
+          "weapons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpartanCatalogWeapon"
+            },
+            "nullable": true
+          },
+          "poses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpartanCatalogPose"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false,
@@ -18786,6 +18802,29 @@
         "additionalProperties": false,
         "description": "A piece a core can wear in a region: GrifballWebApp.Application.Spartan.SpartanCatalogPiece.Name is what a loadout's armor names it, null for the pieces (some kits) reached only by ids."
       },
+      "SpartanCatalogPose": {
+        "required": [
+          "name",
+          "stance",
+          "weapon"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "stance": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weapon": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A pose the render service can add to a model as a clip named GrifballWebApp.Application.Spartan.SpartanCatalogPose.Name: its stance id, and the weapon it holds (null for none)."
+      },
       "SpartanCatalogRegion": {
         "required": [
           "key",
@@ -18815,6 +18854,39 @@
         "additionalProperties": false,
         "description": "A region of a core. GrifballWebApp.Application.Spartan.SpartanCatalogRegion.Kind is REGION (named by GrifballWebApp.Application.Spartan.SpartanCatalogRegion.Key in a loadout's armor) or KIT (a kit's own regions, reached by ids)."
       },
+      "SpartanCatalogWeapon": {
+        "required": [
+          "coatings",
+          "coreType",
+          "name",
+          "tags"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "coreType": {
+            "type": "string",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "coatings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A weapon a stance can hold: GrifballWebApp.Application.Spartan.SpartanCatalogWeapon.Tags are the action pose weaponTagIds that mean it, GrifballWebApp.Application.Spartan.SpartanCatalogWeapon.CoreType the Halo weapon\ncore (e.g. WeaponCommando) whose equipped theme gives its coating (null when it has none), GrifballWebApp.Application.Spartan.SpartanCatalogWeapon.Coatings its coating ids."
+      },
       "SpartanChoice": {
         "required": [
           "armor",
@@ -18822,7 +18894,8 @@
           "core",
           "disableDamage",
           "parts",
-          "visor"
+          "visor",
+          "weaponCoatings"
         ],
         "type": "object",
         "properties": {
@@ -18853,10 +18926,17 @@
           },
           "disableDamage": {
             "type": "boolean"
+          },
+          "weaponCoatings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false,
-        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise). Anything left out is the core's default."
+        "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise), and per weapon (by name) the coating it wears when a stance holds it. Anything left out is the core's default (a weapon's: the coating equipped in Halo)."
       },
       "SpartanPartChoice": {
         "required": [
@@ -18884,7 +18964,8 @@
           "hasEquippedSet",
           "renderError",
           "renderState",
-          "renderedAt"
+          "renderedAt",
+          "weapon"
         ],
         "type": "object",
         "properties": {
@@ -18894,7 +18975,7 @@
                 "$ref": "#/components/schemas/SpartanChoice"
               }
             ],
-            "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise). Anything left out is the core's default.",
+            "description": "A Spartan as a player chose it: the core, pieces by region key, pieces by ids, the coating, the visor and whether the damage and grime layer is left off (it is, unless chosen otherwise), and per weapon (by name) the coating it wears when a stance holds it. Anything left out is the core's default (a weapon's: the coating equipped in Halo).",
             "nullable": true
           },
           "hasEquippedSet": {
@@ -18918,10 +18999,14 @@
             "items": {
               "type": "string"
             }
+          },
+          "weapon": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false,
-        "description": "What a user's Spartan stands at: their own choice if they made one, and the render of it."
+        "description": "What a user's Spartan stands at: their own choice if they made one, and the render of it, with the weapon its stance holds."
       },
       "Stage": {
         "required": [

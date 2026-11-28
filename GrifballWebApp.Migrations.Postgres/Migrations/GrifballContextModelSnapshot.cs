@@ -7579,6 +7579,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("State")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Weapon")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .UseCollation("case_insensitive");
+
                     b.HasKey("UserId");
 
                     b.HasIndex("State", "RequestedAt");
@@ -7984,6 +7989,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("VisorPath")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("WeaponCoatingsJson")
+                        .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
                     b.Property<string>("WristAttachmentPath")
