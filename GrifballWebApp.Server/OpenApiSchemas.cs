@@ -173,7 +173,9 @@ public sealed class ImagesAsOneMediaTypeOperationFilter : IOperationFilter
 
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
-        foreach (var response in operation.Responses?.Values ?? [])
+        if (operation.Responses is not { } responses)
+            return;
+        foreach (var response in responses.Values)
         {
             if (response.Content is not { Count: > 1 } content || !content.Keys.All(k => k.StartsWith("image/", StringComparison.OrdinalIgnoreCase)))
                 continue;

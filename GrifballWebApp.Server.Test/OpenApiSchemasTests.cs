@@ -483,6 +483,7 @@ public class NumberEnumSchemaFilterTests
 /// one media type gives the generated client one method per image endpoint.
 /// </summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class ImagesAsOneMediaTypeOperationFilterTests
 {
     private static readonly string[] AnyImage = [ImagesAsOneMediaTypeOperationFilter.AnyImage];

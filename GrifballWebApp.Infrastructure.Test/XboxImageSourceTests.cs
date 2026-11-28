@@ -81,7 +81,7 @@ public class XboxImageSourceTests : SqliteContextFixture
         }
     }
 
-    /// <summary>Counts the queries that read image rows themselves (not the due accounts' query, which only looks at them).</summary>
+    /// <summary>Counts the queries that read image rows, by the tag XboxImageSource gives them (<see cref="XboxImageSource.RowsTag"/>).</summary>
     private sealed class RowReads : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
     {
         private int _count;
@@ -92,7 +92,7 @@ public class XboxImageSourceTests : SqliteContextFixture
             System.Data.Common.DbCommand command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData,
             Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("FROM \"XboxUserImages\" AS", StringComparison.Ordinal) && !command.CommandText.Contains("\"XboxUsers\"", StringComparison.Ordinal))
+            if (command.CommandText.Contains(XboxImageSource.RowsTag, StringComparison.Ordinal))
                 Interlocked.Increment(ref _count);
             return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
         }
@@ -120,11 +120,12 @@ public class XboxImageSourceTests : SqliteContextFixture
     }
 
     [Test]
-    public async Task Emblems_ReadTheRunsRows_InOneQuery()
+    public async Task Emblems_ReadTheRows_AChunkOfTwentyAccountsAtATime()
     {
-        await AddAccountsAsync(1, 2, 3);
+        var xuids = Enumerable.Range(1, 25).Select(i => (long)i).ToArray();
+        await AddAccountsAsync(xuids);
         GivenMapping();
-        foreach (var xuid in new long[] { 1, 2, 3 })
+        foreach (var xuid in xuids)
             GivenEmblem(xuid, "/inventory/armor/emblems/013-001-aaaa.json");
         _halo.GameCmsWaypointGetImage("images/emblems/a7.png").Returns(Ok(Png));
         _rowReads.Count = 0;
@@ -133,8 +134,8 @@ public class XboxImageSourceTests : SqliteContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(report.Stored, Is.EqualTo(3));
-            Assert.That(_rowReads.Count, Is.EqualTo(1), "one for the run, not one an account");
+            Assert.That(report.Stored, Is.EqualTo(25));
+            Assert.That(_rowReads.Count, Is.EqualTo(2), "one for each chunk as the run reaches it, not one an account");
         }
     }
 
