@@ -16,7 +16,7 @@ describe('SpartanPublicComponent', () => {
 
   beforeEach(() => {
     shown = [];
-    const scene: SpartanScene = { show: async url => { shown.push(url); }, play: () => undefined, dispose: () => undefined };
+    const scene: SpartanScene = { show: async url => { shown.push(url); return []; }, play: () => undefined, dispose: () => undefined };
     TestBed.configureTestingModule({
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: SPARTAN_SCENE, useValue: async () => scene }],
     });

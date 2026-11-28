@@ -6,11 +6,13 @@
   </div>
   @if (hasFile('glb')) {
     <div class="spartan-model">
-      <app-spartan-viewer [url]="fileUrl('glb')" [clip]="pose()" [label]="name() + ' in 3D'" />
-      @if (hasFile('stance-body')) {
-        <div class="spartan-actions" role="group" aria-label="Pose of the 3D model">
-          <button type="button" class="hud-btn" [attr.aria-pressed]="pose() === 'neutral'" (click)="pose.set('neutral')">Neutral pose</button>
-          <button type="button" class="hud-btn" [attr.aria-pressed]="pose() === 'stance'" (click)="pose.set('stance')">In stance</button>
+      <app-spartan-viewer [url]="fileUrl('glb')" [clip]="pose()" [label]="name() + ' in 3D'" (clipNames)="shown($event)" />
+      @if (poses().length > 1) {
+        <div class="spartan-actions">
+          <label [for]="'spartan-pose-' + userID()">Pose</label>
+          <select [id]="'spartan-pose-' + userID()" (change)="choose($event)">
+            @for (p of poses(); track p.clip) { <option [value]="p.clip" [selected]="p.clip === pose()">{{p.label}}</option> }
+          </select>
         </div>
       }
     </div>

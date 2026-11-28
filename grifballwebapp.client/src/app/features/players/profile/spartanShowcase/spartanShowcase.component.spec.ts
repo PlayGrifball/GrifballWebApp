@@ -11,24 +11,36 @@ describe('SpartanShowcaseComponent', () => {
   let fixture: ComponentFixture<SpartanShowcaseComponent>;
   let shown: string[];
   let played: string[];
+  let clips: string[];
 
   beforeEach(() => {
     shown = [];
     played = [];
-    const scene: SpartanScene = { show: async url => { shown.push(url); }, play: clip => { played.push(clip); }, dispose: () => undefined };
+    clips = ['neutral', 'stance'];
+    const scene: SpartanScene = { show: async url => { shown.push(url); return clips; }, play: clip => { played.push(clip); }, dispose: () => undefined };
     TestBed.configureTestingModule({ providers: [{ provide: SPARTAN_SCENE, useValue: async () => scene }] });
     fixture = TestBed.createComponent(SpartanShowcaseComponent);
     fixture.componentRef.setInput('userID', 21);
   });
 
   const el = (): HTMLElement => fixture.nativeElement;
-  const button = (label: string): HTMLButtonElement | undefined =>
-    Array.from(el().querySelectorAll('button')).find(b => b.textContent?.trim() === label);
+  const select = (): HTMLSelectElement | null => el().querySelector('select');
+  const options = (): string[] => Array.from(select()?.options ?? []).map(o => o.textContent!.trim());
+  async function choose(label: string): Promise<void> {
+    const s = select()!;
+    s.value = Array.from(s.options).find(o => o.textContent!.trim() === label)!.value;
+    s.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+  }
 
   async function show(p: SpartanProfileDto | null): Promise<void> {
     fixture.componentRef.setInput('profile', p);
-    fixture.detectChanges();
-    await fixture.whenStable();
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      await new Promise<void>(resolve => setTimeout(resolve));
+    }
     fixture.detectChanges();
   }
 
@@ -49,19 +61,46 @@ describe('SpartanShowcaseComponent', () => {
 
   it('poses the one 3D model as neutral, and as the stance when asked', async () => {
     await show(profile({ files: ['glb', 'neutral-body', 'stance-body'], renderedAt: '2026-11-20T10:00:00Z' }));
-    button('In stance')!.click();
-    fixture.detectChanges();
-    await fixture.whenStable();
+    await choose('In stance');
 
     expect(shown).toEqual(['/api/users/21/spartan/glb?v=2026-11-20T10%3A00%3A00Z']);
     expect(played).toEqual(['neutral', 'stance']);
-    expect(button('In stance')!.getAttribute('aria-pressed')).toBe('true');
+    expect(select()!.value).toBe('stance');
+    expect(el().querySelector('label[for="spartan-pose-21"]')!.textContent!.trim()).toBe('Pose');
   });
 
-  it('offers no pose choice when no stance was rendered', async () => {
+  it('offers every other pose the model carries, by its name, and poses the model in it', async () => {
+    clips = ['neutral', 'stance', 'Ruthless War Club', "Captain's Pride"];
+    await show(profile({ files: ['glb', 'neutral-body', 'stance-body'] }));
+
+    expect(options()).toEqual(['Neutral pose', 'In stance', 'Ruthless War Club', "Captain's Pride"]);
+    await choose("Captain's Pride");
+    expect(played.at(-1)).toBe("Captain's Pride");
+  });
+
+  it('leaves out the stance when none was rendered, but still offers the other poses', async () => {
+    clips = ['neutral', 'stance', 'Ruthless War Club'];
     await show(profile({ files: ['glb', 'neutral-body'] }));
-    expect(button('Neutral pose')).toBeUndefined();
+
+    expect(options()).toEqual(['Neutral pose', 'Ruthless War Club']);
+  });
+
+  it('offers no pose choice when the model has only the one pose', async () => {
+    await show(profile({ files: ['glb', 'neutral-body'] }));
+    expect(select()).toBeNull();
     expect(shown).toEqual(['/api/users/21/spartan/glb']);
+  });
+
+  it('goes back to neutral when a new model lacks the pose it was in', async () => {
+    clips = ['neutral', 'stance', 'Ruthless War Club'];
+    await show(profile({ files: ['glb', 'neutral-body', 'stance-body'], renderedAt: '2026-11-20T10:00:00Z' }));
+    await choose('Ruthless War Club');
+
+    clips = ['neutral', 'stance'];
+    await show(profile({ files: ['glb', 'neutral-body', 'stance-body'], renderedAt: '2026-11-21T10:00:00Z' }));
+
+    expect(select()!.value).toBe('neutral');
+    expect(played.at(-1)).toBe('neutral');
   });
 
   it('leaves the version out of the addresses while nothing has rendered', async () => {

@@ -12,7 +12,7 @@ describe('SpartanViewerComponent', () => {
     shown = [];
     played = [];
     disposed = 0;
-    scene = { show: async url => { shown.push(url); }, play: clip => { played.push(clip); }, dispose: () => { disposed++; } };
+    scene = { show: async url => { shown.push(url); return ["neutral", "stance"]; }, play: clip => { played.push(clip); }, dispose: () => { disposed++; } };
   });
 
   function create(factory: SpartanSceneFactory, url = '/a.glb'): ComponentFixture<SpartanViewerComponent> {
@@ -54,6 +54,64 @@ describe('SpartanViewerComponent', () => {
 
     expect(played).toContain('neutral');
     expect(played.at(-1)).toBe('stance');
+  });
+
+  it('tells which clips the model has once it is shown', async () => {
+    const fixture = create(async () => scene);
+    const named: (readonly string[])[] = [];
+    fixture.componentInstance.clipNames.subscribe(names => named.push(names));
+    await settle(fixture);
+
+    expect(named).toEqual([['neutral', 'stance']]);
+  });
+
+  it('tells there are no clips when the next model cannot be read', async () => {
+    const fixture = create(async () => scene);
+    const named: (readonly string[])[] = [];
+    fixture.componentInstance.clipNames.subscribe(names => named.push(names));
+    await settle(fixture);
+
+    scene.show = async () => { throw new Error('bad glb'); };
+    fixture.componentRef.setInput('url', '/b.glb');
+    await settle(fixture);
+
+    expect(named).toEqual([['neutral', 'stance'], []]);
+  });
+
+  it('ignores a slow model that fails after a newer one was shown', async () => {
+    const pending: { resolve: (names: string[]) => void; reject: (e: Error) => void }[] = [];
+    scene.show = url => { shown.push(url); return new Promise((resolve, reject) => pending.push({ resolve, reject })); };
+    const fixture = create(async () => scene);
+    const named: (readonly string[])[] = [];
+    fixture.componentInstance.clipNames.subscribe(names => named.push(names));
+    await settle(fixture);
+    fixture.componentRef.setInput('url', '/b.glb');
+    await settle(fixture);
+
+    pending[1].resolve(['neutral', 'stance']);
+    pending[0].reject(new Error('bad glb'));
+    await settle(fixture);
+
+    expect(named).toEqual([['neutral', 'stance']]);
+    expect(fixture.componentInstance.state()).toBe('ready');
+  });
+
+  it('tells only the clips of the newest model when a slow one is overtaken', async () => {
+    const pending: ((names: string[]) => void)[] = [];
+    scene.show = url => { shown.push(url); return new Promise(resolve => pending.push(resolve)); };
+    const fixture = create(async () => scene);
+    const named: (readonly string[])[] = [];
+    fixture.componentInstance.clipNames.subscribe(names => named.push(names));
+    await settle(fixture);
+    fixture.componentRef.setInput('url', '/b.glb');
+    await settle(fixture);
+
+    pending[1](['neutral', 'Ruthless War Club']);
+    pending[0](['neutral', 'stance']);
+    await settle(fixture);
+
+    expect(shown).toEqual(['/a.glb', '/b.glb']);
+    expect(named).toEqual([['neutral', 'Ruthless War Club']]);
   });
 
   it('shows the next model when the address changes', async () => {
@@ -176,7 +234,8 @@ describe('createSpartanScene', () => {
     const scene = await createSpartanScene(canvas);
 
     const before = add.calls.count();
-    await Promise.all([scene.show(triangle), scene.show(triangle)]);
+    // The older model is never shown, and the newer one has no clips
+    expect(await Promise.all([scene.show(triangle), scene.show(triangle)])).toEqual([[], []]);
     const afterBoth = add.calls.count();
     expect(afterBoth - before).toBe(1);
 
@@ -194,7 +253,7 @@ describe('createSpartanScene', () => {
     const scene = await createSpartanScene(canvas);
 
     scene.play('stance');
-    await scene.show(triangleWith('stance'));
+    expect(await scene.show(triangleWith('stance'))).toEqual(['stance']);
     expect(stop).toHaveBeenCalledTimes(1);
     scene.play('stance');
     expect(stop).toHaveBeenCalledTimes(2);
