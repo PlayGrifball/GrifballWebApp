@@ -81,6 +81,14 @@ describe('ManualGamesComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
   }
+  /** Opens a mat-select of this name and picks the option with this text, the way a commissioner would. */
+  async function pick(name: string, optionText: string): Promise<void> {
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`mat-select[name="${name}"] .mat-mdc-select-trigger`)!.click();
+    await fixture.whenStable();
+    Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === optionText)!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -211,6 +219,57 @@ describe('ManualGamesComponent', () => {
     expect(button('Save game')!.disabled).toBeTrue();
     button('Save game')!.click();
     httpMock.expectNone('/api/season-matches/7/manual-games');
+  });
+
+  it('save() sends nothing for an invalid form, even called directly (not just through the editor)', () => {
+    createAsCommissioner();
+    component.startAdd();
+    component.save({ ...component.initialForm, homeTeamScore: 4, awayTeamScore: 4 });
+    httpMock.expectNone('/api/season-matches/7/manual-games');
+  });
+
+  it('switches which game is being edited without closing first: the new target, not a mix of the two', async () => {
+    const gameA = game();
+    const gameB = game({ seriesGameID: 52, recordedGameID: 42, matchNumber: 2, homeScore: 3, awayScore: 1, map: 'Pit' });
+    createAsCommissioner(page({ reportedGames: [gameA, gameB] }));
+
+    component.startEdit(gameA);
+    await opened();
+    expect(component.editing()).toBe(41);
+
+    // Not through Cancel first: the box score's own Edit buttons are hidden meanwhile, but nothing stops a caller
+    component.startEdit(gameB);
+    await opened();
+    expect(component.editing()).toBe(42);
+    expect(text()).toContain('Edit game');
+    // The rendered editor shows B's own map, not A's leftover 'Foundry': a fresh editor, not the one reused
+    expect((fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[name="map"]')!.value).toBe('Pit');
+
+    await type('homeTeamScore', '9');
+    button('Save game')!.click();
+    const request = httpMock.expectOne('/api/season-matches/7/manual-games/42');
+    expect(request.request.body.homeTeamScore).toBe(9);
+    expect(request.request.body.map).toBe('Pit');
+    request.flush(null);
+    expect(changed).toBe(1);
+  });
+
+  it("keeps Save off until a new game's place in the series is picked, through the rendered select", async () => {
+    // More than one choice (a new game, or replacing the one already reported): startAdd can't pick for the commissioner
+    createAsCommissioner(page({ reportedGames: [game()] }));
+    component.startAdd();
+    await opened();
+    expect(component.initialForm.slot).toBeNull();
+
+    await type('homeTeamScore', '3');
+    await type('awayTeamScore', '1');
+    expect(button('Save game')!.disabled).toBeTrue();
+
+    await pick('slot', 'A new game (game 2)');
+    expect(button('Save game')!.disabled).toBeFalse();
+
+    button('Save game')!.click();
+    expect(httpMock.expectOne('/api/season-matches/7/manual-games').request.body.replacesSeriesGameID).toBeNull();
   });
 
   it('cancels an entry', async () => {

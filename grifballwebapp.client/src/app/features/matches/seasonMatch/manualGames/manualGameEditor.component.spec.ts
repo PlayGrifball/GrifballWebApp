@@ -34,19 +34,19 @@ describe('ManualGameEditorComponent', () => {
 
   it('saves only a valid game: both scores in, and different', async () => {
     submit();
-    expect(saved.length).toBe(0);
+    expect(saved).toHaveSize(0);
     expect(button('Save game').disabled).toBeTrue();
 
     await type('homeTeamScore', '3');
     await type('awayTeamScore', '3');
     expect(el().textContent).toContain("the two scores can't be equal");
     submit();
-    expect(saved.length).toBe(0);
+    expect(saved).toHaveSize(0);
 
     await type('awayTeamScore', '5');
     expect(button('Save game').disabled).toBeFalse();
     submit();
-    expect(saved.length).toBe(1);
+    expect(saved).toHaveSize(1);
     expect(saved[0]).toEqual(jasmine.objectContaining({ homeTeamScore: 3, awayTeamScore: 5 }));
   });
 

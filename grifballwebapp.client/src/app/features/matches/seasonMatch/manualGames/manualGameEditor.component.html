@@ -21,7 +21,7 @@
       <input matInput type="number" min="0" required name="awayTeamScore" formControlName="awayTeamScore">
     </mat-form-field>
   </div>
-  @if (scoresTie()) {
+  @if (tied()) {
   <p class="hud-muted" role="status">A game needs a winner: the two scores can't be equal.</p>
   }
   <div class="manual-games__row">

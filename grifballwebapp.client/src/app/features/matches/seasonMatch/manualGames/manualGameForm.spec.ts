@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import type { GameVersionOptionDto, TeamPagePlayerDto } from '@api/models';
 import { ReportedGameDto } from '../seasonMatchPageDto';
-import { defaultGameVersion, emptyForm, formLines, gameSource, INFINITE_GAME_VERSION_ID, isFormValid, ManualGameForm, toLocalInput, toRequest } from './manualGameForm';
+import { defaultGameVersion, emptyForm, formLines, gameSource, INFINITE_GAME_VERSION_ID, isFormValid, ManualGameForm, scoresTie, toLocalInput, toRequest } from './manualGameForm';
 
 describe('manualGameForm', () => {
   it('says where a game came from: Waypoint (a match ID) first, else by hand, else recorded', () => {
@@ -64,6 +64,13 @@ describe('manualGameForm', () => {
     ]);
     expect(lines[0]).toEqual(jasmine.objectContaining({ kills: 9, goals: 2, score: 2 }));
     expect(formLines(null, [], [roster(3, 'Tucker')]).map(l => l.played)).toEqual([false]);
+  });
+
+  it('says the scores tie only once both are in and equal', () => {
+    expect(scoresTie({ homeTeamScore: 3, awayTeamScore: 3 })).toBeTrue();
+    expect(scoresTie({ homeTeamScore: 3, awayTeamScore: 2 })).toBeFalse();
+    expect(scoresTie({ homeTeamScore: null, awayTeamScore: 3 })).toBeFalse();
+    expect(scoresTie({ homeTeamScore: 3, awayTeamScore: null })).toBeFalse();
   });
 
   it("is valid with both scores in, at least 0 and different, and a new game's place picked", () => {

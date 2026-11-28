@@ -3,7 +3,7 @@ import { outputFromObservable } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import type { TeamPagePlayerDto } from '@api/models';
 import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
-import { decidedOtherwise, defaultGameVersion, emptyForm, formLines, ManualGameForm, slotChoices, toLocalInput } from './manualGameForm';
+import { decidedOtherwise, defaultGameVersion, emptyForm, formLines, GameSlot, isFormValid, ManualGameForm, slotChoices, toLocalInput } from './manualGameForm';
 import { ManualGamesStore } from './manualGames.store';
 import { ManualGameEditorComponent } from './manualGameEditor.component';
 import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
@@ -68,6 +68,10 @@ export class ManualGamesComponent {
   /** Where a game entered now can go (a new game, or in place of one reported): see {@link slotChoices}. */
   readonly slots = computed(() => slotChoices(this.match()));
 
+  /** The editing target as a 0- or 1-item list, for `@for` to key the editor on in the template: switching which
+   * game is being edited (or from none to one) must recreate the editor, never reuse one with a changed `form`. */
+  readonly editorTarget = computed<GameSlot[]>(() => { const target = this.editing(); return target !== null ? [target] : []; });
+
   /** A game can be entered: as a new game, or replacing one of the series. Every game of the series, Waypoint and
    * recorded alike, is in reportedGames. */
   readonly canAdd = computed(() => this.canManage() && this.slots().length > 0);
@@ -124,10 +128,11 @@ export class ManualGamesComponent {
     this.store.cancel();
   }
 
-  /** Sends the game the editor emitted (it saves only a valid one); done, manual entry is idle and the page reloads;
-   * refused, it stays with why. */
+  /** Sends the game the editor emitted; done, manual entry is idle and the page reloads; refused, it stays with why.
+   * The editor's own Save only emits a valid game, but this is the caller's guarantee too: an invalid one (or one
+   * for a game no longer waiting in the form) is a no-op, not a request. */
   save(form: ManualGameForm): void {
-    if (this.mode().kind !== 'entering' || this.blocked())
+    if (this.mode().kind !== 'entering' || !isFormValid(form, this.editing()) || this.blocked())
       return;
     this.store.save(this.seasonMatchID(), form);
   }

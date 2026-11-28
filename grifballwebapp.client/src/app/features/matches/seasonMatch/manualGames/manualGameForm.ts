@@ -102,10 +102,16 @@ export function formLines(game: ReportedGameDto | null, homeRoster: TeamPagePlay
   return lines;
 }
 
+/** The scores are in and equal: a game needs a winner. Its own export so a form shows the message without duplicating
+ * the rule {@link isFormValid} also checks. */
+export function scoresTie(form: Pick<ManualGameForm, 'homeTeamScore' | 'awayTeamScore'>): boolean {
+  return form.homeTeamScore != null && form.awayTeamScore != null && form.homeTeamScore === form.awayTeamScore;
+}
+
 /** The scores are in and differ (the side with the higher one won); a new game's place in the series is picked. */
 export function isFormValid(form: ManualGameForm, editing: GameSlot | null): boolean {
   const { homeTeamScore: home, awayTeamScore: away } = form;
-  return home != null && away != null && home >= 0 && away >= 0 && home !== away
+  return home != null && away != null && home >= 0 && away >= 0 && !scoresTie(form)
     && (editing !== 'new' || form.slot !== null);
 }
 

@@ -15,10 +15,12 @@
 </div>
 }
 
-@if (editing() !== null) {
+<!-- @for (not @if), keyed on the target: switching which game is being edited (or from none to one) recreates the
+editor instead of reusing one whose FormGroup is still the last game's -->
+@for (target of editorTarget(); track target) {
 <!-- The form's code (form fields, selects, checkboxes) loads only when a commissioner opens it -->
 @defer (on immediate) {
-<app-manual-game-editor [form]="initialForm" [editing]="editing()!" [match]="match()" [slots]="slots()" [gameVersions]="gameVersions()"
+<app-manual-game-editor [form]="initialForm" [editing]="target" [match]="match()" [slots]="slots()" [gameVersions]="gameVersions()"
   [saving]="saving()" [blocked]="blocked()" (saved)="save($event)" (cancelled)="cancel()" />
 } @placeholder {
 <app-skeleton label="the game form" shape="block" height="420px" />
@@ -30,8 +32,10 @@
   </div>
 </div>
 }
-} @else if (canAdd() && pendingDelete() === null) {
+} @empty {
+@if (canAdd() && pendingDelete() === null) {
 <div class="hud-actions">
   <button mat-stroked-button type="button" (click)="startAdd()" [disabled]="blocked()">Enter a game by hand</button>
 </div>
+}
 }

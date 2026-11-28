@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, OnInit, output } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import type { GameVersionOptionDto } from '@api/models';
 import { SeasonMatchPageDto } from '../seasonMatchPageDto';
-import { GameSlot, isFormValid, ManualGameForm, PlayerLine, SlotChoice } from './manualGameForm';
+import { GameSlot, isFormValid, ManualGameForm, PlayerLine, scoresTie, SlotChoice } from './manualGameForm';
 
 /** A player line's editable fields; its identity (userID, gamertag, isHomeTeam) never changes here, so it isn't one. */
 type PlayerLineGroup = FormGroup<{
@@ -35,9 +35,9 @@ type ManualGameFormGroup = FormGroup<{
 /**
  * The form a commissioner enters or edits a game by hand in: the score, the game's place in the series, and each
  * player's stats. Its own component, so its code (form fields, selects, checkboxes) is loaded only when a commissioner
- * opens it (ManualGamesComponent defers it), not for every visitor of the match page. A fresh `form` input starts a
- * fresh editor (ManualGamesComponent recreates it instead of pushing in a changed one): the FormGroup is built from it
- * once, and the edited game is emitted on save, never written back into the caller's object.
+ * opens it (ManualGamesComponent defers it), not for every visitor of the match page. ManualGamesComponent recreates
+ * the editor (never reuses it with a changed `form`) for a different target, so its FormGroup is built once, here,
+ * from the `form` it started with; the edited game is emitted on save, never written back into the caller's object.
  */
 @Component({
   selector: 'app-manual-game-editor',
@@ -46,7 +46,7 @@ type ManualGameFormGroup = FormGroup<{
   styleUrl: './manualGameEditor.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ManualGameEditorComponent {
+export class ManualGameEditorComponent implements OnInit {
   readonly form = input.required<ManualGameForm>();
   /** The game in the form: 'new', or the RecordedGameID of the one being edited. */
   readonly editing = input.required<GameSlot>();
@@ -64,12 +64,14 @@ export class ManualGameEditorComponent {
   readonly saved = output<ManualGameForm>();
   readonly cancelled = output<void>();
 
-  /** The game the editor started with: read once, in the constructor (a required input has no value yet in a field
-   * initializer) — a new editor is created for a new `form`, see ManualGamesComponent. */
-  protected readonly initial: ManualGameForm;
-  protected readonly formGroup: ManualGameFormGroup;
+  private readonly destroyRef = inject(DestroyRef);
 
-  constructor() {
+  /** The game the editor started with, and its FormGroup: both built once, in ngOnInit (a required input has no
+   * value yet in a field initializer or the constructor — NG8118 — so they can't be built there). */
+  protected initial!: ManualGameForm;
+  protected formGroup!: ManualGameFormGroup;
+
+  ngOnInit(): void {
     this.initial = this.form();
     this.formGroup = new FormGroup({
       homeTeamScore: new FormControl<number | null>(this.initial.homeTeamScore),
@@ -83,18 +85,20 @@ export class ManualGameEditorComponent {
     });
     // A line's stats are entered only once it is ticked as played; its control starts disabled to match
     for (const line of this.formGroup.controls.players.controls)
-      line.controls.played.valueChanges.pipe(takeUntilDestroyed()).subscribe(played => this.setPlayed(line, played));
+      line.controls.played.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(played => this.setPlayed(line, played));
   }
 
-  /** The scores are in and differ; a new game's place in the series is picked. */
+  /** The scores are in and differ; a new game's place in the series is picked. Reads the three controls it needs
+   * straight from the FormGroup, not the full (player-rebuilding) {@link value}. */
   valid(): boolean {
-    return isFormValid(this.value(), this.editing());
+    const { homeTeamScore, awayTeamScore, slot } = this.formGroup.controls;
+    return isFormValid({ ...this.initial, homeTeamScore: homeTeamScore.value, awayTeamScore: awayTeamScore.value, slot: slot.value }, this.editing());
   }
 
-  /** The scores are in and equal: a game needs a winner. */
-  protected scoresTie(): boolean {
+  /** The scores are in and equal: a game needs a winner (the same rule {@link isFormValid} checks, as {@link scoresTie}). */
+  protected tied(): boolean {
     const { homeTeamScore, awayTeamScore } = this.formGroup.controls;
-    return homeTeamScore.value != null && awayTeamScore.value != null && homeTeamScore.value === awayTeamScore.value;
+    return scoresTie({ homeTeamScore: homeTeamScore.value, awayTeamScore: awayTeamScore.value });
   }
 
   submit(): void {
