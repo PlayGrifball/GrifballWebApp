@@ -5,9 +5,7 @@ using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.EventOrganizer;
 
-/// <summary>The organizers' seasons: each season's settings (dates, league, format), and the choices they are made
-/// from. Reads and a season's own settings, never a merge or anything about sign-in/roles/the account, so a token
-/// may call any of it (#566).</summary>
+/// <summary>The organizers' seasons: each season's settings (dates, league, format), and the choices they are made from.</summary>
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
 [AllowAccessToken]

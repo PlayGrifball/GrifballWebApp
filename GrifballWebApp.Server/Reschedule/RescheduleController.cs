@@ -46,8 +46,7 @@ public class RescheduleController : ControllerBase
         }
     }
 
-    /// <summary>Approves or rejects a reschedule request. A normal staff write, never a merge or anything about
-    /// sign-in/roles/the account, so a token may call it too (#566).</summary>
+    /// <summary>Approves or rejects a reschedule request.</summary>
     [HttpPost("reschedules/{rescheduleID:int}/decision", Name = "ProcessReschedule")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
     [AllowAccessToken]
@@ -71,7 +70,7 @@ public class RescheduleController : ControllerBase
         }
     }
 
-    /// <summary>The reschedule requests still awaiting a decision. A read, so a token may call it too (#566).</summary>
+    /// <summary>The reschedule requests still awaiting a decision.</summary>
     [HttpGet("reschedules/pending", Name = "GetPendingReschedules")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
     [AllowAccessToken]
@@ -82,8 +81,7 @@ public class RescheduleController : ControllerBase
         return _rescheduleService.GetPendingReschedulesAsync(ct);
     }
 
-    /// <summary>Opens the request's Discord thread, for the teams and organizers to talk it over. A normal staff
-    /// write, never a merge or anything about sign-in/roles/the account, so a token may call it too (#566).</summary>
+    /// <summary>Opens the request's Discord thread, for the teams and organizers to talk it over.</summary>
     [HttpPost("reschedules/{rescheduleID:int}/discord-thread", Name = "CreateDiscordThread")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
     [AllowAccessToken]

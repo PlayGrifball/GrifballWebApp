@@ -7,8 +7,6 @@ using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Excel;
 
-/// <summary>A read, queuing a sheet export, or appending one match to a sheet: never a merge or anything about
-/// sign-in/roles/the account, so a token may call any of it (#566).</summary>
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
 [AllowAccessToken]

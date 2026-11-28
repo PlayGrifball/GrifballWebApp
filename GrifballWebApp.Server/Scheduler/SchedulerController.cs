@@ -13,8 +13,7 @@ namespace GrifballWebApp.Server.Scheduler;
 /// <summary>
 /// The schedule recommendations (organizers): a time for each of a season's regular matches, found by the genetic
 /// algorithm in a job on the worker (<see cref="ScheduleRecommendationJob"/>), shown on the season's schedule and
-/// applied from there. A read, queuing a run, or applying one's result: never a merge or anything about
-/// sign-in/roles/the account, so a token may call any of it (#566).
+/// applied from there.
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]

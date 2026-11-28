@@ -86,8 +86,7 @@ public class SchedulingController(SchedulingService scheduling, TeamAvailability
     public Task<SeasonSchedulingRulesDto> GetSchedulingRules([FromRoute] int seasonID, CancellationToken ct)
         => rules.GetAsync(seasonID, ct);
 
-    /// <summary>Staff change a season's scheduling rules. A normal staff write, never a merge or anything about
-    /// sign-in/roles/the account, so a token may call it too (#566).</summary>
+    /// <summary>Staff change a season's scheduling rules.</summary>
     [HttpPost("seasons/{seasonID:int}/scheduling-rules", Name = "ChangeSchedulingRules")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
     [AllowAccessToken]

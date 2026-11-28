@@ -6,7 +6,6 @@ using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Commissioner;
 
-/// <summary>Both actions are reads, never a merge or anything about sign-in/roles/the account, so a token may call either (#566).</summary>
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
 [AllowAccessToken]
