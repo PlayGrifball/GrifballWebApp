@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using NetCord;
 using NetCord.Rest;
 using NSubstitute;
+using DiscordInterfaces;
 using RadioGroupProperties = NetCord.Rest.RadioGroupProperties;
 
 namespace GrifballWebApp.Server.Test;
@@ -85,9 +86,9 @@ public class ChatFormHandlerUnitTests : SqliteGrifballContextFixture
     }
 
     /// <summary>A submit of a form's modal by <see cref="Clicker"/> with no answers, its responses kept in <paramref name="responses"/>.</summary>
-    private static DiscordInterface.Generated.IDiscordModalInteractionContext Submitted(List<InteractionCallbackProperties> responses)
+    private static IDiscordModalInteractionContext Submitted(List<InteractionCallbackProperties> responses)
     {
-        var context = Substitute.For<DiscordInterface.Generated.IDiscordModalInteractionContext>();
+        var context = Substitute.For<IDiscordModalInteractionContext>();
         context.Interaction.User.Id.Returns(Clicker);
         context.Components.Returns([]);
         context.Interaction
