@@ -229,6 +229,7 @@ public class Program
             option.SchemaFilter<EveryPropertyRequiredFilter>();
             option.SchemaFilter<NumberEnumSchemaFilter>();
             option.OperationFilter<JsonOnlyOperationFilter>();
+            option.OperationFilter<ImagesAsOneMediaTypeOperationFilter>();
             option.OperationFilter<JsonNamedQueryParametersFilter>();
             option.DocumentFilter<HubSchemasDocumentFilter>();
             option.DocInclusionPredicate(OpenApiInclusion.Includes);

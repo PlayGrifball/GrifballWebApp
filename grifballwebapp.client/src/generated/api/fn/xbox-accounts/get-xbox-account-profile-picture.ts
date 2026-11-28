@@ -8,18 +8,18 @@ import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
 
-export interface GetXboxAccountGamerPicture$Webp$Params {
+export interface GetXboxAccountProfilePicture$Params {
   xboxUserID: number;
 }
 
-export function getXboxAccountGamerPicture$Webp(http: HttpClient, rootUrl: string, params: GetXboxAccountGamerPicture$Webp$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
-  const rb = new RequestBuilder(rootUrl, getXboxAccountGamerPicture$Webp.PATH, 'get');
+export function getXboxAccountProfilePicture(http: HttpClient, rootUrl: string, params: GetXboxAccountProfilePicture$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+  const rb = new RequestBuilder(rootUrl, getXboxAccountProfilePicture.PATH, 'get');
   if (params) {
     rb.path('xboxUserID', params.xboxUserID, {});
   }
 
   return http.request(
-    rb.build({ responseType: 'blob', accept: 'image/webp', context })
+    rb.build({ responseType: 'blob', accept: 'image/*', context })
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
@@ -28,4 +28,4 @@ export function getXboxAccountGamerPicture$Webp(http: HttpClient, rootUrl: strin
   );
 }
 
-getXboxAccountGamerPicture$Webp.PATH = '/xbox-accounts/{xboxUserID}/gamer-picture';
+getXboxAccountProfilePicture.PATH = '/xbox-accounts/{xboxUserID}/profile-picture';

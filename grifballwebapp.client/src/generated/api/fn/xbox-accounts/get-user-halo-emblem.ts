@@ -8,18 +8,18 @@ import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
 
-export interface GetUserGamerPicture$Png$Params {
+export interface GetUserHaloEmblem$Params {
   userID: number;
 }
 
-export function getUserGamerPicture$Png(http: HttpClient, rootUrl: string, params: GetUserGamerPicture$Png$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
-  const rb = new RequestBuilder(rootUrl, getUserGamerPicture$Png.PATH, 'get');
+export function getUserHaloEmblem(http: HttpClient, rootUrl: string, params: GetUserHaloEmblem$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+  const rb = new RequestBuilder(rootUrl, getUserHaloEmblem.PATH, 'get');
   if (params) {
     rb.path('userID', params.userID, {});
   }
 
   return http.request(
-    rb.build({ responseType: 'blob', accept: 'image/png', context })
+    rb.build({ responseType: 'blob', accept: 'image/*', context })
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
@@ -28,4 +28,4 @@ export function getUserGamerPicture$Png(http: HttpClient, rootUrl: string, param
   );
 }
 
-getUserGamerPicture$Png.PATH = '/users/{userID}/gamer-picture';
+getUserHaloEmblem.PATH = '/users/{userID}/halo-emblem';
