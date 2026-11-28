@@ -586,7 +586,6 @@ public class AdminCommandsHandler
 
     /// <summary>A pending claim's Reject button: the rejection modal, for the reason the claimant reads (<see cref="DecideClaim"/>).</summary>
     public Task RejectClaim(IDiscordInteractionContext context, int claimID) => DecideClaim(context, claimID, approve: false, reason: null);
-    }
 
     /// <summary>
     /// Approves or rejects a gamertag claim; the service's refusal is the reply (<see cref="DiscordInteractionPipeline"/>). A rejection with
