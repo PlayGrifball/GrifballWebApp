@@ -56,9 +56,7 @@ public static partial class LadderParser
                 continue;
             var row = r;
             string Text(Field f) => columns.TryGetValue(f, out var c) ? sheet.Cell(row, c).Trim() : "";
-            if (sourceId is not null && origins is not null)
-                if (placed.Add(gamertag))
-                    origins[gamertag] = ArchiveOrigin.Row(sourceId, sheet, r);
+            NoteRow(origins, placed, sourceId, sheet, r, gamertag);
             var (tier, league) = League(Text(Field.League));
             players.Add(new LadderStanding
             {
@@ -83,6 +81,13 @@ public static partial class LadderParser
     /// league, rank or place), by heading (trimmed, any case), their place the sheet's Pos. A heading with no Pos column
     /// under it is left out; null when the tab has no Pos column at all.
     /// </summary>
+    /// <summary>A ladder row's cells, by its gamertag: its first row only, over a past finish's (when there are a source and somewhere to put them).</summary>
+    private static void NoteRow(Dictionary<string, ArchiveOrigin>? origins, HashSet<string> placed, string? sourceId, SheetTable sheet, int r, string gamertag)
+    {
+        if (sourceId is not null && origins is not null && placed.Add(gamertag))
+            origins[gamertag] = ArchiveOrigin.Row(sourceId, sheet, r);
+    }
+
     public static Dictionary<string, List<LadderStanding>>? ParseFinishes(SheetTable sheet, string? sourceId = null, Dictionary<string, ArchiveOrigin>? origins = null)
     {
         var subRow = sheet.Rows.FindIndex(r => r.Any(c => ArchiveCells.HeaderKey(c) == "pos"));

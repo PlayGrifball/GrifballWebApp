@@ -322,19 +322,25 @@ public sealed class SheetWorkbook
             {
                 if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
                     i++;
-                row.Add(cell.ToString());
-                cell.Clear();
-                number++;
-                if (AddRow(rows, row))
-                    numbers?.Add(number);
+                EndRecord(rows, row, cell, numbers, ref number);
                 row = [];
             }
             else
                 cell.Append(c);
         }
-        if ((cell.Length > 0 || row.Count > 0) && AddRow(rows, [.. row, cell.ToString()]))
-            numbers?.Add(number + 1);
+        if (cell.Length > 0 || row.Count > 0)
+            EndRecord(rows, row, cell, numbers, ref number);
         return rows;
+    }
+
+    /// <summary>A record's last cell ends it: the row is kept when it has text, with its number among the records.</summary>
+    private static void EndRecord(List<string[]> rows, List<string> row, StringBuilder cell, List<int>? numbers, ref int number)
+    {
+        row.Add(cell.ToString());
+        cell.Clear();
+        number++;
+        if (AddRow(rows, row))
+            numbers?.Add(number);
     }
 
     /// <summary>A character of a quoted field (a doubled quote taken as one); false at the quote that ends it.</summary>
