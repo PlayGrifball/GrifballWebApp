@@ -1,0 +1,9 @@
+# The images deployed to test with this chart (env-deploy.sh), by digest.
+backend:
+  image:
+    repository: ghcr.io/playgrifball/grifballwebappserver
+    tag: test@sha256:bf617ad43e29c1af64a5c5b716290992b74bb8bb17e5c75de4ec5a927b2468d3
+frontend:
+  image:
+    repository: ghcr.io/playgrifball/grifballwebappclient
+    tag: test@sha256:f458de881781a97c6863319b8713318fd76a66bc1a21f22f107abd2ead736643
