@@ -39,6 +39,7 @@ public class DiscordTransportTests
     private static readonly string[] expectedArray = new[] { "VoteHome", "VoteAway" };
     private static readonly string[] expectedArray0 = new[] { "KickVoter", "KickTarget" };
     private static readonly string[] RescheduleInputs = ["reason", "new_time"];
+    private static readonly string[] OnlyTheSeasonMenu = ["seasonview:signups"];
 
     [OneTimeSetUp]
     public void StartServer() => _host = DiscordTransportTestHost.Start();
@@ -999,7 +1000,7 @@ public class DiscordTransportTests
             Assert.That(FirstEmbed(second[0].Data).GetProperty("description").GetString()!.Split('\n'), Has.Length.EqualTo(2));
             Assert.That(FirstEmbed(second[0].Data).GetProperty("footer").GetProperty("text").GetString(), Is.EqualTo("Page 2 of 2"));
             Assert.That(FirstEmbed(switched[0].Data).GetProperty("title").GetString(), Is.EqualTo("Transport Unpaged signups: 0"));
-            Assert.That(ComponentIds(switched[0].Data), Is.EqualTo(new[] { "seasonview:signups" }), "one page: no ◀ ▶");
+            Assert.That(ComponentIds(switched[0].Data), Is.EqualTo(OnlyTheSeasonMenu), "one page: no ◀ ▶");
             Assert.That(gone[0].Content, Is.EqualTo(CommandViewHandler.Gone));
             Assert.That(noSuchView[0].Content, Is.EqualTo(CommandViewHandler.Gone));
         }
