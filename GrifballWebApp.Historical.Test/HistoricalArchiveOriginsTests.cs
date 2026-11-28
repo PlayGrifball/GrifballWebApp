@@ -14,6 +14,9 @@ public class HistoricalArchiveOriginsTests
     private static HistoricalSourceContent Source(string id, HistoricalSourceConfig config, byte[] content, int snapshotID = 1)
         => new(HistoricalTestData.Source(id, $"https://example.org/{id}", config.ToJson()), snapshotID, content);
 
+    private static readonly string[] PlayerRows = ["A2:D2", "A3:D3"];
+    private static readonly string[] RowsPastEmptyOnes = ["A3:C3", "A5:C5"];
+
     private const string MatchId = "6f1c55aa-1b2c-4d3e-8f90-a1b2c3d4e5f6";
 
     [Test]
@@ -42,7 +45,7 @@ public class HistoricalArchiveOriginsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(season.Origin, Is.EqualTo(new ArchiveOrigin("sl17", "Stats", "A1:D1", "Player | Team | Games | Kills")), "the stats tab's header");
-            Assert.That(season.Players.Select(p => p.Origin?.Cells), Is.EqualTo(new[] { "A2:D2", "A3:D3" }), "each player's row");
+            Assert.That(season.Players.Select(p => p.Origin?.Cells), Is.EqualTo(PlayerRows), "each player's row");
             Assert.That(season.Players[0].Origin!.Value, Is.EqualTo("Ace | Alpha | 4 | 1"));
             Assert.That(season.Teams.Select(t => (t.TeamName, t.Origin?.Sheet, t.Origin?.Cells)),
                 Is.EqualTo(new[] { ("Alpha", (string?)"Standings", (string?)"A2:C2"), ("Bravo", "Standings", "A3:C3") }), "each team's standings row");
@@ -68,6 +71,6 @@ public class HistoricalArchiveOriginsTests
 
         var players = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Players;
 
-        Assert.That(players.Select(p => p.Origin?.Cells), Is.EqualTo(new[] { "A3:C3", "A5:C5" }));
+        Assert.That(players.Select(p => p.Origin?.Cells), Is.EqualTo(RowsPastEmptyOnes));
     }
 }

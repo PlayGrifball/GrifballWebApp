@@ -25,6 +25,11 @@ internal sealed class HistoricalImportProvenanceUnitTests : ApplicationDbContext
 {
     private const string Workbook = "winter-league-2020";
     private const string SeasonKey = "winter-league-2020/Stats";
+    private static readonly string[] AwardCells = ["D2"];
+    private static readonly string[] TitleCells = ["A3:E3"];
+    private static readonly string[] MatchCells = ["A12:F13", "A9:D9", "C4"];
+    private static readonly string[] GameCells = ["A12:F13"];
+    private static readonly string[] LineCells = ["A12:F12", "A13:F13"];
     private HistoricalImportService _service = null!;
 
     [SetUp]
@@ -178,13 +183,13 @@ internal sealed class HistoricalImportProvenanceUnitTests : ApplicationDbContext
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
-            Assert.That(cells.Where(c => c.Entity == nameof(Domain.League.SeasonAward)).Select(c => c.Cells), Is.EqualTo(new[] { "D2" }));
-            Assert.That(cells.Where(c => c.Entity == nameof(Domain.League.PlayerChampionship)).Select(c => c.Cells), Is.EqualTo(new[] { "A3:E3" }));
+            Assert.That(cells.Where(c => c.Entity == nameof(Domain.League.SeasonAward)).Select(c => c.Cells), Is.EqualTo(AwardCells));
+            Assert.That(cells.Where(c => c.Entity == nameof(Domain.League.PlayerChampionship)).Select(c => c.Cells), Is.EqualTo(TitleCells));
             Assert.That(cells.Where(c => c.Entity == nameof(Domain.League.SeasonMatch)).Select(c => c.Cells).Order(),
-                Is.EqualTo(new[] { "A12:F13", "A9:D9", "C4" }), "the scheduled match, the forfeit and the recorded game's series");
-            Assert.That(cells.Where(c => c.Entity == nameof(RecordedGame)).Select(c => c.Cells), Is.EqualTo(new[] { "A12:F13" }));
+                Is.EqualTo(MatchCells), "the scheduled match, the forfeit and the recorded game's series");
+            Assert.That(cells.Where(c => c.Entity == nameof(RecordedGame)).Select(c => c.Cells), Is.EqualTo(GameCells));
             Assert.That(cells.Where(c => c.Entity == nameof(RecordedGameTeam)), Has.Exactly(2).Items, "each side");
-            Assert.That(cells.Where(c => c.Entity == nameof(RecordedGameParticipant)).Select(c => c.Cells).Order(), Is.EqualTo(new[] { "A12:F12", "A13:F13" }),
+            Assert.That(cells.Where(c => c.Entity == nameof(RecordedGameParticipant)).Select(c => c.Cells).Order(), Is.EqualTo(LineCells),
                 "each player's line, their own row");
             Assert.That(cells.Where(c => c.Entity == nameof(Domain.League.Team) && c.Sheet == "Champions"), Has.Exactly(1).Items, "Red Team's title names it too");
         }
