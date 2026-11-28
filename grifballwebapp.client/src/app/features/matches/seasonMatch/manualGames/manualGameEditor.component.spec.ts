@@ -65,6 +65,25 @@ describe('ManualGameEditorComponent', () => {
     expect(form.map).toBe('');
   });
 
+  it('counts a played line\'s stat cleared to nothing as 0, not null, once saved', async () => {
+    el().querySelector<HTMLInputElement>('input[aria-label="Tucker played"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    for (const stat of ['kills', 'deaths', 'assists', 'goals']) {
+      const input = el().querySelector<HTMLInputElement>(`input[aria-label="Tucker ${stat}"]`)!;
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+    }
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    await type('homeTeamScore', '3');
+    await type('awayTeamScore', '5');
+    submit();
+    expect(saved[0].players[0]).toEqual(jasmine.objectContaining({ played: true, kills: 0, deaths: 0, assists: 0, goals: 0 }));
+  });
+
   it('says it is cancelled, and sends nothing while a save or the page is busy', async () => {
     button('Cancel').click();
     expect(cancelled).toBe(1);
