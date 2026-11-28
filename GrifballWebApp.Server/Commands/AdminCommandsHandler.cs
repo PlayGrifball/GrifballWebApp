@@ -162,8 +162,8 @@ public class AdminCommandsHandler
     private static IReadOnlyList<NetCord.Rest.IMessageComponentProperties> Decisions(IEnumerable<int> ids, Func<int, string> approve, Func<int, string> reject)
         => [.. ids.Take(DecisionRows).Select(id => new NetCord.Rest.ActionRowProperties(
         [
-            new NetCord.Rest.ButtonProperties(approve(id),  Approve #{id}", NetCord.ButtonStyle.Success),
-            new NetCord.Rest.ButtonProperties(reject(id),  Reject #{id}", NetCord.ButtonStyle.Danger),
+            new NetCord.Rest.ButtonProperties(approve(id), $"Approve #{id}", NetCord.ButtonStyle.Success),
+            new NetCord.Rest.ButtonProperties(reject(id), $"Reject #{id}", NetCord.ButtonStyle.Danger),
         ]))];
 
     /// <summary>A pending request's Approve button: approved at once, as /reschedule decide approve:true does.</summary>
