@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace GrifballWebApp.Migrations.Postgres.Migrations
+namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     /// <inheritdoc />
     public partial class SpartanWeapons : Migration
@@ -14,19 +14,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 name: "WeaponCoatingsJson",
                 schema: "Xbox",
                 table: "XboxUserArmor",
-                type: "character varying(4000)",
-                maxLength: 4000,
-                nullable: true,
-                collation: "case_insensitive");
+                type: "nvarchar(max)",
+                nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Weapon",
                 schema: "Xbox",
                 table: "UserSpartanRenders",
-                type: "character varying(64)",
+                type: "nvarchar(64)",
                 maxLength: 64,
-                nullable: true,
-                collation: "case_insensitive");
+                nullable: true);
         }
 
         /// <inheritdoc />

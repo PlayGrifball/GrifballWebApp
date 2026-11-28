@@ -15,7 +15,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 schema: "Xbox",
                 table: "XboxUserArmor",
                 type: "TEXT",
-                maxLength: 4000,
                 nullable: true,
                 collation: "NOCASE");
 

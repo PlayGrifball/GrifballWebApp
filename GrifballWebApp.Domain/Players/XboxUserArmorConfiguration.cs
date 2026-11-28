@@ -35,7 +35,7 @@ public class XboxUserArmorConfiguration : IEntityTypeConfiguration<XboxUserArmor
         entity.Property(e => e.RightArm).HasMaxLength(300);
         entity.Property(e => e.LeftLeg).HasMaxLength(300);
         entity.Property(e => e.RightLeg).HasMaxLength(300);
-        entity.Property(e => e.WeaponCoatingsJson).HasMaxLength(4000);
+        // WeaponCoatingsJson has no cap: a path (up to 300) for each weapon type Halo has
 
         entity.HasOne(e => e.XboxUser)
             .WithMany()

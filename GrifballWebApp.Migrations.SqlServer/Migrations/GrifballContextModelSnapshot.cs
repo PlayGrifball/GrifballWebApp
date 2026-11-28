@@ -4693,8 +4693,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("WeaponCoatingsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("WristAttachmentPath")
                         .HasMaxLength(300)

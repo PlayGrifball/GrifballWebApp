@@ -8275,7 +8275,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .UseCollation("NOCASE");
 
                     b.Property<string>("WeaponCoatingsJson")
-                        .HasMaxLength(4000)
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 

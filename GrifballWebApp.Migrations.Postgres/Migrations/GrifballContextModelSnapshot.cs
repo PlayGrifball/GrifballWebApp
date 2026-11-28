@@ -7992,8 +7992,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("case_insensitive");
 
                     b.Property<string>("WeaponCoatingsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
+                        .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
                     b.Property<string>("WristAttachmentPath")

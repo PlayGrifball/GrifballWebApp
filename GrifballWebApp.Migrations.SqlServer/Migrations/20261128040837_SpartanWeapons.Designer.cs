@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261128020157_SpartanWeapons")]
+    [Migration("20261128040837_SpartanWeapons")]
     partial class SpartanWeapons
     {
         /// <inheritdoc />
@@ -4696,8 +4696,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("WeaponCoatingsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("WristAttachmentPath")
                         .HasMaxLength(300)

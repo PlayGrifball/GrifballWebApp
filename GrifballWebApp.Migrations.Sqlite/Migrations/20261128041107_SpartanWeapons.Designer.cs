@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261128020427_SpartanWeapons")]
+    [Migration("20261128041107_SpartanWeapons")]
     partial class SpartanWeapons
     {
         /// <inheritdoc />
@@ -8278,7 +8278,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .UseCollation("NOCASE");
 
                     b.Property<string>("WeaponCoatingsJson")
-                        .HasMaxLength(4000)
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 

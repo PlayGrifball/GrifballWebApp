@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261128020306_SpartanWeapons")]
+    [Migration("20261128040949_SpartanWeapons")]
     partial class SpartanWeapons
     {
         /// <inheritdoc />
@@ -7995,8 +7995,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("case_insensitive");
 
                     b.Property<string>("WeaponCoatingsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
+                        .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
                     b.Property<string>("WristAttachmentPath")
