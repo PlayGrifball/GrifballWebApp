@@ -74,6 +74,7 @@ public class RescheduleSuggestionsTests
             Assert.That(all[2].Name, Does.Contain("⚠"));
             Assert.That(typed.Select(c => c.StringValue), Is.EqualTo(TheSecondTuesday));
             Assert.That(await _suggestions.BestTime(_s.Match.SeasonMatchID), Is.EqualTo(all[0].StringValue), "what the request form starts with");
+            Assert.That(await _suggestions.BestTime(_s.Match.SeasonMatchID, new CancellationToken(canceled: true)), Is.Null, "not found in time: the form opens without it");
         }
     }
 

@@ -53,9 +53,21 @@ public class RescheduleSuggestions(CommandLookups lookups, SchedulingService sch
             .ToList();
     }
 
-    /// <summary>The match's best time in the UTC form a request reads (what the request form starts with); null when there is none.</summary>
-    public async Task<string?> BestTime(int seasonMatchID)
-        => await scheduling.SuggestAsync(seasonMatchID, count: 1) is [var best, ..] ? best.StartsAt.ToString(CommandLookups.UtcFormat, CultureInfo.InvariantCulture) : null;
+    /// <summary>
+    /// The match's best time in the UTC form a request reads (what the request form starts with); null when there is none, or it can't be
+    /// found by <paramref name="ct"/> (the form must open within Discord's 3 seconds): a help, which the form opens without.
+    /// </summary>
+    public async Task<string?> BestTime(int seasonMatchID, CancellationToken ct = default)
+    {
+        try
+        {
+            return await scheduling.SuggestAsync(seasonMatchID, count: 1, ct: ct) is [var best, ..] ? best.StartsAt.ToString(CommandLookups.UtcFormat, CultureInfo.InvariantCulture) : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
 
     private static string Players(TimeSuggestion s) => $"{s.HomePlayersAvailable} and {s.AwayPlayersAvailable} players can play";
 }

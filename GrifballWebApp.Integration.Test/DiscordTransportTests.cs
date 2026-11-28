@@ -769,6 +769,7 @@ public class DiscordTransportTests
         var customId = $"reschedule_request:{match.SeasonMatchID}";
 
         var opened = await _host.SendAsync(DiscordInteractionJson.SubCommand("reschedule request", 6501, ("match", match.SeasonMatchID.ToString())));
+        var blank = await _host.SendAsync(DiscordInteractionJson.ModalWith(customId, TextInputs(("reason", "  "), ("new_time", "")), 6501));
         var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith(customId, TextInputs(("reason", "Away that week"), ("new_time", "2030-01-05 20:00")), 6501));
 
         var request = await _host.WithContextAsync(context => context.MatchReschedules.AsNoTracking().SingleAsync(r => r.SeasonMatchID == match.SeasonMatchID));
@@ -780,6 +781,7 @@ public class DiscordTransportTests
             Assert.That(Routes(saved), Is.EqualTo(new[] { Callback, EditOriginal }));
             Assert.That(saved[1].Content, Is.EqualTo($"Your reschedule request is in, for <t:{new DateTimeOffset(2030, 1, 5, 20, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds()}>. A commissioner will decide it."));
             Assert.That((request.Reason, request.RequestedByUserID), Is.EqualTo(("Away that week", player.Id)));
+            Assert.That(blank[0].Content, Is.EqualTo(PersonalCommandsHandler.NoReason), "spaces are no reason: asked again, nothing made");
         }
     }
 
@@ -794,6 +796,9 @@ public class DiscordTransportTests
         var savedReport = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "2")), 6502));
         var savedNoReplaced = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "")), 6502));
         var savedReplacesNone = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "0")), 6502));
+        var blankGame = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", " "), ("replaces", "")), 6502));
+        var notANumber = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "two")), 6502));
+        var blankTime = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_time:{id}", TextInputs(("time", " ")), 6502));
         var openedTime = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin match time", 6502, ("match", id.ToString())));
         var savedTime = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_time:{id}", TextInputs(("time", "2030-01-03 20:00")), 6502));
 
@@ -806,6 +811,9 @@ public class DiscordTransportTests
             Assert.That(savedReport[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchGame));
             Assert.That(savedNoReplaced[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchGame));
             Assert.That(savedReplacesNone[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchGame));
+            Assert.That(blankGame[0].Content, Is.EqualTo(AdminCommandsHandler.NoGameId));
+            Assert.That(notANumber[0].Content, Is.EqualTo(AdminCommandsHandler.ReplacesNotANumber), "not added as an extra game");
+            Assert.That(blankTime[0].Content, Is.EqualTo(AdminCommandsHandler.NoTime));
             Assert.That(openedTime[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"match_time:{id}"));
             Assert.That(ModalInputs(openedTime[0].Data)["time"], Is.EqualTo("2030-01-02 20:00"), "the time it has now");
             Assert.That(savedTime[1].Content, Does.StartWith($"The match is set for <t:{new DateTimeOffset(2030, 1, 3, 20, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds()}>."));
@@ -831,6 +839,7 @@ public class DiscordTransportTests
         });
 
         var opened = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin claims reject", 6503, ("claim", claimID.ToString())));
+        var notPending = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin claims reject", 6503, ("claim", "424242")));
         var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith($"claim_reject:{claimID}", TextInputs(("reason", " ")), 6503));
         var savedWithReason = await _host.SendAsync(DiscordInteractionJson.ModalWith($"claim_reject:{withReasonID}", TextInputs(("reason", "Not them")), 6503));
 
@@ -844,6 +853,7 @@ public class DiscordTransportTests
             Assert.That(reason, Is.Null);
             Assert.That(savedWithReason[1].Content, Is.EqualTo("Rejected."));
             Assert.That(given, Is.EqualTo("Not them"));
+            Assert.That(notPending[0].Content, Is.EqualTo(AdminCommandsHandler.NoClaimPending), "said before a reason is written");
         }
     }
 

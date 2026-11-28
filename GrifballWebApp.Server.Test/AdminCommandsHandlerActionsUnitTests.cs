@@ -488,12 +488,23 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task RejectingAClaimWithNoReason_OpensItsModal_ForASysadmin()
+    public async Task RejectingAClaimWithNoReason_OpensItsModal_ForAPendingClaim_AndNotForAnyOther()
     {
+        var claimant = await AddUser(discordUserId: 2, gamertag: "Claimant");
+        var claim = GamertagClaim.ClaimedByUser(claimantUserID: claimant.Id, gamertag: "Grifter1", normalizedGamertag: "GRIFTER1");
+        Db.Set<GamertagClaim>().Add(claim);
+        await Db.SaveChangesAsync();
         var (sysadmin, _) = await Caller(DiscordCaller.Roles.Sysadmin);
+        var none = new CommandContextRecorder(discordUserId: 42);
+        var handler = await Handler();
 
-        await (await Handler()).DecideClaim(sysadmin.Context, 5, approve: false, null);
+        await handler.DecideClaim(sysadmin.Context, claim.GamertagClaimID, approve: false, null);
+        await handler.DecideClaim(none.Context, 424242, approve: false, null);
 
-        Assert.That(sysadmin.Modal().CustomId, Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordModalsContants.ClaimRejectWithParams(5)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sysadmin.Modal().CustomId, Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordModalsContants.ClaimRejectWithParams(claim.GamertagClaimID)));
+            Assert.That(none.Message().Content, Is.EqualTo(AdminCommandsHandler.NoClaimPending));
+        }
     }
 }

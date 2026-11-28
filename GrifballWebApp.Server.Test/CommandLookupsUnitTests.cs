@@ -383,6 +383,10 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
         // Missing a team: no match to move yet
         Db.SeasonMatches.Add(SeasonMatch.Seed(season.SeasonID, mine.TeamID, null));
         await Db.SaveChangesAsync();
+        // A request pending already: the service would refuse another
+        var requested = await AddSeasonMatch(season, mine, others);
+        Assert.That(MatchReschedule.Request(requested, null, "Away", player.Id, Now).Reschedule, Is.Not.Null);
+        await Db.SaveChangesAsync();
 
         var forPlayer = await Lookups().RescheduleMatchChoices("", new GrifballWebApp.Application.Tools.ToolCaller(player.Id, PlayerRole));
         var forOrganizer = await Lookups().RescheduleMatchChoices("", new GrifballWebApp.Application.Tools.ToolCaller(organizer.Id, CommissionerRole));

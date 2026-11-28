@@ -4,6 +4,7 @@ using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -195,6 +196,18 @@ public class CommandLookups
         return null;
     }
 
+    /// <summary>
+    /// <see cref="SeasonMatchFor"/> for a command whose first response is a modal, so nothing was deferred: the refusal is a new
+    /// ephemeral reply.
+    /// </summary>
+    public async Task<int?> SeasonMatchBeforeResponding(IDiscordInteractionContext context, string input, SeasonViewer viewer = SeasonViewer.Public)
+    {
+        if (await SeasonMatch(input, viewer) is int id)
+            return id;
+        await context.EphemeralResponse(NoSuchMatch);
+        return null;
+    }
+
     /// <summary>Seasons whose name has <paramref name="input"/>, newest first: a season option's choices.</summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonChoices(string? input, SeasonViewer viewer = SeasonViewer.Public,
         CancellationToken ct = default)
@@ -249,26 +262,23 @@ public class CommandLookups
     }
 
     /// <summary>
-    /// The matches /reschedule request can ask about, with a team whose name has <paramref name="input"/>: both teams set and no result yet.
-    /// A player's are the ones on their teams' rosters, as <see cref="GrifballWebApp.Application.Reschedule.RescheduleRules"/> allows; an
-    /// organizer (who may ask about any) gets their own first, then the rest. None for someone with no account.
+    /// The matches /reschedule request can ask about, with a team whose name has <paramref name="input"/>: both teams set, no result yet and
+    /// no request pending. A player's are the ones on their teams' rosters, as <see cref="GrifballWebApp.Application.Reschedule.RescheduleRules"/>
+    /// allows; an organizer (who may ask about any) gets their own first, then the rest. None for someone with no account.
     /// </summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> RescheduleMatchChoices(string? input, ToolCaller caller, CancellationToken ct = default)
     {
         if (caller.UserID is not int userID)
             return [];
-        var teams = await _context.Teams.Rosters().Where(tp => tp.UserID == userID).Select(tp => tp.TeamID).ToListAsync(ct);
-        var organizer = caller.IsInAnyRole(GrifballWebApp.Application.Reschedule.RescheduleRules.OrganizerRoles);
+        var rosters = _context.Teams.Rosters().Where(tp => tp.UserID == userID);
+        var pending = _context.MatchReschedules.Where(GrifballWebApp.Domain.League.MatchReschedule.IsPending).Select(r => r.SeasonMatchID);
         var open = MatchesNamed(input, SeasonViewer.Public)
             .Where(GrifballWebApp.Domain.League.SeasonMatch.Undecided)
-            .Where(x => x.HomeTeamID != null && x.AwayTeamID != null);
-        if (!organizer)
-            open = open.Where(x => teams.Contains(x.HomeTeamID!.Value) || teams.Contains(x.AwayTeamID!.Value));
-        var matches = open
-            .OrderByDescending(x => teams.Contains(x.HomeTeamID!.Value) || teams.Contains(x.AwayTeamID!.Value))
-            .ThenByDescending(x => x.SeasonID)
-            .ThenBy(x => x.ScheduledTime);
-        return await MatchChoices(matches, ct);
+            .Where(x => x.HomeTeamID != null && x.AwayTeamID != null && !pending.Contains(x.SeasonMatchID));
+        var matches = caller.IsInAnyRole(GrifballWebApp.Application.Reschedule.RescheduleRules.OrganizerRoles)
+            ? open.OrderByDescending(x => rosters.Any(tp => tp.TeamID == x.HomeTeamID || tp.TeamID == x.AwayTeamID)).ThenByDescending(x => x.SeasonID)
+            : open.Where(x => rosters.Any(tp => tp.TeamID == x.HomeTeamID || tp.TeamID == x.AwayTeamID)).OrderByDescending(x => x.SeasonID);
+        return await MatchChoices(matches.ThenBy(x => x.ScheduledTime), ct);
     }
 
     /// <summary>Season matches with a team whose name has <paramref name="input"/>, of the seasons <paramref name="viewer"/> sees.</summary>

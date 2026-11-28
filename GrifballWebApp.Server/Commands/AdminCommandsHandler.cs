@@ -53,6 +53,10 @@ public class AdminCommandsHandler
     public const string JobStateInput = "state";
     public const string DecisionInput = "decision";
     public const string NotesInput = "notes";
+    public const string NoGameId = "Give the game's Halo match ID.";
+    public const string NoTime = "Give the time in UTC, like 2026-11-20 20:00.";
+    public const string ReplacesNotANumber = "The series game it replaces is a number, like 2 (leave it empty for none).";
+    public const string NoClaimPending = "No pending claim has that number: /admin claims list shows them.";
     public const string GameIdInput = "game_id";
     public const string ReplacesInput = "replaces";
     public const string TimeInput = "time";
@@ -230,12 +234,9 @@ public class AdminCommandsHandler
     /// </summary>
     private async Task<int?> MatchBeforeResponding(IDiscordInteractionContext context, string match)
     {
-        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.CommissionerOnly) is null)
-            return null;
-        if (await _lookups.SeasonMatch(match, SeasonViewer.Staff) is int id)
-            return id;
-        await context.EphemeralResponse(CommandLookups.NoSuchMatch);
-        return null;
+        return await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.CommissionerOnly) is null
+            ? null
+            : await _lookups.SeasonMatchBeforeResponding(context, match, SeasonViewer.Staff);
     }
 
     private async Task OpenReportModal(IDiscordInteractionContext context, string match, int? replaces)
@@ -252,7 +253,7 @@ public class AdminCommandsHandler
             new LabelProperties("Series game it replaces (none: leave empty)", new TextInputProperties(ReplacesInput, TextInputStyle.Short)
             {
                 Required = false,
-                MaxLength = 3,
+                MaxLength = ShortInputMaxLength,
                 Value = replaces?.ToString(System.Globalization.CultureInfo.InvariantCulture),
             }),
         };
@@ -260,9 +261,26 @@ public class AdminCommandsHandler
     }
 
     /// <summary>The report modal's answers, reported as the command reports them (its game ID is required there, so always given).</summary>
-    public Task SaveReport(IDiscordModalInteractionContext context, int seasonMatchID)
-        => ReportGame(context, CommandLookups.ChoicePrefix + seasonMatchID, ModalAnswers.Text(context.Components, GameIdInput)!,
-            int.TryParse(ModalAnswers.Text(context.Components, ReplacesInput), out var replaces) && replaces > 0 ? replaces : null);
+    public async Task SaveReport(IDiscordModalInteractionContext context, int seasonMatchID)
+    {
+        var replaces = ModalAnswers.Text(context.Components, ReplacesInput);
+        int? replaced = null;
+        if (replaces is not null)
+        {
+            if (!int.TryParse(replaces.Trim(), System.Globalization.CultureInfo.InvariantCulture, out var game) || game < 0)
+            {
+                await context.EphemeralResponse(ReplacesNotANumber);
+                return;
+            }
+            replaced = game > 0 ? game : null;
+        }
+        if (ModalAnswers.Text(context.Components, GameIdInput) is not { } gameID)
+        {
+            await context.EphemeralResponse(NoGameId);
+            return;
+        }
+        await ReportGame(context, CommandLookups.ChoiceValue(seasonMatchID), gameID, replaced);
+    }
 
     public async Task Forfeit(IDiscordInteractionContext context, string match, ForfeitSide side)
     {
@@ -319,8 +337,15 @@ public class AdminCommandsHandler
     }
 
     /// <summary>The time modal's answer, set as the command sets it (it is required there, so always given).</summary>
-    public Task SaveTime(IDiscordModalInteractionContext context, int seasonMatchID)
-        => SetTime(context, CommandLookups.ChoicePrefix + seasonMatchID, ModalAnswers.Text(context.Components, TimeInput)!);
+    public async Task SaveTime(IDiscordModalInteractionContext context, int seasonMatchID)
+    {
+        if (ModalAnswers.Text(context.Components, TimeInput) is not { } time)
+        {
+            await context.EphemeralResponse(NoTime);
+            return;
+        }
+        await SetTime(context, CommandLookups.ChoiceValue(seasonMatchID), time);
+    }
 
     /// <summary>What is wrong with a time just set (the season's rules), as a reply's last lines; nothing when nothing is.</summary>
     public static string Warnings(IReadOnlyList<GrifballWebApp.Application.Scheduling.ScheduleConflict> conflicts)
@@ -561,6 +586,12 @@ public class AdminCommandsHandler
     {
         if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.SysadminOnly) is null)
             return;
+        // Only a pending claim is rejected: said before a reason is written for nothing
+        if (!(await _claims.List(GamertagClaimStatus.Pending)).Exists(c => c.GamertagClaimID == claimID))
+        {
+            await context.EphemeralResponse(NoClaimPending);
+            return;
+        }
         var modal = new ModalProperties(DiscordModalsContants.ClaimRejectWithParams(claimID), $"Reject claim #{claimID}")
         {
             new LabelProperties("Why, for the claimant (optional)", new TextInputProperties(ReasonInput, TextInputStyle.Paragraph)

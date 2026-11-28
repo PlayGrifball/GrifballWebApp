@@ -38,6 +38,9 @@ public class PersonalCommandsHandler
     public const string NewTimeInput = "new_time";
     private const int ReasonMaxLength = 1000;
     private const int NewTimeMaxLength = 100;
+    public const string NoReason = "Say why the match needs to move.";
+    /// <summary>How long the request modal waits for the match's best time before it opens without it (Discord allows 3 seconds).</summary>
+    private static readonly TimeSpan BestTimeWait = TimeSpan.FromMilliseconds(1500);
     private const int RadioGroupLimit = 10;
 
     private readonly DiscordCaller _caller;
@@ -321,18 +324,16 @@ public class PersonalCommandsHandler
 
     /// <summary>
     /// The request modal, the first response: the match is looked up first and travels as its ID. Its time starts as the one typed,
-    /// else the match's best time (<see cref="RescheduleSuggestions.BestTime"/>), for the player to keep, change or clear.
+    /// else the match's best time (<see cref="RescheduleSuggestions.BestTime"/>, if found in <see cref="BestTimeWait"/>), for the player to keep,
+    /// change or clear.
     /// </summary>
     private async Task OpenRescheduleModal(IDiscordInteractionContext context, string match, string? newTime)
     {
-        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.Anyone) is null)
+        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.Anyone) is null
+            || await _lookups.SeasonMatchBeforeResponding(context, match) is not int seasonMatchID)
             return;
-        if (await _lookups.SeasonMatch(match) is not int seasonMatchID)
-        {
-            await context.EphemeralResponse(CommandLookups.NoSuchMatch);
-            return;
-        }
-        var time = newTime ?? await _suggestions.BestTime(seasonMatchID);
+        using var soon = new CancellationTokenSource(BestTimeWait);
+        var time = newTime ?? await _suggestions.BestTime(seasonMatchID, soon.Token);
         var modal = new ModalProperties(DiscordModalsContants.RescheduleRequestWithParams(seasonMatchID), "Reschedule request")
         {
             new LabelProperties("Why it needs to move", new TextInputProperties(ReasonInput, TextInputStyle.Paragraph)
@@ -340,7 +341,7 @@ public class PersonalCommandsHandler
                 Required = true,
                 MaxLength = ReasonMaxLength,
             }),
-            new LabelProperties("New time (UTC, like 2026-11-20 20:00)", new TextInputProperties(NewTimeInput, TextInputStyle.Short)
+            new LabelProperties("New time in UTC (clear it for none)", new TextInputProperties(NewTimeInput, TextInputStyle.Short)
             {
                 Required = false,
                 MaxLength = NewTimeMaxLength,
@@ -350,8 +351,14 @@ public class PersonalCommandsHandler
         await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
     }
 
-    /// <summary>The request modal's answers, asked as the command asks them (its reason is required there, so always given).</summary>
-    public Task SaveRescheduleRequest(IDiscordModalInteractionContext context, int seasonMatchID)
-        => RequestReschedule(context, CommandLookups.ChoicePrefix + seasonMatchID, ModalAnswers.Text(context.Components, ReasonInput)!,
-            ModalAnswers.Text(context.Components, NewTimeInput));
+    /// <summary>The request modal's answers, asked as the command asks them; a blank reason (spaces) is asked for again.</summary>
+    public async Task SaveRescheduleRequest(IDiscordModalInteractionContext context, int seasonMatchID)
+    {
+        if (ModalAnswers.Text(context.Components, ReasonInput) is not { } reason)
+        {
+            await context.EphemeralResponse(NoReason);
+            return;
+        }
+        await RequestReschedule(context, CommandLookups.ChoiceValue(seasonMatchID), reason, ModalAnswers.Text(context.Components, NewTimeInput));
+    }
 }
