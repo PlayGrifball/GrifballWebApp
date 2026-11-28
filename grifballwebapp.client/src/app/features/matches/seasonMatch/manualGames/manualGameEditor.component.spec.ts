@@ -1,4 +1,3 @@
-import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { emptyForm, ManualGameForm } from './manualGameForm';
 import { ManualGameEditorComponent } from './manualGameEditor.component';
@@ -6,7 +5,7 @@ import { ManualGameEditorComponent } from './manualGameEditor.component';
 describe('ManualGameEditorComponent', () => {
   let fixture: ComponentFixture<ManualGameEditorComponent>;
   let form: ManualGameForm;
-  let saved: number;
+  let saved: ManualGameForm[];
   let cancelled: number;
 
   beforeEach(() => {
@@ -14,58 +13,83 @@ describe('ManualGameEditorComponent', () => {
     form = { ...emptyForm(), players: [{ userID: 3, gamertag: 'Tucker', isHomeTeam: false, played: false, kills: 0, deaths: 0, assists: 0, goals: 0, score: null }] };
     fixture.componentRef.setInput('form', form);
     fixture.componentRef.setInput('editing', 41);
-    saved = 0;
+    saved = [];
     cancelled = 0;
-    fixture.componentInstance.saved.subscribe(() => saved++);
+    fixture.componentInstance.saved.subscribe(value => saved.push(value));
     fixture.componentInstance.cancelled.subscribe(() => cancelled++);
     fixture.detectChanges();
   });
 
   const el = () => fixture.nativeElement as HTMLElement;
   const button = (label: string) => Array.from(el().querySelectorAll('button')).find(b => b.textContent!.trim() === label)!;
-  /** The form changed as the fields would change it (OnPush: a field's own input event marks it). */
-  const refresh = () => {
-    fixture.componentRef.injector.get(ChangeDetectorRef).markForCheck();
+  const field = (name: string) => el().querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
+  /** Types into a field the way a commissioner would (its own `input` event, reactive forms' way of hearing it). */
+  async function type(name: string, value: string): Promise<void> {
+    field(name).value = value;
+    field(name).dispatchEvent(new Event('input'));
+    await fixture.whenStable();
     fixture.detectChanges();
-  };
+  }
   const submit = () => el().querySelector('form')!.dispatchEvent(new Event('submit'));
 
-  it('saves only a valid game: both scores in, and different', () => {
+  it('saves only a valid game: both scores in, and different', async () => {
     submit();
-    expect(saved).toBe(0);
+    expect(saved).toHaveSize(0);
     expect(button('Save game').disabled).toBeTrue();
 
-    form.homeTeamScore = 3;
-    form.awayTeamScore = 3;
-    refresh();
+    await type('homeTeamScore', '3');
+    await type('awayTeamScore', '3');
     expect(el().textContent).toContain("the two scores can't be equal");
     submit();
-    expect(saved).toBe(0);
+    expect(saved).toHaveSize(0);
 
-    form.awayTeamScore = 5;
-    refresh();
+    await type('awayTeamScore', '5');
     expect(button('Save game').disabled).toBeFalse();
     submit();
-    expect(saved).toBe(1);
+    expect(saved).toHaveSize(1);
+    expect(saved[0]).toEqual(jasmine.objectContaining({ homeTeamScore: 3, awayTeamScore: 5 }));
   });
 
-  it('edits the caller\'s form in place, a player line at a time', async () => {
-    // The fields register with the form a microtask after they are drawn
+  it("emits the game with the fields edited, a player line at a time, the caller's form left alone", async () => {
     await fixture.whenStable();
-    const input = el().querySelector<HTMLInputElement>('input[name="map"]')!;
-    input.value = 'Pit';
-    input.dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-    expect(form.map).toBe('Pit');
+    await type('map', 'Pit');
     expect(el().querySelector<HTMLInputElement>('input[aria-label="Tucker kills"]')!.disabled).toBeTrue();
+    // Nothing reaches the caller's object until it is saved
+    expect(form.map).toBe('');
+
+    await type('homeTeamScore', '3');
+    await type('awayTeamScore', '5');
+    submit();
+    expect(saved[0].map).toBe('Pit');
+    expect(saved[0].players).toEqual([{ userID: 3, gamertag: 'Tucker', isHomeTeam: false, played: false, kills: 0, deaths: 0, assists: 0, goals: 0, score: null }]);
+    expect(form.map).toBe('');
   });
 
-  it('says it is cancelled, and sends nothing while a save or the page is busy', () => {
+  it('counts a played line\'s stat cleared to nothing as 0, not null, once saved', async () => {
+    el().querySelector<HTMLInputElement>('input[aria-label="Tucker played"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    for (const stat of ['kills', 'deaths', 'assists', 'goals']) {
+      const input = el().querySelector<HTMLInputElement>(`input[aria-label="Tucker ${stat}"]`)!;
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+    }
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    await type('homeTeamScore', '3');
+    await type('awayTeamScore', '5');
+    submit();
+    expect(saved[0].players[0]).toEqual(jasmine.objectContaining({ played: true, kills: 0, deaths: 0, assists: 0, goals: 0 }));
+  });
+
+  it('says it is cancelled, and sends nothing while a save or the page is busy', async () => {
     button('Cancel').click();
     expect(cancelled).toBe(1);
 
-    form.homeTeamScore = 3;
-    form.awayTeamScore = 5;
+    await type('homeTeamScore', '3');
+    await type('awayTeamScore', '5');
     fixture.componentRef.setInput('blocked', true);
     fixture.detectChanges();
     expect(button('Save game').disabled).toBeTrue();

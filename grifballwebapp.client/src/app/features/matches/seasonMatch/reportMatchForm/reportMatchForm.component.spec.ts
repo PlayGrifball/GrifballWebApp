@@ -41,6 +41,26 @@ describe('ReportMatchFormComponent', () => {
     expect(submit().disabled).toBeTrue();
   });
 
+  it('is required: empty says so, not the GUID message, once touched', async () => {
+    // Pristine and empty: invalid, but says nothing yet (as the GUID cases above never check before typing)
+    expect(submit().disabled).toBeTrue();
+    expect(el().textContent).not.toContain('Required');
+
+    await type('x');
+    await type('');
+    expect(submit().disabled).toBeTrue();
+    expect(el().textContent).toContain('Required');
+    expect(el().textContent).not.toContain('Must be a valid GUID');
+  });
+
+  it("updates the field when the page's matchID changes from outside", async () => {
+    fixture.componentRef.setInput('matchID', '0f8fad5b-d9cb-469f-a165-70867728950e');
+    fixture.detectChanges();
+
+    expect(input().value).toBe('0f8fad5b-d9cb-469f-a165-70867728950e');
+    expect(submit().disabled).toBeFalse();
+  });
+
   it('reports the match id typed in, and nothing while the page is busy', async () => {
     await type('{0f8fad5b-d9cb-469f-a165-70867728950e}');
     submit().click();

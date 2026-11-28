@@ -3,7 +3,7 @@ import { outputFromObservable } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import type { TeamPagePlayerDto } from '@api/models';
 import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
-import { decidedOtherwise, defaultGameVersion, emptyForm, formLines, isFormValid, ManualGameForm, slotChoices, toLocalInput } from './manualGameForm';
+import { decidedOtherwise, defaultGameVersion, emptyForm, formLines, GameSlot, isFormValid, ManualGameForm, slotChoices, toLocalInput } from './manualGameForm';
 import { ManualGamesStore } from './manualGames.store';
 import { ManualGameEditorComponent } from './manualGameEditor.component';
 import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
@@ -44,7 +44,8 @@ export class ManualGamesComponent {
   readonly gameVersions = this.store.gameVersions;
   /** What manual entry is doing (see ManualGamesMode). */
   readonly mode = this.store.mode;
-  form: ManualGameForm = emptyForm();
+  /** What the editor starts with: its own FormGroup from here on, emitted back (never mutated) once it is saved. */
+  initialForm: ManualGameForm = emptyForm();
   readonly error = this.store.error;
   /** The game in the form: 'new', the RecordedGameID of the one being edited, or null. */
   readonly editing = this.store.editing;
@@ -66,6 +67,10 @@ export class ManualGamesComponent {
 
   /** Where a game entered now can go (a new game, or in place of one reported): see {@link slotChoices}. */
   readonly slots = computed(() => slotChoices(this.match()));
+
+  /** The editing target as a 0- or 1-item list, for `@for` to key the editor on in the template: switching which
+   * game is being edited (or from none to one) must recreate the editor, never reuse one with a changed `form`. */
+  readonly editorTarget = computed<GameSlot[]>(() => { const target = this.editing(); return target !== null ? [target] : []; });
 
   /** A game can be entered: as a new game, or replacing one of the series. Every game of the series, Waypoint and
    * recorded alike, is in reportedGames. */
@@ -95,7 +100,7 @@ export class ManualGamesComponent {
     // With games in the series, the commissioner picks whether it is new or replaces one: nothing is picked for them
     const slots = this.slots();
     const only = this.match()?.reportedGames.length === 0 && slots.length === 1 ? slots[0].slot : null;
-    this.form = { ...emptyForm(), gameVersionID: defaultGameVersion(this.gameVersions()), players: this.lines(null), slot: only };
+    this.initialForm = { ...emptyForm(), gameVersionID: defaultGameVersion(this.gameVersions()), players: this.lines(null), slot: only };
     this.store.enter('new');
     this.started.emit();
   }
@@ -104,7 +109,7 @@ export class ManualGamesComponent {
   startEdit(game: ReportedGameDto): void {
     if (!this.canChange(game) || this.saving() || this.blocked())
       return;
-    this.form = {
+    this.initialForm = {
       gameVersionID: game.gameVersionID ?? defaultGameVersion(this.gameVersions()),
       map: game.map ?? '',
       gametype: game.gametype ?? '',
@@ -123,16 +128,13 @@ export class ManualGamesComponent {
     this.store.cancel();
   }
 
-  /** The scores are in and differ (the side with the higher one won); a new game's place in the series is picked. */
-  formValid(): boolean {
-    return isFormValid(this.form, this.editing());
-  }
-
-  /** Sends the game in the form; done, manual entry is idle and the page reloads; refused, it stays with why. */
-  save(): void {
-    if (this.mode().kind !== 'entering' || !this.formValid() || this.blocked())
+  /** Sends the game the editor emitted; done, manual entry is idle and the page reloads; refused, it stays with why.
+   * The editor's own Save only emits a valid game, but this is the caller's guarantee too: an invalid one (or one
+   * for a game no longer waiting in the form) is a no-op, not a request. */
+  save(form: ManualGameForm): void {
+    if (this.mode().kind !== 'entering' || !isFormValid(form, this.editing()) || this.blocked())
       return;
-    this.store.save(this.seasonMatchID(), this.form);
+    this.store.save(this.seasonMatchID(), form);
   }
 
   /** Asks to confirm unreporting a game of the series. */
