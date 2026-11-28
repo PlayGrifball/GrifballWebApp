@@ -344,6 +344,7 @@ public class Program
         services.AddTransient<SeasonCommandsHandler>();
         services.AddTransient<TeamCommandsHandler>();
         services.AddTransient<PlayerCommandsHandler>();
+        services.AddTransient<CommandViewHandler>();
         services.AddTransient<UserCommandsHandler>();
         services.AddTransient<MatchCommandsHandler>();
         services.AddTransient<BrowseCommandsHandler>();

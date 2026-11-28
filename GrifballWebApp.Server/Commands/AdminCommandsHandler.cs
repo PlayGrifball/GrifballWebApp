@@ -151,8 +151,26 @@ public class AdminCommandsHandler
             .Select(x => $"**#{x.MatchRescheduleID}** {$"{x.HomeCaptain} vs {x.AwayCaptain}".LinkMarkdown(_urls.SeasonMatch(x.SeasonMatchID))}"
                 + $" · {(x.NewScheduledTime is { } time ? time.DiscordTimeEmbed() : "no time given")} · by {x.RequestedByGamertag}: {x.Reason}")
             .ToList();
-        await context.Reply(CommandReplies.Embed("Pending reschedules", _urls.Page("commissioner-dashboard"), CommandReplies.Lines(lines, "No reschedule is pending.")));
+        await context.Reply(new CommandView(CommandReplies.Embed("Pending reschedules", _urls.Page("commissioner-dashboard"), CommandReplies.Lines(lines, "No reschedule is pending.")),
+            Decisions(pending.Select(x => x.MatchRescheduleID), DiscordButtonContants.RescheduleApproveWithParams, DiscordButtonContants.RescheduleRejectWithParams)));
     }
+
+    /// <summary>The most items of a pending list that get Approve and Reject buttons: a message shows five rows.</summary>
+    private const int DecisionRows = 5;
+
+    /// <summary>Approve and Reject under the first items of a pending list (their IDs), one row each, in the list's order.</summary>
+    private static IReadOnlyList<NetCord.Rest.IMessageComponentProperties> Decisions(IEnumerable<int> ids, Func<int, string> approve, Func<int, string> reject)
+        => [.. ids.Take(DecisionRows).Select(id => new NetCord.Rest.ActionRowProperties(
+        [
+            new NetCord.Rest.ButtonProperties(approve(id),  Approve #{id}", NetCord.ButtonStyle.Success),
+            new NetCord.Rest.ButtonProperties(reject(id),  Reject #{id}", NetCord.ButtonStyle.Danger),
+        ]))];
+
+    /// <summary>A pending request's Approve button: approved at once, as /reschedule decide approve:true does.</summary>
+    public Task ApproveReschedule(IDiscordInteractionContext context, int rescheduleID) => DecideReschedule(context, rescheduleID, approve: true, notes: null);
+
+    /// <summary>A pending request's Reject button: the decision modal with Reject picked, for the notes the players read.</summary>
+    public Task RejectReschedule(IDiscordInteractionContext context, int rescheduleID) => OpenDecisionModal(context, rescheduleID, notes: null, rejecting: true);
 
     /// <summary>
     /// Approves or rejects a reschedule request, as the dashboard does. With neither given, a modal asks which, with the
@@ -179,7 +197,7 @@ public class AdminCommandsHandler
         await context.Reply(approved ? "Approved." : "Rejected.");
     }
 
-    private async Task OpenDecisionModal(IDiscordInteractionContext context, int rescheduleID, string? notes)
+    private async Task OpenDecisionModal(IDiscordInteractionContext context, int rescheduleID, string? notes, bool rejecting = false)
     {
         if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.Staff) is null)
             return;
@@ -193,7 +211,7 @@ public class AdminCommandsHandler
             new LabelProperties("Decision", new RadioGroupProperties(DecisionInput,
             [
                 new RadioGroupOptionProperties("Approve", "approve"),
-                new RadioGroupOptionProperties("Reject", "reject"),
+                new RadioGroupOptionProperties("Reject", "reject") { Default = rejecting },
             ])),
             new LabelProperties("Notes for the players", new TextInputProperties(NotesInput, TextInputStyle.Paragraph)
             {
@@ -559,7 +577,15 @@ public class AdminCommandsHandler
         var lines = claims
             .Select(x => $"**#{x.GamertagClaimID}** {x.Gamertag} · by {x.ClaimantName}" + (x.SeasonName is { } season ? $" · {season}" : ""))
             .ToList();
-        await context.Reply(CommandReplies.Embed("Pending gamertag claims", _urls.Page("usermanagement/claims"), CommandReplies.Lines(lines, "No claim is pending.")));
+        await context.Reply(new CommandView(CommandReplies.Embed("Pending gamertag claims", _urls.Page("usermanagement/claims"), CommandReplies.Lines(lines, "No claim is pending.")),
+            Decisions(claims.Select(x => x.GamertagClaimID), DiscordButtonContants.ClaimApproveWithParams, DiscordButtonContants.ClaimRejectWithParams)));
+    }
+
+    /// <summary>A pending claim's Approve button: approved at once, as /admin claims approve does.</summary>
+    public Task ApproveClaim(IDiscordInteractionContext context, int claimID) => DecideClaim(context, claimID, approve: true, reason: null);
+
+    /// <summary>A pending claim's Reject button: the rejection modal, for the reason the claimant reads (<see cref="DecideClaim"/>).</summary>
+    public Task RejectClaim(IDiscordInteractionContext context, int claimID) => DecideClaim(context, claimID, approve: false, reason: null);
     }
 
     /// <summary>

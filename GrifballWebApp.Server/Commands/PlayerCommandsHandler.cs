@@ -5,6 +5,7 @@ using GrifballWebApp.Application;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.Historical.Vods;
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Infrastructure.Discord;
 using NetCord.Rest;
 
 namespace GrifballWebApp.Server.Commands;
@@ -65,12 +66,16 @@ public class PlayerCommandsHandler
     /// <summary>The player's gamertag: every player found here has one (<see cref="CommandLookups.Player"/>, <see cref="DiscordCaller"/>).</summary>
     private static string Name(ProfileStatsDto profile) => profile.Gamertag!;
 
-    public async Task Profile(IDiscordInteractionContext context, string? player)
-    {
-        if (await PlayerFor(context, player) is not { } p)
-            return;
-        await ShowProfile(context, p);
-    }
+    /// <summary>The views /player shows of a player, each with a menu to switch to another for the same player (<see cref="View"/>).</summary>
+    public const string ProfileView = "profile";
+    public const string StatsView = "stats";
+    public const string CommendationsView = "commendations";
+    public const string HistoryView = "history";
+
+    private static readonly (string View, string Label)[] Views =
+        [(ProfileView, "Profile"), (StatsView, "Stats"), (CommendationsView, "Medals"), (HistoryView, "History")];
+
+    public Task Profile(IDiscordInteractionContext context, string? player) => Reply(context, player, ProfileView);
 
     /// <summary>The profile of the user a right-click on a Discord user names (their linked account), as /player profile shows it.</summary>
     public async Task ProfileOfDiscordUser(IDiscordInteractionContext context, ulong discordUserId)
@@ -81,10 +86,48 @@ public class PlayerCommandsHandler
             await context.Reply(NoLinkedAccount);
             return;
         }
-        await ShowProfile(context, (await _profiles.GetAsync(found.UserID))!);
+        await context.Reply((await View(ProfileView, found.UserID))!);
     }
 
-    private async Task ShowProfile(IDiscordInteractionContext context, ProfileStatsDto p)
+    public Task Stats(IDiscordInteractionContext context, string? player) => Reply(context, player, StatsView);
+
+    public Task Commendations(IDiscordInteractionContext context, string? player) => Reply(context, player, CommendationsView);
+
+    public Task History(IDiscordInteractionContext context, string? player) => Reply(context, player, HistoryView);
+
+    /// <summary>A view of the player named, else the caller (after deferring).</summary>
+    private async Task Reply(IDiscordInteractionContext context, string? player, string view)
+    {
+        await context.Defer(ephemeral: false);
+        if (await UserFor(context, player) is int userID)
+            await context.Reply((await View(view, userID))!);
+    }
+
+    /// <summary>Player <paramref name="userID"/>'s view <paramref name="view"/>, with the menu to switch view; null for a player or view there isn't.</summary>
+    public async Task<CommandView?> View(string view, int userID)
+    {
+        if (await _profiles.GetAsync(userID) is not { } p)
+            return null;
+        var embed = view switch
+        {
+            ProfileView => ProfileEmbed(p),
+            StatsView => StatsEmbed(p),
+            CommendationsView => await CommendationsEmbed(p),
+            HistoryView => await HistoryEmbed(p),
+            _ => null,
+        };
+        return embed is null ? null : new CommandView(embed, [ViewMenu(view, userID)]);
+    }
+
+    /// <summary>The menu of the player's views, <paramref name="view"/> picked.</summary>
+    private static StringMenuProperties ViewMenu(string view, int userID)
+        => new(DiscordStringMenuContants.PlayerViewWithParams(userID),
+            [.. Views.Select(v => new StringMenuSelectOptionProperties(v.Label, v.View) { Default = v.View == view })])
+        {
+            Placeholder = "Another view",
+        };
+
+    private EmbedProperties ProfileEmbed(ProfileStatsDto p)
     {
         var embed = CommandReplies.Embed(Name(p), _urls.Profile(p.UserID));
         var career = p.OverallCareer;
@@ -101,42 +144,36 @@ public class PlayerCommandsHandler
             ],
             .. p.PastGamertags.Count > 0 ? [new EmbedFieldProperties().WithName("Also known as").WithValue(string.Join(", ", p.PastGamertags)).WithInline(false)] : Array.Empty<EmbedFieldProperties>(),
         ];
-        await context.Reply(embed);
+        return embed;
     }
 
-    public async Task Stats(IDiscordInteractionContext context, string? player)
+    private EmbedProperties StatsEmbed(ProfileStatsDto p)
     {
-        if (await PlayerFor(context, player) is not { } p)
-            return;
         var lines = p.CareerByGame
             .Select(x => $"**{x.GameVersionName ?? "Other"}** · {x.SeasonsCount} seasons · {x.Wins}-{x.Losses} · {x.Goals ?? 0} goals · "
                 + $"{x.Kills} kills · K/D {(x.KdRatio is { } kd ? $"{kd:0.##}" : "-")}")
             .ToList();
-        await context.Reply(CommandReplies.Embed($"{Name(p)} stats", _urls.Profile(p.UserID), CommandReplies.Lines(lines, "No stats yet.")));
+        return CommandReplies.Embed($"{Name(p)} stats", _urls.Profile(p.UserID), CommandReplies.Lines(lines, "No stats yet."));
     }
 
-    public async Task Commendations(IDiscordInteractionContext context, string? player)
+    private async Task<EmbedProperties> CommendationsEmbed(ProfileStatsDto p)
     {
-        if (await PlayerFor(context, player) is not { } p)
-            return;
         var commendations = await _commendations.GetAsync(p.UserID);
         var lines = commendations.Commendations
             .Select(x => $"{x.MedalName} · {x.Count}" + (x.Tier > 0 ? $" · tier {x.Tier}" : ""))
             .ToList();
         var description = CommandReplies.Lines(lines, "No medals yet.", head: $"{commendations.TotalMedals} medals, {commendations.DistinctMedals} kinds\n\n");
-        await context.Reply(CommandReplies.Embed($"{Name(p)} commendations", _urls.Profile(p.UserID), description));
+        return CommandReplies.Embed($"{Name(p)} commendations", _urls.Profile(p.UserID), description);
     }
 
-    public async Task History(IDiscordInteractionContext context, string? player)
+    private async Task<EmbedProperties> HistoryEmbed(ProfileStatsDto p)
     {
-        if (await PlayerFor(context, player) is not { } p)
-            return;
         var history = (await _history.GetAsync(p.UserID))!;
         var lines = history
             .Select(x => $"{x.Season.SeasonName} · {x.TeamName.LinkMarkdown(_urls.Team(x.Season.SeasonID, x.TeamID))}{(x.IsCaptain ? " (captain)" : "")}"
                 + $" · {x.Wins}-{x.Losses} · {x.Finish}" + (x.ChampionshipTiers.Count > 0 ? $" · {string.Join(", ", x.ChampionshipTiers)} champion" : ""))
             .ToList();
-        await context.Reply(CommandReplies.Embed($"{Name(p)} deployment history", _urls.Profile(p.UserID), CommandReplies.Lines(lines, "No seasons yet.")));
+        return CommandReplies.Embed($"{Name(p)} deployment history", _urls.Profile(p.UserID), CommandReplies.Lines(lines, "No seasons yet."));
     }
 
     public async Task Vods(IDiscordInteractionContext context, string? player)

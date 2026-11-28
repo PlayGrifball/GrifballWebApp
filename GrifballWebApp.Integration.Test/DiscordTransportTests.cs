@@ -953,4 +953,136 @@ public class DiscordTransportTests
             Assert.That(leave[1].Content, Is.EqualTo(VoiceCommandsHandler.NoGuild));
         }
     }
+
+    /// <summary>The custom IDs of a message's buttons and menus, in order.</summary>
+    private static List<string> ComponentIds(JsonElement message) => Descendants(message.GetProperty("components"))
+        .Where(e => e.ValueKind == JsonValueKind.Object && e.TryGetProperty("custom_id", out _))
+        .Select(e => e.GetProperty("custom_id").GetString()!)
+        .ToList();
+
+    private static JsonElement FirstEmbed(JsonElement message) => message.GetProperty("embeds")[0];
+
+    [Test]
+    public async Task SeasonSignups_PageWithTheirButtons_AndTheSeasonMenuSwitchesSeason()
+    {
+        await LinkedUser(7301, "Pager7301");
+        var (season, other) = await _host.WithContextAsync(async context =>
+        {
+            var paged = Season.Seed(seasonName: "Transport Paged").WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
+            var unpaged = Season.Seed(seasonName: "Transport Unpaged").WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
+            context.Seasons.AddRange(paged, unpaged);
+            await context.SaveChangesAsync();
+            for (var i = 0; i < 12; i++)
+            {
+                var signer = User.Seed(userName: $"Signer7301x{i}");
+                context.Users.Add(signer);
+                await context.SaveChangesAsync();
+                await context.AddSignup(paged, signer);
+            }
+            return (paged.SeasonID, unpaged.SeasonID);
+        });
+
+        var first = await _host.SendAsync(DiscordInteractionJson.SubCommand("season signups", 7301, ("season", season.ToString())));
+        var second = await _host.SendAsync(DiscordInteractionJson.Button($"page:signups:{season}:1", 7301));
+        var switched = await _host.SendAsync(DiscordInteractionJson.StringMenu("seasonview:signups", 7301, $"id:{other}"));
+        var gone = await _host.SendAsync(DiscordInteractionJson.StringMenu("seasonview:signups", 7301, "id:999999"));
+        var noSuchView = await _host.SendAsync(DiscordInteractionJson.Button($"page:nope:{season}:0", 7301));
+
+        var reply = first[1].Data;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Routes(first), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(FirstEmbed(reply).GetProperty("description").GetString()!.Split('\n'), Has.Length.EqualTo(CommandViews.PageSize));
+            Assert.That(FirstEmbed(reply).GetProperty("footer").GetProperty("text").GetString(), Is.EqualTo("Page 1 of 2"));
+            Assert.That(ComponentIds(reply), Is.EqualTo(new[] { "seasonview:signups", $"page:signups:{season}:-1", $"page:signups:{season}:1" }));
+            Assert.That(second[0].CallbackType, Is.EqualTo(DiscordRequest.UpdateMessage));
+            Assert.That(FirstEmbed(second[0].Data).GetProperty("description").GetString()!.Split('\n'), Has.Length.EqualTo(2));
+            Assert.That(FirstEmbed(second[0].Data).GetProperty("footer").GetProperty("text").GetString(), Is.EqualTo("Page 2 of 2"));
+            Assert.That(FirstEmbed(switched[0].Data).GetProperty("title").GetString(), Is.EqualTo("Transport Unpaged signups: 0"));
+            Assert.That(ComponentIds(switched[0].Data), Is.EqualTo(new[] { "seasonview:signups" }), "one page: no ◀ ▶");
+            Assert.That(gone[0].Content, Is.EqualTo(CommandViewHandler.Gone));
+            Assert.That(noSuchView[0].Content, Is.EqualTo(CommandViewHandler.Gone));
+        }
+    }
+
+    [Test]
+    public async Task TheStatAndPlayerViewMenus_AndTheRosterPager_ShowWhatWasPicked()
+    {
+        var player = await LinkedUser(7302, "Viewer7302");
+        var (season, team) = await _host.WithContextAsync(async context =>
+        {
+            var created = Season.Seed(seasonName: "Transport Views").WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
+            context.Seasons.Add(created);
+            await context.SaveChangesAsync();
+            var roster = Team.Seed(seasonID: created.SeasonID, teamName: "Transport Views Team");
+            context.Teams.Add(roster);
+            await context.SaveChangesAsync();
+            await context.AddPlayers(roster, player.Id);
+            return (created.SeasonID, roster.TeamID);
+        });
+
+        var kills = await _host.SendAsync(DiscordInteractionJson.StringMenu($"seasonstat:{season}", 7302, "Kills"));
+        var noSuchStat = await _host.SendAsync(DiscordInteractionJson.StringMenu($"seasonstat:{season}", 7302, "Nope"));
+        var roster = await _host.SendAsync(DiscordInteractionJson.Button($"page:roster:{team}:0", 7302));
+        var badKey = await _host.SendAsync(DiscordInteractionJson.Button("page:roster:abc:0", 7302));
+        var history = await _host.SendAsync(DiscordInteractionJson.StringMenu($"playerview:{player.Id}", 7302, PlayerCommandsHandler.HistoryView));
+        var noSuchView = await _host.SendAsync(DiscordInteractionJson.StringMenu($"playerview:{player.Id}", 7302, "nope"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(kills[0].CallbackType, Is.EqualTo(DiscordRequest.UpdateMessage));
+            Assert.That(FirstEmbed(kills[0].Data).GetProperty("title").GetString(), Is.EqualTo("Transport Views: top Kills"));
+            Assert.That(ComponentIds(kills[0].Data), Is.EqualTo(new[] { "seasonview:stats-Kills", $"seasonstat:{season}" }));
+            Assert.That(noSuchStat[0].Content, Is.EqualTo(CommandViewHandler.Gone));
+            Assert.That(FirstEmbed(roster[0].Data).GetProperty("title").GetString(), Is.EqualTo("Transport Views Team roster"));
+            Assert.That(badKey[0].Content, Is.EqualTo(CommandViewHandler.Gone));
+            Assert.That(FirstEmbed(history[0].Data).GetProperty("title").GetString(), Is.EqualTo("Viewer7302 deployment history"));
+            Assert.That(ComponentIds(history[0].Data), Is.EqualTo(new[] { $"playerview:{player.Id}" }));
+            Assert.That(noSuchView[0].Content, Is.EqualTo(CommandViewHandler.Gone));
+        }
+    }
+
+    [Test]
+    public async Task ThePendingListsButtons_ApproveAtOnce_AndRejectOpensItsModal()
+    {
+        await LinkedUserWithRole(7303, "Decider7303", "Commissioner");
+        await LinkedUserWithRole(7304, "ClaimDecider7304", "Sysadmin");
+        var player = await LinkedUser(7305, "Mover7305");
+        var match = await MatchFor("Transport Pending", player);
+        var (requestID, claimID) = await _host.WithContextAsync(async context =>
+        {
+            var tracked = await context.SeasonMatches.Include(m => m.Reschedules).SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID);
+            var request = MatchReschedule.Request(tracked, new DateTime(2030, 1, 5, 20, 0, 0, DateTimeKind.Utc), "Away", player.Id, DateTime.UtcNow).Reschedule!;
+            var placeholder = User.Seed(userName: "OldTag7305");
+            context.Users.Add(placeholder);
+            await context.SaveChangesAsync();
+            var claim = GrifballWebApp.Domain.Archive.GamertagClaim.ClaimedByUser(player.Id, null, "OldTag7305", "OLDTAG7305", placeholder.Id, null, null);
+            context.GamertagClaims.Add(claim);
+            await context.SaveChangesAsync();
+            return (request.MatchRescheduleID, claim.GamertagClaimID);
+        });
+
+        var pending = await _host.SendAsync(DiscordInteractionJson.SubCommand("reschedule pending", 7303));
+        var claims = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin claims list", 7304));
+        var rejectRequest = await _host.SendAsync(DiscordInteractionJson.Button($"reschedulereject:{requestID}", 7303));
+        var rejectClaim = await _host.SendAsync(DiscordInteractionJson.Button($"claimreject:{claimID}", 7304));
+        var approveRequest = await _host.SendAsync(DiscordInteractionJson.Button($"rescheduleapprove:{requestID}", 7303));
+        var approveNoClaim = await _host.SendAsync(DiscordInteractionJson.Button("claimapprove:424242", 7304));
+
+        var preset = Descendants(rejectRequest[0].Data)
+            .Where(e => e.ValueKind == JsonValueKind.Object && e.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.String && v.GetString() == "reject")
+            .Select(e => e.TryGetProperty("default", out var d) && d.GetBoolean())
+            .Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ComponentIds(pending[1].Data), Does.Contain($"rescheduleapprove:{requestID}").And.Contain($"reschedulereject:{requestID}"));
+            Assert.That(ComponentIds(claims[1].Data), Does.Contain($"claimapprove:{claimID}").And.Contain($"claimreject:{claimID}"));
+            Assert.That(rejectRequest[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(rejectRequest[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"reschedule_decide:{requestID}"));
+            Assert.That(preset, Is.True, "Reject picked: the notes are what's left to write");
+            Assert.That(rejectClaim[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"claim_reject:{claimID}"));
+            Assert.That(approveRequest[^1].Content, Is.EqualTo("Approved."));
+            Assert.That(approveNoClaim[^1].Content, Does.Contain("424242"), "the service's refusal");
+        }
+    }
 }
