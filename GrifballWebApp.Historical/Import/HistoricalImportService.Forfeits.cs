@@ -46,13 +46,16 @@ public partial class HistoricalImportService
             return false;
         // The loser's side is always the forfeit: the winner's says whether it was a double one
         var home = forfeit.BothForfeited ? SeasonMatchResult.Forfeit : SeasonMatchResult.Won;
+        var why = forfeit.BothForfeited ? $"Double forfeit: {forfeit.Winner} and {forfeit.Loser}" : $"{forfeit.Loser} forfeited to {forfeit.Winner}";
         if (existing.FirstOrDefault(m => m.HomeTeamID == winner && m.AwayTeamID == loser && m.HomeTeamResult == home) is { } same)
         {
             existing.Remove(same);
+            _provenance.Read(same, forfeit.Origin, why);
             return true;
         }
         var match = SeasonMatch.Imported(season.SeasonID, winner, loser, 0, 0, bestOf: 1, scheduledTime: forfeit.PlayedAt, bracketMatch: null);
         match.Forfeit(forfeit.BothForfeited ? Forfeiter.Both : Forfeiter.Away);
+        _provenance.Read(match, forfeit.Origin, why);
         _context.SeasonMatches.Add(match);
         counts.SeasonMatchesCreated++;
         return true;

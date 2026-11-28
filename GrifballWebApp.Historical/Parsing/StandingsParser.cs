@@ -30,21 +30,22 @@ public static partial class StandingsParser
         ["captain"] = Field.Captain,
     };
 
-    /// <summary>The tab's teams, in its order; null when it has no table (no anchor cell, or no team header).</summary>
-    public static List<ArchiveTeam>? Parse(SheetTable sheet, StandingsTab tab)
+    /// <summary>The tab's teams, in its order; null when it has no table (no anchor cell, or no team header). Each team has the
+    /// cells it was read from when <paramref name="sourceId"/> (the workbook's catalog ID) is given.</summary>
+    public static List<ArchiveTeam>? Parse(SheetTable sheet, StandingsTab tab, string? sourceId = null)
     {
         if (tab.Layout == StandingsLayout.CaptainRows)
         {
-            var captainTeams = ByCaptainRows(sheet, tab);
+            var captainTeams = ByCaptainRows(sheet, tab, sourceId);
             return captainTeams.Count == 0 ? null : captainTeams;
         }
         if (Anchor(sheet, tab) is not var (row, column))
             return null;
         var teams = tab.Layout switch
         {
-            StandingsLayout.Columns => ByColumn(sheet, row, column, tab),
-            StandingsLayout.List => ByList(sheet, row, column, tab),
-            _ => ByRow(sheet, row, column, tab),
+            StandingsLayout.Columns => ByColumn(sheet, row, column, tab, sourceId),
+            StandingsLayout.List => ByList(sheet, row, column, tab, sourceId),
+            _ => ByRow(sheet, row, column, tab, sourceId),
         };
         return teams.Count == 0 ? null : teams;
     }
@@ -59,7 +60,7 @@ public static partial class StandingsParser
         return m.Success && int.TryParse(m.Groups[1].Value, out var place) && place >= 1 ? place : null;
     }
 
-    private static List<ArchiveTeam> ByRow(SheetTable sheet, int headerRow, int teamColumn, StandingsTab tab)
+    private static List<ArchiveTeam> ByRow(SheetTable sheet, int headerRow, int teamColumn, StandingsTab tab, string? sourceId)
     {
         var (columns, players) = RowColumns(sheet.Rows[headerRow], teamColumn);
         var teams = new Teams(tab);
@@ -81,12 +82,12 @@ public static partial class StandingsParser
             string Value(Field field) => columns.TryGetValue(field, out var c) ? sheet.Cell(row, c).Trim() : "";
             var roster = players.Select(c => Gamertag(sheet.Cell(row, c))).Where(p => p.Length > 0 && !SeasonStatsParser.IsTotalsLabel(p)).ToList();
             if (name.Length > 0 && !SeasonStatsParser.IsTotalsLabel(name) && IsTeamRow(columns.Keys, Value, roster.Count > 0))
-                teams.Add(name, Value, roster);
+                teams.Add(name, Value, roster, sourceId is null ? null : ArchiveOrigin.Row(sourceId, sheet, row));
         }
         return teams.List;
     }
 
-    private static List<ArchiveTeam> ByCaptainRows(SheetTable sheet, StandingsTab tab)
+    private static List<ArchiveTeam> ByCaptainRows(SheetTable sheet, StandingsTab tab, string? sourceId)
     {
         var teams = new Teams(tab);
         var (winsCol, lossesCol) = (-1, -1);
@@ -102,14 +103,14 @@ public static partial class StandingsParser
                     teams.NewBlock();
                 continue;
             }
-            AddCaptainRow(teams, sheet, r, winsCol, lossesCol);
+            AddCaptainRow(teams, sheet, r, winsCol, lossesCol, sourceId);
         }
         return teams.List;
     }
 
     /// <summary>The team of row <paramref name="r"/> when the row below heads its captain's column: its name, captain,
     /// roster (from the captain's column up to the wins) and record.</summary>
-    private static void AddCaptainRow(Teams teams, SheetTable sheet, int r, int winsCol, int lossesCol)
+    private static void AddCaptainRow(Teams teams, SheetTable sheet, int r, int winsCol, int lossesCol, string? sourceId)
     {
         if (r + 1 >= sheet.Rows.Count)
             return;
@@ -137,7 +138,7 @@ public static partial class StandingsParser
             Field.Wins => wins,
             Field.Losses => losses,
             _ => "",
-        }, roster);
+        }, roster, sourceId is null ? null : ArchiveOrigin.Rows(sourceId, sheet, r, r + 1));
     }
 
     private static bool IsPlayersHeader(string cell) => Normalize(cell) is "gamertag" or "gamertags" or "player" or "players" or "player name";
@@ -195,7 +196,7 @@ public static partial class StandingsParser
         return numbers.Count > 0 ? numbers.Any(f => IsNumber(f, value(f))) : hasPlayers || fields.Any(f => value(f).Length > 0);
     }
 
-    private static List<ArchiveTeam> ByColumn(SheetTable sheet, int namesRow, int labelColumn, StandingsTab tab)
+    private static List<ArchiveTeam> ByColumn(SheetTable sheet, int namesRow, int labelColumn, StandingsTab tab, string? sourceId)
     {
         var rows = LabelledRows(sheet, namesRow, labelColumn);
         var teams = new Teams(tab);
@@ -219,7 +220,7 @@ public static partial class StandingsParser
         // The columns after the last team with a standing are a table beside the teams (H3 Action 2022's chart)
         var last = columns.FindLastIndex(HasStanding);
         foreach (var column in last < 0 ? columns : columns.Take(last + 1))
-            teams.Add(names[column].Trim(), field => Value(column, field));
+            teams.Add(names[column].Trim(), field => Value(column, field), origin: new SheetOrigins(sourceId, sheet).Column(column, [namesRow, .. rows.Values]));
         return teams.List;
     }
 
@@ -242,7 +243,7 @@ public static partial class StandingsParser
         return rows;
     }
 
-    private static List<ArchiveTeam> ByList(SheetTable sheet, int anchorRow, int column, StandingsTab tab)
+    private static List<ArchiveTeam> ByList(SheetTable sheet, int anchorRow, int column, StandingsTab tab, string? sourceId)
     {
         var teams = new Teams(tab);
         for (var r = anchorRow + 1; r < sheet.Rows.Count; r++)
@@ -250,7 +251,7 @@ public static partial class StandingsParser
             var cell = sheet.Cell(r, column).Trim();
             // A team's cell has its record: any other (a note) isn't one
             if (Brackets(cell).Record is not null)
-                teams.Add(cell, _ => "");
+                teams.Add(cell, _ => "", origin: sourceId is null ? null : ArchiveOrigin.Cell(sourceId, sheet, r, column));
         }
         return teams.List;
     }
@@ -269,7 +270,7 @@ public static partial class StandingsParser
         private string Named(string player)
             => tab.Names.FirstOrDefault(n => string.Equals(n.Key.Trim(), player.Trim(), StringComparison.OrdinalIgnoreCase)).Value ?? player;
 
-        public void Add(string cell, Func<Field, string> value, List<string>? roster = null)
+        public void Add(string cell, Func<Field, string> value, List<string>? roster = null, ArchiveOrigin? origin = null)
         {
             var (name, record, others) = Brackets(cell);
             var captain = value(Field.Captain);
@@ -305,6 +306,7 @@ public static partial class StandingsParser
                 Rank = Place(value(Field.Rank)) ?? (tab.Ranked ? List.Count - _blockStart + 1 : null),
                 Finish = Place(value(Field.Finish)),
                 Roster = roster?.Select(Named).ToList() ?? [],
+                Origin = origin,
             });
         }
     }

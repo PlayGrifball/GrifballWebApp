@@ -126,7 +126,7 @@ public static partial class SeasonStatsParser
         var sides = teamColumns.Count > 0 && dataRows.Select(r => teamColumns.Select(c => c < r.Length ? r[c].Trim() : "").LastOrDefault(v => v.Length > 0))
             .OfType<string>().Where(v => v.Length > 0).DefaultIfEmpty("x").All(v => v is "0" or "1");
         var played = PlayedDates(sourceId, workbook, tab, sheet, dataRows, warnings);
-        var players = TabPlayers(sheet, config, tab, columns, sides, rosters);
+        var players = TabPlayers(sourceId, sheet, config, tab, columns, sides, rosters);
         var defaults = config.Season;
         var entry = new ArchiveSeason
         {
@@ -139,6 +139,7 @@ public static partial class SeasonStatsParser
             SourceSheet = tab.Name,
             IsPlayoffs = tab.IsPlayoffs,
             IsCombined = tab.IsCombined,
+            Origin = ArchiveOrigin.Row(sourceId, sheet, tab.HeaderRow),
             FirstPlayedAt = played.Count > 0 ? played.Min() : null,
             LastPlayedAt = played.Count > 0 ? played.Max() : null,
             SourceYear = tab.Year,
@@ -275,7 +276,7 @@ public static partial class SeasonStatsParser
 
     /// <summary>The tab's player lines: a row with a gamertag (not a totals row, or the header again), a player's second
     /// row their second stint, the team their row's (unless it is a side) or else their roster's.</summary>
-    private static List<ArchivePlayer> TabPlayers(SheetTable sheet, HistoricalSourceConfig config, StatsTab tab, Dictionary<int, (string Key, string Header)> columns, bool sides,
+    private static List<ArchivePlayer> TabPlayers(string sourceId, SheetTable sheet, HistoricalSourceConfig config, StatsTab tab, Dictionary<int, (string Key, string Header)> columns, bool sides,
         Dictionary<string, string> rosters)
     {
         var players = new List<ArchivePlayer>();
@@ -296,7 +297,10 @@ public static partial class SeasonStatsParser
                 break;
 
             if (TryParseTabRow(sheet, r, config, tab, columns, sides, rosters, stints, ref currentTeam) is { } player)
+            {
+                player.Origin = ArchiveOrigin.Row(sourceId, sheet, r);
                 players.Add(player);
+            }
         }
 
         if (tab.PerGame && sideBySideStart >= 0)
@@ -306,7 +310,7 @@ public static partial class SeasonStatsParser
             var teams = new Dictionary<string, string>(rosters, StringComparer.OrdinalIgnoreCase);
             foreach (var p in players.Where(p => p.TeamName is not null))
                 teams[HistoricalKeys.Normalize(p.Gamertag)] = p.TeamName!;
-            players.AddRange(SideBySideGamePlayers(sheet, sideBySideStart, teams));
+            players.AddRange(SideBySideGamePlayers(sourceId, sheet, sideBySideStart, teams));
         }
 
         return tab.PerGame ? AggregatePerGame(players) : players;
@@ -397,20 +401,21 @@ public static partial class SeasonStatsParser
 
     private sealed record SideBySideBlock(int NameCol, bool Won, string Opponent, Dictionary<int, (string Key, string Header)> Cols);
 
-    private static List<ArchivePlayer> SideBySideGamePlayers(SheetTable sheet, int startRow, Dictionary<string, string> teams)
+    private static List<ArchivePlayer> SideBySideGamePlayers(string sourceId, SheetTable sheet, int startRow, Dictionary<string, string> teams)
     {
         var r = startRow + 1;
         while (r < sheet.Rows.Count && ParseSideBySideHeader(sheet.Rows[r]).Count == 0)
             r++;
 
         var teamSections = ReadSideBySideSections(sheet, ref r);
+        var originOf = ArchiveOrigin.RowOf(sourceId, sheet);
         var result = new List<ArchivePlayer>();
         for (var s = 0; s < teamSections.Count; s++)
         {
             var inferredTeam = InferOpposingTeamName(teamSections, s);
             var (headers, rows) = teamSections[s];
             foreach (var hdr in headers)
-                AddSideBySideBlockPlayers(hdr, rows, inferredTeam, teams, result);
+                AddSideBySideBlockPlayers(hdr, rows, inferredTeam, teams, result, originOf);
         }
         return result;
     }
@@ -462,7 +467,7 @@ public static partial class SeasonStatsParser
     }
 
     private static void AddSideBySideBlockPlayers(SideBySideBlock hdr, List<string[]> rows, string? inferredTeam,
-        Dictionary<string, string> teams, List<ArchivePlayer> result)
+        Dictionary<string, string> teams, List<ArchivePlayer> result, Func<string[], ArchiveOrigin> originOf)
     {
         foreach (var row in rows)
         {
@@ -476,7 +481,9 @@ public static partial class SeasonStatsParser
                 continue;
             var team = teams.GetValueOrDefault(HistoricalKeys.Normalize(gamertag)) ?? inferredTeam;
             var player = Player(row, hdr.Cols, gamertag, team, tradeNote, roleNote, 1);
-            result.Add(WithGameOutcome(player, hdr.Won));
+            var line = WithGameOutcome(player, hdr.Won);
+            line.Origin = originOf(row);
+            result.Add(line);
         }
     }
 
@@ -577,6 +584,8 @@ public static partial class SeasonStatsParser
                 TradeNote = first.TradeNote,
                 RoleNote = first.RoleNote,
                 StintIndex = stint,
+                // Its first game's row, with every game's text
+                Origin = ArchiveOrigin.Of(group.Select(p => p.Origin)),
                 GamesPlayed = games,
                 Wins = wins,
                 Losses = losses,

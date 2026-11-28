@@ -161,7 +161,7 @@ public sealed partial class HistoricalImportWorker : BackgroundService
                 var input = JsonSerializer.Deserialize<HistoricalArchiveInput>(job.Payload, HistoricalArchiveInput.JsonOptions)
                     ?? throw new InvalidDataException("The job's archive is empty");
                 var import = scope.ServiceProvider.GetRequiredService<IHistoricalImportService>();
-                report = await import.Import(input, progress => Progress(jobId, claim, progress, run.Token), run.Token);
+                report = await import.Run(input, new HistoricalImportRunOptions { JobID = jobId }, progress => Progress(jobId, claim, progress, run.Token), run.Token);
             }
             else
             {

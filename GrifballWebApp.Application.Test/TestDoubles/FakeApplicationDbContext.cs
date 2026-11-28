@@ -106,6 +106,7 @@ internal sealed class FakeApplicationDbContext :
     public DbSet<UserSpartanFile> UserSpartanFiles { get; set; } = null!;
     public DbSet<HistoricalSource> HistoricalSources { get; set; } = null!;
     public DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; } = null!;
+    public DbSet<HistoricalProvenance> HistoricalProvenance { get; set; } = null!;
     public DbSet<UserMerge> UserMerges { get; set; } = null!;
     public DbSet<DuplicateDismissal> DuplicateDismissals { get; set; } = null!;
     public DbSet<ChatMonth> ChatMonths { get; set; } = null!;
@@ -189,6 +190,7 @@ internal sealed class FakeApplicationDbContext :
         builder.ApplyConfiguration(new HistoricalSourceConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceSnapshotConfiguration());
         builder.ApplyConfiguration(new HistoricalImportSettingsConfiguration());
+        builder.ApplyConfiguration(new HistoricalProvenanceConfiguration());
         builder.ApplyConfiguration(new HistoricalSeasonReviewConfiguration());
         builder.ApplyConfiguration(new UserMergeConfiguration());
         builder.ApplyConfiguration(new DuplicateDismissalConfiguration());

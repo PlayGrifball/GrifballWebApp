@@ -43,6 +43,7 @@ public sealed partial class HistoricalArchiveBuilder
                         Home = meeting.Home,
                         Away = meeting.Away,
                         PlayedAt = meeting.PlayedAt,
+                        Origin = meeting.Origin,
                     });
                 else
                     left++;
@@ -56,7 +57,7 @@ public sealed partial class HistoricalArchiveBuilder
 
     /// <summary>A schedule's meeting: its two teams (the season's names, home first) on a calendar day, at its first match's
     /// time, and how many entries it has.</summary>
-    private sealed record Meeting(DateTime Day, DateTime PlayedAt, (string, string) Teams, string Home, string Away, int Count);
+    private sealed record Meeting(DateTime Day, DateTime PlayedAt, (string, string) Teams, string Home, string Away, int Count, ArchiveOrigin? Origin);
 
     /// <summary>A season's undated games, a series' as one unit, in their lists' order: what the meetings date.</summary>
     private List<(List<RecordedGameInput> Games, (string, string) Pair)> Undated(string key, List<ArchiveSeason> season, SeasonTeamNames names)
@@ -74,9 +75,9 @@ public sealed partial class HistoricalArchiveBuilder
     /// <summary>The schedule's matches as meetings: the same two teams' on one calendar day are one, in time order.</summary>
     private static List<Meeting> Meetings(List<CalendarMatch> matches, SeasonTeamNames names)
         => [.. matches
-            .Select(m => (m.Day, m.PlayedAt, Home: ScheduledTeam(names, m.First), Away: ScheduledTeam(names, m.Second)))
+            .Select(m => (m.Day, m.PlayedAt, Home: ScheduledTeam(names, m.First), Away: ScheduledTeam(names, m.Second), m.Origin))
             .GroupBy(m => (m.Day, Pair: Pair(m.Home, m.Away)))
-            .Select(g => new Meeting(g.Key.Day, g.Min(m => m.PlayedAt), g.Key.Pair, g.First().Home, g.First().Away, g.Count()))
+            .Select(g => new Meeting(g.Key.Day, g.Min(m => m.PlayedAt), g.Key.Pair, g.First().Home, g.First().Away, g.Count(), ArchiveOrigin.Of(g.Select(m => m.Origin))))
             .OrderBy(m => m.PlayedAt)];
 
     /// <summary>A meeting dates the first undated units of its teams until it has dated as many games as it has entries (a
@@ -91,7 +92,10 @@ public sealed partial class HistoricalArchiveBuilder
             while (wholeSeries && end < undated.Count && undated[end].Pair == meeting.Teams)
                 end++;
             foreach (var game in undated.Skip(index).Take(end - index).SelectMany(u => u.Games))
+            {
                 game.PlayedAt = meeting.PlayedAt;
+                game.DatedBy = meeting.Origin;
+            }
             entries += wholeSeries ? 1 : undated[index].Games.Count;
             undated.RemoveRange(index, end - index);
             dated = true;

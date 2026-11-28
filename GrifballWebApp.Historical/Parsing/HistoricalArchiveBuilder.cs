@@ -38,6 +38,8 @@ public sealed partial class HistoricalArchiveBuilder
     private readonly List<ArchiveChampionship> _champions = [];
     private string? _championsSourceId;
     private string? _championsSourceUrl;
+    /// <summary>The snapshot each source was read from, by its catalog ID: where its rows came from.</summary>
+    private readonly Dictionary<string, int> _snapshotIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<RecordedGameInput> _games = [];
     private readonly List<ArchiveForfeitInput> _forfeits = [];
     /// <summary>Schedules' matches of seasons whose results are lost (<see cref="ScheduleTab.Unplayed"/>).</summary>
@@ -47,7 +49,7 @@ public sealed partial class HistoricalArchiveBuilder
     private readonly List<ArchivePlayerInput> _players = [];
     private readonly List<CatalogSource> _catalog = [];
     /// <summary>Each Waypoint tab's games, parsed as its source is read; put under their season's key once every season is known.</summary>
-    private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule, List<string> Unparsed)? Games)> _waypoint = [];
+    private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule, List<string> Unparsed, Dictionary<string, ArchiveOrigin> Origins)? Games)> _waypoint = [];
     /// <summary>Rosters of seasons whose stats are in another source, applied once every season is known.</summary>
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
@@ -96,6 +98,7 @@ public sealed partial class HistoricalArchiveBuilder
     {
         var source = content.Source;
         _catalog.Add(new CatalogSource { Id = source.HistoricalSourceID, Url = source.Url, Title = source.Title });
+        _snapshotIds[source.HistoricalSourceID] = content.SnapshotID;
         var config = HistoricalSourceConfig.FromJson(source.Config);
         if (config is null)
             return;
@@ -140,11 +143,11 @@ public sealed partial class HistoricalArchiveBuilder
         foreach (var tab in config.Rosters)
             _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet, config, tab.Names) : null));
         foreach (var tab in config.Standings)
-            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? Named(StandingsParser.Parse(standingsSheet, tab), config) : null));
+            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? Named(StandingsParser.Parse(standingsSheet, tab, id), config) : null));
         foreach (var tab in config.Drafts)
-            _drafts.Add((id, tab, workbook.Sheet(tab.Sheet) is { } draftSheet ? DraftParser.Parse(draftSheet, tab, config) : null));
+            _drafts.Add((id, tab, workbook.Sheet(tab.Sheet) is { } draftSheet ? DraftParser.Parse(draftSheet, tab, config, id) : null));
         foreach (var tab in config.Awards)
-            _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
+            _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab, id) : null));
         foreach (var tab in config.Brackets)
             _brackets.Add((id, tab, BracketParser.Parse(id, tab, workbook, _warnings)));
     }
@@ -228,8 +231,9 @@ public sealed partial class HistoricalArchiveBuilder
         if (workbook.Sheet(tab.Sheet) is { } sheet)
         {
             var unparsed = new List<string>();
-            var (regular, playoffs, schedule) = WaypointMatchParser.Parse(sheet, unparsed, tab.BareIds);
-            _waypoint.Add((id, tab, (regular, playoffs, schedule, unparsed)));
+            var origins = new Dictionary<string, ArchiveOrigin>(StringComparer.OrdinalIgnoreCase);
+            var (regular, playoffs, schedule) = WaypointMatchParser.Parse(sheet, unparsed, tab.BareIds, id, origins);
+            _waypoint.Add((id, tab, (regular, playoffs, schedule, unparsed, origins)));
         }
         else
             _waypoint.Add((id, tab, null));
@@ -276,26 +280,29 @@ public sealed partial class HistoricalArchiveBuilder
     /// <summary>A ladder tab read: its players (null: no such sheet, or no table), its past finishes (null: none), and
     /// what a season of its own is made of.</summary>
     private sealed record LadderRead(string SourceId, LadderTab Tab, List<LadderStanding>? Players, List<LadderStanding>? Finishes,
-        SeasonDefaults? Defaults, int? SourceYear, bool Changed);
+        SeasonDefaults? Defaults, int? SourceYear, bool Changed, Dictionary<string, ArchiveOrigin> Origins);
 
     private void AddLadders(HistoricalSource source, HistoricalSourceConfig config, SheetWorkbook workbook, bool changed)
     {
         if (config.Ladders.Count == 0)
             return;
         Dictionary<string, List<LadderStanding>>? finishes = null;
+        // Each player's row of the past finishes, by gamertag (a ladder tab's own rows go over them, tab by tab)
+        var finishOrigins = new Dictionary<string, ArchiveOrigin>();
         if (config.FinishesSheet is not null)
         {
-            finishes = workbook.Sheet(config.FinishesSheet) is { } finishesSheet ? LadderParser.ParseFinishes(finishesSheet) : null;
+            finishes = workbook.Sheet(config.FinishesSheet) is { } finishesSheet ? LadderParser.ParseFinishes(finishesSheet, source.HistoricalSourceID, finishOrigins) : null;
             if (finishes is null)
                 _warnings.Add($"{source.HistoricalSourceID}: past finishes '{config.FinishesSheet}' not read (no such sheet, or no Pos column)");
         }
         foreach (var tab in config.Ladders)
         {
-            var players = workbook.Sheet(tab.Sheet) is { } sheet ? LadderParser.Parse(sheet, tab) : null;
+            var origins = new Dictionary<string, ArchiveOrigin>(finishOrigins);
+            var players = workbook.Sheet(tab.Sheet) is { } sheet ? LadderParser.Parse(sheet, tab, source.HistoricalSourceID, origins) : null;
             var finished = tab.Finishes is { } heading && finishes is not null ? finishes.GetValueOrDefault(heading.Trim()) : null;
             if (tab.Finishes is not null && finishes is not null && finished is null)
                 _warnings.Add($"{source.HistoricalSourceID}: no past finishes under '{tab.Finishes}' for ladder '{tab.Sheet}'");
-            _ladders.Add(new LadderRead(source.HistoricalSourceID, tab, players, finished, config.Season, tab.Year ?? source.Year, changed));
+            _ladders.Add(new LadderRead(source.HistoricalSourceID, tab, players, finished, config.Season, tab.Year ?? source.Year, changed, origins));
         }
     }
 
@@ -321,13 +328,14 @@ public sealed partial class HistoricalArchiveBuilder
                 : null,
             Catalog = new ArchiveCatalog { Sources = _catalog },
             WaypointMatches = waypoint.Where(w => w.Value.Regular.Count > 0 || w.Value.Playoffs.Count > 0)
-                .ToDictionary(w => w.Key, w => new WaypointSeasonMatches { Regular = [.. w.Value.Regular], Playoffs = [.. w.Value.Playoffs], Schedule = [.. w.Value.Schedule.Values.OrderBy(g => g.MatchId, StringComparer.Ordinal)] }),
+                .ToDictionary(w => w.Key, w => new WaypointSeasonMatches { Regular = [.. w.Value.Regular], Playoffs = [.. w.Value.Playoffs], Schedule = [.. w.Value.Schedule.Values.OrderBy(g => g.MatchId, StringComparer.Ordinal)], Origins = w.Value.Origins }),
             RecordedGames = _games.Count > 0 ? _games : null,
             Forfeits = _forfeits.Count > 0 ? _forfeits : null,
             ScheduledMatches = _scheduled.Count > 0 ? _scheduled : null,
             ScheduledSeasons = _scheduledSeasons.Count > 0 ? [.. _scheduledSeasons] : null,
             // The players list goes along when it changed (it is matched against every season's placeholders)
             Players = _playersChanged && _players.Count > 0 ? _players : null,
+            SnapshotIDs = _snapshotIds,
         };
         return new HistoricalArchiveBuild { Input = input, Warnings = _warnings, Seasons = _everySeason ? null : _affected };
     }
@@ -353,11 +361,11 @@ public sealed partial class HistoricalArchiveBuilder
     }
 
     /// <summary>The Waypoint games, by the key of their season's regular season.</summary>
-    private Dictionary<string, (SortedSet<string> Regular, SortedSet<string> Playoffs, Dictionary<string, ScheduledGame> Schedule)> WaypointBySeason()
+    private Dictionary<string, (SortedSet<string> Regular, SortedSet<string> Playoffs, Dictionary<string, ScheduledGame> Schedule, Dictionary<string, ArchiveOrigin> Origins)> WaypointBySeason()
     {
         // Waypoint games go under their season's regular-season key; a game listed as both is a playoff game
         // A game the schedule names the teams of more than once keeps its first row's
-        var waypoint = new Dictionary<string, (SortedSet<string> Regular, SortedSet<string> Playoffs, Dictionary<string, ScheduledGame> Schedule)>(StringComparer.OrdinalIgnoreCase);
+        var waypoint = new Dictionary<string, (SortedSet<string> Regular, SortedSet<string> Playoffs, Dictionary<string, ScheduledGame> Schedule, Dictionary<string, ArchiveOrigin> Origins)>(StringComparer.OrdinalIgnoreCase);
         foreach (var (sourceId, tab, games) in _waypoint)
         {
             var entries = _seasons.Where(s => string.Equals(s.SourceWorkbook, tab.Season, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -370,11 +378,14 @@ public sealed partial class HistoricalArchiveBuilder
             var key = HistoricalKeys.SeasonSourceId(primary.SourceWorkbook!, primary.SourceSheet!);
             _warnings.AddRange(games.Value.Unparsed.Select(u => $"{sourceId}: a link without a match ID, {u}"));
             if (!waypoint.TryGetValue(key, out var lists))
-                waypoint[key] = lists = (new SortedSet<string>(StringComparer.Ordinal), new SortedSet<string>(StringComparer.Ordinal), new Dictionary<string, ScheduledGame>(StringComparer.OrdinalIgnoreCase));
+                waypoint[key] = lists = (new SortedSet<string>(StringComparer.Ordinal), new SortedSet<string>(StringComparer.Ordinal), new Dictionary<string, ScheduledGame>(StringComparer.OrdinalIgnoreCase),
+                    new Dictionary<string, ArchiveOrigin>(StringComparer.OrdinalIgnoreCase));
             lists.Regular.UnionWith(games.Value.Regular);
             lists.Playoffs.UnionWith(games.Value.Playoffs);
             foreach (var game in games.Value.Schedule)
                 lists.Schedule.TryAdd(game.MatchId, game);
+            foreach (var (link, origin) in games.Value.Origins)
+                lists.Origins.TryAdd(link, origin);
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.Add(key);
         }
@@ -627,6 +638,9 @@ public sealed partial class HistoricalArchiveBuilder
                 _seasons.Add(entry);
             }
             entry.Ladder.AddRange(WithFinishes(read.Players, read.Finishes ?? []));
+            foreach (var standing in entry.Ladder)
+                if (read.Origins.TryGetValue(standing.Gamertag, out var origin))
+                    entry.LadderOrigins.TryAdd(standing.Gamertag, origin);
             if (read.Changed)
                 _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
         }

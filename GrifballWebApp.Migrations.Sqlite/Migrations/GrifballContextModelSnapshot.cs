@@ -458,6 +458,77 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.HasAnnotation("Grif:HistoryOf", "HistoricalImportSettings");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalProvenance", b =>
+                {
+                    b.Property<long>("HistoricalProvenanceID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Cells")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Entity")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("EntityKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int?>("HistoricalImportJobID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("HistoricalSourceSnapshotID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RunID")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sheet")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("SourceID")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.HasKey("HistoricalProvenanceID");
+
+                    b.HasIndex("Entity", "EntityKey");
+
+                    b.HasIndex("SourceID", "Sheet");
+
+                    b.ToTable("HistoricalProvenance", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_HistoricalProvenance_KnownKind", "Kind IN (1, 2, 3)");
+                        });
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalSeasonReview", b =>
                 {
                     b.Property<int>("HistoricalSeasonReviewID")

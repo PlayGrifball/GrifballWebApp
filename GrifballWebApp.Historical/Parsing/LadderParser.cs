@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Historical.Import;
 using GrifballWebApp.Historical.Sources;
 using GrifballWebApp.Infrastructure.Excel;
 
@@ -30,7 +31,7 @@ public static partial class LadderParser
     };
 
     /// <summary>The tab's players in its order; null when it has no header row (no cell reads League).</summary>
-    public static List<LadderStanding>? Parse(SheetTable sheet, LadderTab tab)
+    public static List<LadderStanding>? Parse(SheetTable sheet, LadderTab tab, string? sourceId = null, Dictionary<string, ArchiveOrigin>? origins = null)
     {
         var headerRow = sheet.Rows.FindIndex(r => r.Any(c => ArchiveCells.HeaderKey(c) == "league"));
         if (headerRow < 0)
@@ -53,6 +54,8 @@ public static partial class LadderParser
                 continue;
             var row = r;
             string Text(Field f) => columns.TryGetValue(f, out var c) ? sheet.Cell(row, c).Trim() : "";
+            if (sourceId is not null && origins is not null)
+                origins[gamertag] = ArchiveOrigin.Row(sourceId, sheet, r);
             var (tier, league) = League(Text(Field.League));
             players.Add(new LadderStanding
             {
@@ -77,7 +80,7 @@ public static partial class LadderParser
     /// league, rank or place), by heading (trimmed, any case), their place the sheet's Pos. A heading with no Pos column
     /// under it is left out; null when the tab has no Pos column at all.
     /// </summary>
-    public static Dictionary<string, List<LadderStanding>>? ParseFinishes(SheetTable sheet)
+    public static Dictionary<string, List<LadderStanding>>? ParseFinishes(SheetTable sheet, string? sourceId = null, Dictionary<string, ArchiveOrigin>? origins = null)
     {
         var subRow = sheet.Rows.FindIndex(r => r.Any(c => ArchiveCells.HeaderKey(c) == "pos"));
         if (subRow < 1)
@@ -89,6 +92,8 @@ public static partial class LadderParser
             var gamertag = sheet.Cell(r, 0).Trim();
             if (!IsPlayer(gamertag))
                 continue;
+            if (sourceId is not null && origins is not null)
+                origins.TryAdd(gamertag, ArchiveOrigin.Row(sourceId, sheet, r));
             foreach (var (heading, columns) in groups)
                 if (Finish(sheet, r, gamertag, columns) is { } finish)
                     finishes[heading].Add(finish);

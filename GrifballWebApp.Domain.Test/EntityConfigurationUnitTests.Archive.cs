@@ -164,6 +164,32 @@ public partial class EntityConfigurationUnitTests
     }
 
     [Test]
+    public void HistoricalProvenanceConfiguration_NoHistory_KnownKind_IndexedByEntityAndBySource()
+    {
+        var entity = Configured(new HistoricalProvenanceConfiguration());
+        var lengths = new Dictionary<string, int?>
+        {
+            [nameof(HistoricalProvenance.Entity)] = 100, [nameof(HistoricalProvenance.EntityKey)] = 100, [nameof(HistoricalProvenance.SourceID)] = 100,
+            [nameof(HistoricalProvenance.Sheet)] = 200, [nameof(HistoricalProvenance.Cells)] = 50, [nameof(HistoricalProvenance.Value)] = 1000,
+            [nameof(HistoricalProvenance.Detail)] = 500,
+        };
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TableOf(entity), Is.EqualTo(("Event", "HistoricalProvenance")));
+            Assert.That(entity.IsTemporal(), Is.False, "Its Read rows are replaced by every run");
+            Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(HistoricalProvenance.HistoricalProvenanceID) }));
+            Assert.That(entity.FindCheckConstraint("CK_Event_HistoricalProvenance_KnownKind")!.Sql, Is.EqualTo("Kind IN (1, 2, 3)"), "Created, Read and Changed");
+            Assert.That(MaxLengths(entity, lengths), Is.EqualTo(lengths));
+            Assert.That((NullableOf(entity, nameof(HistoricalProvenance.Entity)), NullableOf(entity, nameof(HistoricalProvenance.EntityKey)), NullableOf(entity, nameof(HistoricalProvenance.SourceID))),
+                Is.EqualTo(((bool?)false, (bool?)false, (bool?)false)));
+            Assert.That(entity.GetForeignKeys(), Is.Empty, "Keyed by name: a row of any table, a job or snapshot gone, still says where it came from");
+            Assert.That(IndexIsUnique(entity, nameof(HistoricalProvenance.Entity), nameof(HistoricalProvenance.EntityKey)), Is.False, "An entity's rows");
+            Assert.That(IndexIsUnique(entity, nameof(HistoricalProvenance.SourceID), nameof(HistoricalProvenance.Sheet)), Is.False, "What a tab made");
+        }
+    }
+
+    [Test]
     public void XboxUserImageConfiguration_KeysLengthsAndNoHistory()
     {
         var image = Configured(new XboxUserImageConfiguration());

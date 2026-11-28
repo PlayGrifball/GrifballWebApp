@@ -30,8 +30,10 @@ public static partial class WaypointMatchParser
     /// <summary>Words that make a Home/Away header a column of something else than the team (its score, its link).</summary>
     private static readonly string[] NotTeamHeaderWords = ["win", "loss", "score", "pt", "goal", "link", "url", "result", "seed", "rank", "stat"];
 
-    public static (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule) Parse(SheetTable sheet, List<string> unparsed, bool bareIds = false)
+    public static (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule) Parse(SheetTable sheet, List<string> unparsed, bool bareIds = false,
+        string? sourceId = null, Dictionary<string, ArchiveOrigin>? origins = null)
     {
+        var at = new SheetOrigins(sourceId, sheet);
         var regular = new List<string>();
         var playoffs = new List<string>();
         var schedule = new List<ScheduledGame>();
@@ -47,7 +49,12 @@ public static partial class WaypointMatchParser
             if (first.Length > 0)
                 inPlayoffs = PlayoffsPattern().IsMatch(first);
 
-            var ids = RowMatchIds(sheet.Name, row, unparsed, bareIds);
+            var found = RowMatchIds(sheet.Name, row, unparsed, bareIds);
+            var ids = found.Select(f => f.Id).ToList();
+            // Each match's first link cell
+            foreach (var (id, column) in found)
+                if (origins is not null && at.Cell(r, column) is { } cell)
+                    origins.TryAdd(id, cell);
             (inPlayoffs ? playoffs : regular).AddRange(ids);
 
             if (headerRow < 0 || r <= headerRow)
@@ -56,22 +63,25 @@ public static partial class WaypointMatchParser
             if (homeCell.Length > 0 || awayCell.Length > 0)
                 sides = Sides(homeCell, awayCell);
             if (sides is { } both)
-                schedule.AddRange(ids.Select(id => new ScheduledGame { MatchId = id, Home = both.Home, Away = both.Away }));
+                schedule.AddRange(ids.Select(id => new ScheduledGame { MatchId = id, Home = both.Home, Away = both.Away, Origin = at.Row(r) }));
         }
         return (regular, playoffs, schedule);
     }
 
-    /// <summary>The match IDs of a row's links; a link without one goes in <paramref name="unparsed"/>.</summary>
-    private static List<string> RowMatchIds(string sheetName, IEnumerable<string> row, List<string> unparsed, bool bareIds)
+    /// <summary>The match IDs of a row's links, each with its column; a link without one goes in <paramref name="unparsed"/>.</summary>
+    private static List<(string Id, int Column)> RowMatchIds(string sheetName, string[] row, List<string> unparsed, bool bareIds)
     {
-        var ids = new List<string>();
-        foreach (var cell in row)
+        var ids = new List<(string Id, int Column)>();
+        for (var c = 0; c < row.Length; c++)
         {
-            var cellIds = MatchIds(cell, bareIds);
+            var cellIds = MatchIds(row[c], bareIds);
             if (cellIds is null)
-                unparsed.Add($"{sheetName}: {cell.Trim()}");
+                unparsed.Add($"{sheetName}: {row[c].Trim()}");
             else
-                ids.AddRange(cellIds);
+            {
+                var column = c;
+                ids.AddRange(cellIds.Select(id => (id, column)));
+            }
         }
         return ids;
     }

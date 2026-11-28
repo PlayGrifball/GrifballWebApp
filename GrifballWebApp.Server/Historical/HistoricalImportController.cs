@@ -180,6 +180,28 @@ public class HistoricalImportController : ControllerBase
         return await schedule.Get(ct);
     }
 
+    /// <summary>
+    /// Where the historical import got a row from: the cells that made it, the ones the latest import read it from, and what
+    /// changed it (a Discord ID linked, a merge). <paramref name="entity"/> is its type (User, Team, Season, SeasonMatch,
+    /// RecordedGame, PlayerSeasonStat, ...) and <paramref name="key"/> its ID; a user's include the placeholders merged into
+    /// them. Sysadmins only.
+    /// </summary>
+    [HttpGet("historical-provenance", Name = "GetHistoricalProvenance")]
+    [ProducesResponseType<List<HistoricalProvenanceDto>>(StatusCodes.Status200OK)]
+    [Authorize(Roles = "Sysadmin")]
+    public async Task<ActionResult<List<HistoricalProvenanceDto>>> Provenance([FromQuery] string entity, [FromQuery] string key,
+        [FromServices] HistoricalProvenanceService provenance, CancellationToken ct)
+        => await provenance.ForEntity(entity, key, ct);
+
+    /// <summary>What one source (and tab, when given) of the archive made or was read for, a page at a time (at most
+    /// <see cref="HistoricalProvenanceService.MaxRows"/>). Sysadmins only.</summary>
+    [HttpGet("historical-sources/{sourceID}/provenance", Name = "GetHistoricalSourceProvenance")]
+    [ProducesResponseType<List<HistoricalProvenanceDto>>(StatusCodes.Status200OK)]
+    [Authorize(Roles = "Sysadmin")]
+    public async Task<ActionResult<List<HistoricalProvenanceDto>>> SourceProvenance([FromRoute] string sourceID, [FromQuery] string? sheet,
+        [FromServices] HistoricalProvenanceService provenance, CancellationToken ct, [FromQuery] int skip = 0, [FromQuery] int take = 100)
+        => await provenance.ForSource(sourceID, sheet, skip, take, ct);
+
     private AcceptedAtActionResult Queued(int jobId) => AcceptedAtAction(nameof(Job), new { jobID = jobId }, new HistoricalImportQueued(jobId));
 
     private IActionResult Decided((HistoricalJobDecision Decision, int? JobID) result) => result.Decision switch

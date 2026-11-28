@@ -32,6 +32,7 @@ public static class ChampionsParser
                 Team = team,
                 Captain = roster.FirstOrDefault(),
                 Roster = roster,
+                Origin = ArchiveOrigin.Row(sourceId, sheet, r),
             });
         }
         return new ChampionsArchive { SourceId = sourceId, SourceUrl = sourceUrl, Champions = champions };
@@ -80,6 +81,7 @@ public static class ChampionsParser
                 Team = team,
                 Captain = roster.FirstOrDefault(),
                 Roster = roster,
+                Origin = ArchiveOrigin.Row(sourceId, sheet, r),
             });
         }
         return new ChampionsArchive { SourceId = sourceId, SourceUrl = sourceUrl, Champions = champions };

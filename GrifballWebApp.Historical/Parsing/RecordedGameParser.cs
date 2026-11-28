@@ -84,6 +84,7 @@ public static partial class RecordedGameParser
 
         // A timestamp shared by two games (rare) keeps its keys apart
         var keys = new Dictionary<string, int>(StringComparer.Ordinal);
+        var (rowOf, rowsOf) = (ArchiveOrigin.RowOf(sourceId, sheet), ArchiveOrigin.RowsOf(sourceId, sheet));
         var games = new List<RecordedGameInput>();
         foreach (var block in CarnageBlocks(sheet, c))
         {
@@ -92,7 +93,9 @@ public static partial class RecordedGameParser
             keys[key] = seen + 1;
             if (seen > 0)
                 key += $"-{seen + 1}";
-            games.Add(CarnageGame(tab, key, block, c));
+            var game = CarnageGame(tab, key, block, c, rowOf);
+            game.Origin = rowsOf(block.Rows);
+            games.Add(game);
         }
         return games;
     }
@@ -162,7 +165,7 @@ public static partial class RecordedGameParser
                 || (side != current.LastSide && current.Sides.Contains(side))
                 || (time is not null && current.GameTime is not null && Math.Abs(time.Value - current.GameTime.Value) > GameTimeTolerance)));
 
-    private static RecordedGameInput CarnageGame(GamesTab tab, string key, GameRows block, CarnageColumns c)
+    private static RecordedGameInput CarnageGame(GamesTab tab, string key, GameRows block, CarnageColumns c, Func<string[], ArchiveOrigin> rowOf)
     {
         var players = block.Rows.Select(row => new RecordedPlayerInput
         {
@@ -177,6 +180,7 @@ public static partial class RecordedGameParser
             SwordKills = Int(row, c.Sword),
             BallKills = Int(row, c.Ball),
             CarrierKills = Int(row, c.Stops),
+            Origin = rowOf(row),
         }).Where(p => p.Gamertag.Length > 0).ToList();
         var teams = block.Rows.GroupBy(row => Side(c.TeamOf(row))).OrderBy(s => s.Key).Select(s => new RecordedTeamInput
         {
@@ -212,12 +216,17 @@ public static partial class RecordedGameParser
             {
                 // A forfeit has a title only: nobody played it
                 if (ForfeitGame(sourceId, tab, title, titleMatch, titleRow) is { } forfeit)
+                {
+                    forfeit.Origin = ArchiveOrigin.Row(sourceId, sheet, titleRow);
                     games.Add(forfeit);
+                }
                 continue;
             }
-            var block = BlockPlayers(sheet, headerRow);
+            var block = BlockPlayers(sourceId, sheet, headerRow);
             r = block.End - 1;
-            games.Add(BlockGame(sourceId, tab, title, titleMatch, titleRow, block));
+            var game = BlockGame(sourceId, tab, title, titleMatch, titleRow, block);
+            game.Origin = ArchiveOrigin.Rows(sourceId, sheet, titleRow, Math.Max(titleRow, block.End - 1));
+            games.Add(game);
         }
         return games;
     }
@@ -235,7 +244,7 @@ public static partial class RecordedGameParser
     /// <summary>A block's players, each side's wins and name, and the row after its last (the next title's, or the sheet's end).</summary>
     private sealed record BlockRows(List<RecordedPlayerInput> Players, Dictionary<int, int> SideWins, Dictionary<int, string> SideNames, int End);
 
-    private static BlockRows BlockPlayers(SheetTable sheet, int headerRow)
+    private static BlockRows BlockPlayers(string sourceId, SheetTable sheet, int headerRow)
     {
         var columns = new Columns(sheet.Rows[headerRow]);
         var (played, wins, goals, kills, assists, deaths, stops) = (columns.Find("gamesplayed"), columns.Find("wins"), columns.Find("goals"),
@@ -270,6 +279,7 @@ public static partial class RecordedGameParser
                 Assists = Int(row, assists) ?? 0,
                 Goals = Int(row, goals),
                 CarrierKills = Int(row, stops),
+                Origin = ArchiveOrigin.Row(sourceId, sheet, end),
             });
             sideWins[side] = sideWins.GetValueOrDefault(side) + (Int(row, wins) ?? 0);
             if (named)

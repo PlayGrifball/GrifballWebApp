@@ -41,15 +41,17 @@ public partial class HistoricalImportService
             {
                 var userId = await ImportPlayer(player, player.DiscordUserId is { } id && conflicting.ContainsKey(id), counts, ct);
                 if (userId is not null)
-                    await FillRegion(userId.Value, player.Region, counts, ct);
+                    await FillRegion(userId.Value, player.Region, player.Origin, counts, ct);
             }
             await _context.SaveChangesAsync(ct);
+            await _provenance.FlushAsync(ct);
             await _context.CommitTransactionAsync(ct);
             AddPlayers(report, counts);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             await _context.RollbackTransactionAsync(CancellationToken.None);
+            _provenance.Discard();
             _context.ChangeTracker.Clear();
             _logger.LogError(ex, "Historical import of the players lists failed and was rolled back");
             report.Errors.Add($"Players lists: {ex.GetBaseException().Message}");
@@ -77,7 +79,7 @@ public partial class HistoricalImportService
 
         if (holder is null)
             return await LinkUnheldDiscord(player, gamertag, discordId.Value, placeholder, real, conflicting, counts, ct);
-        return await LinkHeldDiscord(gamertag, discordId.Value, holder, placeholder, conflicting, counts, ct);
+        return await LinkHeldDiscord(gamertag, discordId.Value, holder, placeholder, conflicting, player.Origin, counts, ct);
     }
 
     /// <summary><see cref="ImportPlayer"/> for a Discord ID no user has: the player's placeholder gets it.</summary>
@@ -97,7 +99,10 @@ public partial class HistoricalImportService
             var (made, created) = await _matching.CreatePlaceholderAsync(gamertag, null, ct);
             placeholder = made;
             if (created)
+            {
                 counts.DummyUsersCreated++;
+                _provenance.Created(placeholder, player.Origin, $"Placeholder for {gamertag}: the players list gives a Discord ID and no user has the gamertag");
+            }
         }
         if (placeholder.LinkDiscord(discordId) is DiscordLinking.LinkedToOther)
         {
@@ -110,12 +115,13 @@ public partial class HistoricalImportService
         }
         await _context.SaveChangesAsync(ct);
         counts.DiscordLinked++;
+        _provenance.Changed(placeholder, player.Origin, $"Discord ID {discordId} linked to {gamertag}'s placeholder");
         return placeholder.Id;
     }
 
     /// <summary><see cref="ImportPlayer"/> for a Discord ID a signed-up user has: the player's placeholder merged into them, or claimed.</summary>
     private async Task<int?> LinkHeldDiscord(string gamertag, long discordId, User holder, User? placeholder, bool conflicting,
-        HistoricalImportReport counts, CancellationToken ct)
+        ArchiveOrigin? origin, HistoricalImportReport counts, CancellationToken ct)
     {
         // A signed-up user has the Discord ID
         if (placeholder is null || placeholder.Id == holder.Id || !placeholder.IsDummyUser)
@@ -131,6 +137,7 @@ public partial class HistoricalImportService
             {
                 await _merges.Merge(holder.Id, placeholder.Id, MergeOptions.For(MergeTrigger.DiscordMatch, "Discord ID match"), ct);
                 counts.DiscordMerged++;
+                _provenance.Changed(holder, origin, $"{gamertag}'s placeholder {placeholder.UserName} merged in: the players list gives {holder.UserName}'s Discord ID {discordId}");
                 return holder.Id;
             }
             catch (MergeConflictException e)
@@ -139,10 +146,11 @@ public partial class HistoricalImportService
             }
         }
         if (placeholder.XboxUserID is null
-            && await _matching.ClaimForUserAsync(GamertagClaimKind.DiscordMatch, holder.Id, holder.XboxUserID, gamertag, placeholder.Id, evenIfRejected: false, ct) is not null)
+            && await _matching.ClaimForUserAsync(GamertagClaimKind.DiscordMatch, holder.Id, holder.XboxUserID, gamertag, placeholder.Id, evenIfRejected: false, ct) is { } claim)
         {
             counts.DiscordClaimsCreated++;
             await _context.SaveChangesAsync(ct);
+            _provenance.Created(claim, origin, $"The players list gives {gamertag} {holder.UserName}'s Discord ID {discordId}");
         }
         return holder.Id;
     }
@@ -159,7 +167,7 @@ public partial class HistoricalImportService
     }
 
     /// <summary>The list's region, for a user with none (or one an earlier import set): never over one the user or a sysadmin chose.</summary>
-    private async Task FillRegion(int userId, string? region, HistoricalImportReport counts, CancellationToken ct)
+    private async Task FillRegion(int userId, string? region, ArchiveOrigin? origin, HistoricalImportReport counts, CancellationToken ct)
     {
         var regionId = Regions.Normalize(region);
         if (regionId is null)
@@ -169,6 +177,7 @@ public partial class HistoricalImportService
             return;
         await _context.SaveChangesAsync(ct);
         counts.RegionsSet++;
+        _provenance.Changed(user, origin, $"Region set to {regionId} from the players list's {region}");
     }
 
     private static void AddPlayers(HistoricalImportReport report, HistoricalImportReport players)

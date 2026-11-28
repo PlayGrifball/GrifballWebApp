@@ -32,6 +32,33 @@ public sealed class SheetTable
         var row = RowNumbers is null ? number - 1 : RowNumbers.BinarySearch(number);
         return row >= 0 ? Cell(row, column - 1) : "";
     }
+
+    /// <summary>The sheet's own number of a row of <see cref="Rows"/> (1 for its first): its place among the rows when they
+    /// aren't numbered (a CSV's, past an empty line one less than the sheet's).</summary>
+    public int RowNumber(int row) => RowNumbers is { } numbers && row >= 0 && row < numbers.Count ? numbers[row] : row + 1;
+
+    /// <summary>The A1 reference of a cell ("C23"), by its row of <see cref="Rows"/> and its column (0 for A).</summary>
+    public string Reference(int row, int column) => $"{ColumnName(column)}{RowNumber(row)}";
+
+    /// <summary>The A1 range of cells from one to another ("A20:K20"); one cell's reference when they are the same.</summary>
+    public string Range(int row, int column, int lastRow, int lastColumn)
+        => row == lastRow && column == lastColumn ? Reference(row, column) : $"{Reference(row, column)}:{Reference(lastRow, lastColumn)}";
+
+    /// <summary>A row's range, from its first cell to its last with text ("A20:K20").</summary>
+    public string RowRange(int row) => Range(row, 0, row, Math.Max(0, (row >= 0 && row < Rows.Count ? Rows[row].Length : 1) - 1));
+
+    /// <summary>A row's cells joined by " | " (its empty ones at the end aren't kept).</summary>
+    public string RowText(int row) => row >= 0 && row < Rows.Count ? string.Join(" | ", Rows[row]) : "";
+
+    /// <summary>A column's letters (0 is A, 25 Z, 26 AA).</summary>
+    public static string ColumnName(int column)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(column);
+        var name = "";
+        for (var n = column + 1; n > 0; n = (n - 1) / 26)
+            name = (char)('A' + (n - 1) % 26) + name;
+        return name;
+    }
 }
 
 /// <summary>

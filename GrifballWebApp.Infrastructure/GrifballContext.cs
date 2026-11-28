@@ -52,6 +52,7 @@ public class GrifballContext :
     public virtual DbSet<UserSpartanFile> UserSpartanFiles { get; set; }
     public virtual DbSet<HistoricalSource> HistoricalSources { get; set; }
     public virtual DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; }
+    public virtual DbSet<HistoricalProvenance> HistoricalProvenance { get; set; }
     public virtual DbSet<UserMerge> UserMerges { get; set; }
     public virtual DbSet<DuplicateDismissal> DuplicateDismissals { get; set; }
     public virtual DbSet<ChatMonth> ChatMonths { get; set; }
@@ -171,6 +172,7 @@ public class GrifballContext :
         builder.ApplyConfiguration(new HistoricalSourceConfiguration());
         builder.ApplyConfiguration(new HistoricalSourceSnapshotConfiguration());
         builder.ApplyConfiguration(new HistoricalImportSettingsConfiguration());
+        builder.ApplyConfiguration(new HistoricalProvenanceConfiguration());
         builder.ApplyConfiguration(new HistoricalSeasonReviewConfiguration());
         builder.ApplyConfiguration(new UserMergeConfiguration());
         builder.ApplyConfiguration(new DuplicateDismissalConfiguration());

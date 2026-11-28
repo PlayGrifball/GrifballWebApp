@@ -36,7 +36,7 @@ public partial class HistoricalImportService
         try
         {
             var season = await UpsertMatchmakingSeason(group, counts, ct);
-            var resolver = new PlayerResolver(_context, 0, season.StartsAt, season.MatchmakingSeasonID);
+            var resolver = new PlayerResolver(_context, 0, season.StartsAt, season.MatchmakingSeasonID, _provenance);
             await ImportMatchmakingStats(group, season, resolver, counts, ct);
             await ImportMatchmakingLadder(group, season, resolver, counts, ct);
             if (group.RecordedGames is not null)
@@ -45,6 +45,8 @@ public partial class HistoricalImportService
                 Warn(counts, $"{group.SourceId}: {gamertag} is in more than one Xbox account's gamertag history for the season; left to its placeholder");
 
             await _context.SaveChangesAsync(ct);
+            // Where each row came from, in the season's transaction: rolled back with it
+            await _provenance.FlushAsync(ct);
             counts.DummyUsersCreated = resolver.DummiesCreated;
             removal.StatsRemoved = counts.StatsRemoved;
             removal.LadderRemoved = counts.LadderRanksRemoved;
@@ -72,6 +74,7 @@ public partial class HistoricalImportService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             await transaction.RollbackAsync(CancellationToken.None);
+            _provenance.Discard();
             _context.ChangeTracker.Clear();
             _logger.LogError(ex, "Historical import of the matchmaking season {Season} failed and was rolled back", group.SourceId);
             report.Errors.Add($"{group.SourceId}: {ex.GetBaseException().Message}");
@@ -109,6 +112,7 @@ public partial class HistoricalImportService
         // Undated, a re-run keeps the end an earlier one gave, and it began and ended by now, as a season's does
         var (start, end, dated) = await SeasonDates(group, ct);
         season.DateArchived(start, end, dated, _timeProvider.GetUtcNow().UtcDateTime);
+        NoteSeason(season, group);
         await _context.SaveChangesAsync(ct);
         return season;
     }
@@ -125,7 +129,7 @@ public partial class HistoricalImportService
         {
             foreach (var player in entry.Players.Where(p => Parsing.SeasonStatsParser.IsPlayerTag(p.Gamertag)))
             {
-                var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
+                var userId = (await resolver.Resolve(player.Gamertag, null, ct, player.Origin)).UserId;
                 if (!kept.Add(userId))
                 {
                     Skip(counts, $"{group.SourceId}: {player.Gamertag} is a second row for the same player");
@@ -143,6 +147,7 @@ public partial class HistoricalImportService
                     _context.MatchmakingPlayerStats.Add(row);
                     counts.StatsInserted++;
                 }
+                _provenance.Read(existing.GetValueOrDefault(userId) ?? row, player.Origin, $"{player.Gamertag}'s stat row");
             }
         }
         var stale = existing.Values.Where(s => !kept.Contains(s.UserID)).ToList();
@@ -158,9 +163,10 @@ public partial class HistoricalImportService
         var existing = await _context.MatchmakingLadderRanks.Where(r => r.MatchmakingSeasonID == season.MatchmakingSeasonID)
             .ToDictionaryAsync(r => r.UserID, ct);
         var kept = new HashSet<int>();
-        foreach (var standing in group.Entries.SelectMany(e => e.Ladder).Where(s => !string.IsNullOrWhiteSpace(s.Gamertag)))
+        foreach (var (entry, standing) in group.Entries.SelectMany(e => e.Ladder.Select(s => (Entry: e, Standing: s))).Where(s => !string.IsNullOrWhiteSpace(s.Standing.Gamertag)))
         {
-            var userId = (await resolver.Resolve(standing.Gamertag, null, ct)).UserId;
+            var origin = entry.LadderOrigins.GetValueOrDefault(standing.Gamertag);
+            var userId = (await resolver.Resolve(standing.Gamertag, null, ct, origin)).UserId;
             if (!kept.Add(userId))
             {
                 Skip(counts, $"{group.SourceId}: {standing.Gamertag} is a second ladder row for the same player");
@@ -178,6 +184,7 @@ public partial class HistoricalImportService
                 _context.MatchmakingLadderRanks.Add(row);
                 counts.LadderRanksInserted++;
             }
+            _provenance.Read(existing.GetValueOrDefault(userId) ?? row, origin, $"{standing.Gamertag}'s ladder row");
         }
         var stale = existing.Values.Where(r => !kept.Contains(r.UserID)).ToList();
         _context.MatchmakingLadderRanks.RemoveRange(stale);
@@ -264,6 +271,7 @@ public partial class HistoricalImportService
             await Unlink(game, ct);
         game.Reimport(facts, null);
         ApplyRecordedGame(game, sides, sides.ToDictionary(s => s.Side, _ => (int?)null), players);
+        NoteRecordedGame(game, input, players);
 
         var match = game.MatchedMatch;
         var startedAt = input.PlayedAt ?? season.StartsAt;
@@ -274,6 +282,7 @@ public partial class HistoricalImportService
         match.SetArchivedRoster(
             players.Where(p => p.Input.Side == sides[0].Side).Select(p => p.UserId),
             players.Where(p => p.Input.Side == sides[1].Side).Select(p => p.UserId));
+        _provenance.Read(match, input.Origin, $"Late League game {key}");
         counts.RecordedGamesImported++;
         return game;
     }
@@ -285,7 +294,7 @@ public partial class HistoricalImportService
         var players = new List<(RecordedPlayerInput Input, int UserId)>();
         foreach (var player in input.Players.Where(p => Parsing.SeasonStatsParser.IsPlayerTag(p.Gamertag)))
         {
-            var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
+            var userId = (await resolver.Resolve(player.Gamertag, null, ct, player.Origin ?? input.Origin)).UserId;
             if (players.Any(p => p.UserId == userId))
             {
                 Skip(counts, $"Recorded game {key}: {player.Gamertag} is listed twice for one player");

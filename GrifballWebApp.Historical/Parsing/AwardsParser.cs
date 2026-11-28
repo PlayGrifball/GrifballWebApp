@@ -26,14 +26,15 @@ public static partial class AwardsParser
     public sealed record ParsedAward(string? Season, ArchiveAward Award);
 
     /// <summary>The tab's awards, in its order; empty when it has none the layout finds.</summary>
-    public static List<ParsedAward> Parse(SheetTable sheet, AwardsTab tab)
+    public static List<ParsedAward> Parse(SheetTable sheet, AwardsTab tab, string? sourceId = null)
     {
+        var at = new SheetOrigins(sourceId, sheet);
         var awards = tab.Layout switch
         {
-            AwardsLayout.Labels => ByLabel(sheet, tab),
-            AwardsLayout.Seasons => BySeason(sheet, tab),
-            AwardsLayout.Records => ByRecord(sheet),
-            _ => ByColumn(sheet, tab),
+            AwardsLayout.Labels => ByLabel(sheet, tab, at),
+            AwardsLayout.Seasons => BySeason(sheet, tab, at),
+            AwardsLayout.Records => ByRecord(sheet, at),
+            _ => ByColumn(sheet, tab, at),
         };
         // A nickname is the gamertag it stands for; an empty one is no player at all
         var named = new List<ParsedAward>();
@@ -57,7 +58,7 @@ public static partial class AwardsParser
         return string.IsNullOrWhiteSpace(name.Value) ? null : name.Value.Trim();
     }
 
-    private static List<ParsedAward> ByColumn(SheetTable sheet, AwardsTab tab)
+    private static List<ParsedAward> ByColumn(SheetTable sheet, AwardsTab tab, SheetOrigins at)
     {
         var awards = new List<ParsedAward>();
         // The header row from the anchor's cell: a table left of it on its row is another's
@@ -78,28 +79,27 @@ public static partial class AwardsParser
                 if (winner.Length == 0)
                     break;
                 place++;
-                awards.Add(new ParsedAward(null, new ArchiveAward { Name = name, Winner = winner, Value = tab.Ranked ? $"#{place}" : null }));
+                awards.Add(new ParsedAward(null, new ArchiveAward { Name = name, Winner = winner, Value = tab.Ranked ? $"#{place}" : null, Origin = at.Cell(row, column) }));
             }
         }
         return awards;
     }
 
-    private static List<ParsedAward> ByLabel(SheetTable sheet, AwardsTab tab)
+    private static List<ParsedAward> ByLabel(SheetTable sheet, AwardsTab tab, SheetOrigins at)
     {
         var awards = new List<ParsedAward>();
         var labels = tab.Awards.Keys.Select(Text).ToHashSet(StringComparer.OrdinalIgnoreCase);
         // In the sheet's order: by where each label is
         var found = tab.Awards.Keys.Select(label => (Label: label, At: Find(sheet, label))).Where(l => l.At is not null)
             .OrderBy(l => l.At!.Value.Row).ThenBy(l => l.At!.Value.Column);
-        foreach (var (label, at) in found)
+        foreach (var (label, position) in found)
         {
             var name = Renamed(Text(label), tab);
             // The first text below the label, in its columns: another award's label there means this one has no winner
-            var winners = Below(sheet, at!.Value.Row, at.Value.Column);
-            if (winners is null || labels.Contains(winners))
+            if (Below(sheet, position!.Value.Row, position.Value.Column) is not var (winners, row, column) || labels.Contains(winners))
                 continue;
             foreach (var winner in tab.SplitWinners ? Winners(winners) : new[] { winners })
-                awards.Add(new ParsedAward(null, new ArchiveAward { Name = name, Winner = winner }));
+                awards.Add(new ParsedAward(null, new ArchiveAward { Name = name, Winner = winner, Origin = at.Cell(row, column) }));
         }
         return awards;
     }
@@ -111,7 +111,7 @@ public static partial class AwardsParser
         return string.IsNullOrWhiteSpace(award.Value) ? label : award.Value.Trim();
     }
 
-    private static string? Below(SheetTable sheet, int labelRow, int labelColumn)
+    private static (string Text, int Row, int Column)? Below(SheetTable sheet, int labelRow, int labelColumn)
     {
         for (var row = labelRow + 1; row < sheet.Rows.Count && row <= labelRow + LabelDepth; row++)
         {
@@ -119,7 +119,7 @@ public static partial class AwardsParser
             {
                 var text = Text(sheet.Cell(row, column));
                 if (text.Length > 0)
-                    return text;
+                    return (text, row, column);
             }
         }
         return null;
@@ -129,7 +129,7 @@ public static partial class AwardsParser
     private static IEnumerable<string> Winners(string text)
         => WinnerSeparator().Split(text).Select(Text).Where(w => w.Length > 0);
 
-    private static List<ParsedAward> BySeason(SheetTable sheet, AwardsTab tab)
+    private static List<ParsedAward> BySeason(SheetTable sheet, AwardsTab tab, SheetOrigins at)
     {
         var awards = new List<ParsedAward>();
         var seasons = tab.Seasons.OrderByDescending(s => s.Key.Length).ToList();
@@ -144,8 +144,11 @@ public static partial class AwardsParser
             if (SeasonOf(row) is not { } season)
                 continue;
             // The block's "MVP: Luxe" and "FMVP: Fancy", in its title's row and the next (unless that is the next block's title)
-            var cells = row + 1 < sheet.Rows.Count && SeasonOf(row + 1) is null ? sheet.Rows[row].Concat(sheet.Rows[row + 1]) : sheet.Rows[row];
-            awards.AddRange(cells.Select(c => Labelled(Text(c), tab)).OfType<ArchiveAward>().Select(a => new ParsedAward(season, a)));
+            var rows = row + 1 < sheet.Rows.Count && SeasonOf(row + 1) is null ? new[] { row, row + 1 } : [row];
+            foreach (var r in rows)
+                for (var c = 0; c < sheet.Rows[r].Length; c++)
+                    if (Labelled(Text(sheet.Rows[r][c]), tab) is { } award)
+                        awards.Add(new ParsedAward(season, award with { Origin = at.Cell(r, c) }));
         }
         return awards;
     }
@@ -163,7 +166,7 @@ public static partial class AwardsParser
         return new ArchiveAward { Name = Renamed(label, tab), Winner = winner };
     }
 
-    private static List<ParsedAward> ByRecord(SheetTable sheet)
+    private static List<ParsedAward> ByRecord(SheetTable sheet, SheetOrigins at)
     {
         var awards = new List<ParsedAward>();
         if (RecordsHeader(sheet) is not var (headerRow, columns))
@@ -171,7 +174,7 @@ public static partial class AwardsParser
         for (var row = headerRow + 1; row < sheet.Rows.Count; row++)
         {
             if (Record(sheet, row, columns) is { } award)
-                awards.Add(new ParsedAward(null, award));
+                awards.Add(new ParsedAward(null, award with { Origin = at.Row(row) }));
         }
         return awards;
     }

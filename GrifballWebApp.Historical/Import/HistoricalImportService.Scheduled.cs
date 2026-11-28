@@ -36,12 +36,16 @@ public partial class HistoricalImportService
                 withoutTeam.Add(scheduled.SourceKey);
                 continue;
             }
+            var why = $"{scheduled.Home} vs. {scheduled.Away} on {scheduled.PlayedAt:yyyy-MM-dd HH:mm} UTC, no result";
             if (existing.FirstOrDefault(m => m.HomeTeamID == home && m.AwayTeamID == away && m.ScheduledTime == scheduled.PlayedAt) is { } same)
             {
                 existing.Remove(same);
+                _provenance.Read(same, scheduled.Origin, why);
                 continue;
             }
-            _context.SeasonMatches.Add(SeasonMatch.Between(season.SeasonID, home.Value, away.Value, bestOf: 1, scheduledTime: scheduled.PlayedAt));
+            var match = SeasonMatch.Between(season.SeasonID, home.Value, away.Value, bestOf: 1, scheduledTime: scheduled.PlayedAt);
+            _context.SeasonMatches.Add(match);
+            _provenance.Read(match, scheduled.Origin, why);
             counts.SeasonMatchesCreated++;
         }
         foreach (var gone in existing)
