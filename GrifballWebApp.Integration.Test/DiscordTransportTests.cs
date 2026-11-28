@@ -975,7 +975,7 @@ public class DiscordTransportTests
             await context.SaveChangesAsync();
             for (var i = 0; i < 12; i++)
             {
-                var signer = User.Seed(userName: $"Signer7301x{i}");
+                var signer = User.Seed(userName: $"Signer7301x{i}", xboxUser: XboxUser.FromXbox(730100 + i, $"Signer7301x{i}"));
                 context.Users.Add(signer);
                 await context.SaveChangesAsync();
                 await context.AddSignup(paged, signer);
@@ -1053,7 +1053,7 @@ public class DiscordTransportTests
         var (requestID, claimID) = await _host.WithContextAsync(async context =>
         {
             var tracked = await context.SeasonMatches.Include(m => m.Reschedules).SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID);
-            var request = MatchReschedule.Request(tracked, new DateTime(2030, 1, 5, 20, 0, 0, DateTimeKind.Utc), "Away", player.Id, DateTime.UtcNow).Reschedule!;
+            var request = MatchReschedule.Request(tracked, new DateTime(2025, 2, 1, 20, 0, 0, DateTimeKind.Utc), "Away", player.Id, DateTime.UtcNow).Reschedule!;
             var placeholder = User.Seed(userName: "OldTag7305");
             context.Users.Add(placeholder);
             await context.SaveChangesAsync();
