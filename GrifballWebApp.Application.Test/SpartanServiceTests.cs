@@ -138,7 +138,7 @@ internal sealed class SpartanServiceTests : ApplicationDbContextTests
         {
             Assert.That(result.Outcome, Is.EqualTo(SetSpartanOutcome.Saved));
             Assert.That(result.Problems, Is.Empty);
-            Assert.That(row.ChoiceJson, Is.EqualTo("""{"core":"Mark VII","armor":{"helmet":"Eaglestrike"},"parts":null,"coating":"111","visor":null,"disableDamage":true}"""));
+            Assert.That(row.ChoiceJson, Is.EqualTo("""{"core":"Mark VII","armor":{"helmet":"Eaglestrike"},"parts":null,"coating":"111","visor":null,"disableDamage":true,"weaponCoatings":null}"""));
             Assert.That(row.UpdatedAt, Is.EqualTo(Start.UtcDateTime));
             Assert.That((render.State, render.RequestedAt, render.Error), Is.EqualTo((UserSpartanRenderState.Requested, Start.UtcDateTime, (string?)null)));
         }
