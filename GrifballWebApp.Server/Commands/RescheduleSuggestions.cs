@@ -15,9 +15,6 @@ namespace GrifballWebApp.Server.Commands;
 /// </summary>
 public class RescheduleSuggestions(CommandLookups lookups, SchedulingService scheduling)
 {
-    /// <summary>The UTC form a choice's value takes: what /reschedule request reads (<see cref="CommandLookups.TryParseUtc"/>).</summary>
-    private const string UtcFormat = "yyyy-MM-dd HH:mm";
-
     /// <summary>/reschedule suggest: the match's best times, each with how many of each team's players can play and its warnings.</summary>
     public async Task Suggest(IDiscordInteractionContext context, string match)
     {
@@ -51,9 +48,25 @@ public class RescheduleSuggestions(CommandLookups lookups, SchedulingService sch
             .Select(s => new ApplicationCommandOptionChoiceProperties(CommandLookups.ChoiceName(
                     TimeZoneInfo.ConvertTimeFromUtc(s.StartsAt, league).ToString("ddd d MMM, h:mm tt", CultureInfo.InvariantCulture) + " ET · " + Players(s)
                     + string.Concat(s.Conflicts.Select(_ => " ⚠"))),
-                s.StartsAt.ToString(UtcFormat, CultureInfo.InvariantCulture)))
+                s.StartsAt.ToString(CommandLookups.UtcFormat, CultureInfo.InvariantCulture)))
             .Where(c => c.Name.Contains(text, StringComparison.OrdinalIgnoreCase) || c.StringValue!.Contains(text, StringComparison.Ordinal))
             .ToList();
+    }
+
+    /// <summary>
+    /// The match's best time in the UTC form a request reads (what the request form starts with); null when there is none, or it can't be
+    /// found by <paramref name="ct"/> (the form must open within Discord's 3 seconds): a help, which the form opens without.
+    /// </summary>
+    public async Task<string?> BestTime(int seasonMatchID, CancellationToken ct = default)
+    {
+        try
+        {
+            return await scheduling.SuggestAsync(seasonMatchID, count: 1, ct: ct) is [var best, ..] ? best.StartsAt.ToString(CommandLookups.UtcFormat, CultureInfo.InvariantCulture) : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     private static string Players(TimeSuggestion s) => $"{s.HomePlayersAvailable} and {s.AwayPlayersAvailable} players can play";

@@ -5,7 +5,7 @@ using NetCord.Services.ComponentInteractions;
 namespace GrifballWebApp.Server.Commands;
 
 /// <summary>
-/// NetCord entry point for the staff commands' modals (a yes/no option left out): wraps the context and hands off to
+/// NetCord entry point for the staff commands' modals (an option left out): wraps the context and hands off to
 /// <see cref="AdminCommandsHandler"/>, which checks the caller again. Keep logic out of here, it is only tested end to end
 /// (DiscordTransportTests).
 /// </summary>
@@ -27,4 +27,13 @@ public class AdminModalInteractions : ComponentInteractionModule<ModalInteractio
 
     [ComponentInteraction(DiscordModalsContants.RescheduleDecide)]
     public Task RescheduleDecide(int request) => _handler.SaveDecision(Context.ToDiscordContext(), request);
+
+    [ComponentInteraction(DiscordModalsContants.MatchReport)]
+    public Task MatchReport(int matchId) => _handler.SaveReport(Context.ToDiscordContext(), matchId);
+
+    [ComponentInteraction(DiscordModalsContants.MatchTime)]
+    public Task MatchTime(int matchId) => _handler.SaveTime(Context.ToDiscordContext(), matchId);
+
+    [ComponentInteraction(DiscordModalsContants.ClaimReject)]
+    public Task ClaimReject(int claim) => _handler.SaveRejection(Context.ToDiscordContext(), claim);
 }

@@ -54,9 +54,11 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
         var buttons = new MatchmakingButtonHandler(membership, _services.GetRequiredService<IServiceScopeFactory>(), Db, Substitute.For<IDiscordRestClient>(), null!,
             new RecordingLogger<MatchmakingButtonHandler>());
         var seasons = new SeasonService(Db, null!, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time);
-        return new PersonalCommandsHandler(new DiscordCaller(Db), new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), membership, _queue, buttons, null!,
+        var lookups = new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db));
+        return new PersonalCommandsHandler(new DiscordCaller(Db), lookups, membership, _queue, buttons, null!,
             new UserGamertagClaimService(Db, new GamertagMatching(Db), _time, Options.Create(new UserClaimOptions())),
-            new SignupsService(Db, _time), seasons, new AvailabilityService(Db), new RescheduleService(Db, Substitute.For<IOutbox>()), Urls(), null!);
+            new SignupsService(Db, _time), seasons, new AvailabilityService(Db), new RescheduleService(Db, Substitute.For<IOutbox>()), Urls(), null!,
+            new RescheduleSuggestions(lookups, new GrifballWebApp.Application.Scheduling.SchedulingService(Db, _time)));
     }
 
     private async Task<(CommandContextRecorder Discord, User Caller)> Caller(params string[] roles)
@@ -229,6 +231,46 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
         {
             Assert.That(discord.Content(), Is.EqualTo(
                 $"I couldn't read that time. Use UTC like 2026-11-20 20:00, or pick it on [the request form](https://grif.test/reschedule-request/{match.SeasonMatchID})."));
+            Assert.That(await Db.MatchReschedules.AnyAsync(), Is.False);
+        }
+    }
+
+    /// <summary>What modal <paramref name="modal"/>'s text input <paramref name="input"/> starts with.</summary>
+    private static string? Typed(NetCord.Rest.ModalProperties modal, string input)
+        => modal.Components.OfType<NetCord.Rest.LabelProperties>().Select(l => l.Component).OfType<NetCord.Rest.TextInputProperties>().Single(t => t.CustomId == input).Value;
+
+    [TestCase("2030-01-05 20:00")]
+    [TestCase(null)]
+    public async Task RequestReschedule_WithNoReason_OpensTheRequestModal_WithTheTimeTyped(string? newTime)
+    {
+        var season = await AddSeason("Winter");
+        var match = await AddSeasonMatch(season, await AddTeam(season, "Home"), await AddTeam(season, "Away"));
+        var (discord, _) = await Caller();
+
+        await Handler().RequestReschedule(discord.Context, match.SeasonMatchID.ToString(), null, newTime);
+
+        var modal = discord.Modal();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modal.CustomId, Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordModalsContants.RescheduleRequestWithParams(match.SeasonMatchID)));
+            Assert.That(Typed(modal, PersonalCommandsHandler.ReasonInput), Is.Null);
+            Assert.That(Typed(modal, PersonalCommandsHandler.NewTimeInput), Is.EqualTo(newTime), "the season has no timeslots, so no best time to start from");
+        }
+    }
+
+    [Test]
+    public async Task RequestReschedule_WithNoReason_IsRefusedWithoutAnAccount_AndForAnUnknownMatch_BeforeAModalOpens()
+    {
+        var stranger = new CommandContextRecorder(discordUserId: 999);
+        var (discord, _) = await Caller();
+
+        await Handler().RequestReschedule(stranger.Context, "1", null, null);
+        await Handler().RequestReschedule(discord.Context, "424242", null, null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stranger.Message().Content, Is.EqualTo(DiscordCaller.NoGamertag));
+            Assert.That(discord.Message().Content, Is.EqualTo(CommandLookups.NoSuchMatch));
             Assert.That(await Db.MatchReschedules.AnyAsync(), Is.False);
         }
     }

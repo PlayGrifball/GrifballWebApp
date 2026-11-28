@@ -92,4 +92,28 @@ public class DiscordModalsContants
     {
         return $"{RescheduleDecide}:{request}";
     }
+
+    public const string RescheduleRequest = "reschedule_request";
+    public static string RescheduleRequestWithParams(int seasonMatchId)
+    {
+        return $"{RescheduleRequest}:{seasonMatchId}";
+    }
+
+    public const string MatchReport = "match_report";
+    public static string MatchReportWithParams(int seasonMatchId)
+    {
+        return $"{MatchReport}:{seasonMatchId}";
+    }
+
+    public const string MatchTime = "match_time";
+    public static string MatchTimeWithParams(int seasonMatchId)
+    {
+        return $"{MatchTime}:{seasonMatchId}";
+    }
+
+    public const string ClaimReject = "claim_reject";
+    public static string ClaimRejectWithParams(int claim)
+    {
+        return $"{ClaimReject}:{claim}";
+    }
 }

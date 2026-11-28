@@ -38,6 +38,7 @@ public class DiscordTransportTests
     private static readonly string[] expected = new[] { "Votes: You need a majority of at least 2 votes", "Home (1): VoteHome" };
     private static readonly string[] expectedArray = new[] { "VoteHome", "VoteAway" };
     private static readonly string[] expectedArray0 = new[] { "KickVoter", "KickTarget" };
+    private static readonly string[] RescheduleInputs = ["reason", "new_time"];
 
     [OneTimeSetUp]
     public void StartServer() => _host = DiscordTransportTestHost.Start();
@@ -478,7 +479,7 @@ public class DiscordTransportTests
         new object[] { "admin jobs pause", new[] { ("job", "a/b"), ("paused", "true") } },
         new object[] { "admin claims list", Array.Empty<(string, string)>() },
         new object[] { "admin claims approve", new[] { ("claim", "1") } },
-        new object[] { "admin claims reject", new[] { ("claim", "1") } },
+        new object[] { "admin claims reject", new[] { ("claim", "1"), ("reason", "No") } },
         new object[] { "matches", Array.Empty<(string, string)>() },
     ];
 
@@ -569,6 +570,7 @@ public class DiscordTransportTests
     [TestCase("team info", "team", "Transport")]
     [TestCase("player profile", "player", "Transport")]
     [TestCase("admin match report", "match", "Transport")]
+    [TestCase("reschedule request", "match", "Transport")]
     [TestCase("admin bracket seed", "season", "Transport")]
     [TestCase("me region", "region", "north")]
     public async Task Autocomplete_OnASubcommandOption_SuggestsChoices(string path, string option, string typed)
@@ -578,8 +580,9 @@ public class DiscordTransportTests
         {
             if (await context.Seasons.AnyAsync(s => s.SeasonName == "Transport Autocomplete"))
                 return 0;
-            context.Users.Add(User.Seed(userName: "TransportPlayer", discordUser: DiscordUser.FromDiscord(6201, "TransportPlayer"),
-                xboxUser: XboxUser.FromXbox(6201, "TransportPlayer")));
+            var player = User.Seed(userName: "TransportPlayer", discordUser: DiscordUser.FromDiscord(6201, "TransportPlayer"),
+                xboxUser: XboxUser.FromXbox(6201, "TransportPlayer"));
+            context.Users.Add(player);
             var season = Season.Seed(seasonName: "Transport Autocomplete").WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
             context.Seasons.Add(season);
             await context.SaveChangesAsync();
@@ -587,6 +590,8 @@ public class DiscordTransportTests
             var away = Team.Seed(seasonID: season.SeasonID, teamName: "Transport Away");
             context.Teams.AddRange(home, away);
             await context.SaveChangesAsync();
+            // /reschedule request lists a player's own matches
+            await context.AddPlayers(home, player.Id);
             context.SeasonMatches.Add(SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID));
             await context.SaveChangesAsync();
             return 1;
@@ -727,6 +732,128 @@ public class DiscordTransportTests
             Assert.That(Routes(saved), Is.EqualTo(new[] { Callback, EditOriginal }));
             Assert.That(saved[1].Content, Is.EqualTo("Reschedule request not found"));
             Assert.That(blankNotes[1].Content, Is.EqualTo("Reschedule request not found"));
+        }
+    }
+
+    /// <summary>A modal submit's text inputs, each in its Label, as Discord sends them.</summary>
+    private static string TextInputs(params (string CustomId, string Value)[] inputs) => JsonSerializer.Serialize(inputs.Select((input, i) =>
+        new { type = 18, id = (i * 2) + 1, component = new { type = 4, id = (i * 2) + 2, custom_id = input.CustomId, value = input.Value } }));
+
+    /// <summary>An opened modal's text inputs, by their custom IDs: each one's starting value (null when empty).</summary>
+    private static Dictionary<string, string?> ModalInputs(JsonElement modal) => Descendants(modal.GetProperty("components"))
+        .Where(e => e.ValueKind == JsonValueKind.Object && e.TryGetProperty("custom_id", out _) && e.TryGetProperty("style", out _))
+        .ToDictionary(e => e.GetProperty("custom_id").GetString()!, e => e.TryGetProperty("value", out var value) ? value.GetString() : null);
+
+    /// <summary>A season match between two new teams, <paramref name="player"/> on the home team's roster, scheduled at <paramref name="time"/>.</summary>
+    private Task<SeasonMatch> MatchFor(string name, User player, DateTime? time = null) => _host.WithContextAsync(async context =>
+    {
+        var season = Season.Seed(seasonName: name).WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
+        context.Seasons.Add(season);
+        await context.SaveChangesAsync();
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: $"{name} Home");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: $"{name} Away");
+        context.Teams.AddRange(home, away);
+        await context.SaveChangesAsync();
+        await context.AddPlayers(home, player.Id);
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, scheduledTime: time);
+        context.SeasonMatches.Add(seasonMatch);
+        await context.SaveChangesAsync();
+        return seasonMatch;
+    });
+
+    [Test]
+    public async Task RescheduleRequest_WithoutAReason_OpensTheModal_WhoseSubmitMakesTheRequest()
+    {
+        var player = await LinkedUser(6501, "Mover");
+        var match = await MatchFor("Transport Request Modal", player);
+        var customId = $"reschedule_request:{match.SeasonMatchID}";
+
+        var opened = await _host.SendAsync(DiscordInteractionJson.SubCommand("reschedule request", 6501, ("match", match.SeasonMatchID.ToString())));
+        var blank = await _host.SendAsync(DiscordInteractionJson.ModalWith(customId, TextInputs(("reason", "  "), ("new_time", "")), 6501));
+        var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith(customId, TextInputs(("reason", "Away that week"), ("new_time", "2030-01-05 20:00")), 6501));
+
+        var request = await _host.WithContextAsync(context => context.MatchReschedules.AsNoTracking().SingleAsync(r => r.SeasonMatchID == match.SeasonMatchID));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(opened[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(opened[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo(customId));
+            Assert.That(ModalInputs(opened[0].Data).Keys, Is.EqualTo(RescheduleInputs));
+            Assert.That(Routes(saved), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(saved[1].Content, Is.EqualTo($"Your reschedule request is in, for <t:{new DateTimeOffset(2030, 1, 5, 20, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds()}>. A commissioner will decide it."));
+            Assert.That((request.Reason, request.RequestedByUserID), Is.EqualTo(("Away that week", player.Id)));
+            Assert.That(blank[0].Content, Is.EqualTo(PersonalCommandsHandler.NoReason), "spaces are no reason: asked again, nothing made");
+        }
+    }
+
+    [Test]
+    public async Task AdminMatchReportAndTime_WithoutTheirValue_OpenTheirModals_WhoseSubmitsGoToTheService()
+    {
+        var commissioner = await LinkedUserWithRole(6502, "MatchModals", "Commissioner");
+        var match = await MatchFor("Transport Match Modals", commissioner, new DateTime(2030, 1, 2, 20, 0, 0, DateTimeKind.Utc));
+        var id = match.SeasonMatchID;
+
+        var openedReport = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin match report", 6502, ("match", id.ToString()), ("replaces", "2")));
+        var savedReport = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "2")), 6502));
+        var savedNoReplaced = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "")), 6502));
+        var savedReplacesNone = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "0")), 6502));
+        var blankGame = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", " "), ("replaces", "")), 6502));
+        var notANumber = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_report:{id}", TextInputs(("game_id", "not-a-guid"), ("replaces", "two")), 6502));
+        var blankTime = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_time:{id}", TextInputs(("time", " ")), 6502));
+        var openedTime = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin match time", 6502, ("match", id.ToString())));
+        var savedTime = await _host.SendAsync(DiscordInteractionJson.ModalWith($"match_time:{id}", TextInputs(("time", "2030-01-03 20:00")), 6502));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(openedReport[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(openedReport[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"match_report:{id}"));
+            Assert.That(ModalInputs(openedReport[0].Data)["replaces"], Is.EqualTo("2"));
+            // Not a Halo match ID: refused before Halo is asked
+            Assert.That(savedReport[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchGame));
+            Assert.That(savedNoReplaced[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchGame));
+            Assert.That(savedReplacesNone[1].Content, Is.EqualTo(MatchCommandsHandler.NoSuchGame));
+            Assert.That(blankGame[0].Content, Is.EqualTo(AdminCommandsHandler.NoGameId));
+            Assert.That(notANumber[0].Content, Is.EqualTo(AdminCommandsHandler.ReplacesNotANumber), "not added as an extra game");
+            Assert.That(blankTime[0].Content, Is.EqualTo(AdminCommandsHandler.NoTime));
+            Assert.That(openedTime[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"match_time:{id}"));
+            Assert.That(ModalInputs(openedTime[0].Data)["time"], Is.EqualTo("2030-01-02 20:00"), "the time it has now");
+            Assert.That(savedTime[1].Content, Does.StartWith($"The match is set for <t:{new DateTimeOffset(2030, 1, 3, 20, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds()}>."));
+        }
+    }
+
+    [Test]
+    public async Task AdminClaimsReject_WithoutAReason_OpensTheModal_WhoseEmptySubmitRejectsWithNone()
+    {
+        await LinkedUserWithRole(6503, "ClaimRejecter", "Sysadmin");
+        var claimant = await LinkedUser(6504, "Claimant6504");
+        var (claimID, withReasonID) = await _host.WithContextAsync(async context =>
+        {
+            var placeholder = User.Seed(userName: "OldTag6504");
+            var other = User.Seed(userName: "OtherTag6504");
+            context.Users.AddRange(placeholder, other);
+            await context.SaveChangesAsync();
+            var claim = GrifballWebApp.Domain.Archive.GamertagClaim.ClaimedByUser(claimant.Id, null, "OldTag6504", "OLDTAG6504", placeholder.Id, null, null);
+            var withReason = GrifballWebApp.Domain.Archive.GamertagClaim.ClaimedByUser(claimant.Id, null, "OtherTag6504", "OTHERTAG6504", other.Id, null, null);
+            context.GamertagClaims.AddRange(claim, withReason);
+            await context.SaveChangesAsync();
+            return (claim.GamertagClaimID, withReason.GamertagClaimID);
+        });
+
+        var opened = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin claims reject", 6503, ("claim", claimID.ToString())));
+        var notPending = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin claims reject", 6503, ("claim", "424242")));
+        var saved = await _host.SendAsync(DiscordInteractionJson.ModalWith($"claim_reject:{claimID}", TextInputs(("reason", " ")), 6503));
+        var savedWithReason = await _host.SendAsync(DiscordInteractionJson.ModalWith($"claim_reject:{withReasonID}", TextInputs(("reason", "Not them")), 6503));
+
+        var reason = await _host.WithContextAsync(context => context.GamertagClaims.AsNoTracking().Where(c => c.GamertagClaimID == claimID).Select(c => c.RejectionReason).SingleAsync());
+        var given = await _host.WithContextAsync(context => context.GamertagClaims.AsNoTracking().Where(c => c.GamertagClaimID == withReasonID).Select(c => c.RejectionReason).SingleAsync());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(opened[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(opened[0].Data.GetProperty("custom_id").GetString(), Is.EqualTo($"claim_reject:{claimID}"));
+            Assert.That(saved[1].Content, Is.EqualTo("Rejected."));
+            Assert.That(reason, Is.Null);
+            Assert.That(savedWithReason[1].Content, Is.EqualTo("Rejected."));
+            Assert.That(given, Is.EqualTo("Not them"));
+            Assert.That(notPending[0].Content, Is.EqualTo(AdminCommandsHandler.NoClaimPending), "said before a reason is written");
         }
     }
 

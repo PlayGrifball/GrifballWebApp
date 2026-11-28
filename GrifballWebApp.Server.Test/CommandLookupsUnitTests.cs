@@ -15,6 +15,9 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
 {
     private static readonly DateTime Now = new(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly string[] OnlySecret = ["Secret"];
+    private static readonly string[] PlayerRole = ["Player"];
+    private static readonly string[] CommissionerRole = ["Commissioner"];
+    private static readonly string[] WithATbd = ["Home Team vs TBD (Winter 2026)", "TBD vs Away Team (Winter 2026)"];
 
     private CommandLookups Lookups() => new(Db, new SeasonService(Db, null!, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, new FixedTimeProvider(Now)), new FixedTimeProvider(Now)), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, new FixedTimeProvider(Now)));
 
@@ -347,6 +350,54 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
         {
             Assert.That(choices.Single().Name, Is.EqualTo("Home Team vs Away Team (Winter 2026)"));
             Assert.That(choices.Single().StringValue, Is.EqualTo(CommandLookups.ChoiceValue(match.SeasonMatchID)));
+        }
+    }
+
+    [Test]
+    public async Task SeasonMatchChoices_NameAMissingTeam_Tbd()
+    {
+        var season = await AddSeason("Winter 2026");
+        var home = await AddTeam(season, "Home Team");
+        var away = await AddTeam(season, "Away Team");
+        Db.SeasonMatches.AddRange(SeasonMatch.Seed(season.SeasonID, home.TeamID, null), SeasonMatch.Seed(season.SeasonID, null, away.TeamID));
+        await Db.SaveChangesAsync();
+
+        var choices = await Lookups().SeasonMatchChoices("Team");
+
+        Assert.That(choices.Select(c => c.Name), Is.EquivalentTo(WithATbd));
+    }
+
+    [Test]
+    public async Task RescheduleMatchChoices_AreAPlayersOwnOpenMatches_AndAnOrganizersOwnFirst_ThenTheRest()
+    {
+        var season = await AddSeason("Winter 2026");
+        var mine = await AddTeam(season, "Mine");
+        var theirs = await AddTeam(season, "Theirs");
+        var others = await AddTeam(season, "Others");
+        var player = await AddUser(1, "Player", "Player");
+        var organizer = await AddUser(2, "Organizer", "Commissioner");
+        Db.Set<TeamPlayer>().AddRange(TeamPlayer.Seed(teamID: mine.TeamID, userID: player.Id), TeamPlayer.Seed(teamID: others.TeamID, userID: organizer.Id));
+        await Db.SaveChangesAsync();
+        var players = await AddSeasonMatch(season, mine, theirs);
+        var organizers = await AddSeasonMatch(season, theirs, others);
+        // Missing a team: no match to move yet
+        Db.SeasonMatches.Add(SeasonMatch.Seed(season.SeasonID, mine.TeamID, null));
+        await Db.SaveChangesAsync();
+        // A request pending already: the service would refuse another
+        var requested = await AddSeasonMatch(season, mine, others);
+        Assert.That(MatchReschedule.Request(requested, null, "Away", player.Id, Now).Reschedule, Is.Not.Null);
+        await Db.SaveChangesAsync();
+
+        var forPlayer = await Lookups().RescheduleMatchChoices("", new GrifballWebApp.Application.Tools.ToolCaller(player.Id, PlayerRole));
+        var forOrganizer = await Lookups().RescheduleMatchChoices("", new GrifballWebApp.Application.Tools.ToolCaller(organizer.Id, CommissionerRole));
+        var forNoAccount = await Lookups().RescheduleMatchChoices("", GrifballWebApp.Application.Tools.ToolCaller.Anonymous);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(forPlayer.Select(c => c.StringValue), Is.EqualTo(new[] { CommandLookups.ChoiceValue(players.SeasonMatchID) }), "theirs, and only open ones");
+            Assert.That(forOrganizer.Select(c => c.StringValue),
+                Is.EqualTo(new[] { CommandLookups.ChoiceValue(organizers.SeasonMatchID), CommandLookups.ChoiceValue(players.SeasonMatchID) }), "their own first");
+            Assert.That(forNoAccount, Is.Empty);
         }
     }
 

@@ -73,7 +73,7 @@ test sends every registered command and fails one whose first answer isn't a def
 | `/me claim\|claims` | Profile: claim a past gamertag, your claims |
 | `/me logins` | A link to the profile page: linking a sign-in runs in a browser |
 | `/signup` | The signup form. With nothing to change given, it opens the signup modal: team name, captain, draft help and the times you can play (up to 30; more on the form). With options given, those change and the rest keeps its value (times included). Player or Sysadmin |
-| `/reschedule request` | The reschedule request form. The service decides who may (a player on either team, or a commissioner). `new_time` offers the match's best times (`/reschedule suggest`'s) |
+| `/reschedule request` | The reschedule request form. The service decides who may (a player on either team, or a commissioner). `match` lists your own open matches (both teams set, no result): a commissioner's own first, then every other. `new_time` offers the match's best times (`/reschedule suggest`'s). With no `reason`, a modal asks for it and the time, the time starting as the one typed, else the best one |
 | `/reschedule suggest` | The best times for a match from its season's timeslots, each with how many of each team's players can play and its warnings. The agents' `suggest_match_times` |
 | `/match pull` | A season match page's Pull buttons: queues the pull of its players' recent games from Halo (back to the season's start, when asked; left out, a modal asks with a checkbox). The agents' `pull_season_match_games`. Player, Commissioner or Sysadmin |
 | `/player pull` | An Xbox account page's Pull button: queues the pull of the account's recent games (yours when no gamertag is given). The agents' `pull_xbox_account_games`. Player, Commissioner or Sysadmin |
@@ -89,6 +89,8 @@ test sends every registered command and fails one whose first answer isn't a def
 | `/admin halo pull`, `/admin medals`, `/admin jobs list\|run\|pause`, `/admin claims list\|approve\|reject` | Sysadmin |
 
 A yes/no option left out opens a modal that asks for it, the command's other answers kept: `/reschedule decide` without `approve` (Approve or Reject, with the notes), `/admin bracket create` without `double_elimination` (a checkbox), `/admin jobs pause` without `paused` (Pause or Resume). Given, the command runs as typed.
+
+Free text left out opens a modal for it the same way, the match or claim picked in the command and kept: `/reschedule request` without `reason` (above), `/admin match report` without `match_id` (the Halo match ID, and the series game it replaces), `/admin match time` without `time` (starting at the match's time now), and `/admin claims reject` without `reason` (left empty, it is rejected with none).
 
 ## Left on the site
 

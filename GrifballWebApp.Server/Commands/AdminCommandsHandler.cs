@@ -53,6 +53,16 @@ public class AdminCommandsHandler
     public const string JobStateInput = "state";
     public const string DecisionInput = "decision";
     public const string NotesInput = "notes";
+    public const string NoGameId = "Give the game's Halo match ID.";
+    public const string NoTime = "Give the time in UTC, like 2026-11-20 20:00.";
+    public const string ReplacesNotANumber = "The series game it replaces is a number, like 2 (leave it empty for none).";
+    public const string NoClaimPending = "No pending claim has that number: /admin claims list shows them.";
+    public const string GameIdInput = "game_id";
+    public const string ReplacesInput = "replaces";
+    public const string TimeInput = "time";
+    public const string ReasonInput = "reason";
+    /// <summary>The longest a Halo match ID or a time is typed (a GUID with braces is 38 characters).</summary>
+    private const int ShortInputMaxLength = 100;
     /// <summary>Discord's limits on a component's custom ID and on a label's text.</summary>
     private const int CustomIdLimit = 100;
     private const int LabelLimit = 45;
@@ -200,8 +210,14 @@ public class AdminCommandsHandler
         => DecideReschedule(context, rescheduleID, ModalAnswers.Picked(context.Components, DecisionInput) == "approve",
             ModalAnswers.Text(context.Components, NotesInput));
 
-    public async Task ReportGame(IDiscordInteractionContext context, string match, string gameID, int? replaces)
+    /// <summary>Reports a Halo game as one of the match's. With no game ID given, a modal asks for it.</summary>
+    public async Task ReportGame(IDiscordInteractionContext context, string match, string? gameID, int? replaces)
     {
+        if (gameID is null)
+        {
+            await OpenReportModal(context, match, replaces);
+            return;
+        }
         if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonMatchFor(context, match, SeasonViewer.Staff) is not int id)
             return;
         if (!Guid.TryParse(gameID.Trim(), out var matchID) || matchID == Guid.Empty)
@@ -210,6 +226,60 @@ public class AdminCommandsHandler
             return;
         }
         await Act(context, () => _seasonMatches.ReportMatch(id, matchID, replaces), "Reported.");
+    }
+
+    /// <summary>
+    /// A commissioner's match, looked up before any response (a modal must be the first one), the role checked first; null with the
+    /// caller told why. The match then travels in the modal's custom ID as its ID.
+    /// </summary>
+    private async Task<int?> MatchBeforeResponding(IDiscordInteractionContext context, string match)
+    {
+        return await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.CommissionerOnly) is null
+            ? null
+            : await _lookups.SeasonMatchBeforeResponding(context, match, SeasonViewer.Staff);
+    }
+
+    private async Task OpenReportModal(IDiscordInteractionContext context, string match, int? replaces)
+    {
+        if (await MatchBeforeResponding(context, match) is not int id)
+            return;
+        var modal = new ModalProperties(DiscordModalsContants.MatchReportWithParams(id), "Report a game")
+        {
+            new LabelProperties("Halo match ID", new TextInputProperties(GameIdInput, TextInputStyle.Short)
+            {
+                Required = true,
+                MaxLength = ShortInputMaxLength,
+            }),
+            new LabelProperties("Series game it replaces (none: leave empty)", new TextInputProperties(ReplacesInput, TextInputStyle.Short)
+            {
+                Required = false,
+                MaxLength = ShortInputMaxLength,
+                Value = replaces?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            }),
+        };
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+    /// <summary>The report modal's answers, reported as the command reports them (its game ID is required there, so always given).</summary>
+    public async Task SaveReport(IDiscordModalInteractionContext context, int seasonMatchID)
+    {
+        var replaces = ModalAnswers.Text(context.Components, ReplacesInput);
+        int? replaced = null;
+        if (replaces is not null)
+        {
+            if (!int.TryParse(replaces.Trim(), System.Globalization.CultureInfo.InvariantCulture, out var game) || game < 0)
+            {
+                await context.EphemeralResponse(ReplacesNotANumber);
+                return;
+            }
+            replaced = game > 0 ? game : null;
+        }
+        if (ModalAnswers.Text(context.Components, GameIdInput) is not { } gameID)
+        {
+            await context.EphemeralResponse(NoGameId);
+            return;
+        }
+        await ReportGame(context, CommandLookups.ChoiceValue(seasonMatchID), gameID, replaced);
     }
 
     public async Task Forfeit(IDiscordInteractionContext context, string match, ForfeitSide side)
@@ -231,8 +301,14 @@ public class AdminCommandsHandler
         await Act(context, () => _seasonMatches.UndoResult(id), "The result is undone.");
     }
 
-    public async Task SetTime(IDiscordInteractionContext context, string match, string time)
+    /// <summary>Schedules the match. With no time given, a modal asks for it, starting from the match's time now.</summary>
+    public async Task SetTime(IDiscordInteractionContext context, string match, string? time)
     {
+        if (time is null)
+        {
+            await OpenTimeModal(context, match);
+            return;
+        }
         if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonMatchFor(context, match, SeasonViewer.Staff) is not int id)
             return;
         if (!CommandLookups.TryParseUtc(time, out var when))
@@ -242,6 +318,33 @@ public class AdminCommandsHandler
         }
         var conflicts = await _matchPlanner.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = id, Time = when }) ?? [];
         await context.Reply($"The match is set for {when.DiscordTimeEmbed()}.{Warnings(conflicts)}");
+    }
+
+    private async Task OpenTimeModal(IDiscordInteractionContext context, string match)
+    {
+        if (await MatchBeforeResponding(context, match) is not int id)
+            return;
+        var modal = new ModalProperties(DiscordModalsContants.MatchTimeWithParams(id), "Schedule the match")
+        {
+            new LabelProperties("Time in UTC, like 2026-11-20 20:00", new TextInputProperties(TimeInput, TextInputStyle.Short)
+            {
+                Required = true,
+                MaxLength = ShortInputMaxLength,
+                Value = (await _lookups.ScheduledTime(id))?.ToString(CommandLookups.UtcFormat, System.Globalization.CultureInfo.InvariantCulture),
+            }),
+        };
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+    /// <summary>The time modal's answer, set as the command sets it (it is required there, so always given).</summary>
+    public async Task SaveTime(IDiscordModalInteractionContext context, int seasonMatchID)
+    {
+        if (ModalAnswers.Text(context.Components, TimeInput) is not { } time)
+        {
+            await context.EphemeralResponse(NoTime);
+            return;
+        }
+        await SetTime(context, CommandLookups.ChoiceValue(seasonMatchID), time);
     }
 
     /// <summary>What is wrong with a time just set (the season's rules), as a reply's last lines; nothing when nothing is.</summary>
@@ -459,9 +562,17 @@ public class AdminCommandsHandler
         await context.Reply(CommandReplies.Embed("Pending gamertag claims", _urls.Page("usermanagement/claims"), CommandReplies.Lines(lines, "No claim is pending.")));
     }
 
-    /// <summary>Approves or rejects a gamertag claim; the service's refusal is the reply (<see cref="DiscordInteractionPipeline"/>).</summary>
+    /// <summary>
+    /// Approves or rejects a gamertag claim; the service's refusal is the reply (<see cref="DiscordInteractionPipeline"/>). A rejection with
+    /// no reason given opens a modal for it (left empty there, it is rejected without one).
+    /// </summary>
     public async Task DecideClaim(IDiscordInteractionContext context, int claimID, bool approve, string? reason)
     {
+        if (!approve && reason is null)
+        {
+            await OpenRejectModal(context, claimID);
+            return;
+        }
         if (await Staff(context, DiscordCaller.Roles.SysadminOnly) is null)
             return;
         if (approve)
@@ -470,4 +581,29 @@ public class AdminCommandsHandler
             await _claims.Reject(claimID, reason);
         await context.Reply(approve ? "Approved." : "Rejected.");
     }
+
+    private async Task OpenRejectModal(IDiscordInteractionContext context, int claimID)
+    {
+        if (await _caller.RequireBeforeResponding(context, DiscordCaller.Roles.SysadminOnly) is null)
+            return;
+        // Only a pending claim is rejected: said before a reason is written for nothing
+        if (!(await _claims.List(GamertagClaimStatus.Pending)).Exists(c => c.GamertagClaimID == claimID))
+        {
+            await context.EphemeralResponse(NoClaimPending);
+            return;
+        }
+        var modal = new ModalProperties(DiscordModalsContants.ClaimRejectWithParams(claimID), $"Reject claim #{claimID}")
+        {
+            new LabelProperties("Why, for the claimant (optional)", new TextInputProperties(ReasonInput, TextInputStyle.Paragraph)
+            {
+                Required = false,
+                MaxLength = GamertagClaim.MaxRejectionReasonLength,
+            }),
+        };
+        await context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+    /// <summary>The rejection modal's answer: rejected as the command rejects, an empty reason meaning none.</summary>
+    public Task SaveRejection(IDiscordModalInteractionContext context, int claimID)
+        => DecideClaim(context, claimID, approve: false, ModalAnswers.Text(context.Components, ReasonInput) ?? "");
 }
