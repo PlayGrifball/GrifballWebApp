@@ -35,6 +35,7 @@ internal sealed class ChatFormsUnitTests
             Assert.That(ChatForms.Refusal(new ChatForm("T", [Name with { Label = new string('l', ChatForms.MaxLabel + 1) }])), Does.Contain("label"));
             Assert.That(ChatForms.Refusal(new ChatForm("T", [Name with { Placeholder = new string('p', ChatForms.MaxPlaceholder + 1) }])), Does.Contain("placeholder"));
             Assert.That(ChatForms.Refusal(new ChatForm("T", [Name with { Choices = ["a", "b"] }])), Does.Contain("Only a Choice field"));
+            Assert.That(ChatForms.Refusal(new ChatForm("T", [Name with { Choices = [] }])), Is.Null, "no choices is none");
             Assert.That(ChatForms.Refusal(new ChatForm("T", [Side with { Choices = null }])), Does.Contain("2 to 10"));
             Assert.That(ChatForms.Refusal(new ChatForm("T", [Side with { Choices = tooManyChoices }])), Does.Contain("2 to 10"));
             Assert.That(ChatForms.Refusal(new ChatForm("T", [Side with { Choices = ["Red", "Red"] }])), Does.Contain("different"));

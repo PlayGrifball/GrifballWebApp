@@ -278,6 +278,12 @@ public partial class GrifChatUnitTests
         var written = ChatForms.Token(new ChatForm("Written", [new ChatFormField("Name")]));
         var model = new FakeModel(
             [new ChatResponseUpdate(ChatRole.Assistant, [
+                // Refused (no fields): its result names no form
+                new FunctionCallContent("call-0", GrifTools.OfferForm, new Dictionary<string, object?>
+                {
+                    ["title"] = "Empty",
+                    ["fields"] = JsonDocument.Parse("[]").RootElement,
+                }),
                 new FunctionCallContent("call-1", GrifTools.OfferForm, new Dictionary<string, object?>
                 {
                     ["title"] = "Your team",

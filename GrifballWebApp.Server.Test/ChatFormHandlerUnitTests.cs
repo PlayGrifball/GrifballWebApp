@@ -4,6 +4,7 @@ using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Configuration;
 using NetCord;
 using NetCord.Rest;
+using NSubstitute;
 using RadioGroupProperties = NetCord.Rest.RadioGroupProperties;
 
 namespace GrifballWebApp.Server.Test;
@@ -19,6 +20,7 @@ public class ChatFormHandlerUnitTests : SqliteGrifballContextFixture
 {
     private const ulong Clicker = 31337;
     private static readonly string[] Labels = ["Team name", "Why", "Side"];
+    private static readonly string[] OnlyGone = [ChatFormHandler.Gone];
     private static readonly ChatForm Form = new("Your team",
     [
         new ChatFormField("Team name", Placeholder: "The Grifs"),
@@ -80,5 +82,44 @@ public class ChatFormHandlerUnitTests : SqliteGrifballContextFixture
             Assert.That(message.Content, Is.EqualTo(refusal));
             Assert.That(message.Flags, Is.EqualTo(MessageFlags.Ephemeral));
         }
+    }
+
+    /// <summary>A submit of a form's modal by <see cref="Clicker"/> with no answers, its responses kept in <paramref name="responses"/>.</summary>
+    private static DiscordInterface.Generated.IDiscordModalInteractionContext Submitted(List<InteractionCallbackProperties> responses)
+    {
+        var context = Substitute.For<DiscordInterface.Generated.IDiscordModalInteractionContext>();
+        context.Interaction.User.Id.Returns(Clicker);
+        context.Components.Returns([]);
+        context.Interaction
+            .When(x => x.SendResponseAsync(Arg.Any<InteractionCallbackProperties>(), Arg.Any<bool>(), Arg.Any<RestRequestProperties?>(), Arg.Any<CancellationToken>()))
+            .Do(call => responses.Add(call.Arg<InteractionCallbackProperties>()));
+        return context;
+    }
+
+    private static string? Content(InteractionCallbackProperties response) => ((InteractionCallbackProperties<InteractionMessageProperties>)response).Data!.Content;
+
+    [Test]
+    public async Task Submit_OfAFormGone_SaysSo()
+    {
+        var responses = new List<InteractionCallbackProperties>();
+
+        await Handler().Submit(Submitted(responses), "f1");
+
+        Assert.That(responses.Select(Content), Is.EqualTo(OnlyGone));
+    }
+
+    [Test]
+    public async Task Submit_TakenMeanwhile_ByAnotherSubmit_SaysItIsGone_AndPostsNothing()
+    {
+        var forms = Substitute.For<IChatForms>();
+        var optional = new ChatForm("Notes", [new ChatFormField("Anything else", Required: false)]);
+        forms.PeekAsync("f1", Arg.Any<CancellationToken>()).Returns(new HeldForm(optional, ChatLimits.Discord(Clicker), Direct: false));
+        forms.TakeAsync("f1", Arg.Any<CancellationToken>()).Returns((HeldForm?)null);
+        var responses = new List<InteractionCallbackProperties>();
+        var config = new ConfigurationBuilder().Build();
+
+        await new ChatFormHandler(forms, new DiscordCaller(Db), null!, config).Submit(Submitted(responses), "f1");
+
+        Assert.That(responses.Select(Content), Is.EqualTo(OnlyGone));
     }
 }

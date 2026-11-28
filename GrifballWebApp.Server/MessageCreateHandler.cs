@@ -126,15 +126,22 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// <summary>A click on the Confirm or Cancel button of a DM's waiting change: the answer is the same as typing yes or no.</summary>
     public sealed record ChatClick(string ActionId, bool Approved);
 
+    /// <summary>The span of an answer to the bot's own message (a click, a form's answers), in a DM (<paramref name="direct"/>) or a channel.</summary>
+    private static System.Diagnostics.Activity? AnsweredSpan(bool direct)
+    {
+        var span = Tracing.StartActivity(MessageSpanName);
+        span?.SetTag("discord.direct", direct);
+        span?.SetTag("discord.answered", true);
+        return span;
+    }
+
     /// <summary>
     /// The click of <paramref name="userId"/> on a DM reply's Confirm or Cancel button (<paramref name="message"/> is that reply): answered as their yes or
     /// no would be, the reply to the button's message. A failure is logged, never thrown: the gateway handler must go on.
     /// </summary>
     public async Task HandleClickAsync(NetCord.Rest.RestMessage message, ulong userId, string username, ChatClick click)
     {
-        using var span = Tracing.StartActivity(MessageSpanName);
-        span?.SetTag("discord.direct", true);
-        span?.SetTag("discord.answered", true);
+        using var span = AnsweredSpan(direct: true);
         await Handled(() => HandleResponseCore(message, userId, username, "", true, click),
             ex => logger.LogError(ex, "Failed to handle the click of Discord user {DiscordUserId} on message {MessageId}", userId, message.Id), span);
     }
@@ -146,9 +153,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// </summary>
     public async Task HandleFormAsync(NetCord.Rest.RestMessage message, ulong userId, string username, string answers, bool direct, Func<Task> refused)
     {
-        using var span = Tracing.StartActivity(MessageSpanName);
-        span?.SetTag("discord.direct", direct);
-        span?.SetTag("discord.answered", true);
+        using var span = AnsweredSpan(direct);
         await Handled(() => HandleResponseCore(message, userId, username, answers, direct, null, refused),
             ex => logger.LogError(ex, "Failed to handle the form answers of Discord user {DiscordUserId} in message {MessageId}", userId, message.Id), span);
     }

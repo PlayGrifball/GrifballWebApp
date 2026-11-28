@@ -107,7 +107,8 @@ public static partial class ChatForms
     /// <summary>The form <paramref name="text"/> names (its first), as <see cref="Token"/> writes it; null for none, or one that isn't a form.</summary>
     public static ChatForm? In(string text)
     {
-        if (Pattern().Match(text) is not { Success: true } match)
+        var match = Pattern().Match(text);
+        if (!match.Success)
             return null;
         var encoded = match.Groups["form"].Value.Replace('-', '+').Replace('_', '/');
         try
