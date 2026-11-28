@@ -106,7 +106,8 @@ public class PlayerCommandsHandler
     /// <summary>Player <paramref name="userID"/>'s view <paramref name="view"/>, with the menu to switch view; null for a player or view there isn't.</summary>
     public async Task<CommandView?> View(string view, int userID)
     {
-        if (await _profiles.GetAsync(userID) is not { } p)
+        // No gamertag (the Xbox account moved since the message was sent): no player for these views, which name them by it
+        if (await _profiles.GetAsync(userID) is not { Gamertag: not null } p)
             return null;
         var embed = view switch
         {

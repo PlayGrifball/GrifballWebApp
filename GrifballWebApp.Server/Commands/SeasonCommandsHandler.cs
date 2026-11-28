@@ -119,9 +119,12 @@ public class SeasonCommandsHandler
     private async Task Reply(IDiscordInteractionContext context, string? season, string view, SeasonPurpose purpose = SeasonPurpose.Current)
     {
         await context.Defer(ephemeral: false);
-        if (await SeasonFor(context, season, purpose) is { } s)
-            await context.Reply((await View(view, s.ID, 0))!);
+        if (await _lookups.SeasonFor(context, season, purpose) is int id)
+            await context.Reply((await View(view, id, 0))!);
     }
+
+    /// <summary>The stat <paramref name="value"/> names (as the stat menu gives it); null for none of them, a number not one included.</summary>
+    public static SeasonStat? ParseStat(string? value) => Enum.TryParse<SeasonStat>(value, out var stat) && Enum.IsDefined(stat) ? stat : null;
 
     /// <summary>
     /// Page <paramref name="page"/> of season <paramref name="seasonID"/>'s list <paramref name="view"/>, with the menu to switch season (and stat,
@@ -130,7 +133,7 @@ public class SeasonCommandsHandler
     public async Task<CommandView?> View(string view, int seasonID, int page)
     {
         var name = (await _seasons.GetSeasonName(seasonID))!;
-        SeasonStat? stat = view.StartsWith(StatsPrefix, StringComparison.Ordinal) && Enum.TryParse<SeasonStat>(view[StatsPrefix.Length..], out var parsed) ? parsed : null;
+        var stat = view.StartsWith(StatsPrefix, StringComparison.Ordinal) ? ParseStat(view[StatsPrefix.Length..]) : null;
         var list = stat is { } ranked ? await StatsList(seasonID, name, ranked) : view switch
         {
             StandingsView => await StandingsList(seasonID, name),

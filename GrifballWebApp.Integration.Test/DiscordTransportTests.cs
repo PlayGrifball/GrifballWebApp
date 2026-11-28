@@ -988,6 +988,7 @@ public class DiscordTransportTests
         var switched = await _host.SendAsync(DiscordInteractionJson.StringMenu("seasonview:signups", 7301, $"id:{other}"));
         var gone = await _host.SendAsync(DiscordInteractionJson.StringMenu("seasonview:signups", 7301, "id:999999"));
         var noSuchView = await _host.SendAsync(DiscordInteractionJson.Button($"page:nope:{season}:0", 7301));
+        var noSuchSeason = await _host.SendAsync(DiscordInteractionJson.Button("page:signups:999999:0", 7301));
 
         var reply = first[1].Data;
         using (Assert.EnterMultipleScope())
@@ -1003,6 +1004,7 @@ public class DiscordTransportTests
             Assert.That(ComponentIds(switched[0].Data), Is.EqualTo(OnlyTheSeasonMenu), "one page: no ◀ ▶");
             Assert.That(gone[0].Content, Is.EqualTo(CommandViewHandler.Gone));
             Assert.That(noSuchView[0].Content, Is.EqualTo(CommandViewHandler.Gone));
+            Assert.That(noSuchSeason[0].Content, Is.EqualTo(CommandViewHandler.Gone));
         }
     }
 
@@ -1028,9 +1030,22 @@ public class DiscordTransportTests
         var badKey = await _host.SendAsync(DiscordInteractionJson.Button("page:roster:abc:0", 7302));
         var history = await _host.SendAsync(DiscordInteractionJson.StringMenu($"playerview:{player.Id}", 7302, PlayerCommandsHandler.HistoryView));
         var noSuchView = await _host.SendAsync(DiscordInteractionJson.StringMenu($"playerview:{player.Id}", 7302, "nope"));
+        var notAStat = await _host.SendAsync(DiscordInteractionJson.StringMenu($"seasonstat:{season}", 7302, "7"));
+        var noSuchTeam = await _host.SendAsync(DiscordInteractionJson.Button("page:roster:999999:0", 7302));
+        var noGamertag = await _host.WithContextAsync(async context =>
+        {
+            var user = User.Seed(userName: "NoGamertag7302");
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
+            return user.Id;
+        });
+        var unnamed = await _host.SendAsync(DiscordInteractionJson.StringMenu($"playerview:{noGamertag}", 7302, PlayerCommandsHandler.ProfileView));
 
         using (Assert.EnterMultipleScope())
         {
+            Assert.That(notAStat[0].Content, Is.EqualTo(CommandViewHandler.Gone), "a number no stat has");
+            Assert.That(noSuchTeam[0].Content, Is.EqualTo(CommandViewHandler.Gone));
+            Assert.That(unnamed[0].Content, Is.EqualTo(CommandViewHandler.Gone), "no gamertag to name them by");
             Assert.That(kills[0].CallbackType, Is.EqualTo(DiscordRequest.UpdateMessage));
             Assert.That(FirstEmbed(kills[0].Data).GetProperty("title").GetString(), Is.EqualTo("Transport Views: top Kills"));
             Assert.That(ComponentIds(kills[0].Data), Is.EqualTo(new[] { "seasonview:stats-Kills", $"seasonstat:{season}" }));

@@ -147,24 +147,38 @@ public class AdminCommandsHandler
         if (await Staff(context, DiscordCaller.Roles.Staff) is null)
             return;
         var pending = await _reschedules.GetPendingReschedulesAsync();
-        var lines = pending
-            .Select(x => $"**#{x.MatchRescheduleID}** {$"{x.HomeCaptain} vs {x.AwayCaptain}".LinkMarkdown(_urls.SeasonMatch(x.SeasonMatchID))}"
-                + $" · {(x.NewScheduledTime is { } time ? time.DiscordTimeEmbed() : "no time given")} · by {x.RequestedByGamertag}: {x.Reason}")
+        var items = pending
+            .Select(x => (x.MatchRescheduleID, $"**#{x.MatchRescheduleID}** {$"{x.HomeCaptain} vs {x.AwayCaptain}".LinkMarkdown(_urls.SeasonMatch(x.SeasonMatchID))}"
+                + $" · {(x.NewScheduledTime is { } time ? time.DiscordTimeEmbed() : "no time given")} · by {x.RequestedByGamertag}: {Shortened(x.Reason)}"))
             .ToList();
-        await context.Reply(new CommandView(CommandReplies.Embed("Pending reschedules", _urls.Page("commissioner-dashboard"), CommandReplies.Lines(lines, "No reschedule is pending.")),
-            Decisions(pending.Select(x => x.MatchRescheduleID), DiscordButtonContants.RescheduleApproveWithParams, DiscordButtonContants.RescheduleRejectWithParams)));
+        await context.Reply(PendingList("Pending reschedules", _urls.Page("commissioner-dashboard"), "No reschedule is pending.", items,
+            DiscordButtonContants.RescheduleApproveWithParams, DiscordButtonContants.RescheduleRejectWithParams));
     }
 
-    /// <summary>The most items of a pending list that get Approve and Reject buttons: a message shows five rows.</summary>
+    /// <summary>The most items a pending list shows, each with its Approve and Reject row: a message holds five rows.</summary>
     private const int DecisionRows = 5;
 
-    /// <summary>Approve and Reject under the first items of a pending list (their IDs), one row each, in the list's order.</summary>
-    private static IReadOnlyList<NetCord.Rest.IMessageComponentProperties> Decisions(IEnumerable<int> ids, Func<int, string> approve, Func<int, string> reject)
-        => [.. ids.Take(DecisionRows).Select(id => new NetCord.Rest.ActionRowProperties(
+    /// <summary>The most of a reason a pending list shows: five items always fit an embed, so every button is under a line that shows.</summary>
+    private const int ReasonShown = 300;
+
+    private static string Shortened(string text) => text.Length <= ReasonShown ? text : text[..(ReasonShown - 1)] + "…";
+
+    /// <summary>
+    /// A pending list's reply: its first <see cref="DecisionRows"/> items (their IDs and lines), how many more there are on the site, and
+    /// under each item shown its Approve and Reject row.
+    /// </summary>
+    private static CommandView PendingList(string title, string url, string empty, IReadOnlyList<(int ID, string Line)> items,
+        Func<int, string> approve, Func<int, string> reject)
+    {
+        var shown = items.Take(DecisionRows).ToList();
+        var more = items.Count > shown.Count ? "\n" + CommandReplies.More(items.Count - shown.Count) : "";
+        var embed = CommandReplies.Embed(title, url, CommandReplies.Lines([.. shown.Select(x => x.Line)], empty, tail: more));
+        return new CommandView(embed, [.. shown.Select(x => new NetCord.Rest.ActionRowProperties(
         [
-            new NetCord.Rest.ButtonProperties(approve(id), $"Approve #{id}", NetCord.ButtonStyle.Success),
-            new NetCord.Rest.ButtonProperties(reject(id), $"Reject #{id}", NetCord.ButtonStyle.Danger),
-        ]))];
+            new NetCord.Rest.ButtonProperties(approve(x.ID), $"Approve #{x.ID}", NetCord.ButtonStyle.Success),
+            new NetCord.Rest.ButtonProperties(reject(x.ID), $"Reject #{x.ID}", NetCord.ButtonStyle.Danger),
+        ]))]);
+    }
 
     /// <summary>A pending request's Approve button: approved at once, as /reschedule decide approve:true does.</summary>
     public Task ApproveReschedule(IDiscordInteractionContext context, int rescheduleID) => DecideReschedule(context, rescheduleID, approve: true, notes: null);
@@ -574,11 +588,11 @@ public class AdminCommandsHandler
         if (await Staff(context, DiscordCaller.Roles.SysadminOnly) is null)
             return;
         var claims = await _claims.List(GamertagClaimStatus.Pending);
-        var lines = claims
-            .Select(x => $"**#{x.GamertagClaimID}** {x.Gamertag} · by {x.ClaimantName}" + (x.SeasonName is { } season ? $" · {season}" : ""))
+        var items = claims
+            .Select(x => (x.GamertagClaimID, $"**#{x.GamertagClaimID}** {x.Gamertag} · by {x.ClaimantName}" + (x.SeasonName is { } season ? $" · {season}" : "")))
             .ToList();
-        await context.Reply(new CommandView(CommandReplies.Embed("Pending gamertag claims", _urls.Page("usermanagement/claims"), CommandReplies.Lines(lines, "No claim is pending.")),
-            Decisions(claims.Select(x => x.GamertagClaimID), DiscordButtonContants.ClaimApproveWithParams, DiscordButtonContants.ClaimRejectWithParams)));
+        await context.Reply(PendingList("Pending gamertag claims", _urls.Page("usermanagement/claims"), "No claim is pending.", items,
+            DiscordButtonContants.ClaimApproveWithParams, DiscordButtonContants.ClaimRejectWithParams));
     }
 
     /// <summary>A pending claim's Approve button: approved at once, as /admin claims approve does.</summary>

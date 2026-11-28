@@ -68,11 +68,15 @@ public class TeamCommandsHandler
         await context.Reply(Roster(t.TeamID, t.Team, t.Url, 0));
     }
 
-    /// <summary>Page <paramref name="page"/> of team <paramref name="teamID"/>'s roster; null when there is no such team (as anyone sees teams).</summary>
-    public async Task<CommandView?> ViewRoster(int teamID, int page)
-        => await _lookups.Team(CommandLookups.ChoiceValue(teamID)) is { } found && await _teams.GetAsync(found.TeamID) is { } dto
-            ? Roster(found.TeamID, dto, _urls.Team(found.SeasonID, found.TeamID), page)
-            : null;
+    /// <summary>
+    /// Page <paramref name="page"/> of team <paramref name="teamID"/>'s roster: a team the caller found, and checked that anyone may see
+    /// (<see cref="CommandViewHandler"/>), as the message is the channel's.
+    /// </summary>
+    public async Task<CommandView> ViewRoster(int teamID, int page)
+    {
+        var team = (await _teams.GetAsync(teamID))!;
+        return Roster(teamID, team, _urls.Team(team.Season.SeasonID, teamID), page);
+    }
 
     private CommandView Roster(int teamID, TeamDto team, string url, int page)
     {
