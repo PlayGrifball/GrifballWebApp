@@ -64,6 +64,13 @@ internal sealed class HistoricalProvenanceLogUnitTests : ApplicationDbContextTes
         log.Created(saved, null);
         log.Read("Match", "abc", null);
         log.Read(HistoricalImportJob.Refresh(), Cell, "never added");
+        // Removed before the flush, and added but not saved (its key not made yet): neither has a row to point at
+        var removed = await Saved();
+        log.Read(removed, Cell, "removed");
+        Context.HistoricalImportJobs.Remove(removed);
+        var unsaved = HistoricalImportJob.Refresh();
+        Context.HistoricalImportJobs.Add(unsaved);
+        log.Read(unsaved, Cell, "not saved");
         await log.FlushAsync(CancellationToken.None);
 
         Assert.That(await Rows(), Is.Empty);
