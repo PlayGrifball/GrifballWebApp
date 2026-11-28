@@ -193,6 +193,43 @@ describe('JobsComponent', () => {
     expect(snackBar.open).toHaveBeenCalledWith('xbox-placeholders is resumed.', 'Close', { duration: 4000 });
   });
 
+  it('spans every column of the table with the details row', async () => {
+    await load([job('historical-refresh')]);
+    await details('historical-refresh');
+
+    const columns = el().querySelectorAll('[aria-label="Jobs"] > table > thead th').length;
+    expect(columns).toBe(7);
+    expect(el().querySelector('.jb-detail-row > td')!.getAttribute('colspan')).toBe(String(columns));
+  });
+
+  it('keeps an unsaved interval while another job’s details are open, and drops it once saved to the same', async () => {
+    await load([job('historical-refresh', { intervalSeconds: 86400 }), job('xbox-placeholders', { intervalSeconds: 600 })]);
+    await details('historical-refresh');
+    const interval = () => el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!;
+    const unit = () => el().querySelector<HTMLSelectElement>('.jb-schedule select')!;
+    interval().value = '12';
+    interval().dispatchEvent(new Event('input'));
+    unit().value = 'hours';
+    unit().dispatchEvent(new Event('change'));
+    await settle();
+
+    await details('xbox-placeholders');
+    expect([interval().value, unit().value]).toEqual(['10', 'minutes']);
+
+    await details('historical-refresh');
+    expect([interval().value, unit().value]).toEqual(['12', 'hours']);
+
+    // Set back to its schedule, the edit isn't kept
+    interval().value = '1';
+    interval().dispatchEvent(new Event('input'));
+    unit().value = 'days';
+    unit().dispatchEvent(new Event('change'));
+    await settle();
+    await details('xbox-placeholders');
+    await details('historical-refresh');
+    expect([interval().value, unit().value]).toEqual(['1', 'days']);
+  });
+
   it('changes how often a job runs, and resets it', async () => {
     await load([job('historical-refresh', { intervalSeconds: 86400, defaultIntervalSeconds: 86400 })]);
     await details('historical-refresh');

@@ -72,10 +72,12 @@ public sealed class SpartanRenderSource(
         report.Marked = await AskAgainForChangedSetsAsync(ct);
 
         var expired = now - _options.RenderingExpiresAfter;
+        // Each with its user's display name for the report, in the same query
         var due = await context.UserSpartanRenders
             .Where(r => (r.State == UserSpartanRenderState.Requested && r.RequestedAt <= now) || (r.State == UserSpartanRenderState.Rendering && r.RequestedAt < expired))
             .OrderBy(r => r.RequestedAt)
             .Take(Math.Max(1, _options.UsersPerRun))
+            .Select(r => new { Render = r, Name = context.Users.Where(u => u.Id == r.UserId).Select(u => u.DisplayName).FirstOrDefault() })
             .ToListAsync(ct);
         report.Waiting = due.Count;
         if (due.Count == 0)
@@ -87,11 +89,7 @@ public sealed class SpartanRenderSource(
             report.CatalogUnavailable = true;
             return report;
         }
-        var dueIds = due.Select(r => r.UserId).ToList();
-        var names = await context.Users.Where(u => dueIds.Contains(u.Id))
-            .Select(u => new { u.Id, u.DisplayName })
-            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
-        foreach (var render in due)
+        foreach (var (render, name) in due.Select(d => (d.Render, d.Name)))
         {
             _lastError = null;
             var outcome = await RenderAsync(render, catalog, ct);
@@ -102,7 +100,7 @@ public sealed class SpartanRenderSource(
                 case Outcome.Retry: report.Retrying++; break;
                 default: report.Failed++; break;
             }
-            var who = $"{names.GetValueOrDefault(render.UserId) ?? "User"} (#{render.UserId})";
+            var who = $"{name ?? "User"} (#{render.UserId})";
             report.Lines.Add(outcome switch
             {
                 Outcome.Done => $"{who}: rendered",

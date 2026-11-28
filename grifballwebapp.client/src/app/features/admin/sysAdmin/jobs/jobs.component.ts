@@ -28,6 +28,11 @@ export function durationText(ms: number): string {
   return intervalText(Math.round(ms / 1000));
 }
 
+/** A job's key in the drafts. */
+function draftKey(job: JobDto): string {
+  return `${job.group}/${job.name}`;
+}
+
 // Every JobState labelled; looked up by the API's state (a string)
 const STATE_LABELS: Readonly<Record<string, string>> = { Scheduled: 'Scheduled', Paused: 'Paused', Off: 'Off', Manual: 'Run by hand', OnDemand: 'On demand', Error: 'Error', Blocked: 'Running' } satisfies Record<JobState, string>;
 
@@ -51,6 +56,10 @@ export class JobsComponent {
   readonly durationText = durationText;
   readonly stateLabels = STATE_LABELS;
   readonly units: IntervalUnit[] = ['seconds', 'minutes', 'hours', 'days'];
+  /** The jobs table's headed columns; the actions column follows them. */
+  readonly headings = ['Job', 'Every', 'State', 'Next run', 'Last run', 'Runs'] as const;
+  /** How many columns the table has, so the details and empty rows span them all as the columns change. */
+  readonly columns = this.headings.length + 1;
 
   readonly jobs = this.store.jobs;
   readonly nodes = this.store.nodes;
@@ -81,14 +90,30 @@ export class JobsComponent {
     return key?.group === job.group && key.name === job.name;
   }
 
-  /** Opens a job's details under its row; its Details button again closes them. */
+  /** Each job's unsaved interval, kept while another job's details are open, so coming back finds the edit as it was left. */
+  private readonly drafts = new Map<string, number>();
+
+  /** Opens a job's details under its row; its Details button again closes them. An unsaved interval edit is kept for when it opens again. */
   select(job: JobDto): void {
+    this.keepDraft();
     if (this.isSelected(job)) {
       this.selectedKey.set(null);
       return;
     }
     this.selectedKey.set({ group: job.group, name: job.name });
-    this.editInterval(job.intervalSeconds ?? job.defaultIntervalSeconds ?? 60);
+    this.editInterval(this.drafts.get(draftKey(job)) ?? job.intervalSeconds ?? job.defaultIntervalSeconds ?? 60);
+  }
+
+  /** The open job's interval edit, kept when it differs from its schedule (and dropped when it doesn't). */
+  private keepDraft(): void {
+    const job = this.jobs().find(j => this.isSelected(j));
+    if (!job)
+      return;
+    const key = draftKey(job);
+    if (this.intervalSeconds() === (job.intervalSeconds ?? job.defaultIntervalSeconds ?? 60))
+      this.drafts.delete(key);
+    else
+      this.drafts.set(key, this.intervalSeconds());
   }
 
   private editInterval(seconds: number): void {
@@ -114,10 +139,12 @@ export class JobsComponent {
   }
 
   saveInterval(job: JobDto): void {
+    this.drafts.delete(draftKey(job));
     this.store.setInterval(job, this.intervalSeconds());
   }
 
   resetSchedule(job: JobDto): void {
+    this.drafts.delete(draftKey(job));
     this.store.resetSchedule(job, () => this.editInterval(job.defaultIntervalSeconds ?? 60));
   }
 

@@ -41,6 +41,8 @@ public sealed class XboxImagesReport
     public int Due { get; set; }
     /// <summary>Set when XboxImages:Enabled is off: the run did nothing.</summary>
     public bool Disabled { get; set; }
+    /// <summary>The accounts it failed for, and why, named in its summary.</summary>
+    public FailedAccounts FailedAccounts { get; } = new();
 }
 
 /// <summary>When Halo last told the image jobs to wait (a 429), kept across runs so the next run does not ask again too soon.</summary>
@@ -213,6 +215,21 @@ public class XboxImageSource
         row.Error = error.Length > 200 ? error[..200] : error;
     }
 
+    /// <summary>The run's report, its failed accounts named by gamertag (a query only when it has any).</summary>
+    private async Task<XboxImagesReport> NamedAsync(XboxImagesReport report, CancellationToken ct)
+    {
+        await report.FailedAccounts.NameAsync(_context, ct);
+        return report;
+    }
+
+    /// <summary>A failed check, counted and kept for the summary with its account.</summary>
+    private static void Fail(XboxUserImage row, string error, XboxImagesReport report)
+    {
+        Failed(row, error);
+        report.Failed++;
+        report.FailedAccounts.Add(row.XboxUserID, row.Error!);
+    }
+
     /// <summary>Records that Halo asked to wait: the report says so and later runs hold off until it is over.</summary>
     private void Throttled(XboxUserImageKind kind, XboxImagesReport report, TimeSpan wait)
     {
@@ -263,7 +280,7 @@ public class XboxImageSource
             if (await GamerPictureCallAsync(chunk, report, ct))
                 break;
         }
-        return report;
+        return await NamedAsync(report, ct);
     }
 
     /// <summary>One <c>Users</c> call for the accounts, and what it gave stored. Returns true when Halo throttled it (nothing stored).</summary>
@@ -293,8 +310,7 @@ public class XboxImageSource
             report.Checked++;
             if (users is null)
             {
-                Failed(row, callError ?? Describe(response));
-                report.Failed++;
+                Fail(row, callError ?? Describe(response), report);
                 continue;
             }
             var user = users.FirstOrDefault(u => u.xuid == xuid.ToString());
@@ -325,8 +341,7 @@ public class XboxImageSource
         }
         if (url.Length > 500)
         {
-            Failed(row, "The picture's address is too long");
-            report.Failed++;
+            Fail(row, "The picture's address is too long", report);
             return;
         }
         try
@@ -336,8 +351,7 @@ public class XboxImageSource
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
-            Failed(row, ex.Message);
-            report.Failed++;
+            Fail(row, ex.Message, report);
         }
     }
 
@@ -381,11 +395,11 @@ public class XboxImageSource
                     await Delay(gap, ct);
                 first = false;
                 if (await EmblemAsync(xuid, run, report, ct))
-                    return report;
+                    return await NamedAsync(report, ct);
                 await _context.SaveChangesAsync(ct);
             }
         }
-        return report;
+        return await NamedAsync(report, ct);
     }
 
     /// <summary>
@@ -432,8 +446,7 @@ public class XboxImageSource
             }
             else
             {
-                Failed(row, callError ?? Describe(response));
-                report.Failed++;
+                Fail(row, callError ?? Describe(response), report);
             }
             return false;
         }
@@ -456,8 +469,7 @@ public class XboxImageSource
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
             {
-                Failed(row, ex.Message);
-                report.Failed++;
+                Fail(row, ex.Message, report);
                 return false;
             }
         }
@@ -540,8 +552,7 @@ public class XboxImageSource
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
-            Failed(row, ex.Message);
-            report.Failed++;
+            Fail(row, ex.Message, report);
         }
         return false;
     }

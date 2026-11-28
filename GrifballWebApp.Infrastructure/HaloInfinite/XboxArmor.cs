@@ -38,6 +38,8 @@ public sealed class XboxArmorReport
     public int Due { get; set; }
     /// <summary>Set when XboxArmor:Enabled is off: the run did nothing.</summary>
     public bool Disabled { get; set; }
+    /// <summary>The accounts it failed for, and why, named in its summary.</summary>
+    public FailedAccounts FailedAccounts { get; } = new();
 }
 
 /// <summary>When Halo last told the armor job to wait (a 429), kept across runs so the next run does not ask again too soon.</summary>
@@ -132,6 +134,7 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
                 break;
             await context.SaveChangesAsync(ct);
         }
+        await report.FailedAccounts.NameAsync(context, ct);
         return report;
     }
 
@@ -180,6 +183,7 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
                 row.Status = XboxUserArmorStatus.Failed;
                 row.Error = Truncate(callError ?? (response.Error is { Code: not 0 } e ? $"Halo answered {e.Code}" : "Halo gave no answer"));
                 report.Failed++;
+                report.FailedAccounts.Add(xuid, row.Error);
             }
             return false;
         }
@@ -307,8 +311,8 @@ public sealed partial class XboxArmorJob(XboxArmorSource armor, ILogger<XboxArmo
             LogThrottled(logger, wait);
         var summary = report.Disabled ? "The armor job is turned off (XboxArmor:Enabled)"
             : report.Due == 0 ? "Every Xbox account that played Halo Infinite has its armor checked"
-            : $"{report.Checked} of {report.Due} accounts checked: {report.Stored} stored, {report.Unchanged} unchanged, {report.NotFound} without one, {report.Failed} failed"
-              + (report.ThrottledFor is { } w ? $"; Halo is throttling, stopped (wait {w})" : "");
+            : report.FailedAccounts.After($"{report.Checked} of {report.Due} accounts checked: {report.Stored} stored, {report.Unchanged} unchanged, {report.NotFound} without one, {report.Failed} failed"
+              + (report.ThrottledFor is { } w ? $"; Halo is throttling, stopped (wait {w})" : ""));
         var result = report.Disabled || report.Due == 0 ? JobRunReport.Skipped(summary)
             : report.Failed > 0 && report.Stored + report.Unchanged + report.NotFound == 0 ? JobRunReport.Failed(summary)
             : JobRunReport.Succeeded(summary);
