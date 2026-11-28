@@ -23,7 +23,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 public class XboxImageSourceTests : SqliteContextFixture
 {
     private static readonly byte[] Png = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
-    private static readonly string[] Player1TooLarge = ["Player1 (1): The picture is too large"];
+    private static readonly string[] Player1TooLarge = ["The picture is too large: Player1 (1)"];
     private readonly IHaloInfiniteClient _halo = Substitute.For<IHaloInfiniteClient>();
     private readonly IXboxImageDownloader _downloader = Substitute.For<IXboxImageDownloader>();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 24, 12, 0, 0, TimeSpan.Zero));
@@ -230,7 +230,7 @@ public class XboxImageSourceTests : SqliteContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.FailedAccounts.Lines, Is.EqualTo(Player1TooLarge));
-            Assert.That(summary, Does.EndWith(". Failed: Player1 (1): The picture is too large"));
+            Assert.That(summary, Does.EndWith(". Failed: The picture is too large: Player1 (1)"));
         }
     }
 

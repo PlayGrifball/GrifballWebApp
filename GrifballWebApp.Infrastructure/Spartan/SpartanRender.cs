@@ -77,7 +77,7 @@ public sealed class SpartanRenderSource(
             .Where(r => (r.State == UserSpartanRenderState.Requested && r.RequestedAt <= now) || (r.State == UserSpartanRenderState.Rendering && r.RequestedAt < expired))
             .OrderBy(r => r.RequestedAt)
             .Take(Math.Max(1, _options.UsersPerRun))
-            .Select(r => new { Render = r, Name = context.Users.Where(u => u.Id == r.UserId).Select(u => u.DisplayName).FirstOrDefault() })
+            .Select(r => new { Render = r, Name = r.User.DisplayName })
             .ToListAsync(ct);
         report.Waiting = due.Count;
         if (due.Count == 0)
@@ -93,7 +93,7 @@ public sealed class SpartanRenderSource(
         {
             _lastError = null;
             var outcome = await RenderAsync(render, catalog, ct);
-            var error = Shorten(_lastError ?? "no reason given", LineErrorLength);
+            var error = JobSummary.Shorten(_lastError ?? "no reason given", LineErrorLength);
             switch (outcome)
             {
                 case Outcome.Done: report.Done++; break;
@@ -115,8 +115,6 @@ public sealed class SpartanRenderSource(
 
     /// <summary>The text of the last failure or retry a render recorded, read for the run's report (the row can be stale after a re-request).</summary>
     private string? _lastError;
-
-    internal static string Shorten(string text, int length) => text.Length <= length ? text : text[..(length - 1)] + "…";
 
     /// <summary>
     /// Renders are asked for the users who show their equipped set and have none yet, and again when the armor job saw the set
@@ -479,7 +477,7 @@ public sealed class SpartanRenderJob(SpartanRenderSource renders, ILogger<Sparta
         var summary = $"{report.Done} rendered, {report.Failed} failed";
         if (report.Retrying > 0)
             summary += $", {report.Retrying} to try again";
-        return report.Lines.Count == 0 ? summary : SpartanRenderSource.Shorten(summary + ". " + string.Join("; ", report.Lines), 1000);
+        return report.Lines.Count == 0 ? summary : JobSummary.Shorten(summary + ". " + string.Join("; ", report.Lines), JobSummary.MaxLength);
     }
 
     internal static JobRunReport Report(SpartanRenderReport report, ILogger logger)
