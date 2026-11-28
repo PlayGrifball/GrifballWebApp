@@ -395,7 +395,7 @@ public class XboxImageSource
     private sealed class EmblemRun(Dictionary<string, Dictionary<string, Surprenant.Grunt.Models.HaloInfinite.EmblemImageAssets>> mapping, TimeSpan gap)
     {
         public Dictionary<string, Dictionary<string, Surprenant.Grunt.Models.HaloInfinite.EmblemImageAssets>> Mapping { get; } = mapping;
-        public TimeSpan Gap { get; } = gap;
+        public TimeSpan Spacing { get; } = gap;
         public Dictionary<long, XboxUserImage> Rows { get; set; } = [];
         public Dictionary<string, DownloadedImage?> Downloaded { get; } = [];
         public Dictionary<string, string?> ItemImages { get; } = [];
@@ -482,7 +482,7 @@ public class XboxImageSource
     {
         if (run.ItemImages.TryGetValue(emblemPath, out var known))
             return (known, false);
-        await Delay(run.Gap, ct);
+        await Delay(run.Spacing, ct);
         var response = await _halo.GameCmsGetItem(emblemPath.TrimStart('/'), string.Empty);
         if (ThrottleOf(response) is { } wait)
         {
