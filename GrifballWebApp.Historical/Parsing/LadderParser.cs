@@ -47,6 +47,8 @@ public static partial class LadderParser
             columns[Field.Division] = division;
 
         var players = new List<LadderStanding>();
+        // A gamertag listed twice: its first row, the one the import keeps (over a past finish's row)
+        var placed = new HashSet<string>();
         for (var r = headerRow + 1; r < sheet.Rows.Count; r++)
         {
             var gamertag = sheet.Cell(r, tab.PlayerColumn).Trim();
@@ -55,7 +57,8 @@ public static partial class LadderParser
             var row = r;
             string Text(Field f) => columns.TryGetValue(f, out var c) ? sheet.Cell(row, c).Trim() : "";
             if (sourceId is not null && origins is not null)
-                origins[gamertag] = ArchiveOrigin.Row(sourceId, sheet, r);
+                if (placed.Add(gamertag))
+                    origins[gamertag] = ArchiveOrigin.Row(sourceId, sheet, r);
             var (tier, league) = League(Text(Field.League));
             players.Add(new LadderStanding
             {

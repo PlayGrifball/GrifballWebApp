@@ -1,15 +1,15 @@
 <section class="pv" aria-labelledby="pv-heading">
   <h2 id="pv-heading" class="pv-heading">Where did this come from?</h2>
   <p class="pv-note">The cells of the archive's sheets a row was made from, the ones the latest import read it from, and what changed it. A user's include the placeholders merged into them.</p>
-  <form class="pv-form" (submit)="$event.preventDefault(); lookUp(entitySelect.value, keyInput.value)">
+  <form class="pv-form" [formGroup]="form" (ngSubmit)="lookUp()">
     <label class="pv-label" for="pv-entity">Type</label>
-    <select #entitySelect id="pv-entity" class="pv-select">
+    <select id="pv-entity" class="pv-select" formControlName="entity">
       @for (e of entities; track e) {
         <option [value]="e">{{e}}</option>
       }
     </select>
     <label class="pv-label" for="pv-key">ID</label>
-    <input #keyInput id="pv-key" class="pv-input" type="text" autocomplete="off" placeholder="4182" />
+    <input id="pv-key" formControlName="key" class="pv-input" type="text" autocomplete="off" placeholder="4182" />
     <button type="submit" class="hud-btn hud-btn--primary pv-btn">Look up</button>
   </form>
   @if (query(); as q) {

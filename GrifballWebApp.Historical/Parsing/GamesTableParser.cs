@@ -110,8 +110,8 @@ public static partial class GamesTableParser
         private int _duplicateGames;
         private int _duplicateLines;
         private int _strayLines;
-        /// <summary>Each row of the workbook's tables, by the row: where a game's rows were read (indexed when first asked).</summary>
-        private Dictionary<string[], (SheetTable Sheet, int Row)>? _rowIndex;
+        /// <summary>Where a row of the workbook's tables was read (its tables indexed when first asked).</summary>
+        private Func<string[], ArchiveOrigin?>? _originOf;
 
         public TableReader(string sourceId, GamesTable table, StatsTable stats, SheetWorkbook workbook)
         {
@@ -193,17 +193,7 @@ public static partial class GamesTableParser
         }
 
         /// <summary>The cells of a row of any of the workbook's tables; null for one that is none of them.</summary>
-        private ArchiveOrigin? OriginOf(string[] row)
-        {
-            if (_rowIndex is null)
-            {
-                _rowIndex = new Dictionary<string[], (SheetTable, int)>(ReferenceEqualityComparer.Instance);
-                foreach (var sheet in _workbook.Sheets)
-                    for (var r = 0; r < sheet.Rows.Count; r++)
-                        _rowIndex.TryAdd(sheet.Rows[r], (sheet, r));
-            }
-            return _rowIndex.TryGetValue(row, out var at) ? ArchiveOrigin.Row(_sourceId, at.Sheet, at.Row) : null;
-        }
+        private ArchiveOrigin? OriginOf(string[] row) => (_originOf ??= ArchiveOrigin.RowOfAny(_sourceId, _workbook.Sheets))(row);
 
         /// <summary>A game's rows: the first's cells, every row's text.</summary>
         private ArchiveOrigin? OriginOfRows(IEnumerable<string[]> rows) => ArchiveOrigin.Of(rows.Select(row => OriginOf(row)));

@@ -95,7 +95,8 @@ Rayzyr: no account, earlier row, gamertag history or placeholder of the season h
   none; its seasons fall back to their workbook and tab.
 - **Rows** (`HistoricalProvenanceLog`): the import notes each entity with its record's origin as it goes and writes the rows
   in the season's transaction once its rows are saved, so a dry run or a stopped season leaves none. `Created` rows (the
-  cells that first made the entity) stay; `Read` rows are the latest run's, replaced each time a run reads the entity again;
+  cells that first made the entity) stay; `Read` rows are the latest run's, replaced each time a run reads the entity again from the same source (a partial run leaves
+  what the other seasons' sources said);
   `Changed` rows (a players list linking a Discord ID, setting a region, merging a placeholder) stay. Keyed by name, not by
   foreign key: a row of any table, and a deleted one still says where it came from.
 - **Reading it**: `GET /api/historical-provenance?entity=User&key=4182` (a user's include the placeholders merged into them)

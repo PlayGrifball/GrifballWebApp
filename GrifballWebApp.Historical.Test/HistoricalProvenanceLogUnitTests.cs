@@ -105,6 +105,23 @@ internal sealed class HistoricalProvenanceLogUnitTests : ApplicationDbContextTes
     }
 
     [Test]
+    public async Task Flush_ARunOfSomeSources_LeavesTheReadRowsOfTheOthers()
+    {
+        // A match two seasons list: a run of one season reads it from that season's source only
+        var first = Log();
+        first.Read("Match", "m1", new ArchiveOrigin("season-a", "Links", "B2"), "A lists it");
+        first.Read("Match", "m1", new ArchiveOrigin("season-b", "Links", "B9"), "B lists it");
+        await first.FlushAsync(CancellationToken.None);
+
+        var second = Log();
+        second.Read("Match", "m1", new ArchiveOrigin("season-a", "Links", "B3"), "A lists it");
+        await second.FlushAsync(CancellationToken.None);
+
+        Assert.That((await Rows()).Select(r => (r.SourceID, r.Cells)), Is.EquivalentTo(new[] { ("season-a", (string?)"B3"), ("season-b", "B9") }),
+            "season A's row replaced, season B's kept");
+    }
+
+    [Test]
     public async Task Read_ARowItDoesntTrack_IsKeyedByItsTypeAndKey()
     {
         var log = Log();

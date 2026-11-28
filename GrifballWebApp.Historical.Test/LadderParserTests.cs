@@ -286,11 +286,13 @@ public class LadderParserTests
         var finishes = Sheet(["Gamertag:", "Season 1: Halo 5", "", ""], ["", "League", "Rank", "Pos"], ["Ace", "Silver", "5", "12"], ["Bee", "Bronze", "1", "3"]);
         var origins = new Dictionary<string, ArchiveOrigin>();
         var unsourced = new Dictionary<string, ArchiveOrigin>();
+        var repeated = new Dictionary<string, ArchiveOrigin>();
 
         LadderParser.ParseFinishes(finishes, "ll", origins);
         LadderParser.Parse(ladder, Tab, "ll", origins);
         LadderParser.Parse(ladder, Tab, null, unsourced);
         LadderParser.ParseFinishes(finishes, null, unsourced);
+        LadderParser.Parse(Sheet(["Gamertag", "League"], ["Ace", "Gold"], ["Ace", "Silver"]), Tab, "ll", repeated);
 
         using (Assert.EnterMultipleScope())
         {
@@ -300,6 +302,7 @@ public class LadderParserTests
                 ["Bee"] = ("Ladder", "A4:D4"),
             }), "a ladder row over the past finishes'");
             Assert.That(unsourced, Is.Empty, "no source, no cells");
+            Assert.That(repeated["Ace"].Cells, Is.EqualTo("A2:B2"), "a gamertag listed twice is its first row, the one the import keeps");
             Assert.That(LadderParser.Parse(ladder, Tab, "ll"), Has.Count.EqualTo(1), "nowhere to put them: the ladder alone");
             Assert.That(LadderParser.ParseFinishes(finishes, "ll"), Is.Not.Null);
         }

@@ -12,8 +12,8 @@ public sealed class SheetTable
     public bool Hidden { get; init; }
     public List<string[]> Rows { get; init; } = [];
     /// <summary>The sheet's own number (1 for its first row) of each of <see cref="Rows"/>, for a cell named by its
-    /// reference (<see cref="At"/>); null: the rows are numbered in order from 1 (a test's sheet; a CSV, whose empty lines aren't kept,
-    /// so a reference past one names the row below it: no reference names a CSV's cells).</summary>
+    /// reference (<see cref="At"/>): an xlsx's rows as the sheet numbers them, a CSV's by its records (a spacer row's ",," counted);
+    /// null: the rows are numbered in order from 1 (a test's sheet).</summary>
     public List<int>? RowNumbers { get; init; }
 
     public string Cell(int row, int column) => row < Rows.Count && column < Rows[row].Length ? Rows[row][column] : "";
@@ -34,7 +34,7 @@ public sealed class SheetTable
     }
 
     /// <summary>The sheet's own number of a row of <see cref="Rows"/> (1 for its first): its place among the rows when they
-    /// aren't numbered (a CSV's, past an empty line one less than the sheet's).</summary>
+    /// aren't numbered (a test's sheet).</summary>
     public int RowNumber(int row) => RowNumbers is { } numbers && row >= 0 && row < numbers.Count ? numbers[row] : row + 1;
 
     /// <summary>The A1 reference of a cell ("C23"), by its row of <see cref="Rows"/> and its column (0 for A).</summary>
@@ -85,7 +85,9 @@ public sealed class SheetWorkbook
         var text = Encoding.UTF8.GetString(content).TrimStart('﻿');
         if (text.TrimStart().StartsWith('<'))
             return null;
-        return new SheetWorkbook { Sheets = [new SheetTable { Name = csvSheetName ?? "Sheet1", Rows = Csv(text) }] };
+        var numbers = new List<int>();
+        var rows = Csv(text, numbers);
+        return new SheetWorkbook { Sheets = [new SheetTable { Name = csvSheetName ?? "Sheet1", Rows = rows, RowNumbers = numbers }] };
     }
 
     public static bool IsZip(byte[] content) => content.Length > 4 && content[0] == 0x50 && content[1] == 0x4b && content[2] == 0x03 && content[3] == 0x04;
@@ -295,10 +297,12 @@ public sealed class SheetWorkbook
         return rows;
     }
 
-    /// <summary>RFC 4180 CSV: quoted fields with doubled quotes and line breaks.</summary>
-    public static List<string[]> Csv(string text)
+    /// <summary>RFC 4180 CSV: quoted fields with doubled quotes and line breaks. <paramref name="numbers"/>, when given, gets each
+    /// row kept's number among the CSV's records (1 for its first): its sheet row, the empty ones (a spacer row's ",,") counted.</summary>
+    public static List<string[]> Csv(string text, List<int>? numbers = null)
     {
         var rows = new List<string[]>();
+        var number = 0;
         var row = new List<string>();
         var cell = new StringBuilder();
         var quoted = false;
@@ -320,17 +324,16 @@ public sealed class SheetWorkbook
                     i++;
                 row.Add(cell.ToString());
                 cell.Clear();
-                AddRow(rows, row);
+                number++;
+                if (AddRow(rows, row))
+                    numbers?.Add(number);
                 row = [];
             }
             else
                 cell.Append(c);
         }
-        if (cell.Length > 0 || row.Count > 0)
-        {
-            row.Add(cell.ToString());
-            AddRow(rows, row);
-        }
+        if ((cell.Length > 0 || row.Count > 0) && AddRow(rows, [.. row, cell.ToString()]))
+            numbers?.Add(number + 1);
         return rows;
     }
 

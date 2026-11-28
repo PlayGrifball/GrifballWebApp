@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import type { HistoricalProvenanceDto, HistoricalProvenanceKind } from '@api/models';
 import { ProvenanceQuery, ProvenanceStore } from './provenance.store';
 
@@ -25,7 +26,7 @@ export function kindLabel(kind: HistoricalProvenanceKind): string {
  */
 @Component({
   selector: 'app-provenance',
-  imports: [DatePipe],
+  imports: [DatePipe, ReactiveFormsModule],
   templateUrl: './provenance.component.html',
   styleUrl: './provenance.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,6 +37,12 @@ export class ProvenanceComponent {
 
   readonly entities = ProvenanceEntities;
   readonly kindLabel = kindLabel;
+
+  /** The lookup's fields: the entity's type and its ID. */
+  readonly form = new FormGroup({
+    entity: new FormControl<string>(ProvenanceEntities[0], { nonNullable: true }),
+    key: new FormControl('', { nonNullable: true }),
+  });
 
   /** The lookup asked; null until one is. */
   readonly query = signal<ProvenanceQuery | null>(null);
@@ -48,8 +55,9 @@ export class ProvenanceComponent {
     this.store.query.use(this.query);
   }
 
-  /** Looks the entity up; a blank ID asks nothing. */
-  lookUp(entity: string, key: string): void {
+  /** Looks up the entity the form names; a blank ID asks nothing. */
+  lookUp(): void {
+    const { entity, key } = this.form.getRawValue();
     const id = key.trim();
     this.query.set(id ? { entity, key: id } : null);
   }

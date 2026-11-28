@@ -244,4 +244,19 @@ internal sealed class HistoricalImportProvenanceUnitTests : ApplicationDbContext
             Assert.That(await Rows(nameof(Domain.League.SeasonMatch)), Has.Some.Matches<HistoricalProvenance>(p => p?.Cells == "B2"), "the series of the listed game");
         }
     }
+
+    [Test]
+    public void WhyOnTheTeam_TheRowsTeam_OrTheSchedulesWhenItNamesNone()
+    {
+        var named = Player("Church", team: "Red Team");
+        var sub = Player("Church", team: "Subs");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(HistoricalImportService.WaypointJoinWhy(named, "Red Team"), Is.EqualTo("Church's stat row names Red Team"));
+            Assert.That(HistoricalImportService.WaypointJoinWhy(sub, "Blue Team"), Is.EqualTo("Church's stat row; on Blue Team by the schedule"),
+                "a row whose team is a label: the schedule's team");
+            Assert.That(HistoricalImportService.WaypointJoinWhy(null, "Blue Team"), Is.EqualTo("Played the Waypoint matches listed here; on Blue Team by the schedule"));
+        }
+    }
 }

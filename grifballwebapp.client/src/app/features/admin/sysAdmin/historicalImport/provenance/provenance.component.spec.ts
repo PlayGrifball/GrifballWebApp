@@ -29,20 +29,30 @@ describe('ProvenanceComponent', () => {
   });
 
   const el = (): HTMLElement => fixture.nativeElement;
+  const ask = (entity: string, key: string) => {
+    fixture.componentInstance.form.setValue({ entity, key });
+    fixture.componentInstance.lookUp();
+  };
 
   it('looks up the entity asked, and nothing for a blank ID', () => {
-    fixture.componentInstance.lookUp('Team', '  ');
-    expect(fixture.componentInstance.query()).toBeNull();
+    const component = fixture.componentInstance;
+    component.form.setValue({ entity: 'Team', key: '  ' });
+    component.lookUp();
+    expect(component.query()).toBeNull();
 
-    (el().querySelector('#pv-entity') as HTMLSelectElement).value = 'Team';
-    (el().querySelector('#pv-key') as HTMLInputElement).value = ' 7 ';
+    const entity = el().querySelector('#pv-entity') as HTMLSelectElement;
+    entity.value = 'Team';
+    entity.dispatchEvent(new Event('change'));
+    const key = el().querySelector('#pv-key') as HTMLInputElement;
+    key.value = ' 7 ';
+    key.dispatchEvent(new Event('input'));
     (el().querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit'));
 
     expect(fixture.componentInstance.query()).toEqual({ entity: 'Team', key: '7' });
   });
 
   it("shows each row's source, tab, cells, text and why, linked to the workbook", () => {
-    fixture.componentInstance.lookUp('User', '4182');
+    ask('User', '4182');
     rows.set([row(), row({ historicalProvenanceID: 2, kind: 'Read', cellsUrl: 'https://docs.google.com/spreadsheets/d/abc/edit#gid=1&range=A9', cells: 'A9', detail: null })]);
     loaded.set(true);
     fixture.detectChanges();
@@ -58,7 +68,7 @@ describe('ProvenanceComponent', () => {
   });
 
   it('says when nothing is recorded, and when the lookup fails', () => {
-    fixture.componentInstance.lookUp('Team', '7');
+    ask('Team', '7');
     loaded.set(true);
     fixture.detectChanges();
     expect(el().querySelector('.hud-empty')?.textContent).toContain('Nothing recorded for Team 7');

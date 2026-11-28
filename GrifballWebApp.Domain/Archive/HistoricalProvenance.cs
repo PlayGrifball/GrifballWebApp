@@ -9,7 +9,8 @@ namespace GrifballWebApp.Domain.Archive;
 /// as the cells that make it up (a match: its schedule cell, its result rows, its bracket cells).
 /// <para>
 /// <see cref="HistoricalProvenanceKind.Created"/> rows stay: they say which cells first made the entity.
-/// <see cref="HistoricalProvenanceKind.Read"/> rows are the latest run's, replaced each time a run reads the entity again.
+/// <see cref="HistoricalProvenanceKind.Read"/> rows are the latest run's, replaced each time a run reads the entity again from the
+/// same source (a run of some seasons leaves what the others' sources said).
 /// <see cref="HistoricalProvenanceKind.Changed"/> rows (a Discord ID linked, two users merged) stay. Keyed by name, never by
 /// a foreign key: a row of any table, and one that is gone still says where it came from.
 /// </para>

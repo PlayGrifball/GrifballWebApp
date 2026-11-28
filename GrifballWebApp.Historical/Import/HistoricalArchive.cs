@@ -97,6 +97,14 @@ public sealed record ArchiveOrigin(string SourceId, string? Sheet = null, string
         };
     }
 
+    /// <summary>Each row's origin by the row itself, in whichever of the tabs has it (a database export's games, players and teams
+    /// tables); null for a row of none of them.</summary>
+    public static Func<string[], ArchiveOrigin?> RowOfAny(string sourceId, IEnumerable<SheetTable> sheets)
+    {
+        var tabs = sheets.Select(s => (Sheet: s, Index: RowIndexes(s))).ToList();
+        return row => tabs.Where(t => t.Index.ContainsKey(row)).Select(t => Row(sourceId, t.Sheet, t.Index[row])).FirstOrDefault();
+    }
+
     /// <summary>Each of a tab's rows' index, by the row itself.</summary>
     private static Dictionary<string[], int> RowIndexes(SheetTable sheet)
     {

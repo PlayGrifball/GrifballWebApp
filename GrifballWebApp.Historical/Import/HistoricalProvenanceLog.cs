@@ -9,8 +9,8 @@ namespace GrifballWebApp.Historical.Import;
 /// The import notes an entity with the record's <see cref="ArchiveOrigin"/> as it goes, and <see cref="FlushAsync"/> writes
 /// them once the rows are saved (their keys known), in the same transaction: a season rolled back (a dry run, the
 /// guardrail, a failure) leaves none. An entity noted before it was ever saved is <see cref="HistoricalProvenanceKind.Created"/>,
-/// any other <see cref="HistoricalProvenanceKind.Read"/>; an entity's Read rows of earlier runs go when this run writes its
-/// own.
+/// any other <see cref="HistoricalProvenanceKind.Read"/>; an entity's Read rows of earlier runs from a source go when this run
+/// writes its own from that source.
 /// </summary>
 public sealed class HistoricalProvenanceLog(IApplicationDbContext context, TimeProvider timeProvider, int? jobID = null,
     IReadOnlyDictionary<string, int>? snapshotIDs = null)
@@ -96,10 +96,12 @@ public sealed class HistoricalProvenanceLog(IApplicationDbContext context, TimeP
         }
         _notes.Clear();
 
-        foreach (var group in rows.GroupBy(r => r.Entity))
+        // A source's earlier Read rows of what this run read from it: a run of some seasons leaves what the others' sources said
+        foreach (var group in rows.GroupBy(r => (r.Entity, r.SourceID)))
             foreach (var keys in group.Select(r => r.EntityKey).Distinct().Chunk(DeleteBatch))
                 await context.HistoricalProvenance
-                    .Where(p => p.Entity == group.Key && keys.Contains(p.EntityKey) && p.Kind == HistoricalProvenanceKind.Read && p.RunID != RunID)
+                    .Where(p => p.Entity == group.Key.Entity && p.SourceID == group.Key.SourceID && keys.Contains(p.EntityKey)
+                        && p.Kind == HistoricalProvenanceKind.Read && p.RunID != RunID)
                     .ExecuteDeleteAsync(ct);
         context.HistoricalProvenance.AddRange(rows);
         await context.SaveChangesAsync(ct);

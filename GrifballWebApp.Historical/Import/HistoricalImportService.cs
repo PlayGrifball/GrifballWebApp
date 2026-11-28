@@ -235,6 +235,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         public Dictionary<ArchiveSeason, GameVersion> EntryGames { get; } = new(ReferenceEqualityComparer.Instance);
         public List<ArchiveChampionship> Championships { get; } = [];
         public WaypointSeasonMatches? Waypoint { get; set; }
+        /// <summary>The cell each Waypoint match was listed in, by match ID: <see cref="WaypointOrigins"/>, made once.</summary>
+        public Dictionary<Guid, ArchiveOrigin>? WaypointCells { get; set; }
         /// <summary>The season's recorded games; null when the archive has none for it (its games are then left as they are).</summary>
         public List<RecordedGameInput>? RecordedGames { get; set; }
         /// <summary>The season's forfeits; null when the archive has none for it (its forfeited matches are then left as they are).</summary>
@@ -1159,6 +1161,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var existing = await _context.Teams.Where(t => t.SeasonID == season.SeasonID).ToListAsync(ct);
+        var teamOrigins = TeamOrigins(group);
         foreach (var name in names)
         {
             var team = existing.FirstOrDefault(t => string.Equals(t.TeamName, name, StringComparison.OrdinalIgnoreCase));
@@ -1177,7 +1180,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var (rank, finish) = ArchivedPlacing(group, name);
             team.RecordArchivedPlacing(rank, finish);
             teams.ByName[name] = team;
-            foreach (var (origin, why) in TeamOrigins(group, name))
+            foreach (var (origin, why) in teamOrigins[name])
                 _provenance.Read(team, origin, why);
         }
         await _context.SaveChangesAsync(ct);
@@ -1520,7 +1523,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 .SelectMany(e => e.Players)
                 .FirstOrDefault(p => HistoricalKeys.Normalize(p.Gamertag) == HistoricalKeys.Normalize(gamertag));
             var teamName = teams.TeamOf(sheetRow?.TeamName, player.Key.XboxUserID, null, gamertag);
-            if (teams.Join(teamName, userId, sheetRow?.Origin ?? listed, WaypointJoinWhy(sheetRow, gamertag, teamName)) is not null
+            if (teams.Join(teamName, userId, sheetRow?.Origin ?? listed, WaypointJoinWhy(sheetRow, teamName)) is not null
                 && HistoricalKeys.IsExcludedTeamName(sheetRow?.TeamName))
                 teams.ScheduleByUser.TryAdd(userId, teamName!);
             players.Users[player.Key.Playoffs].Add(userId);

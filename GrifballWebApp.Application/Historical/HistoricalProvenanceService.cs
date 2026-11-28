@@ -47,7 +47,8 @@ public class HistoricalProvenanceService(IApplicationDbContext context)
     /// </summary>
     public async Task<List<HistoricalProvenanceDto>> ForEntity(string entity, string key, CancellationToken ct)
     {
-        var keys = new List<string> { key.Trim() };
+        (entity, key) = (entity.Trim(), key.Trim());
+        var keys = new List<string> { key };
         if (entity == nameof(Domain.Players.User) && int.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out var userID))
             keys.AddRange((await MergedInto(userID, ct)).Select(id => id.ToString(CultureInfo.InvariantCulture)));
         var rows = await context.HistoricalProvenance.AsNoTracking()
@@ -73,7 +74,8 @@ public class HistoricalProvenanceService(IApplicationDbContext context)
         return await Dtos(rows, ct);
     }
 
-    /// <summary>Every user merged into <paramref name="userID"/>, directly or through another merged user.</summary>
+    /// <summary>Every user merged into <paramref name="userID"/>, directly or through another merged user, by merges still standing
+    /// (an undone merge's placeholder is its own again).</summary>
     private async Task<List<int>> MergedInto(int userID, CancellationToken ct)
     {
         var found = new HashSet<int> { userID };
@@ -81,7 +83,7 @@ public class HistoricalProvenanceService(IApplicationDbContext context)
         for (var depth = 0; depth < MaxMergeDepth && frontier.Count > 0; depth++)
         {
             var targets = frontier;
-            frontier = (await context.UserMerges.AsNoTracking().Where(m => targets.Contains(m.TargetUserID)).Select(m => m.SourceUserID).ToListAsync(ct))
+            frontier = (await context.UserMerges.AsNoTracking().Where(Domain.Players.UserMerge.Standing).Where(m => targets.Contains(m.TargetUserID)).Select(m => m.SourceUserID).ToListAsync(ct))
                 .Where(found.Add).ToList();
         }
         found.Remove(userID);

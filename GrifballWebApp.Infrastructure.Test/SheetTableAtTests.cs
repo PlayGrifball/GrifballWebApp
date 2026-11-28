@@ -105,6 +105,24 @@ public class SheetTableAtTests
         }
     }
 
+    private static readonly int[] CsvRowNumbers = [1, 3, 4, 5];
+
+    [Test]
+    public void Reference_ACsvWithEmptyLines_NamesTheSheetsOwnRow()
+    {
+        // A gid export keeps a spacer row as ",,": the 2nd row kept is the sheet's 3rd, and a quoted line break is one row
+        var csv = System.Text.Encoding.UTF8.GetBytes("Team,Wins\n,,\nAlpha,3\n\"Bravo\nB\",1\nCharlie,0\n");
+
+        var table = SheetWorkbook.Read(csv, "Standings")!.Sheet("Standings")!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.RowNumbers, Is.EqualTo(CsvRowNumbers));
+            Assert.That((table.Reference(1, 0), table.Reference(3, 1)), Is.EqualTo(("A3", "B5")));
+            Assert.That(table.At("A5"), Is.EqualTo("Charlie"), "a reference names a CSV's cells as the sheet numbers them");
+        }
+    }
+
     [TestCase(0, "A")]
     [TestCase(25, "Z")]
     [TestCase(26, "AA")]

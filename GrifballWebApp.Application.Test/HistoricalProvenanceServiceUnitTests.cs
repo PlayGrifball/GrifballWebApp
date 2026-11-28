@@ -23,8 +23,12 @@ internal sealed class HistoricalProvenanceServiceUnitTests : ApplicationDbContex
     private void Row(string entity, string key, HistoricalProvenanceKind kind, string source = "wl23", string? sheet = "Stats", string? cells = "A5:K5", string? detail = null)
         => Context.HistoricalProvenance.Add(HistoricalProvenance.Record(entity, key, kind, Run, At, source, sheet, cells, "text", detail, 3, 4));
 
-    private void Merge(int source, int target)
-        => Context.UserMerges.Add(UserMerge.Record(At, MergeTrigger.Manual, null, null, source, $"historical:{source}", target, $"user{target}", "{}", 1, 0, 0));
+    private UserMerge Merge(int source, int target)
+    {
+        var merge = UserMerge.Record(At, MergeTrigger.Manual, null, null, source, $"historical:{source}", target, $"user{target}", "{}", 1, 0, 0);
+        Context.UserMerges.Add(merge);
+        return merge;
+    }
 
     [Test]
     public async Task ForEntity_TheCellsThatMadeIt_ThenTheLatestRead_ThenTheChanges()
@@ -59,10 +63,12 @@ internal sealed class HistoricalProvenanceServiceUnitTests : ApplicationDbContex
     [Test]
     public async Task ForEntity_AUser_HasTheRowsOfThePlaceholdersMergedIntoThem()
     {
-        // Placeholder 11 merged into 12, then 12 into the real user 20; 30 into someone else
+        // Placeholder 11 merged into 12, then 12 into the real user 20; 30 into someone else; 40 into 20, then undone
         Merge(11, 12);
         Merge(12, 20);
         Merge(30, 31);
+        Merge(40, 20).Undo(At, null, "wrong person");
+        Row("User", "40", HistoricalProvenanceKind.Created, cells: "B7");
         Row("User", "11", HistoricalProvenanceKind.Created, cells: "B3");
         Row("User", "12", HistoricalProvenanceKind.Created, cells: "B4");
         Row("User", "20", HistoricalProvenanceKind.Changed, cells: "B5");
@@ -70,8 +76,13 @@ internal sealed class HistoricalProvenanceServiceUnitTests : ApplicationDbContex
         await Context.SaveChangesAsync();
 
         var rows = await _service.ForEntity("User", "20", CancellationToken.None);
+        var spaced = await _service.ForEntity(" User ", " 20 ", CancellationToken.None);
 
-        Assert.That(rows.Select(r => (r.EntityKey, r.Cells)), Is.EquivalentTo(new[] { ("11", (string?)"B3"), ("12", "B4"), ("20", "B5") }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(rows.Select(r => (r.EntityKey, r.Cells)), Is.EquivalentTo(new[] { ("11", (string?)"B3"), ("12", "B4"), ("20", "B5") }), "an undone merge's placeholder is its own again");
+            Assert.That(spaced.Select(r => r.EntityKey), Is.EquivalentTo(rows.Select(r => r.EntityKey)), "a lookup with spaces around it is the same lookup");
+        }
     }
 
     [Test]
