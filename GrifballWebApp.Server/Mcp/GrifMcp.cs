@@ -39,7 +39,8 @@ public static class GrifMcp
                 options.ServerInstructions = Instructions;
             })
             .WithHttpTransport(options => options.Stateless = true)
-            .WithTools(Tools(GrifTools.All))
+            // Not offer_button nor offer_form: what they offer is shown under the Discord chat's reply, which no MCP client sees
+            .WithTools(Tools(GrifTools.All).Where(t => !GrifTools.UnderReplies.Contains(t.ProtocolTool.Name)))
             .WithRequestFilters(filters => filters
                 // A tool the user's roles don't allow isn't listed for them, nor is one that changes anything (including a
                 // queued Halo pull, which saves games) for a read-only token...

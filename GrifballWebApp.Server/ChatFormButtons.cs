@@ -87,10 +87,18 @@ public class ChatFormHandler
             await context.EphemeralResponse(Gone);
             return;
         }
+        // Posted by the bot, so nothing in it pings anyone or previews a link (ChatForms.Answers shows the text as typed)
         var text = ChatForms.Answers(held.Form, answers);
-        await context.Interaction.SendResponseAsync(InteractionCallback.Message(new InteractionMessageProperties { Content = text, AllowedMentions = AllowedMentionsProperties.None }));
+        await context.Interaction.SendResponseAsync(InteractionCallback.Message(new InteractionMessageProperties
+        {
+            Content = text,
+            AllowedMentions = AllowedMentionsProperties.None,
+            Flags = MessageFlags.SuppressEmbeds,
+        }));
         var posted = await context.Interaction.GetResponseAsync();
-        await _chat.HandleFormAsync(posted.Original, context.Interaction.User.Id, context.Interaction.User.Username, text, held.Direct);
+        // Refused (a reply under way, the limits): the form waits again, to be sent once the chat can take it
+        await _chat.HandleFormAsync(posted.Original, context.Interaction.User.Id, context.Interaction.User.Username, text, held.Direct,
+            () => _forms.SaveAsync(formID, held, ChatForms.Lasts));
     }
 
     /// <summary>Form <paramref name="formID"/> while forms are on and it waits for the one who clicked; null with them told why.</summary>

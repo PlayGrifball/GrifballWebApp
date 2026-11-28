@@ -253,7 +253,7 @@ public class DiscordTransportTests
             Assert.That(Routes(requests).Take(2), Is.EqualTo(new[] { Callback, "GET /webhooks/2/tok/messages/@original" }));
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
             Assert.That(requests[0].Content, Is.EqualTo("My answers to \"Your team\":\n- Team name: Bombers\n- Side: Blue"));
-            Assert.That(requests[0].Flags, Is.EqualTo((MessageFlags)0), "posted for the channel to see");
+            Assert.That(requests[0].Flags, Is.EqualTo(MessageFlags.SuppressEmbeds), "posted for the channel to see, no link previewed");
             Assert.That(await forms.PeekAsync("tform3"), Is.Null, "answered once");
         }
     }

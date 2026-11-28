@@ -138,6 +138,9 @@ public static class GrifTools
     /// <summary>The tools only the Discord bot has use for (<c>ChatHost.HasSlashCommands</c>).</summary>
     public static readonly string[] DiscordOnly = [ListSlashCommands, OfferButton, OfferForm];
 
+    /// <summary>The tools whose offer is shown under the Discord chat's reply: no use to an MCP client, which isn't shown it.</summary>
+    public static readonly string[] UnderReplies = [OfferButton, OfferForm];
+
     /// <summary>The name of the tool that reads the caller's own account (their claims, their sign-ins): theirs alone.</summary>
     public const string GetMyAccount = "get_my_account";
 

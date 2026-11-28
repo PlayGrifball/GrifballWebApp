@@ -141,14 +141,15 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
     /// <summary>
     /// The answers of <paramref name="userId"/> to a form the chat made (<paramref name="message"/> shows them): the model reads them as their next
-    /// turn, and the reply is to that message. A failure is logged, never thrown, as a message's is.
+    /// turn, and the reply is to that message. Refused (a reply under way, the limits), the chat says why and <paramref name="refused"/> runs, so the
+    /// form can be answered again. A failure is logged, never thrown, as a message's is.
     /// </summary>
-    public async Task HandleFormAsync(NetCord.Rest.RestMessage message, ulong userId, string username, string answers, bool direct)
+    public async Task HandleFormAsync(NetCord.Rest.RestMessage message, ulong userId, string username, string answers, bool direct, Func<Task> refused)
     {
         using var span = Tracing.StartActivity(MessageSpanName);
         span?.SetTag("discord.direct", direct);
         span?.SetTag("discord.answered", true);
-        await Handled(() => HandleResponseCore(message, userId, username, answers, direct, null),
+        await Handled(() => HandleResponseCore(message, userId, username, answers, direct, null, refused),
             ex => logger.LogError(ex, "Failed to handle the form answers of Discord user {DiscordUserId} in message {MessageId}", userId, message.Id), span);
     }
 
@@ -167,7 +168,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         return (id, form.Title);
     }
 
-    private async ValueTask<string?> HandleResponseCore(NetCord.Rest.RestMessage message, ulong authorId, string authorName, string question, bool direct, ChatClick? click)
+    private async ValueTask<string?> HandleResponseCore(NetCord.Rest.RestMessage message, ulong authorId, string authorName, string question, bool direct, ChatClick? click,
+        Func<Task>? refused = null)
     {
         // No model configured (no Ollama:Url): say so, rather than fail on each message
         if (!chat.Available)
@@ -212,10 +214,12 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             else
                 reply = await chat.StartAsync(history, question, caller, host, asker);
         }
-        catch (ChatRefusedException refused)
+        catch (ChatRefusedException refusal)
         {
             // Neither the question nor why is kept: the model never had it (a DM's are left out of its history, GrifChat.WithoutRefusals)
-            await RefuseAsync(message, refused.Message, click, host, asker, earlier);
+            await RefuseAsync(message, refusal.Message, click, host, asker, earlier);
+            if (refused is not null)
+                await refused();
             return null;
         }
         catch (Exception e)
@@ -367,9 +371,15 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         return [.. earlier.OrderBy(m => m.Id)];
     }
 
-    /// <summary>A DM's messages (<see cref="DirectMessagesAsync"/>) as the chat's history.</summary>
+    /// <summary>
+    /// A DM's messages (<see cref="DirectMessagesAsync"/>) as the chat's history. The bot's are the model's, but a form's answers: the bot posts them
+    /// as the response to the person's submit (<see cref="ChatFormHandler"/>), and they are the person's words.
+    /// </summary>
     private List<ChatMessage> AsHistory(List<IDiscordRestMessage> messages)
-        => [.. messages.Select(m => new ChatMessage(m.Author.Id == BotId ? ChatRole.Assistant : ChatRole.User, m.Content))];
+        => [.. messages.Select(m => new ChatMessage(m.Author.Id == BotId && !IsFormAnswers(m) ? ChatRole.Assistant : ChatRole.User, m.Content))];
+
+    private bool IsFormAnswers(IDiscordRestMessage message)
+        => message.InteractionMetadata is { Type: NetCord.InteractionType.ModalSubmit } submit && submit.User.Id != BotId && ChatForms.AreAnswers(message.Content);
 
     /// <summary>
     /// Confirm and Cancel taken off the bot's earlier DM messages (<paramref name="earlier"/>; none in a channel), but those of <paramref name="keep"/>,

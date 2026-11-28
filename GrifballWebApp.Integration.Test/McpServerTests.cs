@@ -137,6 +137,7 @@ public class McpServerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(tools.Select(t => t.Name), Is.SupersetOf(SomeTools));
+            Assert.That(tools.Select(t => t.Name), Does.Not.Contain(GrifTools.OfferButton).And.Not.Contain(GrifTools.OfferForm), "no reply to show their offer under");
             Assert.That(tools.Where(t => !Changing.Contains(t.Name)).Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True,
                 "every tool but the pull tools (their pulls save games) and staff's actions only reads");
             Assert.That(tools.Where(t => Changing.Contains(t.Name)).Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.False);

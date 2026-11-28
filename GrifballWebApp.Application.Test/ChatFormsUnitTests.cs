@@ -6,6 +6,7 @@ using Microsoft.Extensions.Time.Testing;
 namespace GrifballWebApp.Application.Test;
 
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 internal sealed class ChatFormsUnitTests
 {
@@ -77,9 +78,48 @@ internal sealed class ChatFormsUnitTests
     [Test]
     public void Answers_ListEachField_NoneForAnEmptyOne()
     {
-        Assert.That(ChatForms.Answers(Form, [" Grifs ", null, "Red"]),
-            Is.EqualTo("My answers to \"Your team\":\n- Team name: Grifs\n- Why: (no answer)\n- Side: Red"));
+        var answers = ChatForms.Answers(Form, [" Grifs ", null, "Red"]);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(answers, Is.EqualTo("My answers to \"Your team\":\n- Team name: Grifs\n- Why: (no answer)\n- Side: Red"));
+            Assert.That(ChatForms.AreAnswers(answers), Is.True);
+            Assert.That(ChatForms.AreAnswers("My answers are yes"), Is.False);
+        }
     }
+
+    [Test]
+    public void Answers_ShowTheAskersText_AsTyped_NeverAsMarkdown_EachLineInItsAnswer()
+    {
+        var answers = ChatForms.Answers(Form, ["[Claim it](https://evil.example)", "# Official\n- item *bold*", "Red"]);
+
+        Assert.That(answers, Is.EqualTo(
+            "My answers to \"Your team\":\n"
+            + @"- Team name: \[Claim it\]\(https\://evil.example\)" + "\n"
+            + @"- Why: \# Official" + "\n" + @"  \- item \*bold\*" + "\n"
+            + "- Side: Red"));
+    }
+
+    [Test]
+    public void Trimmed_TrimsTheModelsText_SoATrimmedPickMatchesItsChoice_AndIsNullForAMissingPart()
+    {
+        var trimmed = ChatForms.Trimmed(" Your team ", [new ChatFormField(" Side ", ChatFormFieldKind.Choice, Placeholder: " pick ", Choices: [" Red", "Blue "])]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(trimmed?.Title, Is.EqualTo("Your team"));
+            Assert.That(trimmed?.Fields.Single().Label, Is.EqualTo("Side"));
+            Assert.That(trimmed?.Fields.Single().Placeholder, Is.EqualTo("pick"));
+            Assert.That(trimmed?.Fields.Single().Choices, Is.EqualTo(RedBlue));
+            Assert.That(ChatForms.Invalid(trimmed!, ["Red"]), Is.Null, "the pick, as Discord sends it back");
+            Assert.That(ChatForms.Trimmed(null, [Name]), Is.Null);
+            Assert.That(ChatForms.Trimmed("T", null), Is.Null);
+            Assert.That(ChatForms.Trimmed("T", [Name, null]), Is.Null);
+            Assert.That(ChatForms.Refusal(ChatForms.Trimmed("T", [Name with { Label = null! }])!), Does.Contain("label"));
+            Assert.That(ChatForms.Refusal(ChatForms.Trimmed("T", [Side with { Choices = ["Red", null!] }])!), Does.Contain("2 to 10"));
+        }
+    }
+
+    private static readonly string[] RedBlue = ["Red", "Blue"];
 
     [Test]
     public void NewId_IsShortHex_AndNew()
@@ -117,17 +157,41 @@ internal sealed class ChatFormsUnitTests
     }
 
     [Test]
+    public async Task MemoryChatForms_ASave_DropsTheExpiredOnes_NeverOpened()
+    {
+        var time = new FakeTimeProvider();
+        var forms = new MemoryChatForms(time);
+        await forms.SaveAsync("a", Held, TimeSpan.FromMinutes(10));
+        await forms.SaveAsync("b", Held, TimeSpan.FromMinutes(20));
+        time.Advance(TimeSpan.FromMinutes(10));
+
+        await forms.SaveAsync("c", Held, TimeSpan.FromMinutes(10));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(forms.Count, Is.EqualTo(2), "a went, b and c wait");
+            Assert.That(await forms.PeekAsync("b"), Is.SameAs(Held));
+        }
+    }
+
+    [Test]
     public void OfferForm_GivesTheToken_RefusesABadFormAndAHostWithoutTheBot()
     {
         var shown = new FormTools(new Bot()).OfferForm(" Your team ", [Name]);
         var bad = Assert.Throws<ToolException>(() => new FormTools(new Bot()).OfferForm("Your team", []));
         var noBot = Assert.Throws<ToolException>(() => new FormTools(new NoSlashCommands()).OfferForm("Your team", [Name]));
+        var noTitle = Assert.Throws<ToolException>(() => new FormTools(new Bot()).OfferForm(null!, [Name]));
+        var nullField = Assert.Throws<ToolException>(() => new FormTools(new Bot()).OfferForm("Your team", [null!]));
+        var spacedChoices = ChatForms.In(new FormTools(new Bot()).OfferForm("Your team", [Side with { Choices = [" Red", "Blue "] }]));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(ChatForms.In(shown)?.Title, Is.EqualTo("Your team"));
             Assert.That(bad?.Message, Does.Contain("1 to 5 fields"));
             Assert.That(noBot?.Message, Does.Contain("Discord bot"));
+            Assert.That(noTitle?.Message, Is.EqualTo(ChatForms.Incomplete));
+            Assert.That(nullField?.Message, Is.EqualTo(ChatForms.Incomplete));
+            Assert.That(spacedChoices?.Fields.Single().Choices, Is.EqualTo(RedBlue), "shown, and picked, trimmed");
         }
     }
 

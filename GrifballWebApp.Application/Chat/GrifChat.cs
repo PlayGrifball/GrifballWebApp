@@ -615,7 +615,7 @@ public sealed class ChatReply : IDisposable
     public IReadOnlyList<ChatButton> Offered { get; private set; } = [];
 
     /// <summary>
-    /// The form the model made (<see cref="GrifTools.OfferForm"/>), once the reply has streamed: its last, read from that tool's result as the
+    /// The form the model made (<see cref="GrifTools.OfferForm"/>), once the reply has streamed: its first (the tool says one a reply), read from its result as the
     /// buttons are; null when it made none.
     /// </summary>
     public ChatForm? OfferedForm { get; private set; }
@@ -645,7 +645,7 @@ public sealed class ChatReply : IDisposable
         if (tool != GrifTools.OfferForm)
             offers.Buttons.AddRange(ChatButtons.In(result));
         else if (ChatForms.In(result) is { } form)
-            offers.Form = form;
+            offers.Form ??= form;
     }
 
     /// <summary>Where a paid reply's cost goes (the caller's month).</summary>

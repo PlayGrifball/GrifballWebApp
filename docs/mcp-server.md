@@ -96,8 +96,8 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 | `pull_xbox_account_games` | Queues the pull of an Xbox account's recent games from Halo (players and staff; `/player pull` too) |
 | `get_current_time` | The time now, in UTC and as Unix seconds |
 | `list_slash_commands` | The Discord bot's slash commands with what each does (the bot's own host only; the list `/help` shows) |
-| `offer_button` | A button under the Discord bot's reply that opens its set-gamertag form, signs up for a season, opens the signup details form or joins the queue (the bot's own host only) |
-| `offer_form` | A form the Discord bot's chat makes (1 to 5 short text, paragraph or choice fields) behind a Fill in button for the asker only; the answers come back as their next message (the bot's own host only; off when `Chat:Forms` is `false`) |
+| `offer_button` | A button under the Discord bot's reply that opens its set-gamertag form, signs up for a season, opens the signup details form or joins the queue (the bot's own chat only: not on the MCP server, which shows no reply) |
+| `offer_form` | A form the Discord bot's chat makes (1 to 5 short text, paragraph or choice fields) behind a Fill in button for the asker only; the answers come back as their next message (the bot's own chat only, not on the MCP server; off when `Chat:Forms` is `false`) |
 
 ### Staff's tools
 

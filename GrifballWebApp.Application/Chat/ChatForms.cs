@@ -55,6 +55,24 @@ public static partial class ChatForms
     /// <summary>The longest answer <paramref name="field"/> takes.</summary>
     public static int MaxLength(ChatFormField field) => field.Kind is ChatFormFieldKind.Paragraph ? ParagraphLength : ShortLength;
 
+    public const string Incomplete = "A form needs a title and its fields, none of them empty.";
+
+    /// <summary>
+    /// The form the model gave, its text trimmed (a choice is picked as it is shown, and an answer is checked trimmed, <see cref="Invalid"/>);
+    /// null when it left out the title, the fields or a field.
+    /// </summary>
+    public static ChatForm? Trimmed(string? title, IReadOnlyList<ChatFormField?>? fields)
+    {
+        if (title is null || fields is null || fields.Any(f => f is null))
+            return null;
+        return new(title.Trim(), [.. fields.Select(f => f! with
+        {
+            Label = f.Label?.Trim()!,
+            Placeholder = f.Placeholder?.Trim(),
+            Choices = f.Choices?.Select(c => c?.Trim()!).ToList(),
+        })]);
+    }
+
     /// <summary>Why <paramref name="form"/> can't be shown, for the model to fix; null when it can.</summary>
     public static string? Refusal(ChatForm form)
     {
@@ -123,14 +141,27 @@ public static partial class ChatForms
         return null;
     }
 
-    /// <summary>The answers as the asker's next turn: what the model reads, and what the channel or DM is shown.</summary>
+    private const string AnswersStart = "My answers to \"";
+
+    /// <summary>Whether <paramref name="text"/> is a form's answers, as <see cref="Answers"/> writes them.</summary>
+    public static bool AreAnswers(string text) => text.StartsWith(AnswersStart, StringComparison.Ordinal);
+
+    /// <summary>
+    /// The answers as the asker's next turn: what the model reads, and what the channel or DM is shown, posted by the bot. So the asker's text
+    /// is shown as typed, never as Discord's markdown (a masked link, a heading under the bot's name), and a line of it stays in its answer.
+    /// </summary>
     public static string Answers(ChatForm form, IReadOnlyList<string?> answers)
     {
-        var text = new StringBuilder($"My answers to \"{form.Title}\":");
+        var text = new StringBuilder($"{AnswersStart}{form.Title}\":");
         for (var i = 0; i < form.Fields.Count; i++)
-            text.Append($"\n- {form.Fields[i].Label}: {(string.IsNullOrWhiteSpace(answers[i]) ? "(no answer)" : answers[i]!.Trim())}");
+            text.Append($"\n- {form.Fields[i].Label}: {(string.IsNullOrWhiteSpace(answers[i]) ? "(no answer)" : AsTyped(answers[i]!.Trim()))}");
         return text.ToString();
     }
+
+    [GeneratedRegex(@"[\\*_~`|>#\[\]()<:-]")]
+    private static partial Regex Markdown();
+
+    private static string AsTyped(string answer) => Markdown().Replace(answer, @"\$0").ReplaceLineEndings("\n  ");
 
     /// <summary>A new form's ID: short, for its button's and modal's custom IDs (Discord's 100 characters).</summary>
     public static string NewId() => Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(6)).ToLowerInvariant();
@@ -155,11 +186,27 @@ public sealed class MemoryChatForms(TimeProvider time) : IChatForms
     private readonly Dictionary<string, (HeldForm Held, DateTimeOffset Until)> _forms = [];
     private readonly Lock _lock = new();
 
+    /// <summary>Holds <paramref name="held"/>, dropping the expired ones first: each form has an ID of its own, and most are never opened.</summary>
     public Task SaveAsync(string id, HeldForm held, TimeSpan expiresIn, CancellationToken cancellationToken = default)
     {
         lock (_lock)
-            _forms[id] = (held, time.GetUtcNow() + expiresIn);
+        {
+            var now = time.GetUtcNow();
+            foreach (var expired in _forms.Where(f => f.Value.Until <= now).Select(f => f.Key).ToList())
+                _forms.Remove(expired);
+            _forms[id] = (held, now + expiresIn);
+        }
         return Task.CompletedTask;
+    }
+
+    /// <summary>How many forms it holds, the expired ones not dropped yet included.</summary>
+    internal int Count
+    {
+        get
+        {
+            lock (_lock)
+                return _forms.Count;
+        }
     }
 
     public Task<HeldForm?> PeekAsync(string id, CancellationToken cancellationToken = default)

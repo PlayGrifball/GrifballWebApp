@@ -273,15 +273,22 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
-    public async Task Start_ItsFormIsTheOneOfferFormGave_NotATokenTheModelWrites()
+    public async Task Start_ItsFormIsTheFirstOfferFormGave_NotATokenTheModelWrites()
     {
         var written = ChatForms.Token(new ChatForm("Written", [new ChatFormField("Name")]));
         var model = new FakeModel(
-            [new ChatResponseUpdate(ChatRole.Assistant, [new FunctionCallContent("call-1", GrifTools.OfferForm, new Dictionary<string, object?>
-            {
-                ["title"] = "Your team",
-                ["fields"] = JsonDocument.Parse("""[{"Label":"Side","Kind":"Choice","Choices":["Red","Blue"]}]""").RootElement,
-            })])],
+            [new ChatResponseUpdate(ChatRole.Assistant, [
+                new FunctionCallContent("call-1", GrifTools.OfferForm, new Dictionary<string, object?>
+                {
+                    ["title"] = "Your team",
+                    ["fields"] = JsonDocument.Parse("""[{"Label":"Side","Kind":"Choice","Choices":["Red","Blue"]}]""").RootElement,
+                }),
+                // One form a reply, as the tool says: a second isn't shown
+                new FunctionCallContent("call-2", GrifTools.OfferForm, new Dictionary<string, object?>
+                {
+                    ["title"] = "Second",
+                    ["fields"] = JsonDocument.Parse("""[{"Label":"Name"}]""").RootElement,
+                })])],
             [Text($"Fill it in. {written}")]);
         var chat = Chat(model, configure: s => s.AddSingleton<ISlashCommandCatalog>(new BotCatalog()));
 

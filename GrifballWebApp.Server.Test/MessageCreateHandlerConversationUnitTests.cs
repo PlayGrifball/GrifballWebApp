@@ -866,6 +866,58 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     }
 
     [Test]
+    public async Task HandleFormAsync_AnswersTheChatRefuses_SayWhy_AndHoldTheFormAgain()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Never"));
+        var posted = GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }));
+        var heldAgain = false;
+
+        await Handler(model).HandleFormAsync(posted, AuthorId, "author", new string('a', GrifChat.MaxQuestionLength + 1), direct: false,
+            () => { heldAgain = true; return Task.CompletedTask; });
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Ask in 2000 characters or fewer."));
+            Assert.That(model.Options, Is.Null, "the model isn't asked");
+            Assert.That(heldAgain, Is.True);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AFormsAnswersInADm_AreThePersonsWords_InItsHistory()
+    {
+        // The bot posted them, as the response to the person's submit
+        var answers = Substitute.For<IDiscordRestMessage>();
+        answers.Id.Returns(4ul);
+        answers.Author.Id.Returns(BotId);
+        answers.Content.Returns("My answers to \"Your team\":\n- Team name: Bombers");
+        answers.InteractionMetadata!.Type.Returns(NetCord.InteractionType.ModalSubmit);
+        answers.InteractionMetadata!.User.Id.Returns(AuthorId);
+        var reply = Substitute.For<IDiscordRestMessage>();
+        reply.Id.Returns(5ul);
+        reply.Author.Id.Returns(BotId);
+        reply.Content.Returns("Bombers it is.");
+        var question = Substitute.For<IDiscordRestMessage>();
+        question.Id.Returns(10ul);
+        question.Author.Id.Returns(AuthorId);
+        question.Content.Returns("hello");
+        IDiscordRestMessage[] messages = [question, reply, answers];
+        _rest.GetMessagesAsync(20ul, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => messages.ToAsyncEnumerable());
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+
+        await Handler(model).HandleAsync(DirectMessage());
+
+        AssertNothingLogged();
+        Assert.That(model.Messages.Select(x => (x.Role, x.Text)), Is.EqualTo(new[]
+        {
+            (ChatRole.User, "My answers to \"Your team\":\n- Team name: Bombers"),
+            (ChatRole.Assistant, "Bombers it is."),
+            (ChatRole.User, "hello"),
+        }));
+    }
+
+    [Test]
     public async Task HandleAsync_FormsTurnedOff_TheModelHasNoOfferForm()
     {
         _formsOff = true;
