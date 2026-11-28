@@ -139,6 +139,34 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             ex => logger.LogError(ex, "Failed to handle the click of Discord user {DiscordUserId} on message {MessageId}", userId, message.Id), span);
     }
 
+    /// <summary>
+    /// The answers of <paramref name="userId"/> to a form the chat made (<paramref name="message"/> shows them): the model reads them as their next
+    /// turn, and the reply is to that message. A failure is logged, never thrown, as a message's is.
+    /// </summary>
+    public async Task HandleFormAsync(NetCord.Rest.RestMessage message, ulong userId, string username, string answers, bool direct)
+    {
+        using var span = Tracing.StartActivity(MessageSpanName);
+        span?.SetTag("discord.direct", direct);
+        span?.SetTag("discord.answered", true);
+        await Handled(() => HandleResponseCore(message, userId, username, answers, direct, null),
+            ex => logger.LogError(ex, "Failed to handle the form answers of Discord user {DiscordUserId} in message {MessageId}", userId, message.Id), span);
+    }
+
+    /// <summary>Whether the model may make forms here (<see cref="ChatForms.EnabledKey"/>): on unless the setting turns them off.</summary>
+    private bool FormsOn => configuration.GetValue(ChatForms.EnabledKey, true);
+
+    /// <summary>Who a reply answers (<see cref="ChatLimits.Asker"/>), and whether in a DM: what a form it offers is held for.</summary>
+    private sealed record Asking(string Asker, bool Direct);
+
+    /// <summary>The form a reply offered, held for its asker until they answer it or it expires (<see cref="ChatForms.Lasts"/>): its ID and title, for the Fill in button.</summary>
+    private async Task<(string ID, string Title)> HoldAsync(ChatForm form, Asking asking)
+    {
+        var id = ChatForms.NewId();
+        using var scope = scopeFactory.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<IChatForms>().SaveAsync(id, new HeldForm(form, asking.Asker, asking.Direct), ChatForms.Lasts);
+        return (id, form.Title);
+    }
+
     private async ValueTask<string?> HandleResponseCore(NetCord.Rest.RestMessage message, ulong authorId, string authorName, string question, bool direct, ChatClick? click)
     {
         // No model configured (no Ollama:Url): say so, rather than fail on each message
@@ -160,7 +188,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         // tools), its history Discord's DM channel itself, and nothing of it kept in DiscordMessages, whose history a channel's reply
         // reads: what staff see in private never reaches a public reply. In a channel, in public: the channel reads the reply, so a
         // season not announced yet stays out of it whoever asks (#435), and no staff tools.
-        var host = direct ? ChatHost.DiscordDirect : ChatHost.Discord;
+        var host = (direct ? ChatHost.DiscordDirect : ChatHost.Discord) with { Forms = FormsOn };
         var saveTo = direct ? null : context;
         var earlier = direct ? await DirectMessagesAsync(message, click is not null) : null;
         var history = earlier is null ? await ChatHistoryAsync(context, UserId, BotID) : AsHistory(earlier);
@@ -202,7 +230,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         {
             if (saveTo is not null)
                 await SaveQuestionAsync(saveTo, message, UserId, BotID);
-            var cutShort = await AnswerAsync(message, reply, saveTo, UserId, BotID);
+            var cutShort = await AnswerAsync(message, reply, saveTo, UserId, BotID, new Asking(asker, direct));
             // A reply started, so the change waiting in the DM was answered or forgotten (GrifChat): its buttons go, once the reply is out
             await TakeOffAnsweredConfirmsAsync(earlier, keep: null);
             return cutShort;
@@ -228,7 +256,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// The reply shown as it streams in, then whole, and saved (to <paramref name="saveTo"/>, a channel's; none from a DM). A reply cut
     /// short (it took too long) is followed by why, which is returned.
     /// </summary>
-    private async Task<string?> AnswerAsync(NetCord.Rest.RestMessage message, ChatReply reply, GrifballContext? saveTo, long UserId, long BotID)
+    private async Task<string?> AnswerAsync(NetCord.Rest.RestMessage message, ChatReply reply, GrifballContext? saveTo, long UserId, long BotID, Asking asking)
     {
         // Each chunk with when it arrived: the reply is paced by the stream, not by when the background task gets to it
         var channel = Channel.CreateUnbounded<(string Text, long ArrivedAt)>();
@@ -261,7 +289,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         var rest = responseBuilder.ToString();
         pictures.AddRange(ChatImages.In(rest, baseUrl));
         responseBuilder.Clear().Append(ChatImages.Without(rest, baseUrl));
-        var components = ChatComponents.For(reply.Offered, reply.Waiting);
+        var form = reply.OfferedForm is { } offered ? await HoldAsync(offered, asking) : ((string ID, string Title)?)null;
+        var components = ChatComponents.For(reply.Offered, reply.Waiting, form);
         using var files = await PicturesAsync([.. pictures.Distinct()]);
         await FinishReplyAsync(message, restMessage, responseBuilder, saveTo, UserId, BotID, files?.Files, components);
         if (cutShort is not null)

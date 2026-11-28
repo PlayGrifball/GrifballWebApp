@@ -67,6 +67,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<GrifballWebApp.Application.Voice.VoiceConsents>();
         // Its changes waiting for an answer: in memory unless Infrastructure's Redis (scaled out) is registered
         services.TryAddSingleton<IChatWaiting, MemoryChatWaiting>();
+        // Its forms waiting for their answers (offer_form): the same
+        services.TryAddSingleton<IChatForms, MemoryChatForms>();
         services.AddTransient<IQueueRepository, QueueRepository>();
         // Joining and leaving, from Discord or the site; the pages hear of it from the spot's domain events
         services.AddTransient<QueueMembership>();

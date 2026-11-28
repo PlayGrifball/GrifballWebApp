@@ -97,6 +97,8 @@ public class ProgramStartupTests
         "GrifballWebApp.Server.Commands.UserCommandModals",
         "GrifballWebApp.Server.Commands.UserCommands",
         "GrifballWebApp.Server.ChatConfirmButtonInteractions",
+        "GrifballWebApp.Server.ChatFormButtonInteractions",
+        "GrifballWebApp.Server.ChatFormModalInteractions",
         "GrifballWebApp.Server.DiscordCommands",
         "GrifballWebApp.Server.GamertagAutocomplete",
         "GrifballWebApp.Server.Matchmaking.ButtonInteractions",

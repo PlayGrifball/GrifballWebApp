@@ -84,4 +84,32 @@ public class ChatWaitingRedisTests
         await onB.ForgetAsync("chat:waiting:site:user:7");
         Assert.That(await onA.PeekAsync("chat:waiting:site:user:7"), Is.Null, "Forgotten everywhere");
     }
+
+    [Test]
+    public async Task With_Redis_every_pod_sees_a_form_and_one_submit_takes_it()
+    {
+        var prefix = $"test-{Guid.NewGuid():N}";
+        var settings = new Dictionary<string, string?> { ["ConnectionStrings:Redis"] = _connectionString, ["SignalR:RedisChannelPrefix"] = prefix };
+        await using var podA = Pod(settings);
+        await using var podB = Pod(settings);
+        var onA = podA.GetRequiredService<IChatForms>();
+        var onB = podB.GetRequiredService<IChatForms>();
+        var held = new HeldForm(new ChatForm("Your team", [new ChatFormField("Side", ChatFormFieldKind.Choice, Choices: ["Red", "Blue"])]), "discord:5", Direct: true);
+
+        await onA.SaveAsync("f1", held, ChatForms.Lasts);
+        var seenOnB = await onB.PeekAsync("f1");
+        var redis = (await podA.GetRequiredService<AppRedis>().ConnectAsync()).GetDatabase();
+        var expiresIn = await redis.KeyTimeToLiveAsync($"{prefix}:form:f1");
+        var taken = await Task.WhenAll(Enumerable.Range(0, 10).Select(i => (i % 2 == 0 ? onA : onB).TakeAsync("f1")));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(onA, Is.InstanceOf<RedisChatForms>());
+            Assert.That((seenOnB?.Asker, seenOnB?.Direct, seenOnB?.Form.Title), Is.EqualTo(("discord:5", (bool?)true, "Your team")));
+            Assert.That(seenOnB?.Form.Fields.Single().Choices, Is.EqualTo(held.Form.Fields.Single().Choices));
+            Assert.That(expiresIn, Is.Not.Null.And.LessThanOrEqualTo(ChatForms.Lasts), "Under the app's prefix, expiring");
+            Assert.That(taken.Count(f => f is not null), Is.EqualTo(1), "Taken once");
+            Assert.That(await onB.PeekAsync("f1"), Is.Null);
+        }
+    }
 }
