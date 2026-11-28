@@ -5,6 +5,7 @@ using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
@@ -38,6 +39,7 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>Reports a Halo Infinite match as a game of the series (replacing one, when given).</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("season-matches/{seasonMatchID:int}/games/{matchID:guid}/report", Name = "ReportMatch")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
@@ -53,6 +55,7 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>Forfeits the match for the home team. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("season-matches/{seasonMatchID:int}/forfeit/home", Name = "HomeForfeit")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
@@ -65,6 +68,7 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>Forfeits the match for the away team. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("season-matches/{seasonMatchID:int}/forfeit/away", Name = "AwayForfeit")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
@@ -77,6 +81,7 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>Forfeits the match for both teams. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("season-matches/{seasonMatchID:int}/forfeit/double", Name = "DoubleForfeit")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
@@ -89,6 +94,7 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>Undoes a match's recorded result (a forfeit or a finished series), leaving it to be decided again. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("season-matches/{seasonMatchID:int}/result/undo", Name = "UndoResult")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
@@ -101,6 +107,7 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>Adds a game entered by hand to the series: a 201 with its recorded game's ID, at the match's page.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("season-matches/{seasonMatchID:int}/manual-games", Name = "AddManualGame")]
     [ProducesResponseType<int>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
@@ -121,6 +128,7 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>Edits a game entered by hand. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("season-matches/{seasonMatchID:int}/manual-games/{recordedGameID:int}", Name = "EditManualGame")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
@@ -133,6 +141,7 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>Removes a game from the series. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("season-matches/{seasonMatchID:int}/games/{seriesGameID:int}/remove", Name = "RemoveGame")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]

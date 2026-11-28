@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.MatchPlanner;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.MatchPlanner;
 
@@ -17,6 +18,7 @@ public class MatchPlannerController : ControllerBase
 
     /// <summary>Makes the season's regular matches: each team plays the others this many times at home, best of this many.</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("seasons/{seasonID:int}/matches/generate", Name = "CreateSeasonMatches")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -53,6 +55,7 @@ public class MatchPlannerController : ControllerBase
 
     /// <summary>Sets a match's time (null: unscheduled again).</summary>
     [Authorize(Roles = "Commissioner")]
+    [AllowAccessToken]
     [HttpPost("season-matches/{seasonMatchID:int}/time", Name = "UpdateMatchTime")]
     [ProducesResponseType<List<GrifballWebApp.Application.Scheduling.ScheduleConflict>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
