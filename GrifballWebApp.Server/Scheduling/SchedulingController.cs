@@ -2,6 +2,7 @@ using GrifballWebApp.Application.Scheduling;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Scheduling;
 
@@ -85,9 +86,11 @@ public class SchedulingController(SchedulingService scheduling, TeamAvailability
     public Task<SeasonSchedulingRulesDto> GetSchedulingRules([FromRoute] int seasonID, CancellationToken ct)
         => rules.GetAsync(seasonID, ct);
 
-    /// <summary>Staff change a season's scheduling rules.</summary>
+    /// <summary>Staff change a season's scheduling rules. A normal staff write, never a merge or anything about
+    /// sign-in/roles/the account, so a token may call it too (#566).</summary>
     [HttpPost("seasons/{seasonID:int}/scheduling-rules", Name = "ChangeSchedulingRules")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
+    [AllowAccessToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]

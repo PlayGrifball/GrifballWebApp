@@ -1,12 +1,16 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.EventOrganizer;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.EventOrganizer;
 
-/// <summary>The organizers' seasons: each season's settings (dates, league, format), and the choices they are made from.</summary>
+/// <summary>The organizers' seasons: each season's settings (dates, league, format), and the choices they are made
+/// from. Reads and a season's own settings, never a merge or anything about sign-in/roles/the account, so a token
+/// may call any of it (#566).</summary>
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
+[AllowAccessToken]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 public class EventOrganizerController : ControllerBase

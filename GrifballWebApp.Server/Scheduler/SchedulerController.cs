@@ -6,16 +6,19 @@ using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Scheduler;
+using GrifballWebApp.Server.Mcp;
 
 namespace GrifballWebApp.Server.Scheduler;
 
 /// <summary>
 /// The schedule recommendations (organizers): a time for each of a season's regular matches, found by the genetic
 /// algorithm in a job on the worker (<see cref="ScheduleRecommendationJob"/>), shown on the season's schedule and
-/// applied from there.
+/// applied from there. A read, queuing a run, or applying one's result: never a merge or anything about
+/// sign-in/roles/the account, so a token may call any of it (#566).
 /// </summary>
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
+[AllowAccessToken]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 public class SchedulerController : ControllerBase

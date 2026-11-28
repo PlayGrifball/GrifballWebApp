@@ -8,10 +8,12 @@ namespace GrifballWebApp.Architecture.Test;
 
 /// <summary>
 /// Default-deny for personal access tokens (#549): every Sysadmin-only action (<see cref="Authorize"/> naming that role
-/// alone, on the action or its controller), and every action on an Identity or external-login controller (self-service
-/// account actions, which aren't Sysadmin-gated but are just as sensitive), must choose explicitly whether a token may
-/// call it (<see cref="DenyAccessTokenAttribute"/> or <see cref="AllowAccessTokenAttribute"/>). A new sensitive action
-/// that forgets fails this test instead of staying open by default.
+/// alone, on the action or its controller), every action authorized for several roles none of which is <c>Player</c>
+/// (a staff-only action, as <c>Roles = "Commissioner,Sysadmin"</c> is - #561 marked <c>StaffStatFlagsController</c> by
+/// hand before this test could see it; #566), and every action on an Identity or external-login controller
+/// (self-service account actions, which aren't Sysadmin-gated but are just as sensitive), must choose explicitly
+/// whether a token may call it (<see cref="DenyAccessTokenAttribute"/> or <see cref="AllowAccessTokenAttribute"/>). A
+/// new sensitive action that forgets fails this test instead of staying open by default.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -58,18 +60,25 @@ public class AccessTokenAuthorizationTests
     private static string[] RolesOf(AuthorizeAttribute authorize)
         => authorize.Roles?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
 
+    /// <summary>Several roles (not just one), none of them <c>Player</c>: staff-only (Commissioner and/or Sysadmin),
+    /// even though naming more than one role is an OR, not Sysadmin alone. A single non-Sysadmin role (plain
+    /// <c>Commissioner</c>) isn't covered by this rule: #561 didn't ask for that, and widening to it is a separate
+    /// decision (#566 leaves it alone).</summary>
+    private static bool IsSeveralStaffRoles(string[] roles) => roles.Length > 1 && !roles.Contains("Player");
+
     private static bool IsAllowAnonymous(Action action)
         => action.Method.GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null
             || action.Method.DeclaringType!.GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null
             || action.Controller.GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null;
 
     /// <summary>
-    /// Sysadmin-only: not <see cref="AllowAnonymousAttribute"/> (which skips authorization outright, whatever
-    /// <see cref="AuthorizeAttribute"/> says), and at least one applicable <c>[Authorize]</c>, by itself, names
-    /// Sysadmin and no other role. Or a controller this rule names regardless of its own roles.
+    /// Sysadmin-only, or staff-only (<see cref="IsSeveralStaffRoles"/>): not <see cref="AllowAnonymousAttribute"/>
+    /// (which skips authorization outright, whatever <see cref="AuthorizeAttribute"/> says), and at least one
+    /// applicable <c>[Authorize]</c>, by itself, names Sysadmin alone or several roles none of which is Player. Or a
+    /// controller this rule names regardless of its own roles.
     /// </summary>
     private static bool IsSensitive(Action action)
-        => (!IsAllowAnonymous(action) && Authorizes(action).Any(a => RolesOf(a) is ["Sysadmin"]))
+        => (!IsAllowAnonymous(action) && Authorizes(action).Any(a => RolesOf(a) is ["Sysadmin"] || IsSeveralStaffRoles(RolesOf(a))))
             || AccountControllers.Contains(action.Controller);
 
     private static bool HasAnExplicitChoice(Action action)
@@ -88,9 +97,10 @@ public class AccessTokenAuthorizationTests
 
         using (Assert.EnterMultipleScope())
         {
-            // Both rules actually match something today, so a change to the rules themselves can't silently stop testing anything.
+            // All three rules actually match something today, so a change to the rules themselves can't silently stop testing anything.
             Assert.That(sensitive, Is.Not.Empty);
             Assert.That(sensitive.Any(a => Authorizes(a).Any(x => RolesOf(x) is ["Sysadmin"])), Is.True, "the Sysadmin-only rule matches something");
+            Assert.That(sensitive.Any(a => Authorizes(a).Any(x => IsSeveralStaffRoles(RolesOf(x)))), Is.True, "the several-staff-roles rule matches something");
             Assert.That(sensitive.Any(a => AccountControllers.Contains(a.Controller)), Is.True, "the account-controller rule matches something");
             Assert.That(undecided, Is.Empty, "mark it [DenyAccessToken] or [AllowAccessToken]");
         }
@@ -141,6 +151,31 @@ public class AccessTokenAuthorizationTests
         Assert.That(IsSensitive(new Action(typeof(RolesFixture), method)), Is.False);
     }
 
+    /// <summary>Several roles, none of them Player (as <c>Commissioner,Sysadmin</c> is): staff-only, even though no
+    /// single applicable [Authorize] names Sysadmin alone.</summary>
+    [Test]
+    public void IsSensitive_SeveralStaffRolesNoneOfThemPlayer_IsSensitive()
+    {
+        var method = typeof(SeveralRolesFixture).GetMethod(nameof(SeveralRolesFixture.CommissionerAndSysadmin), FixtureMethod)!;
+
+        Assert.That(IsSensitive(new Action(typeof(SeveralRolesFixture), method)), Is.True);
+    }
+
+    private static readonly string[] CommissionerAndPlayer = ["Commissioner", "Player"];
+    private static readonly string[] CommissionerAlone = ["Commissioner"];
+
+    /// <summary>Several roles including Player: open to ordinary players too, so not staff-only (the action may
+    /// still be sensitive some other way, just not this one).</summary>
+    [Test]
+    public void IsSeveralStaffRoles_RolesIncludingPlayer_IsFalse()
+        => Assert.That(IsSeveralStaffRoles(CommissionerAndPlayer), Is.False);
+
+    /// <summary>A single non-Sysadmin role (plain Commissioner) isn't "several": #566 widens the rule to several
+    /// staff roles, not to every staff role, so this must stay outside it.</summary>
+    [Test]
+    public void IsSeveralStaffRoles_ASingleRole_IsFalse()
+        => Assert.That(IsSeveralStaffRoles(CommissionerAlone), Is.False);
+
     /// <summary>
     /// An action inherited from a base fixture, never overridden by the concrete one: still sensitive, because
     /// <see cref="Authorizes"/> reads the method's declaring type (the base), not only the concrete controller - the
@@ -176,6 +211,13 @@ public class AccessTokenAuthorizationTests
 
         [AllowAnonymous]
         public static void AnonymousDespiteSysadmin() { }
+    }
+
+    /// <summary>No class-level role, unlike <see cref="RolesFixture"/>: isolates the several-staff-roles rule from the Sysadmin-alone one.</summary>
+    private sealed class SeveralRolesFixture
+    {
+        [Authorize(Roles = "Commissioner,Sysadmin")]
+        public static void CommissionerAndSysadmin() { }
     }
 
     /// <summary>
