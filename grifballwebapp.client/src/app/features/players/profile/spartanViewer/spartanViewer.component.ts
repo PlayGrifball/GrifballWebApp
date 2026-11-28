@@ -1,4 +1,4 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { SPARTAN_SCENE, SpartanScene } from './spartanScene';
 
 /** A rendered Spartan model (a GLB) in 3D that the visitor can turn around. */
@@ -18,6 +18,8 @@ export class SpartanViewerComponent {
   /** The clip of the model to pose it with, such as neutral or stance; the model as it comes when there is none. */
   readonly clip = input<string | null>(null);
   readonly label = input('Your Spartan in 3D');
+  /** The names of the shown model's clips, each time a model is shown. */
+  readonly clipNames = output<readonly string[]>();
 
   /** loading until the model is shown; unavailable when the browser cannot draw it (no WebGL) or the model cannot be read. */
   readonly state = signal<'loading' | 'ready' | 'unavailable'>('loading');
@@ -47,7 +49,11 @@ export class SpartanViewerComponent {
       onCleanup(() => { current = false; });
       this.state.set('loading');
       scene.show(url).then(
-        () => { if (current) this.state.set('ready'); },
+        names => {
+          if (!current) return;
+          this.state.set('ready');
+          this.clipNames.emit(names);
+        },
         () => { if (current) this.state.set('unavailable'); });
     });
     effect(() => {

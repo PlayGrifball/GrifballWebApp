@@ -2,7 +2,8 @@ import { InjectionToken } from '@angular/core';
 
 /** A 3D view of one model in a canvas: show a model by its address, pose it with one of its clips, and let go of everything the view holds. */
 export interface SpartanScene {
-  show(url: string): Promise<void>;
+  /** Shows the model and gives the names of its clips (none when a newer model, or disposing, overtook it). */
+  show(url: string): Promise<readonly string[]>;
   /** Poses the model with the clip of that name, now or once the model has loaded; a model without the clip stays as it is. */
   play(clip: string): void;
   dispose(): void;
@@ -84,7 +85,7 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
       const gltf = await loader.loadAsync(url);
       if (disposed || mine !== latest) {
         releaseModel(THREE, scene, gltf.scene);
-        return;
+        return [];
       }
       if (model) releaseModel(THREE, scene, model);
       model = gltf.scene;
@@ -99,6 +100,7 @@ export const createSpartanScene: SpartanSceneFactory = async canvas => {
       camera.position.set(center.x, center.y, center.z + distance + size.z / 2);
       controls.target.copy(center);
       controls.update();
+      return clips.map(c => c.name);
     },
     play(clip) {
       wanted = clip;
