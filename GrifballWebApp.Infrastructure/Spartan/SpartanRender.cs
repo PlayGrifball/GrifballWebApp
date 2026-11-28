@@ -415,9 +415,13 @@ public sealed class SpartanRenderSource(
         }
         foreach (var (name, output, framing) in new[] { ("glb", "glb", "body"), ("neutral-body", "png", "body"), ("neutral-head", "png", "head") })
         {
+            // Without a pose of their own, the model still carries the hammer and sword poses
+            var model = output == "glb";
             var bytes = await client.RenderAsync(new SpartanLoadout
             {
                 Core = choice.Core, Armor = armor, Parts = parts, Coating = choice.Coating, Visor = choice.Visor, DisableDamage = choice.DisableDamage, Output = output, Framing = framing,
+                ExtraPoses = model && plan.ExtraPoses is { Count: > 0 } extra ? [.. extra] : null,
+                WeaponCoatings = model && plan.WeaponCoatings is { Count: > 0 } coatings ? coatings.ToDictionary(c => c.Key, c => c.Value) : null,
             }, TimeSpan.FromSeconds(5), ct);
             files[name] = new SpartanFileDto(ContentTypeOf(output), bytes);
         }

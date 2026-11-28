@@ -362,9 +362,12 @@ public class SpartanRenderTests : SqliteContextFixture
 
         await Source().RunAsync();
 
-        var set = JsonDocument.Parse(_service.Loadouts.Single()).RootElement;
+        // No pose of their own: the neutral loadouts, the model among them carrying the extra poses, the pictures not
+        var loadouts = _service.Loadouts.Select(l => JsonDocument.Parse(l).RootElement).ToList();
+        var set = loadouts.Single(l => l.GetProperty("output").GetString() == "glb");
         using (Assert.EnterMultipleScope())
         {
+            Assert.That(loadouts.Where(l => l.GetProperty("output").GetString() == "png").All(l => l.TryGetProperty("extraPoses", out var p) is false || p.ValueKind == JsonValueKind.Null), "pictures carry no extra poses");
             Assert.That(set.GetProperty("extraPoses").GetArrayLength(), Is.EqualTo(2));
             Assert.That(set.TryGetProperty("weaponCoatings", out var coatings) && coatings.ValueKind == JsonValueKind.Object && coatings.EnumerateObject().Any(), Is.False);
         }
