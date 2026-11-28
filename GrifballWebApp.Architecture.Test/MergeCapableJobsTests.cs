@@ -306,10 +306,13 @@ internal sealed class ServiceLocatorFixture
 }
 
 /// <summary>A field that only ever holds the merge service lazily: a constructor walk sees <c>Lazy&lt;T&gt;</c>'s own
-/// constructor, never the <c>T</c> it was built with.</summary>
+/// constructor, never the <c>T</c> it was built with. Never read: this fixture is never instantiated, only reflected
+/// and Cecil-read on, same as the others here - the field only has to exist with this type.</summary>
 internal sealed class LazyMergeFixture
 {
+#pragma warning disable CS0414 // Never read on purpose: see the class comment
     private readonly Lazy<IUserMergeService> _merge = null!;
+#pragma warning restore CS0414
 }
 
 /// <summary>A base class with one subclass that reaches the merge service: a constructor parameter typed to the
