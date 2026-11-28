@@ -108,11 +108,15 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
         var tools = model.EveryTool
             ? (InPublic ? GrifTools.EveryPublic : GrifTools.Every)
             : (InPublic ? GrifTools.Chat : GrifTools.PrivateChat);
-        return HasSlashCommands ? tools : tools.Except(GrifTools.DiscordOnly).ToArray();
+        var given = HasSlashCommands ? tools : tools.Except(GrifTools.DiscordOnly).ToArray();
+        return Forms ? given : given.Except([GrifTools.OfferForm]).ToArray();
     }
 
     /// <summary>Whether the host runs the Discord bot, which has slash commands to list (list_slash_commands): any other host would send the model to a tool that answers with nothing.</summary>
     public bool HasSlashCommands { get; init; }
+
+    /// <summary>Whether the model may make a form (offer_form): on, unless the host turns forms off (<see cref="ChatForms.EnabledKey"/>).</summary>
+    public bool Forms { get; init; } = true;
 }
 
 /// <summary>
@@ -610,16 +614,38 @@ public sealed class ChatReply : IDisposable
     /// </summary>
     public IReadOnlyList<ChatButton> Offered { get; private set; } = [];
 
-    /// <summary>The <see cref="GrifTools.OfferButton"/> calls of this reply in <paramref name="contents"/> noted, and their results' buttons added to <paramref name="offered"/>.</summary>
-    private void Offer(IEnumerable<AIContent> contents, HashSet<string> buttonCalls, List<ChatButton> offered)
+    /// <summary>
+    /// The form the model made (<see cref="GrifTools.OfferForm"/>), once the reply has streamed: its first (the tool says one a reply), read from its result as the
+    /// buttons are; null when it made none.
+    /// </summary>
+    public ChatForm? OfferedForm { get; private set; }
+
+    /// <summary>What the reply's offer calls gave: each call's tool by its ID, and the buttons and the form their results named.</summary>
+    private sealed class Offers
+    {
+        public Dictionary<string, string> Calls { get; } = [];
+        public List<ChatButton> Buttons { get; } = [];
+        public ChatForm? Form { get; set; }
+    }
+
+    /// <summary>The offer calls of this reply in <paramref name="contents"/> noted, and their results' buttons and form added to <paramref name="offers"/>.</summary>
+    private void Offer(IEnumerable<AIContent> contents, Offers offers)
     {
         foreach (var content in contents)
         {
-            if (content is FunctionCallContent { Name: GrifTools.OfferButton } call && !Replayed.Contains(call.CallId))
-                buttonCalls.Add(call.CallId);
-            else if (content is FunctionResultContent result && buttonCalls.Contains(result.CallId))
-                offered.AddRange(ChatButtons.In($"{result.Result}"));
+            if (content is FunctionCallContent { Name: GrifTools.OfferButton or GrifTools.OfferForm } call && !Replayed.Contains(call.CallId))
+                offers.Calls[call.CallId] = call.Name;
+            else if (content is FunctionResultContent result && offers.Calls.TryGetValue(result.CallId, out var tool))
+                Collect(offers, tool, $"{result.Result}");
         }
+    }
+
+    private static void Collect(Offers offers, string tool, string result)
+    {
+        if (tool != GrifTools.OfferForm)
+            offers.Buttons.AddRange(ChatButtons.In(result));
+        else if (ChatForms.In(result) is { } form)
+            offers.Form ??= form;
     }
 
     /// <summary>Where a paid reply's cost goes (the caller's month).</summary>
@@ -663,8 +689,7 @@ public sealed class ChatReply : IDisposable
         var spent = new Spending(this);
         // A change the model asks for (a tool that changes data): the function invocation hands it back instead of running it
         var requests = new List<ToolApprovalRequestContent>();
-        var buttonCalls = new HashSet<string>();
-        var offered = new List<ChatButton>();
+        var offers = new Offers();
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -682,7 +707,7 @@ public sealed class ChatReply : IDisposable
             while (await NextAsync(updates, timeout, cancellationToken))
             {
                 requests.AddRange(updates.Current.Contents.OfType<ToolApprovalRequestContent>());
-                Offer(updates.Current.Contents, buttonCalls, offered);
+                Offer(updates.Current.Contents, offers);
                 // The month's limit reached within the reply: no next call
                 if (spent.Add(updates.Current))
                     throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
@@ -691,7 +716,8 @@ public sealed class ChatReply : IDisposable
             // A provider may end its stream quietly when canceled: past the timeout, that is no whole answer either
             if (timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                 throw new ChatRefusedException(GrifChat.TookTooLong);
-            Offered = [.. offered.Distinct().Take(ChatButtons.MaxButtons)];
+            Offered = [.. offers.Buttons.Distinct().Take(ChatButtons.MaxButtons)];
+            OfferedForm = offers.Form;
             if (requests.Count > 0)
             {
                 // Kept on the server for their answer, and said: the person decides, not the model

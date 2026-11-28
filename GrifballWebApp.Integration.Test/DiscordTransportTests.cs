@@ -186,6 +186,78 @@ public class DiscordTransportTests
         }
     }
 
+    /// <summary>A form the chat made, held under <paramref name="id"/> for Discord user <paramref name="discordId"/> (no site account).</summary>
+    private async Task<GrifballWebApp.Application.Chat.IChatForms> HeldForm(string id, ulong discordId)
+    {
+        var forms = _host.Services.GetRequiredService<GrifballWebApp.Application.Chat.IChatForms>();
+        var form = new GrifballWebApp.Application.Chat.ChatForm("Your team",
+        [
+            new GrifballWebApp.Application.Chat.ChatFormField("Team name"),
+            new GrifballWebApp.Application.Chat.ChatFormField("Side", GrifballWebApp.Application.Chat.ChatFormFieldKind.Choice, Choices: ["Red", "Blue"]),
+        ]);
+        await forms.SaveAsync(id, new GrifballWebApp.Application.Chat.HeldForm(form, GrifballWebApp.Application.Chat.ChatLimits.Discord(discordId), Direct: false),
+            GrifballWebApp.Application.Chat.ChatForms.Lasts);
+        return forms;
+    }
+
+    [Test]
+    public async Task ChatFormButton_OpensTheFormsModal_ForItsAsker()
+    {
+        await HeldForm("tform1", 7401);
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.Button("chatform:tform1", 7401));
+
+        var modal = requests[0].Data;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Routes(requests), Is.EqualTo(new[] { Callback }));
+            Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
+            Assert.That(modal.GetProperty("custom_id").GetString(), Is.EqualTo("chatform_answers:tform1"));
+            // The submits below send these IDs back
+            Assert.That(modal.GetProperty("components")[0].GetProperty("component").GetProperty("custom_id").GetString(), Is.EqualTo("field0"));
+            Assert.That(modal.GetProperty("components")[1].GetProperty("component").GetProperty("type").GetInt32(), Is.EqualTo(21), "a radio group");
+        }
+    }
+
+    [Test]
+    public async Task ChatFormModal_AnswersThatDontFit_AreRefusedEphemerally_TheFormStillWaits()
+    {
+        var forms = await HeldForm("tform2", 7402);
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.ModalWith("chatform_answers:tform2",
+            """[{"type":18,"id":1,"component":{"type":4,"id":2,"custom_id":"field0","value":"Bombers"}}]""", 7402));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Routes(requests), Is.EqualTo(new[] { Callback }));
+            Assert.That(requests[0].Content, Is.EqualTo("\"Side\" needs an answer."));
+            Assert.That(requests[0].Flags, Is.EqualTo(MessageFlags.Ephemeral));
+            Assert.That(await forms.PeekAsync("tform2"), Is.Not.Null);
+        }
+    }
+
+    // What follows is the chat's answer to them (MessageCreateHandlerConversationUnitTests)
+    [Test]
+    public async Task ChatFormModal_Answered_PostsTheAnswers_AndTakesTheForm()
+    {
+        var forms = await HeldForm("tform3", 7403);
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.ModalWith("chatform_answers:tform3",
+            """
+            [{"type":18,"id":1,"component":{"type":4,"id":2,"custom_id":"field0","value":"Bombers"}},
+             {"type":18,"id":3,"component":{"type":21,"id":4,"custom_id":"field1","value":"Blue"}}]
+            """, 7403));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Routes(requests).Take(2), Is.EqualTo(new[] { Callback, "GET /webhooks/2/tok/messages/@original" }));
+            Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
+            Assert.That(requests[0].Content, Is.EqualTo("My answers to \"Your team\":\n- Team name: Bombers\n- Side: Blue"));
+            Assert.That(requests[0].Flags, Is.EqualTo(MessageFlags.SuppressEmbeds), "posted for the channel to see, no link previewed");
+            Assert.That(await forms.PeekAsync("tform3"), Is.Null, "answered once");
+        }
+    }
+
     [Test]
     public async Task MatchmakingStringMenu_VoteToKick_EditsTheVoteMessageAndAnnouncesTheVote()
     {

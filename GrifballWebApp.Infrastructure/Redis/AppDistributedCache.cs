@@ -24,6 +24,8 @@ public static class AppDistributedCacheExtensions
         services.AddOptions<RedisCacheOptions>().Configure<AppRedis>((options, redis) => options.ConnectionMultiplexerFactory = () => redis.ConnectAsync());
         // The chat's waiting changes there too: a take is atomic across the pods (the cache's get then remove isn't)
         services.AddSingleton<IChatWaiting>(sp => new RedisChatWaiting(sp.GetRequiredService<AppRedis>(), prefix));
+        // And its forms waiting for their answers, for the same reason
+        services.AddSingleton<IChatForms>(sp => new RedisChatForms(sp.GetRequiredService<AppRedis>(), prefix));
         return services;
     }
 }

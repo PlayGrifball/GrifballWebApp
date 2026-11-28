@@ -48,6 +48,12 @@ public class DiscordButtonContants
         return $"{ClaimReject}:{claim}";
     }
 
+    public const string ChatForm = "chatform";
+    public static string ChatFormWithParams(string formId)
+    {
+        return $"{ChatForm}:{formId}";
+    }
+
     public const string ChatConfirm = "chatconfirm";
     public static string ChatConfirmWithParams(string actionId, bool approved)
     {
@@ -139,6 +145,12 @@ public class DiscordModalsContants
     public static string RescheduleDecideWithParams(int request)
     {
         return $"{RescheduleDecide}:{request}";
+    }
+
+    public const string ChatFormAnswers = "chatform_answers";
+    public static string ChatFormAnswersWithParams(string formId)
+    {
+        return $"{ChatFormAnswers}:{formId}";
     }
 
     public const string RescheduleRequest = "reschedule_request";

@@ -62,6 +62,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
     private bool _modelConfigured = true;
+    /// <summary>Whether the settings turn the chat's forms off (<see cref="ChatForms.EnabledKey"/>).</summary>
+    private bool _formsOff;
     /// <summary>What reading the models throws as a reply starts (as the author's choice and month, read from the database, may).</summary>
     private Exception? _modelsFail;
     private readonly ChatLimits _limits = new();
@@ -112,6 +114,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddTransient<GrifballWebApp.Application.Home.HomeEventsService>()
             .AddSingleton(Substitute.For<GrifballWebApp.Application.Brackets.IBracketService>())
             .AddSingleton<IChatWaiting, MemoryChatWaiting>()
+            .AddSingleton<IChatForms>(new MemoryChatForms(TimeProvider.System))
             // offer_button's: the bot's commands are there
             .AddSingleton<GrifballWebApp.Application.Tools.ISlashCommandCatalog>(new BotCommands())
             // The season tools' draft helper, with the leaderboards' careers it reads
@@ -127,7 +130,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             chatClients.Models.Returns(_ => throw fail);
         chatClients.Create(Arg.Any<ChatModelOption>()).Returns(models.Length == 1 ? models[0] : new ChatClientSequence(models));
         _chatClients = chatClients;
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString(), ["BaseUrl"] = "https://grif.test" }).Build();
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString(), ["BaseUrl"] = "https://grif.test", [ChatForms.EnabledKey] = _formsOff ? "false" : null }).Build();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
         return new MessageCreateHandler(_rest, config, scopes, _ambient, _logger, new GrifChat(new ChatModel(chatClients, NullLoggerFactory.Instance), scopes, _limits,
             new ChatAccounts(scopes, _time, NullLogger<ChatAccounts>.Instance)), _time);
@@ -830,6 +833,102 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(body.GetProperty("content").GetString(), Is.EqualTo("Tap it to join."));
             Assert.That(button.GetProperty("custom_id").GetString(), Is.EqualTo(GrifballWebApp.Infrastructure.Discord.DiscordButtonContants.JoinQueue));
             Assert.That(await SavedReplies(), Is.EqualTo(TapIt));
+        }
+    }
+
+    /// <summary>The model's call of offer_form: a title and a short field.</summary>
+    private static FunctionCallContent OfferForm()
+        => new("form-1", GrifTools.OfferForm, new Dictionary<string, object?>
+        {
+            ["title"] = "Your team",
+            ["fields"] = System.Text.Json.JsonDocument.Parse("""[{"Label":"Team name","Kind":"Short"}]""").RootElement,
+        });
+
+    [Test]
+    public async Task HandleAsync_AFormTheModelOffered_IsAFillInButton_HeldForTheAsker()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Fill it in.")) { Call = OfferForm() };
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        var button = _discord.SentMessages().Single().Body.GetProperty("components")[0].GetProperty("components")[0];
+        var id = button.GetProperty("custom_id").GetString()!;
+        var held = await _services.GetRequiredService<IChatForms>().PeekAsync(id[(GrifballWebApp.Infrastructure.Discord.DiscordButtonContants.ChatForm.Length + 1)..]);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(id, Does.StartWith(GrifballWebApp.Infrastructure.Discord.DiscordButtonContants.ChatForm + ":"));
+            Assert.That(button.GetProperty("label").GetString(), Is.EqualTo("Fill in: Your team"));
+            Assert.That(held?.Form.Fields.Single().Label, Is.EqualTo("Team name"));
+            Assert.That(held?.Asker, Is.EqualTo(ChatLimits.Discord(AuthorId)));
+            Assert.That(held?.Direct, Is.False);
+        }
+    }
+
+    [Test]
+    public async Task HandleFormAsync_AnswersTheChatRefuses_SayWhy_AndHoldTheFormAgain()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Never"));
+        var posted = GatewayMessages.Build(BotId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }));
+        var heldAgain = false;
+
+        await Handler(model).HandleFormAsync(posted, AuthorId, "author", new string('a', GrifChat.MaxQuestionLength + 1), direct: false,
+            () => { heldAgain = true; return Task.CompletedTask; });
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Ask in 2000 characters or fewer."));
+            Assert.That(model.Options, Is.Null, "the model isn't asked");
+            Assert.That(heldAgain, Is.True);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AFormsAnswersInADm_AreThePersonsWords_InItsHistory()
+    {
+        // The bot posted them, as the response to the person's submit
+        var answers = Substitute.For<IDiscordRestMessage>();
+        answers.Id.Returns(4ul);
+        answers.Author.Id.Returns(BotId);
+        answers.Content.Returns("My answers to \"Your team\":\n- Team name: Bombers");
+        answers.InteractionMetadata!.Type.Returns(MessageCreateHandler.ModalSubmit);
+        answers.InteractionMetadata!.User.Id.Returns(AuthorId);
+        var reply = Substitute.For<IDiscordRestMessage>();
+        reply.Id.Returns(5ul);
+        reply.Author.Id.Returns(BotId);
+        reply.Content.Returns("Bombers it is.");
+        var question = Substitute.For<IDiscordRestMessage>();
+        question.Id.Returns(10ul);
+        question.Author.Id.Returns(AuthorId);
+        question.Content.Returns("hello");
+        IDiscordRestMessage[] messages = [question, reply, answers];
+        _rest.GetMessagesAsync(20ul, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => messages.ToAsyncEnumerable());
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+
+        await Handler(model).HandleAsync(DirectMessage());
+
+        AssertNothingLogged();
+        Assert.That(model.Messages.Select(x => (x.Role, x.Text)), Is.EqualTo(new[]
+        {
+            (ChatRole.User, "My answers to \"Your team\":\n- Team name: Bombers"),
+            (ChatRole.Assistant, "Bombers it is."),
+            (ChatRole.User, "hello"),
+        }));
+    }
+
+    [Test]
+    public async Task HandleAsync_FormsTurnedOff_TheModelHasNoOfferForm()
+    {
+        _formsOff = true;
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi there"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ToolNames(model), Does.Not.Contain(GrifTools.OfferForm));
+            Assert.That(ToolNames(model), Does.Contain(GrifTools.OfferButton));
         }
     }
 

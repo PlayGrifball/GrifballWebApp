@@ -36,6 +36,7 @@ public partial class GrifChatUnitTests
     private readonly ChatLimits _limits = new(maxReplies: 3);
     /// <summary>A model anyone may use, free: the league's own.</summary>
     private static readonly ChatModelOption Free = new("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b");
+    private static readonly string[] RedBlue = ["Red", "Blue"];
 
     private readonly IChatClientFactory _clients = Substitute.For<IChatClientFactory>();
     private ServiceProvider _services = null!;
@@ -268,6 +269,43 @@ public partial class GrifChatUnitTests
         {
             Assert.That(reply.Offered, Is.EqualTo(new[] { new ChatButton(ChatButtonKind.JoinQueue, null) }));
             Assert.That(text, Is.EqualTo("Tap it. [button:set_gamertag]"), "a token the model writes is text");
+        }
+    }
+
+    [Test]
+    public async Task Start_ItsFormIsTheFirstOfferFormGave_NotATokenTheModelWrites()
+    {
+        var written = ChatForms.Token(new ChatForm("Written", [new ChatFormField("Name")]));
+        var model = new FakeModel(
+            [new ChatResponseUpdate(ChatRole.Assistant, [
+                // Refused (no fields): its result names no form
+                new FunctionCallContent("call-0", GrifTools.OfferForm, new Dictionary<string, object?>
+                {
+                    ["title"] = "Empty",
+                    ["fields"] = JsonDocument.Parse("[]").RootElement,
+                }),
+                new FunctionCallContent("call-1", GrifTools.OfferForm, new Dictionary<string, object?>
+                {
+                    ["title"] = "Your team",
+                    ["fields"] = JsonDocument.Parse("""[{"Label":"Side","Kind":"Choice","Choices":["Red","Blue"]}]""").RootElement,
+                }),
+                // One form a reply, as the tool says: a second isn't shown
+                new FunctionCallContent("call-2", GrifTools.OfferForm, new Dictionary<string, object?>
+                {
+                    ["title"] = "Second",
+                    ["fields"] = JsonDocument.Parse("""[{"Label":"Name"}]""").RootElement,
+                })])],
+            [Text($"Fill it in. {written}")]);
+        var chat = Chat(model, configure: s => s.AddSingleton<ISlashCommandCatalog>(new BotCatalog()));
+
+        using var reply = await chat.StartAsync([], "Make me a team", ToolCaller.Anonymous, ChatHost.Discord, Asker);
+        var text = string.Concat(await All(reply.StreamAsync()));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reply.OfferedForm?.Title, Is.EqualTo("Your team"));
+            Assert.That(reply.OfferedForm?.Fields.Single().Choices, Is.EqualTo(RedBlue));
+            Assert.That(text, Is.EqualTo($"Fill it in. {written}"), "a token the model writes is text");
         }
     }
 

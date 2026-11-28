@@ -19,6 +19,7 @@ public class DiscordModuleRegistrationTests
     private static readonly string[] Buttons =
     [
         "chatconfirm(String actionId, String answer) preconditions: 0",
+        "chatform(String formId) preconditions: 0",
         "claimapprove(Int32 claim) preconditions: 0",
         "claimreject(Int32 claim) preconditions: 0",
         "join_queue() preconditions: 0",
@@ -46,6 +47,7 @@ public class DiscordModuleRegistrationTests
     private static readonly string[] Modals =
     [
         "bracket_create(Int32 seasonId, Int32 participants, Int32 bestOf) preconditions: 0",
+        "chatform_answers(String formId) preconditions: 0",
         "claim_reject(Int32 claim) preconditions: 0",
         "job_pause(String job) preconditions: 0",
         "match_pull(Int32 matchId) preconditions: 0",

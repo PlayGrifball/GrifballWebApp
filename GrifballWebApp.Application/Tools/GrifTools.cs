@@ -112,7 +112,7 @@ public static class GrifTools
 {
     /// <summary>The classes of the tools that only read: open to anyone on the site, but staff's (<see cref="StaffTools"/>), each for its roles.</summary>
     public static readonly Type[] ReadOnly =
-        [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(LinkTools), typeof(ImageTools), typeof(ClockTools), typeof(HaloTools), typeof(SlashCommandTools), typeof(ButtonTools), typeof(PersonalTools), typeof(StaffTools)];
+        [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(LinkTools), typeof(ImageTools), typeof(ClockTools), typeof(HaloTools), typeof(SlashCommandTools), typeof(ButtonTools), typeof(FormTools), typeof(PersonalTools), typeof(StaffTools)];
 
     /// <summary>The classes of the tools that queue a pull from Halo (<see cref="ToolEffect.QueuesHaloPull"/>).</summary>
     public static readonly Type[] QueuingHaloPulls = [typeof(HaloPullTools)];
@@ -132,8 +132,14 @@ public static class GrifTools
     /// <summary>The name of the tool that offers a button under a Discord reply, offered only to the same hosts.</summary>
     public const string OfferButton = "offer_button";
 
+    /// <summary>The name of the tool that offers a form the chat made, offered only to the same hosts, and only while forms are on (<c>ChatHost.Forms</c>).</summary>
+    public const string OfferForm = "offer_form";
+
     /// <summary>The tools only the Discord bot has use for (<c>ChatHost.HasSlashCommands</c>).</summary>
-    public static readonly string[] DiscordOnly = [ListSlashCommands, OfferButton];
+    public static readonly string[] DiscordOnly = [ListSlashCommands, OfferButton, OfferForm];
+
+    /// <summary>The tools whose offer is shown under the Discord chat's reply: no use to an MCP client, which isn't shown it.</summary>
+    public static readonly string[] UnderReplies = [OfferButton, OfferForm];
 
     /// <summary>The name of the tool that reads the caller's own account (their claims, their sign-ins): theirs alone.</summary>
     public const string GetMyAccount = "get_my_account";
@@ -149,7 +155,7 @@ public static class GrifTools
     public static readonly string[] Chat =
     [
         "who_am_i", "get_current_time", "search", "list_seasons", "get_season", "get_season_standings", "get_season_schedule", "get_team",
-        "get_player", "get_player_rank", "get_season_match", "get_game", "get_recent_games", "get_leaderboards", "get_site_link", "get_player_image", ListSlashCommands, OfferButton, "pull_season_match_games", "pull_xbox_account_games",
+        "get_player", "get_player_rank", "get_season_match", "get_game", "get_recent_games", "get_leaderboards", "get_site_link", "get_player_image", ListSlashCommands, OfferButton, OfferForm, "pull_season_match_games", "pull_xbox_account_games",
         "suggest_draft_picks", "get_season_availability", "get_upcoming_events", "get_queue_status",
     ];
 

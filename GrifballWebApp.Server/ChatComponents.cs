@@ -17,8 +17,19 @@ public static class ChatComponents
         _ => (DiscordButtonContants.JoinQueue, "Join the queue"),
     };
 
-    /// <summary>The rows of buttons for a reply; null when it has none.</summary>
-    public static IReadOnlyList<ActionRowProperties>? For(IReadOnlyList<ChatButton> offered, ChatAction? waiting)
+    /// <summary>The rows of buttons for a reply, a held form's Fill in button last (<paramref name="form"/>: its ID and title); null when it has none.</summary>
+    public static IReadOnlyList<ActionRowProperties>? For(IReadOnlyList<ChatButton> offered, ChatAction? waiting, (string ID, string Title)? form = null)
+    {
+        var rows = Rows(offered, waiting);
+        if (form is { } held)
+        {
+            // A title is at most 45 characters (ChatForms.MaxTitle): the label fits Discord's 80
+            rows.Add(new ActionRowProperties([new ButtonProperties(DiscordButtonContants.ChatFormWithParams(held.ID), $"Fill in: {held.Title}", ButtonStyle.Primary)]));
+        }
+        return rows.Count == 0 ? null : rows;
+    }
+
+    private static List<ActionRowProperties> Rows(IReadOnlyList<ChatButton> offered, ChatAction? waiting)
     {
         var rows = new List<ActionRowProperties>();
         if (waiting is not null)
@@ -36,7 +47,7 @@ public static class ChatComponents
                 return new ButtonProperties(id, label, ButtonStyle.Primary);
             })]));
         }
-        return rows.Count == 0 ? null : rows;
+        return rows;
     }
 
     /// <summary>
