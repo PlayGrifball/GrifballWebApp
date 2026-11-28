@@ -190,6 +190,8 @@ public partial class EntityConfigurationUnitTests
             Assert.That(armor.IsTemporal(), Is.False, "Rewritten on every change, no history");
             Assert.That(KeyOf(armor), Is.EqualTo(new List<string> { nameof(XboxUserArmor.XboxUserID) }), "One row an account");
             Assert.That((MaxLengthOf(armor, nameof(XboxUserArmor.HelmetPath)), MaxLengthOf(armor, nameof(XboxUserArmor.Error))), Is.EqualTo((300, 200)));
+            Assert.That(Property(armor, nameof(XboxUserArmor.WeaponCoatingsJson)).GetMaxLength(), Is.Null,
+                "A path (up to 300) per weapon type Halo has: no cap, so a full account still saves");
             var byAccount = ForeignKeyOf(armor, nameof(XboxUserArmor.XboxUser));
             Assert.That((ColumnsOf(byAccount), DeleteOf(byAccount)), Is.EqualTo((new List<string> { nameof(XboxUserArmor.XboxUserID) }, (DeleteBehavior?)DeleteBehavior.Cascade)));
         }
