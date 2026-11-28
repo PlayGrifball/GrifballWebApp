@@ -57,4 +57,41 @@ public partial class HistoricalImportService
             if (game.Participants.FirstOrDefault(p => p.UserID == userId) is { } line)
                 _provenance.Read(line, player.Origin ?? input.Origin, $"{player.Gamertag}'s line of recorded game {game.SourceKey}");
     }
+
+    /// <summary>Each of the season's listed Waypoint matches in the database is read from the cell that lists it.</summary>
+    private void NoteListedMatches(SeasonGroup group, HashSet<Guid> present, Dictionary<Guid, bool> matchPhases)
+    {
+        var listedIn = WaypointOrigins(group);
+        foreach (var id in present)
+            _provenance.Read("Match", id.ToString(), listedIn.GetValueOrDefault(id), $"Listed as a {Phase(matchPhases[id])} Waypoint match of {group.SeasonName}");
+    }
+
+    /// <summary>Why a Waypoint player is on their team: their stat row names it, or the schedule does.</summary>
+    private static string WaypointJoinWhy(ArchivePlayer? sheetRow, string gamertag, string? teamName) => sheetRow?.Origin is null
+        ? $"Played the Waypoint matches listed here; on {teamName} by the schedule"
+        : $"{gamertag}'s stat row names {teamName}";
+
+    /// <summary>Why a stat row's player is on their team: the row names it, or the schedule does.</summary>
+    private static string StatRowWhy(ArchivePlayer player, string? teamName) => HistoricalKeys.IsExcludedTeamName(player.TeamName)
+        ? $"{player.Gamertag}'s stat row; on {teamName} by the schedule"
+        : $"{player.Gamertag}'s stat row names {teamName}";
+
+    /// <summary>A new series' games, in order, each read from where its game was.</summary>
+    private void AddSeriesGames(Domain.League.SeasonMatch match, List<ImportedGame> played)
+    {
+        foreach (var (game, index) in played.Select((g, i) => (g, i + 1)))
+        {
+            match.AddImportedGame(game.MatchID, game.Recorded, index);
+            _provenance.Read(match, game.Origin, game.MatchID is Guid id
+                ? $"Waypoint match {id}, game {index} of the series"
+                : $"Recorded game {game.Recorded?.SourceKey}, game {index} of the series");
+        }
+    }
+
+    /// <summary>A tier's titles are read from its champions record row.</summary>
+    private void NoteTitles(Domain.League.Season season, string tier, Domain.League.Team team, ArchiveOrigin? origin)
+    {
+        foreach (var title in season.PlayerChampionships.Where(c => string.Equals(c.Tier, tier, StringComparison.OrdinalIgnoreCase)))
+            _provenance.Read(title, origin, $"{title.GamertagUsed} on {team.TeamName}'s {tier} title");
+    }
 }

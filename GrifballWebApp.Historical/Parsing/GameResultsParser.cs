@@ -446,9 +446,7 @@ public static partial class GameResultsParser
                 if (SeriesGames(entry, scores) is { } games)
                 {
                     var series = parse.Key(where);
-                    // The entry's cell, and the score cells beside it it was read with
-                    var beside = entry.Games.Count == 0 ? scores.Count : 0;
-                    var origin = new ArchiveOrigin(parse.SourceId, parse.Sheet.Name, parse.Sheet.Range(r, c, r, c + beside), string.Join(" | ", row.Skip(c).Take(beside + 1)));
+                    var origin = SeriesOrigin(parse, r, c, entry, scores);
                     foreach (var (game, index) in games.Select((g, i) => (g, i + 1)))
                         Add(parse, $"{series}/{index}", series, game, origin);
                 }
@@ -457,6 +455,13 @@ public static partial class GameResultsParser
             }
             parse.Playoffs = rowPlayoffs;
         }
+    }
+
+    /// <summary>A series entry's cell, and the score cells after it when it was read with them (its own cell has none).</summary>
+    private static ArchiveOrigin SeriesOrigin(ResultsParse parse, int r, int c, SeriesEntry entry, List<string> scores)
+    {
+        var beside = entry.Games.Count == 0 ? scores.Count : 0;
+        return new(parse.SourceId, parse.Sheet.Name, parse.Sheet.Range(r, c, r, c + beside), string.Join(" | ", parse.Sheet.Rows[r].Skip(c).Take(beside + 1)));
     }
 
     /// <summary>A calendar's games: each cell's, split at the times before them, a game each its two scores give.</summary>

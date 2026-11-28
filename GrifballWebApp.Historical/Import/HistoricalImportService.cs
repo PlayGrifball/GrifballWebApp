@@ -1490,9 +1490,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var matchPhases = group.Waypoint is null ? new Dictionary<Guid, bool>() : WaypointIds(group, null);
         var ids = matchPhases.Keys.ToList();
         var present = (await _context.Matches.Where(m => ids.Contains(m.MatchID)).Select(m => m.MatchID).ToListAsync(ct)).ToHashSet();
-        var linkCells = WaypointOrigins(group);
-        foreach (var id in present)
-            _provenance.Read("Match", id.ToString(), linkCells.GetValueOrDefault(id), $"Listed as a {Phase(matchPhases[id])} Waypoint match of {group.SeasonName}");
+        NoteListedMatches(group, present, matchPhases);
         foreach (var phase in new[] { false, true })
         {
             var listed = matchPhases.Where(m => m.Value == phase).Select(m => m.Key).ToList();
@@ -1522,8 +1520,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 .SelectMany(e => e.Players)
                 .FirstOrDefault(p => HistoricalKeys.Normalize(p.Gamertag) == HistoricalKeys.Normalize(gamertag));
             var teamName = teams.TeamOf(sheetRow?.TeamName, player.Key.XboxUserID, null, gamertag);
-            if (teams.Join(teamName, userId, sheetRow?.Origin ?? listed, sheetRow?.Origin is null
-                    ? $"Played the Waypoint matches listed here; on {teamName} by the schedule" : $"{gamertag}'s stat row names {teamName}") is not null
+            if (teams.Join(teamName, userId, sheetRow?.Origin ?? listed, WaypointJoinWhy(sheetRow, gamertag, teamName)) is not null
                 && HistoricalKeys.IsExcludedTeamName(sheetRow?.TeamName))
                 teams.ScheduleByUser.TryAdd(userId, teamName!);
             players.Users[player.Key.Playoffs].Add(userId);
@@ -1664,11 +1661,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var match = ForfeitedBy(played, home, away) is { } forfeiter
                 ? SeasonMatch.ImportedForfeit(season.SeasonID, home, away, homeWins, awayWins, bestOf, first.Start, info, forfeiter)
                 : SeasonMatch.Imported(season.SeasonID, home, away, homeWins, awayWins, bestOf: bestOf, scheduledTime: first.Start, bracketMatch: info);
-            foreach (var (game, index) in played.Select((g, i) => (g, i)))
-            {
-                match.AddImportedGame(game.MatchID, game.Recorded, index + 1);
-                _provenance.Read(match, game.Origin, game.MatchID is Guid id ? $"Waypoint match {id}, game {index + 1} of the series" : $"Recorded game {game.Recorded?.SourceKey}, game {index + 1} of the series");
-            }
+            AddSeriesGames(match, played);
             _context.SeasonMatches.Add(match);
             linked.Add(match);
             counts.SeasonMatchesCreated++;
@@ -2026,8 +2019,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 sheetPlayers[entry.IsPlayoffs].Add(new SheetPlayer(userId, HistoricalKeys.CleanGamertag(player.Gamertag), player.TeamName, player.Origin));
                 // On the team's roster even when the player's Waypoint stats replace the row
                 var teamName = teams.TeamOf(player.TeamName, null, userId, player.Gamertag);
-                var teamId = teams.Join(teamName, userId, player.Origin,
-                    HistoricalKeys.IsExcludedTeamName(player.TeamName) ? $"{player.Gamertag}'s stat row; on {teamName} by the schedule" : $"{player.Gamertag}'s stat row names {teamName}");
+                var teamId = teams.Join(teamName, userId, player.Origin, StatRowWhy(player, teamName));
                 if (waypointUsers[entry.IsPlayoffs].Contains(userId))
                 {
                     counts.ManualReplacedByWaypoint++;
@@ -2180,8 +2172,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var slug = HistoricalKeys.GameVersionSlug(championship.Game);
             var gameVersionId = gameVersions.FirstOrDefault(g => g.Slug == slug)?.GameVesionID;
             var changes = season.RecordArchivedChampions(tier.Key, team, members, gameVersionId);
-            foreach (var title in season.PlayerChampionships.Where(c => string.Equals(c.Tier, tier.Key, StringComparison.OrdinalIgnoreCase)))
-                _provenance.Read(title, championship.Origin, $"{title.GamertagUsed} on {team.TeamName}'s {tier.Key} title");
+            NoteTitles(season, tier.Key, team, championship.Origin);
             await _context.SaveChangesAsync(ct);
             counts.ChampionshipsInserted += changes.Inserted;
             counts.ChampionshipsUpdated += changes.Updated;

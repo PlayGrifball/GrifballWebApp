@@ -32,6 +32,7 @@ public static partial class DraftParser
     /// <param name="sheet">The draft tab.</param>
     /// <param name="tab">Its config.</param>
     /// <param name="config">The workbook's config, for the teams it names another way (<see cref="HistoricalSourceConfig.TeamNames"/>).</param>
+    /// <param name="sourceId">The workbook's catalog ID: each team and pick then has the cells it was read from.</param>
     public static List<ArchiveTeam>? Parse(SheetTable sheet, DraftTab tab, HistoricalSourceConfig? config = null, string? sourceId = null)
     {
         var at = new SheetOrigins(sourceId, sheet);

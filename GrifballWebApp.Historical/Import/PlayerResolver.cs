@@ -71,6 +71,9 @@ internal sealed class PlayerResolver
     /// <summary>Gamertags more than one account's history claims for the season: left to a placeholder.</summary>
     public List<string> Ambiguous { get; } = [];
 
+    /// <param name="rawGamertag">The gamertag as the archive writes it.</param>
+    /// <param name="xboxUserId">The Xbox account of a Waypoint match row; null for a sheet's gamertag.</param>
+    /// <param name="ct"></param>
     /// <param name="origin">The cell the gamertag is in: a placeholder made for it is noted as made from there.</param>
     public async Task<Resolution> Resolve(string rawGamertag, long? xboxUserId, CancellationToken ct, ArchiveOrigin? origin = null)
     {

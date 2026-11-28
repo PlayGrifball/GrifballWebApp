@@ -278,4 +278,30 @@ public class LadderParserTests
         var names = config.SheetNames();
         Assert.That(LadderSheetNames.All(names.Contains), Is.True, "Trimmed, any case");
     }
+
+    [Test]
+    public void ParseAndParseFinishes_GiveEachPlayersRow_OnlyWithASourceAndSomewhereToPutThem()
+    {
+        var ladder = Sheet(["Gamertag", "League", "LP"], ["Ace", "Gold", "50"]);
+        var finishes = Sheet(["Gamertag:", "Season 1: Halo 5", "", ""], ["", "League", "Rank", "Pos"], ["Ace", "Silver", "5", "12"], ["Bee", "Bronze", "1", "3"]);
+        var origins = new Dictionary<string, ArchiveOrigin>();
+        var unsourced = new Dictionary<string, ArchiveOrigin>();
+
+        LadderParser.ParseFinishes(finishes, "ll", origins);
+        LadderParser.Parse(ladder, Tab, "ll", origins);
+        LadderParser.Parse(ladder, Tab, null, unsourced);
+        LadderParser.ParseFinishes(finishes, null, unsourced);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(origins.ToDictionary(o => o.Key, o => (o.Value.Sheet, o.Value.Cells)), Is.EqualTo(new Dictionary<string, (string?, string?)>
+            {
+                ["Ace"] = ("Ladder", "A2:C2"),
+                ["Bee"] = ("Ladder", "A4:D4"),
+            }), "a ladder row over the past finishes'");
+            Assert.That(unsourced, Is.Empty, "no source, no cells");
+            Assert.That(LadderParser.Parse(ladder, Tab, "ll"), Has.Count.EqualTo(1), "nowhere to put them: the ladder alone");
+            Assert.That(LadderParser.ParseFinishes(finishes, "ll"), Is.Not.Null);
+        }
+    }
 }

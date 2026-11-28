@@ -62,6 +62,7 @@ public static partial class StandingsParser
 
     private static List<ArchiveTeam> ByRow(SheetTable sheet, int headerRow, int teamColumn, StandingsTab tab, string? sourceId)
     {
+        var at = new SheetOrigins(sourceId, sheet);
         var (columns, players) = RowColumns(sheet.Rows[headerRow], teamColumn);
         var teams = new Teams(tab);
         for (var r = headerRow + 1; r < sheet.Rows.Count; r++)
@@ -82,7 +83,7 @@ public static partial class StandingsParser
             string Value(Field field) => columns.TryGetValue(field, out var c) ? sheet.Cell(row, c).Trim() : "";
             var roster = players.Select(c => Gamertag(sheet.Cell(row, c))).Where(p => p.Length > 0 && !SeasonStatsParser.IsTotalsLabel(p)).ToList();
             if (name.Length > 0 && !SeasonStatsParser.IsTotalsLabel(name) && IsTeamRow(columns.Keys, Value, roster.Count > 0))
-                teams.Add(name, Value, roster, sourceId is null ? null : ArchiveOrigin.Row(sourceId, sheet, row));
+                teams.Add(name, Value, roster, at.Row(row));
         }
         return teams.List;
     }
@@ -251,7 +252,7 @@ public static partial class StandingsParser
             var cell = sheet.Cell(r, column).Trim();
             // A team's cell has its record: any other (a note) isn't one
             if (Brackets(cell).Record is not null)
-                teams.Add(cell, _ => "", origin: sourceId is null ? null : ArchiveOrigin.Cell(sourceId, sheet, r, column));
+                teams.Add(cell, _ => "", origin: new SheetOrigins(sourceId, sheet).Cell(r, column));
         }
         return teams.List;
     }

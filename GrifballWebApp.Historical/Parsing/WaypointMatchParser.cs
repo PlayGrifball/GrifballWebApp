@@ -51,10 +51,7 @@ public static partial class WaypointMatchParser
 
             var found = RowMatchIds(sheet.Name, row, unparsed, bareIds);
             var ids = found.Select(f => f.Id).ToList();
-            // Each match's first link cell
-            foreach (var (id, column) in found)
-                if (origins is not null && at.Cell(r, column) is { } cell)
-                    origins.TryAdd(id, cell);
+            NoteLinks(origins, at, r, found);
             (inPlayoffs ? playoffs : regular).AddRange(ids);
 
             if (headerRow < 0 || r <= headerRow)
@@ -66,6 +63,16 @@ public static partial class WaypointMatchParser
                 schedule.AddRange(ids.Select(id => new ScheduledGame { MatchId = id, Home = both.Home, Away = both.Away, Origin = at.Row(r) }));
         }
         return (regular, playoffs, schedule);
+    }
+
+    /// <summary>Each match's first link cell, when the origins are wanted.</summary>
+    private static void NoteLinks(Dictionary<string, ArchiveOrigin>? origins, SheetOrigins at, int r, List<(string Id, int Column)> found)
+    {
+        if (origins is null)
+            return;
+        foreach (var (id, column) in found)
+            if (at.Cell(r, column) is { } cell)
+                origins.TryAdd(id, cell);
     }
 
     /// <summary>The match IDs of a row's links, each with its column; a link without one goes in <paramref name="unparsed"/>.</summary>

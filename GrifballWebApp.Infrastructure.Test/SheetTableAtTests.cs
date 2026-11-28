@@ -100,6 +100,7 @@ public class SheetTableAtTests
         {
             Assert.That((table.RowNumber(1), table.RowNumber(2), table.RowNumber(-1)), Is.EqualTo((5, 3, 0)), "an index it has no number for is counted from 1");
             Assert.That(table.RowRange(4), Is.EqualTo("A5"), "a row past the last is one cell wide");
+            Assert.That(table.RowRange(-1), Is.EqualTo("A0"), "a row before the first is one cell wide");
             Assert.That(table.RowText(-1), Is.Empty);
         }
     }
