@@ -152,14 +152,14 @@ public class DatabaseProviderUnitTests
 
     private static readonly string[] TablesWithoutHistory =
     [
-        "Auth.ChatMonths", "Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSeasonReviews", "Event.HistoricalSourceSnapshots",
+        "Auth.ChatMonths", "Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalProvenance", "Event.HistoricalSeasonReviews", "Event.HistoricalSourceSnapshots",
         "Event.HistoricalSources", "Event.StatFlags", "Xbox.UserSpartanFiles", "Xbox.UserSpartanRenders", "Xbox.XboxUserArmor", "Xbox.XboxUserImages", "Xbox.XuidLookups",
     ];
 
     // Every table keeps its rows' history but the background jobs' bookkeeping, whose rows churn and would grow it
     // without end: the outbox (sent messages deleted after their retention), the historical import's jobs (a heartbeat
-    // every few seconds) and their reviews (deleted with them), its sources (each refresh stamps every one) and their
-    // snapshots (whole downloaded files), the XUID lookups (a retry queue), the chat's monthly spend (every paid reply
+    // every few seconds) and their reviews (deleted with them), its sources (each refresh stamps every one), their
+    // snapshots (whole downloaded files) and its provenance (each run replaces the rows it read), the XUID lookups (a retry queue), the chat's monthly spend (every paid reply
     // adds to it), and the stat flags (#548: re-running the checks rewrites a game's open ones in place). A new table
     // gets history unless it joins them here.
     [Test]

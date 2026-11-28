@@ -39,7 +39,8 @@ public partial class HistoricalImportService
 
     private async Task<List<SeasonMatch>> DrawBracket(SeasonGroup group, Season season, ArchiveBracket sheet, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
-        var wanted = SheetBracket(group, season, sheet, teams, counts);
+        var drawnFrom = new Dictionary<SeasonMatch, ArchiveBracketSeries>(ReferenceEqualityComparer.Instance);
+        var wanted = SheetBracket(group, season, sheet, teams, counts, drawnFrom);
         var existing = await _context.SeasonMatches
             .Where(m => m.SeasonID == season.SeasonID && m.BracketMatch != null)
             .Include(m => m.SeriesGames)
@@ -51,19 +52,27 @@ public partial class HistoricalImportService
         var drawn = wanted.Select(Signature).ToHashSet(StringComparer.Ordinal);
         var same = existing.Where(m => drawn.Contains(Signature(m))).ToList();
         if (same.Count == wanted.Count && existing.Except(same).All(m => m.SeriesGames.Count > 0))
+        {
+            var bySignature = wanted.GroupBy(Signature, StringComparer.Ordinal).ToDictionary(g => g.Key, g => drawnFrom[g.First()], StringComparer.Ordinal);
+            foreach (var slot in same)
+                NoteSlot(slot, bySignature[Signature(slot)]);
             return same;
+        }
         _context.SeasonMatches.RemoveRange(existing);
         await _context.SaveChangesAsync(ct);
         counts.SeasonMatchesRemoved += existing.Count;
+        foreach (var slot in wanted)
+            NoteSlot(slot, drawnFrom[slot]);
         _context.SeasonMatches.AddRange(wanted);
         await _context.SaveChangesAsync(ct);
         counts.SeasonMatchesCreated += wanted.Count;
         return wanted;
     }
 
-    /// <summary>The sheet's series as the season's bracket slots (not saved). A name that is none of the season's teams
-    /// leaves its side without a team, reported once for the season.</summary>
-    private List<SeasonMatch> SheetBracket(SeasonGroup group, Season season, ArchiveBracket sheet, SeasonTeams teams, HistoricalImportReport counts)
+    /// <summary>The sheet's series as the season's bracket slots (not saved), each in <paramref name="drawnFrom"/> with its series.
+    /// A name that is none of the season's teams leaves its side without a team, reported once for the season.</summary>
+    private List<SeasonMatch> SheetBracket(SeasonGroup group, Season season, ArchiveBracket sheet, SeasonTeams teams, HistoricalImportReport counts,
+        Dictionary<SeasonMatch, ArchiveBracketSeries> drawnFrom)
     {
         var placed = new List<(ArchiveBracketSeries Series, MatchBracketInfo Slot, int? Home, int? Away)>();
         var matches = new List<SeasonMatch>();
@@ -95,13 +104,19 @@ public partial class HistoricalImportService
             var slot = MatchBracketInfo.From(series.Bracket, series.Round, series.Number,
                 SeedOf(homeFrom, series.HomeSeed, home), homeFrom, SeedOf(awayFrom, series.AwaySeed, away), awayFrom);
             var bestOf = series.BestOf ?? SeasonMatch.ImportedBestOf(0, series.HomeWins ?? 0, series.AwayWins ?? 0);
-            matches.Add(SeasonMatch.ImportedSlot(season.SeasonID, slot, home?.TeamID, away?.TeamID, series.Winner, series.HomeWins, series.AwayWins, bestOf));
+            var match = SeasonMatch.ImportedSlot(season.SeasonID, slot, home?.TeamID, away?.TeamID, series.Winner, series.HomeWins, series.AwayWins, bestOf);
+            matches.Add(match);
+            drawnFrom[match] = series;
             placed.Add((series, slot, home?.TeamID, away?.TeamID));
         }
         if (unknown.Count > 0)
             Warn(counts, $"{group.SourceId}: the bracket names {unknown.Count} team(s) that are none of the season's ({string.Join(", ", unknown)}); their slots have no team there");
         return matches;
     }
+
+    /// <summary>A bracket slot is read from its series' cells.</summary>
+    private void NoteSlot(SeasonMatch slot, ArchiveBracketSeries series)
+        => _provenance.Read(slot, series.Origin, $"{series.Bracket} bracket, round {series.Round}, series {series.Number}: {series.Home} vs. {series.Away}");
 
     private static Team? SheetTeam(string name, SeasonTeams teams, SortedSet<string> unknown)
     {

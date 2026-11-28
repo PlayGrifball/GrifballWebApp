@@ -34,6 +34,8 @@ public static partial class BracketParser
         public int? BestOf { get; init; }
         /// <summary>A score whose winner its cells don't say: the winner's wins and the loser's, for once it is known.</summary>
         public (int Winner, int Loser)? Unplaced { get; set; }
+        /// <summary>The cells it was read from.</summary>
+        public ArchiveOrigin? Origin { get; set; }
     }
 
     /// <summary>The bracket; null (a warning says why) when its tab isn't in the workbook.</summary>
@@ -84,6 +86,7 @@ public static partial class BracketParser
 
         var canonicalIds = StatsTableParser.CanonicalSeasonIds(stats);
         var bySeason = new Dictionary<string, List<Draft>>(StringComparer.OrdinalIgnoreCase);
+        var originOf = ArchiveOrigin.RowOf(sourceId, sheet);
         foreach (var row in sheet.Rows.Skip(1))
         {
             var rawSeason = ArchiveCells.TableValue(row, seasonCol);
@@ -95,6 +98,7 @@ public static partial class BracketParser
                 continue;
 
             var draft = TableDraft(row, home, away, bracketCol, roundCol, seed1Col, seed2Col);
+            draft.Origin = originOf(row);
             TableResult(draft, row, winnerCol, score1Col, score2Col);
 
             if (!bySeason.TryGetValue(canonicalId, out var list))
@@ -196,6 +200,7 @@ public static partial class BracketParser
                 AwayWins = d.AwayWins,
                 Winner = d.Winner,
                 BestOf = d.BestOf,
+                Origin = d.Origin,
             })],
         };
     }
@@ -226,6 +231,8 @@ public static partial class BracketParser
                 HomeSeed = slot.HomeSeed is null ? homeSeed : Seed(sheet.At(slot.HomeSeed)),
                 AwaySeed = slot.AwaySeed is null ? awaySeed : Seed(sheet.At(slot.AwaySeed)),
                 BestOf = slot.BestOf,
+                // Its two team cells, and the box between them
+                Origin = new ArchiveOrigin(sourceId, sheet.Name, $"{slot.Home.Trim().ToUpperInvariant()}:{slot.Away.Trim().ToUpperInvariant()}", $"{sheet.At(slot.Home)} vs. {sheet.At(slot.Away)}"),
             };
             Score(draft, sheet, slot, tab.SeedsInNames);
             drafts.Add(draft);
@@ -379,6 +386,8 @@ public static partial class BracketParser
                 AwayWins = GameWon(winner, SeasonMatchSide.Away),
                 Winner = winner,
                 BestOf = 1,
+                // The round's tab: its rows aren't kept once the teams' runs are read
+                Origin = new ArchiveOrigin(sourceId, sheet, Value: $"{home.Team} vs. {away.Team}"),
             });
         }
         return games;

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Infrastructure.Excel;
 
 namespace GrifballWebApp.Historical.Import;
 
@@ -33,6 +34,9 @@ public class HistoricalArchiveInput
     /// <summary>Players lists (the Late League master list and the like): a gamertag's Discord ID, region and system.
     /// Filled by the spreadsheet parser, or from late-league-master.json (<see cref="LateLeagueMasterFile"/>).</summary>
     public List<ArchivePlayerInput>? Players { get; init; }
+    /// <summary>The snapshot each source was read from (by its catalog ID), when the archive was parsed from snapshots: where
+    /// the import says each row came from (HistoricalProvenance).</summary>
+    public Dictionary<string, int>? SnapshotIDs { get; init; }
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -45,6 +49,82 @@ public class HistoricalArchiveInput
     public static async Task<T> ReadAsync<T>(Stream json, CancellationToken ct = default)
         => await JsonSerializer.DeserializeAsync<T>(json, JsonOptions, ct)
             ?? throw new InvalidDataException($"The {typeof(T).Name} file is empty");
+}
+
+/// <summary>
+/// Where a record of the archive was read: its source (the catalog ID), tab, cells (an A1 reference or range) and their text.
+/// The import keeps it for each row it makes from the record (HistoricalProvenance). Null on a record of an uploaded archive
+/// that doesn't say.
+/// </summary>
+public sealed record ArchiveOrigin(string SourceId, string? Sheet = null, string? Cells = null, string? Value = null)
+{
+    /// <summary>A row of a tab: its cells from the first to the last with text.</summary>
+    public static ArchiveOrigin Row(string sourceId, SheetTable sheet, int row) => new(sourceId, sheet.Name, sheet.RowRange(row), sheet.RowText(row));
+
+    /// <summary>One cell of a tab.</summary>
+    public static ArchiveOrigin Cell(string sourceId, SheetTable sheet, int row, int column)
+        => new(sourceId, sheet.Name, sheet.Reference(row, column), sheet.Cell(row, column));
+
+    /// <summary>Rows of a tab, the first to the last (a block of a game's rows): their cells, their texts one per line.</summary>
+    public static ArchiveOrigin Rows(string sourceId, SheetTable sheet, int first, int last)
+    {
+        if (first == last)
+            return Row(sourceId, sheet, first);
+        var width = Enumerable.Range(first, last - first + 1).Max(r => sheet.Rows[r].Length);
+        return new(sourceId, sheet.Name, sheet.Range(first, 0, last, Math.Max(0, width - 1)),
+            string.Join("\n", Enumerable.Range(first, last - first + 1).Select(sheet.RowText)));
+    }
+
+    /// <summary>Each row's origin by the row itself, for a parser that keeps a tab's rows rather than their indexes (indexed once).</summary>
+    public static Func<string[], ArchiveOrigin> RowOf(string sourceId, SheetTable sheet)
+    {
+        var index = RowIndexes(sheet);
+        return row => index.TryGetValue(row, out var r) ? Row(sourceId, sheet, r) : new ArchiveOrigin(sourceId, sheet.Name, Value: string.Join(" | ", row));
+    }
+
+    /// <summary>A block of a tab's rows by the rows themselves (a game's, which a parser keeps without their indexes): the range from
+    /// the first to the last, the rows' texts one per line. Null for no row of the tab.</summary>
+    public static Func<IEnumerable<string[]>, ArchiveOrigin?> RowsOf(string sourceId, SheetTable sheet)
+    {
+        var index = RowIndexes(sheet);
+        return rows =>
+        {
+            var found = rows.Select(row => index.TryGetValue(row, out var r) ? r : -1).Where(r => r >= 0).ToList();
+            if (found.Count == 0)
+                return null;
+            var width = found.Max(r => sheet.Rows[r].Length);
+            return new ArchiveOrigin(sourceId, sheet.Name, sheet.Range(found.Min(), 0, found.Max(), Math.Max(0, width - 1)), string.Join("\n", found.Select(sheet.RowText)));
+        };
+    }
+
+    /// <summary>Each row's origin by the row itself, in whichever of the tabs has it (a database export's games, players and teams
+    /// tables); null for a row of none of them.</summary>
+    public static Func<string[], ArchiveOrigin?> RowOfAny(string sourceId, IEnumerable<SheetTable> sheets)
+    {
+        var tabs = sheets.Select(s => (Sheet: s, Index: RowIndexes(s))).ToList();
+        return row => tabs.Where(t => t.Index.ContainsKey(row)).Select(t => Row(sourceId, t.Sheet, t.Index[row])).FirstOrDefault();
+    }
+
+    /// <summary>Each of a tab's rows' index, by the row itself.</summary>
+    private static Dictionary<string[], int> RowIndexes(SheetTable sheet)
+    {
+        var index = new Dictionary<string[], int>(ReferenceEqualityComparer.Instance);
+        for (var r = 0; r < sheet.Rows.Count; r++)
+            index.TryAdd(sheet.Rows[r], r);
+        return index;
+    }
+
+    /// <summary>A line summed from several rows (a player's games): the first row's cells, every row's text. Null for none.</summary>
+    public static ArchiveOrigin? Of(IEnumerable<ArchiveOrigin?> origins)
+    {
+        var list = origins.OfType<ArchiveOrigin>().ToList();
+        return list.Count switch
+        {
+            0 => null,
+            1 => list[0],
+            _ => list[0] with { Value = string.Join("\n", list.Select(o => o.Value)) },
+        };
+    }
 }
 
 /// <summary>unified-historical-seasons.json: one entry per season and phase (a season's regular season and its playoffs
@@ -74,6 +154,8 @@ public class ArchiveSeason
     /// <summary>Keys ("{workbook}/{sheet}") of sheets that made a season of their own once and are this season now (a results
     /// sheet named like this stats tab's season): the imported seasons they keyed are leftovers to retire.</summary>
     public List<string> AlsoFromSheets { get; init; } = [];
+    /// <summary>The tab the entry was read from (its header row, when the parser knows it).</summary>
+    public ArchiveOrigin? Origin { get; set; }
     /// <summary>The champions record's name for the season's titles when it isn't <see cref="SeasonName"/>.</summary>
     public string? Titles { get; init; }
     /// <summary>When the entry's games were played, as far as its sheet says (a stats tab's TimeStamp column): the season's
@@ -89,6 +171,8 @@ public class ArchiveSeason
     /// <summary>A Late League season's ladder (its ranked standings), in its order: each player's place, league, rank, LP,
     /// streak and MMR, and their finish where the workbook's past finishes give one.</summary>
     public List<GrifballWebApp.Domain.LateLeague.LadderStanding> Ladder { get; init; } = [];
+    /// <summary>Where each of <see cref="Ladder"/>'s rows was read, by its gamertag (as the row has it).</summary>
+    public Dictionary<string, ArchiveOrigin> LadderOrigins { get; init; } = [];
     /// <summary>The season's awards (its MVP, named awards, records), in its sheets' order: a row per winner.</summary>
     public List<ArchiveAward> Awards { get; init; } = [];
     /// <summary>The season's playoff bracket, when a sheet draws one (BracketParser): the import takes it over rebuilding
@@ -122,6 +206,8 @@ public record ArchiveBracketSeries
     public int? AwayWins { get; init; }
     public SeasonMatchSide? Winner { get; init; }
     public int? BestOf { get; init; }
+    /// <summary>The series' cells (its teams, seeds and score).</summary>
+    public ArchiveOrigin? Origin { get; init; }
 }
 
 /// <summary>A winner of a season's award (AwardsParser). A record: a copy for a season's player (`with`) keeps every other value.</summary>
@@ -136,6 +222,7 @@ public record ArchiveAward
     public string? Team { get; init; }
     /// <summary>What it is worth: a record's value, a ranked list's place.</summary>
     public string? Value { get; init; }
+    public ArchiveOrigin? Origin { get; init; }
 }
 
 /// <summary>A team of a season's standings. A record: a copy under another name (`with`) keeps every other value.</summary>
@@ -157,11 +244,13 @@ public record ArchiveTeam
     public int? DraftOrder { get; init; }
     /// <summary>Its draft picks, from a draft board: each player it picked and in which round.</summary>
     public List<ArchiveDraftPick> Picks { get; init; } = [];
+    /// <summary>The row or column the team was read from (its standings row, its draft board column).</summary>
+    public ArchiveOrigin? Origin { get; init; }
 }
 
 /// <summary>A pick of a season's draft: the player (a gamertag of the season's), its round and, when the board gives it,
 /// its number in the whole draft.</summary>
-public record ArchiveDraftPick(string Gamertag, int Round, int? Pick = null);
+public record ArchiveDraftPick(string Gamertag, int Round, int? Pick = null, ArchiveOrigin? Origin = null);
 
 public class ArchivePlayer
 {
@@ -195,6 +284,8 @@ public class ArchivePlayer
     public decimal? DamageDealt { get; init; }
     public decimal? DamageTaken { get; init; }
     public JsonElement? ExtendedMetrics { get; init; }
+    /// <summary>The stat row.</summary>
+    public ArchiveOrigin? Origin { get; set; }
 }
 
 /// <summary>agla-champions.json: every AGLA title and its roster.</summary>
@@ -225,6 +316,8 @@ public class ArchiveChampionship
     public required string Team { get; init; }
     public string? Captain { get; init; }
     public List<string> Roster { get; init; } = [];
+    /// <summary>The title's row.</summary>
+    public ArchiveOrigin? Origin { get; init; }
 }
 
 /// <summary>catalog.json: every source workbook of the archive.</summary>
@@ -249,6 +342,8 @@ public class WaypointSeasonMatches
     /// <summary>The games whose schedule row names both sides (its Home and Away columns, which hold team or captain
     /// names): the import puts each player on the name that appears in their games.</summary>
     public List<ScheduledGame> Schedule { get; init; } = [];
+    /// <summary>The cell each match's link was read from, by the link as <see cref="Regular"/> and <see cref="Playoffs"/> have it.</summary>
+    public Dictionary<string, ArchiveOrigin> Origins { get; init; } = [];
 }
 
 /// <summary>A schedule row's game: its match ID and the names in the row's Home and Away cells.</summary>
@@ -257,6 +352,8 @@ public class ScheduledGame
     public required string MatchId { get; init; }
     public required string Home { get; init; }
     public required string Away { get; init; }
+    /// <summary>The schedule row.</summary>
+    public ArchiveOrigin? Origin { get; init; }
 }
 
 /// <summary>
@@ -292,6 +389,10 @@ public class RecordedGameInput
     public bool IsForfeit { get; init; }
     public List<RecordedTeamInput> Teams { get; init; } = [];
     public List<RecordedPlayerInput> Players { get; init; } = [];
+    /// <summary>The game's rows (a carnage report's block, a result list's row, a database row).</summary>
+    public ArchiveOrigin? Origin { get; set; }
+    /// <summary>The schedule's cell its day was taken from, when its own rows give none (a result list's game).</summary>
+    public ArchiveOrigin? DatedBy { get; set; }
 }
 
 public class RecordedTeamInput
@@ -325,6 +426,8 @@ public class RecordedPlayerInput
     public int? Punches { get; init; }
     /// <summary>Times the player picked up the ball (grifball.com's grabs).</summary>
     public int? Grabs { get; init; }
+    /// <summary>The player's row of the game.</summary>
+    public ArchiveOrigin? Origin { get; init; }
 }
 
 /// <summary>
@@ -346,6 +449,7 @@ public class ArchiveForfeitInput
     /// <summary>A playoff series' forfeit: the import leaves it out (its bracket is rebuilt from games), and reports it.</summary>
     public bool IsPlayoffs { get; init; }
     public DateTime? PlayedAt { get; init; }
+    public ArchiveOrigin? Origin { get; init; }
 }
 
 /// <summary>A match of a season's schedule with no result (its season's results are lost): its two teams, on its day.</summary>
@@ -358,6 +462,8 @@ public class ArchiveScheduledMatchInput
     public required string Home { get; init; }
     public required string Away { get; init; }
     public required DateTime PlayedAt { get; init; }
+    /// <summary>The calendar's cell.</summary>
+    public ArchiveOrigin? Origin { get; init; }
 }
 
 /// <summary>A player of a players list: who a gamertag is on Discord, where they play from and on what.</summary>
@@ -373,6 +479,7 @@ public class ArchivePlayerInput
     public string? System { get; init; }
     /// <summary>Where the row comes from, e.g. "late-league-aspence-main/Player Masterlist", for the report.</summary>
     public string? SourceKey { get; init; }
+    public ArchiveOrigin? Origin { get; init; }
 
     /// <summary>The Discord ID, when it is one (digits only).</summary>
     [JsonIgnore]

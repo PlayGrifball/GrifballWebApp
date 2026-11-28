@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using GrifballWebApp.Historical.Import;
 using GrifballWebApp.Historical.Sources;
 using GrifballWebApp.Infrastructure.Excel;
 
@@ -10,6 +11,8 @@ public sealed record CalendarMatch(DateTime PlayedAt, string First, string Secon
 {
     /// <summary>The calendar's day it is under (an evening's match is the next day in UTC).</summary>
     public DateTime Day { get; init; }
+    /// <summary>The cell it was read from.</summary>
+    public ArchiveOrigin? Origin { get; init; }
 }
 
 /// <summary>
@@ -42,7 +45,7 @@ public static partial class ScheduleParser
         for (var r = 0; r < sheet.Rows.Count; r++)
             for (var c = 0; c < sheet.Rows[r].Length; c++)
                 if (dayOf(r, c) is DateTime day)
-                    matches.AddRange(CellMatches(sheet, r, c, day));
+                    matches.AddRange(CellMatches(sheet, r, c, day, ArchiveOrigin.Cell(sourceId, sheet, r, c)));
         if (needsMonth)
             warnings.Add($"{sourceId}/{tab.Sheet}: rows of days of the month not read (the tab's Year and Month aren't set)");
         return matches;
@@ -50,14 +53,14 @@ public static partial class ScheduleParser
 
     /// <summary>A day's cell's matches: a line each ("9:30pm: Impulse (5) vs. High Voltage (1)", a blank line, the next), or a
     /// run of spaces between them (GWL SL23's "A @ B      8PM EST      C @ D      9PM EST").</summary>
-    private static IEnumerable<CalendarMatch> CellMatches(SheetTable sheet, int r, int c, DateTime day)
+    private static IEnumerable<CalendarMatch> CellMatches(SheetTable sheet, int r, int c, DateTime day, ArchiveOrigin origin)
     {
         var pieces = Pieces().Split(sheet.Cell(r, c)).Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
         for (var i = 0; i < pieces.Count; i++)
         {
             var timed = LeadingTime().Match(pieces[i]);
             if (Teams(timed.Success ? pieces[i][timed.Length..] : pieces[i]) is { } teams)
-                yield return new CalendarMatch(At(day, MatchTime(sheet, r, c, pieces, i)), teams.First, teams.Second) { Day = day.Date };
+                yield return new CalendarMatch(At(day, MatchTime(sheet, r, c, pieces, i)), teams.First, teams.Second) { Day = day.Date, Origin = origin };
         }
     }
 

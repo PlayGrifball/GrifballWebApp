@@ -53,6 +53,8 @@ public static partial class GameResultsParser
         public string SourceId { get; } = sourceId;
         public ResultsTab Tab { get; } = tab;
         public SheetTable Sheet { get; } = sheet;
+        /// <summary>A row's cells, by the row (rows are passed around without their indexes).</summary>
+        public Func<string[], ArchiveOrigin> RowOf { get; } = ArchiveOrigin.RowOf(sourceId, sheet);
         public List<RecordedGameInput> Games { get; } = [];
         public int OneSided { get; set; }
         public List<string> Unread { get; } = [];
@@ -100,7 +102,7 @@ public static partial class GameResultsParser
         public DateTime? PlayedAt { get; init; }
     }
 
-    private static void Add(ResultsParse parse, string key, string series, GameResult result)
+    private static void Add(ResultsParse parse, string key, string series, GameResult result, ArchiveOrigin origin)
     {
         var second = result.SecondOutcome ?? result.FirstOutcome switch
         {
@@ -120,6 +122,7 @@ public static partial class GameResultsParser
             Vod = result.Vod,
             Host = result.Host,
             PlayedAt = result.PlayedAt,
+            Origin = origin,
             Teams =
             [
                 new RecordedTeamInput { Side = 1, Name = result.First, Outcome = result.FirstOutcome, Score = result.FirstScore },
@@ -346,7 +349,7 @@ public static partial class GameResultsParser
             IsForfeit = isForfeit,
             Host = hostIsForfeit ? null : host,
             Vod = Link(vodRaw),
-        });
+        }, ArchiveOrigin.Row(parse.SourceId, parse.Sheet, r));
     }
 
     /// <summary>A fixture row naming no game: a phase marker, else the end of the series (a one-sided result counted).</summary>
@@ -402,7 +405,7 @@ public static partial class GameResultsParser
             Vod = Link(Cell(row, columns.Vod)),
             Host = Text(Cell(row, columns.Host)),
         };
-        Add(parse, parse.Key(where), parse.SeriesOf(winner, loser, where), result);
+        Add(parse, parse.Key(where), parse.SeriesOf(winner, loser, where), result, parse.RowOf(row));
     }
 
     /// <summary>The cell the tab's <see cref="ResultsTab.PlayoffsFrom"/> names (its row and column), the first that starts with it.</summary>
@@ -443,14 +446,22 @@ public static partial class GameResultsParser
                 if (SeriesGames(entry, scores) is { } games)
                 {
                     var series = parse.Key(where);
+                    var origin = SeriesOrigin(parse, r, c, entry, scores);
                     foreach (var (game, index) in games.Select((g, i) => (g, i + 1)))
-                        Add(parse, $"{series}/{index}", series, game);
+                        Add(parse, $"{series}/{index}", series, game, origin);
                 }
                 else
                     parse.Unread.Add(row[c].Trim());
             }
             parse.Playoffs = rowPlayoffs;
         }
+    }
+
+    /// <summary>A series entry's cell, and the score cells after it when it was read with them (its own cell has none).</summary>
+    private static ArchiveOrigin SeriesOrigin(ResultsParse parse, int r, int c, SeriesEntry entry, List<string> scores)
+    {
+        var beside = entry.Games.Count == 0 ? scores.Count : 0;
+        return new(parse.SourceId, parse.Sheet.Name, parse.Sheet.Range(r, c, r, c + beside), string.Join(" | ", parse.Sheet.Rows[r].Skip(c).Take(beside + 1)));
     }
 
     /// <summary>A calendar's games: each cell's, split at the times before them, a game each its two scores give.</summary>
@@ -477,7 +488,8 @@ public static partial class GameResultsParser
             var (sa, sb) = (int.Parse(game.Groups["sa"].Value, CultureInfo.InvariantCulture), int.Parse(game.Groups["sb"].Value, CultureInfo.InvariantCulture));
             var key = parse.Key($"{r}:{c}/{e}");
             var time = e > 0 ? times[e - 1].Value.TrimEnd(':') : null;
-            Add(parse, key, key, new GameResult(a, b, Outcome(sa, sb), sa, sb) { PlayedAt = day is { } d ? ScheduleParser.At(d, time) : null });
+            Add(parse, key, key, new GameResult(a, b, Outcome(sa, sb), sa, sb) { PlayedAt = day is { } d ? ScheduleParser.At(d, time) : null },
+                ArchiveOrigin.Cell(parse.SourceId, parse.Sheet, r, c));
         }
     }
 
@@ -632,7 +644,7 @@ public static partial class GameResultsParser
             IsForfeit = forfeit is not null,
             SecondOutcome = doubleForfeit ? Outcomes.Lost : null,
             Vod = Link(Cell(row, columns.Vod)),
-        });
+        }, parse.RowOf(row));
     }
 
     /// <summary>A game history row's outcome for its home side: by its score, else (a forfeit) the side its mark names

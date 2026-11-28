@@ -457,6 +457,79 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasAnnotation("Grif:HistoryOf", "HistoricalImportSettings");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalProvenance", b =>
+                {
+                    b.Property<long>("HistoricalProvenanceID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoricalProvenanceID"));
+
+                    b.Property<string>("Cells")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Entity")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("EntityKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("HistoricalImportJobID")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("HistoricalSourceSnapshotID")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RunID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Sheet")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("SourceID")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .UseCollation("case_insensitive");
+
+                    b.HasKey("HistoricalProvenanceID");
+
+                    b.HasIndex("Entity", "EntityKey");
+
+                    b.HasIndex("SourceID", "Sheet");
+
+                    b.ToTable("HistoricalProvenance", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_HistoricalProvenance_KnownKind", "\"Kind\" IN (1, 2, 3)");
+                        });
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalSeasonReview", b =>
                 {
                     b.Property<int>("HistoricalSeasonReviewID")

@@ -51,13 +51,16 @@ internal sealed class PlayerResolver
     private readonly int _seasonId;
     private readonly int? _matchmakingSeasonId;
     private readonly Dictionary<string, Resolution> _byGamertag = new();
+    private readonly HistoricalProvenanceLog? _provenance;
 
     /// <param name="context">The database the players are looked up in and their placeholders created in.</param>
     /// <param name="seasonId">The season being imported; 0 for a matchmaking season (<paramref name="matchmakingSeasonId"/>).</param>
     /// <param name="windowStart">When the imported games' window starts: a gamertag the player had then (not renamed since) is theirs.</param>
     /// <param name="matchmakingSeasonId">The matchmaking season being imported, when <paramref name="seasonId"/> is 0.</param>
-    public PlayerResolver(IApplicationDbContext context, int seasonId, DateTime windowStart, int? matchmakingSeasonId = null)
+    /// <param name="provenance">Where the placeholders it makes are noted as made from (the cell of the gamertag that made each).</param>
+    public PlayerResolver(IApplicationDbContext context, int seasonId, DateTime windowStart, int? matchmakingSeasonId = null, HistoricalProvenanceLog? provenance = null)
     {
+        _provenance = provenance;
         _context = context;
         _seasonId = seasonId;
         _matchmakingSeasonId = matchmakingSeasonId;
@@ -68,18 +71,23 @@ internal sealed class PlayerResolver
     /// <summary>Gamertags more than one account's history claims for the season: left to a placeholder.</summary>
     public List<string> Ambiguous { get; } = [];
 
-    public async Task<Resolution> Resolve(string rawGamertag, long? xboxUserId, CancellationToken ct)
+    /// <param name="rawGamertag">The gamertag as the archive writes it.</param>
+    /// <param name="xboxUserId">The Xbox account of a Waypoint match row; null for a sheet's gamertag.</param>
+    /// <param name="ct"></param>
+    /// <param name="origin">The cell the gamertag is in: a placeholder made for it is noted as made from there.</param>
+    public async Task<Resolution> Resolve(string rawGamertag, long? xboxUserId, CancellationToken ct, ArchiveOrigin? origin = null)
     {
         var gamertag = HistoricalKeys.CleanGamertag(rawGamertag);
         var normalized = HistoricalKeys.Normalize(gamertag);
 
         if (xboxUserId is not null)
-            return await ResolveXuid(gamertag, xboxUserId.Value, ct);
+            return await ResolveXuid(gamertag, xboxUserId.Value, origin, ct);
 
         if (_byGamertag.TryGetValue(normalized, out var cached))
             return cached;
-        var found = await Find(gamertag, normalized, ct);
-        var resolution = found ?? new Resolution(await CreateDummy(gamertag, null, ct), ResolvedBy.NewPlaceholder);
+        var found = await Find(gamertag, normalized, origin, ct);
+        var resolution = found ?? new Resolution(await CreateDummy(gamertag, null, origin,
+            "no account, earlier row, gamertag history or placeholder of the season has the gamertag", ct), ResolvedBy.NewPlaceholder);
         _byGamertag[normalized] = resolution;
         return resolution;
     }
@@ -88,7 +96,7 @@ internal sealed class PlayerResolver
     /// A Waypoint row: the XUID's user. An XUID nobody holds takes the placeholder of a gamertag its history (or its
     /// current gamertag, under the same date rule) gives for the season, or a new placeholder linked to it.
     /// </summary>
-    private async Task<Resolution> ResolveXuid(string gamertag, long xboxUserId, CancellationToken ct)
+    private async Task<Resolution> ResolveXuid(string gamertag, long xboxUserId, ArchiveOrigin? origin, CancellationToken ct)
     {
         var xboxUser = await _context.XboxUsers.Include(x => x.User).WithPastGamertags().FirstOrDefaultAsync(x => x.XboxUserID == xboxUserId, ct);
         if (xboxUser?.User is not null)
@@ -109,20 +117,22 @@ internal sealed class PlayerResolver
             if (placeholder is not null && placeholder.TieToXbox(xboxUserId) is XboxTie.Tied)
             {
                 await _context.SaveChangesAsync(ct);
+                _provenance?.Changed(placeholder, origin, $"Tied to Xbox account {xboxUserId}: a Waypoint match row has it, and its gamertag history gives {tag} for the season");
                 return new Resolution(placeholder.Id, ResolvedBy.Placeholder);
             }
         }
-        return new Resolution(await CreateDummy(gamertag, xboxUser, ct), ResolvedBy.NewPlaceholder);
+        return new Resolution(await CreateDummy(gamertag, xboxUser, origin,
+            $"a Waypoint match row has Xbox account {xboxUserId}, which no user or placeholder holds", ct), ResolvedBy.NewPlaceholder);
     }
 
-    private async Task<Resolution?> Find(string gamertag, string normalized, CancellationToken ct)
+    private async Task<Resolution?> Find(string gamertag, string normalized, ArchiveOrigin? origin, CancellationToken ct)
     {
         // A re-run of this season: whoever its rows under the gamertag are (also after a commissioner moved them)
         var sameSeason = await EarlierRows(gamertag, thisSeason: true, ct);
         if (sameSeason is not null)
             return new Resolution(sameSeason.Value, ResolvedBy.EarlierRows);
 
-        var fromHistory = await FromHistory(gamertag, normalized, ct);
+        var fromHistory = await FromHistory(gamertag, normalized, origin, ct);
         if (fromHistory is not null)
             return fromHistory;
 
@@ -182,7 +192,7 @@ internal sealed class PlayerResolver
     /// The account whose history has the gamertag at a time that can include the season (see <see cref="Overlaps"/>).
     /// When more than one account's history can (a gamertag reused after its owner let go of it), none is chosen.
     /// </summary>
-    private async Task<Resolution?> FromHistory(string gamertag, string normalized, CancellationToken ct)
+    private async Task<Resolution?> FromHistory(string gamertag, string normalized, ArchiveOrigin? origin, CancellationToken ct)
     {
         var holders = await _context.XboxUsers.Where(x => x.PastGamertags.Any(h => h.NormalizedGamertag == normalized))
             .Include(x => x.User).WithPastGamertags()
@@ -204,9 +214,11 @@ internal sealed class PlayerResolver
         if (placeholder is not null && placeholder.TieToXbox(xboxUser.XboxUserID) is XboxTie.Tied)
         {
             await _context.SaveChangesAsync(ct);
+            _provenance?.Changed(placeholder, origin, $"Tied to Xbox account {xboxUser.XboxUserID}: its gamertag history has {gamertag} for the season");
             return new Resolution(placeholder.Id, ResolvedBy.GamertagHistory);
         }
-        return new Resolution(await CreateDummy(gamertag, xboxUser, ct), ResolvedBy.GamertagHistory);
+        return new Resolution(await CreateDummy(gamertag, xboxUser, origin,
+            $"Xbox account {xboxUser.XboxUserID}'s gamertag history has it for the season, and no user or placeholder holds the account", ct), ResolvedBy.GamertagHistory);
     }
 
     /// <summary>
@@ -221,11 +233,14 @@ internal sealed class PlayerResolver
     /// <summary>The gamertag's placeholder, made the one way placeholders are (<see cref="GamertagMatching.CreatePlaceholderAsync"/>):
     /// an Xbox account the gamertag's placeholder isn't tied to (it is another's, or the dates didn't tie it to this one)
     /// gets a placeholder of its own, named after its XUID too.</summary>
-    private async Task<int> CreateDummy(string gamertag, XboxUser? xboxUser, CancellationToken ct)
+    private async Task<int> CreateDummy(string gamertag, XboxUser? xboxUser, ArchiveOrigin? origin, string why, CancellationToken ct)
     {
         var (user, created) = await new GamertagMatching(_context).CreatePlaceholderAsync(gamertag, xboxUser, ct);
         if (created)
+        {
             DummiesCreated++;
+            _provenance?.Created(user, origin, $"Placeholder for {gamertag}: {why}");
+        }
         return user.Id;
     }
 }

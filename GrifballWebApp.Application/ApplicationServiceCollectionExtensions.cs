@@ -83,6 +83,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddOptions<UserClaimOptions>().Bind(configuration.GetSection("UserClaims"));
         services.AddTransient<UserGamertagClaimService>();
         services.AddTransient<DuplicateSuggestionService>();
+        services.AddTransient<HistoricalProvenanceService>();
 
         services.AddTransient<UserMergeAuditService>();
         services.AddTransient<IBracketService, BracketService>();

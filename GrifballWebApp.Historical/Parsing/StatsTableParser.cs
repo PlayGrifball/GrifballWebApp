@@ -71,12 +71,13 @@ public static partial class StatsTableParser
         var lineColumns = columns.Values.Any(c => c.Key == "gamesPlayed")
             ? columns
             : new Dictionary<int, (string Key, string Header)>(columns) { [games] = ("gamesPlayed", "games") };
+        var originOf = ArchiveOrigin.RowOf(sourceId, sheet);
         var seasonIds = table.Seasons.Keys.ToList();
         return groups
             .OrderBy(g => seasonIds.IndexOf(g.Key.Season))
             .ThenBy(g => g.Key.Playoffs)
             .ThenBy(g => g.Key.Division is null ? -1 : table.Seasons[g.Key.Season].Divisions!.Values.ToList().IndexOf(g.Key.Division))
-            .Select(g => SeasonOf(sourceId, config, table, g.Key, g.Value, columns, lineColumns, games, extended, standings))
+            .Select(g => WithOrigins(SeasonOf(sourceId, config, table, g.Key, g.Value, columns, lineColumns, games, extended, standings), g.Value, ArchiveOrigin.Row(sourceId, sheet, 0), originOf))
             .ToList();
     }
 
@@ -161,6 +162,16 @@ public static partial class StatsTableParser
         rows.Add(row);
     }
 
+    /// <summary>The season's origin (the table's header) and each line's (its rows, in the order <see cref="SeasonOf"/> made the lines).</summary>
+    private static ArchiveSeason WithOrigins(ArchiveSeason season, Dictionary<(string Gamertag, string? Team), List<string[]>> group, ArchiveOrigin header,
+        Func<string[], ArchiveOrigin> originOf)
+    {
+        season.Origin = header;
+        foreach (var (player, rows) in season.Players.Zip(group.Values))
+            player.Origin = ArchiveOrigin.Of(rows.Select(originOf));
+        return season;
+    }
+
     private static ArchiveSeason SeasonOf(string sourceId, HistoricalSourceConfig config, StatsTable table, (string Season, bool Playoffs, string? Division) key,
         Dictionary<(string Gamertag, string? Team), List<string[]>> group, Dictionary<int, (string Key, string Header)> columns,
         Dictionary<int, (string Key, string Header)> lineColumns, int games, List<(int Column, string Metric)> extended,
@@ -219,13 +230,14 @@ public static partial class StatsTableParser
         }
         var columns = StandingsColumns.Of(header, table);
         var bySeason = new Dictionary<string, List<ArchiveTeam>>(StringComparer.Ordinal);
+        var originOf = ArchiveOrigin.RowOf(sourceId, sheet);
         foreach (var row in sheet.Rows.Skip(1))
         {
             if (Value(row, seasonCol) is not { } rawId || !canonicalIds.TryGetValue(rawId, out var seasonId) || Value(row, teamCol) is not { } teamName)
                 continue;
             if (!bySeason.TryGetValue(seasonId, out var list))
                 bySeason[seasonId] = list = [];
-            list.Add(columns.Team(row, teamName, table.Seasons[rawId].Divisions));
+            list.Add(columns.Team(row, teamName, table.Seasons[rawId].Divisions) with { Origin = originOf(row) });
         }
         return bySeason;
     }

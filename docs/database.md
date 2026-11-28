@@ -116,7 +116,7 @@ erDiagram
 
 ### Event
 
-Leagues, seasons, teams, matches and brackets, signups and availability, reschedules, VODs, and the historical archive and gamertag claims (28 tables).
+Leagues, seasons, teams, matches and brackets, signups and availability, reschedules, VODs, and the historical archive and gamertag claims (29 tables).
 
 ```mermaid
 erDiagram
@@ -136,6 +136,9 @@ erDiagram
     }
     HistoricalImportSettings {
         int HistoricalImportSettingsID PK
+    }
+    HistoricalProvenance {
+        long HistoricalProvenanceID PK
     }
     HistoricalSeasonReviews {
         int HistoricalSeasonReviewID PK
@@ -633,6 +636,7 @@ would only grow:
 | `Auth.ChatMonths` | Each user's spend on the chat's paid models a month: every paid reply adds to its row |
 | `Discord.Outbox` | Each message is written a few times, then deleted after its retention |
 | `Event.HistoricalImportJobs` | A running import rewrites its row every few seconds |
+| `Event.HistoricalProvenance` | Where the historical import read each row from: every run replaces its rows of what it read |
 | `Event.HistoricalSeasonReviews` | Its job's: deleted with the job after its retention |
 | `Event.HistoricalSources` | Every refresh stamps each source's last fetch |
 | `Event.HistoricalSourceSnapshots` | Whole downloaded files |

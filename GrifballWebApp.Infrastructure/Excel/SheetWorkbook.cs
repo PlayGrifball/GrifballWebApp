@@ -12,8 +12,8 @@ public sealed class SheetTable
     public bool Hidden { get; init; }
     public List<string[]> Rows { get; init; } = [];
     /// <summary>The sheet's own number (1 for its first row) of each of <see cref="Rows"/>, for a cell named by its
-    /// reference (<see cref="At"/>); null: the rows are numbered in order from 1 (a test's sheet; a CSV, whose empty lines aren't kept,
-    /// so a reference past one names the row below it: no reference names a CSV's cells).</summary>
+    /// reference (<see cref="At"/>): an xlsx's rows as the sheet numbers them, a CSV's by its records (a spacer row's ",," counted);
+    /// null: the rows are numbered in order from 1 (a test's sheet).</summary>
     public List<int>? RowNumbers { get; init; }
 
     public string Cell(int row, int column) => row < Rows.Count && column < Rows[row].Length ? Rows[row][column] : "";
@@ -31,6 +31,33 @@ public sealed class SheetTable
             return "";
         var row = RowNumbers is null ? number - 1 : RowNumbers.BinarySearch(number);
         return row >= 0 ? Cell(row, column - 1) : "";
+    }
+
+    /// <summary>The sheet's own number of a row of <see cref="Rows"/> (1 for its first): its place among the rows when they
+    /// aren't numbered (a test's sheet).</summary>
+    public int RowNumber(int row) => RowNumbers is { } numbers && row >= 0 && row < numbers.Count ? numbers[row] : row + 1;
+
+    /// <summary>The A1 reference of a cell ("C23"), by its row of <see cref="Rows"/> and its column (0 for A).</summary>
+    public string Reference(int row, int column) => $"{ColumnName(column)}{RowNumber(row)}";
+
+    /// <summary>The A1 range of cells from one to another ("A20:K20"); one cell's reference when they are the same.</summary>
+    public string Range(int row, int column, int lastRow, int lastColumn)
+        => row == lastRow && column == lastColumn ? Reference(row, column) : $"{Reference(row, column)}:{Reference(lastRow, lastColumn)}";
+
+    /// <summary>A row's range, from its first cell to its last with text ("A20:K20").</summary>
+    public string RowRange(int row) => Range(row, 0, row, Math.Max(0, (row >= 0 && row < Rows.Count ? Rows[row].Length : 1) - 1));
+
+    /// <summary>A row's cells joined by " | " (its empty ones at the end aren't kept).</summary>
+    public string RowText(int row) => row >= 0 && row < Rows.Count ? string.Join(" | ", Rows[row]) : "";
+
+    /// <summary>A column's letters (0 is A, 25 Z, 26 AA).</summary>
+    public static string ColumnName(int column)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(column);
+        var name = "";
+        for (var n = column + 1; n > 0; n = (n - 1) / 26)
+            name = (char)('A' + (n - 1) % 26) + name;
+        return name;
     }
 }
 
@@ -58,7 +85,9 @@ public sealed class SheetWorkbook
         var text = Encoding.UTF8.GetString(content).TrimStart('﻿');
         if (text.TrimStart().StartsWith('<'))
             return null;
-        return new SheetWorkbook { Sheets = [new SheetTable { Name = csvSheetName ?? "Sheet1", Rows = Csv(text) }] };
+        var numbers = new List<int>();
+        var rows = Csv(text, numbers);
+        return new SheetWorkbook { Sheets = [new SheetTable { Name = csvSheetName ?? "Sheet1", Rows = rows, RowNumbers = numbers }] };
     }
 
     public static bool IsZip(byte[] content) => content.Length > 4 && content[0] == 0x50 && content[1] == 0x4b && content[2] == 0x03 && content[3] == 0x04;
@@ -268,10 +297,12 @@ public sealed class SheetWorkbook
         return rows;
     }
 
-    /// <summary>RFC 4180 CSV: quoted fields with doubled quotes and line breaks.</summary>
-    public static List<string[]> Csv(string text)
+    /// <summary>RFC 4180 CSV: quoted fields with doubled quotes and line breaks. <paramref name="numbers"/>, when given, gets each
+    /// row kept's number among the CSV's records (1 for its first): its sheet row, the empty ones (a spacer row's ",,") counted.</summary>
+    public static List<string[]> Csv(string text, List<int>? numbers = null)
     {
         var rows = new List<string[]>();
+        var number = 0;
         var row = new List<string>();
         var cell = new StringBuilder();
         var quoted = false;
@@ -291,20 +322,25 @@ public sealed class SheetWorkbook
             {
                 if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
                     i++;
-                row.Add(cell.ToString());
-                cell.Clear();
-                AddRow(rows, row);
+                EndRecord(rows, row, cell, numbers, ref number);
                 row = [];
             }
             else
                 cell.Append(c);
         }
         if (cell.Length > 0 || row.Count > 0)
-        {
-            row.Add(cell.ToString());
-            AddRow(rows, row);
-        }
+            EndRecord(rows, row, cell, numbers, ref number);
         return rows;
+    }
+
+    /// <summary>A record's last cell ends it: the row is kept when it has text, with its number among the records.</summary>
+    private static void EndRecord(List<string[]> rows, List<string> row, StringBuilder cell, List<int>? numbers, ref int number)
+    {
+        row.Add(cell.ToString());
+        cell.Clear();
+        number++;
+        if (AddRow(rows, row))
+            numbers?.Add(number);
     }
 
     /// <summary>A character of a quoted field (a doubled quote taken as one); false at the quote that ends it.</summary>

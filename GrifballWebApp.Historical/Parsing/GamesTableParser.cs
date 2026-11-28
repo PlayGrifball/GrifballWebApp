@@ -74,10 +74,11 @@ public static partial class GamesTableParser
         public static LineColumns Of(Header h) => new(h["gamertag"], h["kills"], h["deaths"], h["assists"], h["goals"], h["betrayals"], h["grabs"],
             h["hammer_kills"], h["sword_kills"], h["bomb_kills"], h["bombstops"]);
 
-        public RecordedPlayerInput Line(string[] row, string gamertag, int side) => new()
+        public RecordedPlayerInput Line(string[] row, string gamertag, int side, ArchiveOrigin? origin) => new()
         {
             Gamertag = gamertag,
             Side = side,
+            Origin = origin,
             Kills = Int(row, Kills) ?? 0,
             Deaths = Int(row, Deaths) ?? 0,
             Assists = Int(row, Assists) ?? 0,
@@ -109,6 +110,8 @@ public static partial class GamesTableParser
         private int _duplicateGames;
         private int _duplicateLines;
         private int _strayLines;
+        /// <summary>Where a row of the workbook's tables was read (its tables indexed when first asked).</summary>
+        private Func<string[], ArchiveOrigin?>? _originOf;
 
         public TableReader(string sourceId, GamesTable table, StatsTable stats, SheetWorkbook workbook)
         {
@@ -189,6 +192,12 @@ public static partial class GamesTableParser
             return players;
         }
 
+        /// <summary>The cells of a row of any of the workbook's tables; null for one that is none of them.</summary>
+        private ArchiveOrigin? OriginOf(string[] row) => (_originOf ??= ArchiveOrigin.RowOfAny(_sourceId, _workbook.Sheets))(row);
+
+        /// <summary>A game's rows: the first's cells, every row's text.</summary>
+        private ArchiveOrigin? OriginOfRows(IEnumerable<string[]> rows) => ArchiveOrigin.Of(rows.Select(row => OriginOf(row)));
+
         private static RecordedTeamInput Side(int side, string name, Outcomes outcome, int? score) => new() { Side = side, Name = name, Outcome = outcome, Score = score, NamesItsTeam = true };
 
         private string GameVersionOf(string? seasonId)
@@ -196,7 +205,7 @@ public static partial class GamesTableParser
                 ? season.Game
                 : _stats.Game;
 
-        private RecordedGameInput Game(string season, string id, string[] teams, (Outcomes Outcome, int? Score)[] results, List<RecordedPlayerInput> players, bool playoffs = false, DateTime? playedAt = null, string? gameVersion = null) => new()
+        private RecordedGameInput Game(IEnumerable<string[]> rows, string season, string id, string[] teams, (Outcomes Outcome, int? Score)[] results, List<RecordedPlayerInput> players, bool playoffs = false, DateTime? playedAt = null, string? gameVersion = null) => new()
         {
             SeasonSourceId = season,
             SourceKey = Key(id),
@@ -205,9 +214,10 @@ public static partial class GamesTableParser
             IsPlayoffs = playoffs,
             Teams = [Side(1, teams[0], results[0].Outcome, results[0].Score), Side(2, teams[1], results[1].Outcome, results[1].Score)],
             Players = players,
+            Origin = OriginOfRows(rows),
         };
 
-        private ArchiveForfeitInput Forfeit(string season, string id, string winner, string loser, bool both, DateTime? playedAt = null, bool playoffs = false) => new()
+        private ArchiveForfeitInput Forfeit(IEnumerable<string[]> rows, string season, string id, string winner, string loser, bool both, DateTime? playedAt = null, bool playoffs = false) => new()
         {
             IsPlayoffs = playoffs,
             SeasonSourceId = season,
@@ -216,6 +226,7 @@ public static partial class GamesTableParser
             Loser = loser,
             BothForfeited = both,
             PlayedAt = playedAt,
+            Origin = OriginOfRows(rows),
         };
 
         private static Outcomes Outcome(int? score, int? other) => score > other ? Outcomes.Won : score < other ? Outcomes.Lost : Outcomes.Tie;
@@ -243,7 +254,7 @@ public static partial class GamesTableParser
                 // A forfeit has no game: the site listed the side that won first
                 if (Int(row, forfeit) == 1)
                 {
-                    result.Forfeits.Add(Forfeit(key, match, a, b, both: false));
+                    result.Forfeits.Add(Forfeit([row], key, match, a, b, both: false));
                     continue;
                 }
                 if (Value(row, game) is { } gameId && !seen.Add(gameId))
@@ -254,17 +265,17 @@ public static partial class GamesTableParser
                 listed.Add(match);
                 var (sa, sb) = (Int(row, scoreA), Int(row, scoreB));
                 var players = lines.ByGame.GetValueOrDefault(match) ?? [];
-                result.Games.Add(Game(key, match, [a, b], [(Outcome(sa, sb), sa), (Outcome(sb, sa), sb)],
+                result.Games.Add(Game([row], key, match, [a, b], [(Outcome(sa, sb), sa), (Outcome(sb, sa), sb)],
                     Distinct(MatchLines(players, columns, side))));
             }
             CountStray(lines, listed);
         }
 
-        private static IEnumerable<RecordedPlayerInput> MatchLines(IEnumerable<string[]> players, LineColumns columns, int side)
+        private IEnumerable<RecordedPlayerInput> MatchLines(IEnumerable<string[]> players, LineColumns columns, int side)
         {
             foreach (var p in players)
                 if (Value(p, columns.Gamertag) is { } gamertag && !SeasonStatsParser.IsTotalsLabel(gamertag))
-                    yield return columns.Line(p, gamertag, Int(p, side) ?? 0);
+                    yield return columns.Line(p, gamertag, Int(p, side) ?? 0, OriginOf(p));
         }
 
         /// <summary>gb_teamstats' columns.</summary>
@@ -296,25 +307,25 @@ public static partial class GamesTableParser
             var (a, b) = (Team(Value(ra, c.Team)!), Team(Value(rb, c.Team)!));
             if (SeasonKey(Value(ra, c.Season), a.Row) is not { } key)
                 return;
-            if (TeamRowsForfeit(key, id, (ra, a.Name), (rb, b.Name), c) is { } forfeit)
+            if (TeamRowsForfeit(rows, key, id, (ra, a.Name), (rb, b.Name), c) is { } forfeit)
             {
                 result.Forfeits.Add(forfeit);
                 return;
             }
             Outcomes SideOutcome(string[] r) => Int(r, c.Win) == 1 ? Outcomes.Won : Int(r, c.Loss) == 1 ? Outcomes.Lost : Outcomes.DidNotFinish;
-            result.Games.Add(Game(key, id, [a.Name, b.Name], [(SideOutcome(ra), Int(ra, c.Goals)), (SideOutcome(rb), Int(rb, c.Goals))], [],
+            result.Games.Add(Game(rows, key, id, [a.Name, b.Name], [(SideOutcome(ra), Int(ra, c.Goals)), (SideOutcome(rb), Int(rb, c.Goals))], [],
                 playoffs: Int(ra, c.Playoffs) == 1));
         }
 
         /// <summary>The game as a forfeit, when a side forfeited (lost) or won by the other's forfeit; both when both forfeited.</summary>
-        private ArchiveForfeitInput? TeamRowsForfeit(string key, string id, (string[] Row, string Name) a, (string[] Row, string Name) b, TeamRowColumns c)
+        private ArchiveForfeitInput? TeamRowsForfeit(List<string[]> rows, string key, string id, (string[] Row, string Name) a, (string[] Row, string Name) b, TeamRowColumns c)
         {
             var (aForfeited, bForfeited) = (Int(a.Row, c.ForfeitLoss) == 1, Int(b.Row, c.ForfeitLoss) == 1);
             var (aWon, bWon) = (Int(a.Row, c.ForfeitWin) == 1, Int(b.Row, c.ForfeitWin) == 1 || (aForfeited && !bForfeited));
             if (!aForfeited && !bForfeited && !aWon && !bWon)
                 return null;
             var playoffs = Int(a.Row, c.Playoffs) == 1;
-            return bWon ? Forfeit(key, id, b.Name, a.Name, both: false, playoffs: playoffs) : Forfeit(key, id, a.Name, b.Name, both: aForfeited && bForfeited, playoffs: playoffs);
+            return bWon ? Forfeit(rows, key, id, b.Name, a.Name, both: false, playoffs: playoffs) : Forfeit(rows, key, id, a.Name, b.Name, both: aForfeited && bForfeited, playoffs: playoffs);
         }
 
         /// <summary>h_games' columns, and its player lines and their gamertags.</summary>
@@ -366,13 +377,13 @@ public static partial class GamesTableParser
             {
                 var playoffs = Int(row, c.Playoffs) == 1;
                 result.Forfeits.Add(aWon
-                    ? Forfeit(key, game, teamOfA.Name, teamOfB.Name, both, playedAt, playoffs)
-                    : Forfeit(key, game, teamOfB.Name, teamOfA.Name, both, playedAt, playoffs));
+                    ? Forfeit([row], key, game, teamOfA.Name, teamOfB.Name, both, playedAt, playoffs)
+                    : Forfeit([row], key, game, teamOfB.Name, teamOfA.Name, both, playedAt, playoffs));
                 return;
             }
             var (x, y) = (int.Parse(score.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(score.Groups[2].Value, CultureInfo.InvariantCulture));
             var (high, low) = (Math.Max(x, y), Math.Min(x, y));
-            result.Games.Add(Game(key, game, [teamOfA.Name, teamOfB.Name],
+            result.Games.Add(Game([row], key, game, [teamOfA.Name, teamOfB.Name],
                 aWon ? [(Outcomes.Won, high), (Outcomes.Lost, low)] : [(Outcomes.Lost, low), (Outcomes.Won, high)],
                 SchedulePlayers(Value(row, c.Link), c, a, b), playoffs: Int(row, c.Playoffs) == 1, playedAt: playedAt));
         }
@@ -396,7 +407,7 @@ public static partial class GamesTableParser
             c.Listed.Add(link);
             Outcomes Outcome(string team) => rows.Any(r => Value(r, c.Of.Team) == team && Int(r, c.Of.Wins) == 1) ? Outcomes.Won
                 : rows.Any(r => Value(r, c.Of.Team) == team && Int(r, c.Of.Losses) == 1) ? Outcomes.Lost : Outcomes.DidNotFinish;
-            result.Games.Add(Game(key, link, [a.Name, b.Name], [(Outcome(teams[0]), null), (Outcome(teams[1]), null)],
+            result.Games.Add(Game(rows, key, link, [a.Name, b.Name], [(Outcome(teams[0]), null), (Outcome(teams[1]), null)],
                 Distinct(rows.Select(p => PlayerOf(p, c, teams[0], teams[1])).OfType<RecordedPlayerInput>()), playoffs: Int(rows[0], c.Of.Playoffs) == 1));
         }
 
@@ -425,7 +436,7 @@ public static partial class GamesTableParser
                 _strayLines++;
                 return null;
             }
-            return columns.Line(row, gamertag, team == teamA ? 1 : 2);
+            return columns.Line(row, gamertag, team == teamA ? 1 : 2, OriginOf(row));
         }
 
         /// <summary>agla_gamesreported's columns, and its player lines.</summary>
@@ -464,7 +475,7 @@ public static partial class GamesTableParser
             var playedAt = Int(row, c.Date) is int seconds and > 0 ? DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime : (DateTime?)null;
             if (Int(row, c.Forfeit) is 1 or 2)
             {
-                result.Forfeits.Add(Forfeit(key, id, won.Name, lost.Name, both: Int(row, c.Forfeit) == 2, playedAt));
+                result.Forfeits.Add(Forfeit([row], key, id, won.Name, lost.Name, both: Int(row, c.Forfeit) == 2, playedAt));
                 return;
             }
             if (ReportedGameId(Value(row, c.Game) ?? "0", c.Listed) is not { } gameId)
@@ -472,7 +483,7 @@ public static partial class GamesTableParser
             var rows = c.Lines.ByGame.GetValueOrDefault(gameId) ?? [];
             var players = Distinct(rows.Select(p => SideLine(p, c, w, l)).OfType<RecordedPlayerInput>());
             var playoffs = rows.Any(p => Int(p, c.Of.Playoffs) == 1);
-            result.Games.Add(Game(key, id, [won.Name, lost.Name], [(Outcomes.Won, null), (Outcomes.Lost, null)], players, playoffs, playedAt));
+            result.Games.Add(Game([row], key, id, [won.Name, lost.Name], [(Outcomes.Won, null), (Outcomes.Lost, null)], players, playoffs, playedAt));
         }
 
         /// <summary>A reported game's ID; null for a deleted game, a game without one (counted) or a game reported again (counted).</summary>
@@ -500,7 +511,7 @@ public static partial class GamesTableParser
                 _strayLines++;
                 return null;
             }
-            return c.Line.Line(row, gamertag, isWinner ? 1 : 2);
+            return c.Line.Line(row, gamertag, isWinner ? 1 : 2, OriginOf(row));
         }
 
         /// <summary>Normalized schedule/match results (<see cref="GamesTableLayout.ScheduleResults"/>): skips unplayed rows without warning.</summary>
@@ -534,12 +545,12 @@ public static partial class GamesTableParser
                 if (isForfeit)
                 {
                     var (win, lose) = string.Equals(winnerName, b, StringComparison.OrdinalIgnoreCase) ? (b, a) : (a, b);
-                    result.Forfeits.Add(Forfeit(key, id, win, lose, both: false, playedAt, playoffs));
+                    result.Forfeits.Add(Forfeit([row], key, id, win, lose, both: false, playedAt, playoffs));
                     continue;
                 }
 
                 var (oa, ob) = WinnerOutcomes(a, b, winnerName, sa, sb);
-                result.Games.Add(Game(key, id, [a, b], [(oa, sa), (ob, sb)], [], playoffs, playedAt, GameVersionOf(rawSeason)));
+                result.Games.Add(Game([row], key, id, [a, b], [(oa, sa), (ob, sb)], [], playoffs, playedAt, GameVersionOf(rawSeason)));
             }
         }
 

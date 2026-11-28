@@ -34,6 +34,7 @@ public static class PlayersListParser
                 Region = Value(r, location),
                 System = Value(r, system),
                 SourceKey = $"{sourceId}/{sheet.Name}",
+                Origin = ArchiveOrigin.Row(sourceId, sheet, r),
             });
         }
         return players;

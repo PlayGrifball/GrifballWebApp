@@ -78,7 +78,7 @@ public class HistoricalImportControllerTests
     public async Task Import_QueuesTheUploadedArchive_AndTheWorkerRunsIt()
     {
         HistoricalArchiveInput? passed = null;
-        _import.Import(Arg.Do<HistoricalArchiveInput>(i => passed = i), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Do<HistoricalArchiveInput>(i => passed = i), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(async call =>
             {
                 await call.Arg<Func<HistoricalImportProgress, Task>>()(new HistoricalImportProgress("Importing S 2019", 0, 1));
@@ -122,7 +122,7 @@ public class HistoricalImportControllerTests
     [Test]
     public async Task AJobThatThrows_IsFailed_WithTheReason()
     {
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .Returns<HistoricalImportReport>(_ => throw new InvalidOperationException("boom"));
         var jobId = ((HistoricalImportQueued)((AcceptedAtActionResult)await _controller.Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None)).Value!).JobID;
 
@@ -155,7 +155,7 @@ public class HistoricalImportControllerTests
     [Test]
     public async Task AJobLeftRunningByAStoppedProcess_IsQueuedAgain_OnceItsHeartbeatIsStale()
     {
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>()).Returns(new HistoricalImportReport());
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>()).Returns(new HistoricalImportReport());
         var payload = System.Text.Json.JsonSerializer.Serialize(new HistoricalArchiveInput { Seasons = new UnifiedArchive() });
         var now = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
         await _context.Start(await _context.Queue(HistoricalImportJob.Upload(payload)), now.AddHours(-1));
@@ -172,7 +172,7 @@ public class HistoricalImportControllerTests
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(async _ =>
             {
                 // A long stage: no progress reported at all
@@ -210,7 +210,7 @@ public class HistoricalImportControllerTests
         Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
         var job = (await _controller.Job(jobId, CancellationToken.None)).Value!;
         Assert.That(job.Status, Is.EqualTo("Succeeded"));
-        await _import.Received(1).Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>());
+        await _import.Received(1).Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -218,7 +218,7 @@ public class HistoricalImportControllerTests
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(async _ =>
             {
                 started.SetResult();
@@ -278,7 +278,7 @@ public class HistoricalImportControllerTests
     {
         var now = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
         var jobId = ((HistoricalImportQueued)((AcceptedAtActionResult)await _controller.Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None)).Value!).JobID;
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(async _ =>
             {
                 // Its heartbeat went stale meanwhile: another replica has the job now
@@ -304,7 +304,7 @@ public class HistoricalImportControllerTests
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(async call =>
             {
                 started.SetResult();
@@ -345,7 +345,7 @@ public class HistoricalImportControllerTests
     public async Task TheWorker_RunsAQueuedJob_WhenWoken_AndStopsWithTheHost()
     {
         var ran = new TaskCompletionSource();
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(_ => { ran.TrySetResult(); return new HistoricalImportReport(); });
         var worker = Worker();
         await worker.StartAsync(CancellationToken.None);

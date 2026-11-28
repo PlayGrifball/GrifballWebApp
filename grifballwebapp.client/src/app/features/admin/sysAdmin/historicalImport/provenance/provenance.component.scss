@@ -1,0 +1,79 @@
+:host {
+  display: block;
+  margin-bottom: 24px;
+}
+
+.pv-heading {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: var(--hud-heading);
+}
+
+.pv-note {
+  display: block;
+  margin: 0;
+  color: var(--hud-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.pv-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.pv-label {
+  font-size: 13px;
+  color: var(--hud-muted);
+}
+
+.pv-select,
+.pv-input {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0 8px;
+  border: 1px solid var(--hud-control-outline);
+  background: var(--hud-input);
+  color: var(--hud-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.pv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+}
+
+.pv-kind {
+  font-weight: 600;
+  color: var(--hud-heading);
+}
+
+.pv-where {
+  overflow-wrap: anywhere;
+}
+
+.pv-value {
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pv-detail {
+  margin: 0;
+}

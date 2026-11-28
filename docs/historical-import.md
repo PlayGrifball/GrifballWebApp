@@ -80,6 +80,32 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   review" on the page. A sysadmin's link or dismissal is never changed by a later refresh. Each import matches the
   undecided ones again. The player is youtube-nocookie.com, loaded only on Play.
 
+## Provenance
+
+Every row the import makes, reads or changes says where it came from (`Event.HistoricalProvenance`), so bad data can be
+tracked back to its sheet: the entity (its type and key: `User` 4182, `Team`, `Season`, `SeasonMatch`, `RecordedGame`,
+`PlayerSeasonStat`, ...), the source (catalog ID), tab, cells (an A1 range, the sheet's own row numbers with its empty rows
+counted) and their text, the snapshot and job it was read from, and why when the import decided something ("Placeholder for
+Rayzyr: no account, earlier row, gamertag history or placeholder of the season has the gamertag").
+
+- **Origins** (`ArchiveOrigin`): each parser puts the cells it read a record from on the record (a stats row, a standings row,
+  a draft board's column and each pick's cell, an award's cell, a bracket slot's two team cells, a schedule cell, a result
+  row, a carnage report's block and each player's row, a website database's row, a Waypoint link's cell, a players list's
+  row, a ladder row). A game a schedule dated also keeps the schedule's cell (`DatedBy`). An uploaded archive's records have
+  none; its seasons fall back to their workbook and tab.
+- **Rows** (`HistoricalProvenanceLog`): the import notes each entity with its record's origin as it goes and writes the rows
+  in the season's transaction once its rows are saved, so a dry run or a stopped season leaves none. `Created` rows (the
+  cells that first made the entity) stay; `Read` rows are the latest run's, replaced each time a run reads the entity again from the same source (a partial run leaves
+  what the other seasons' sources said);
+  `Changed` rows (a players list linking a Discord ID, setting a region, merging a placeholder) stay. Keyed by name, not by
+  foreign key: a row of any table, and a deleted one still says where it came from.
+- **Reading it**: `GET /api/historical-provenance?entity=User&key=4182` (a user's include the placeholders merged into them)
+  and `GET /api/historical-sources/{sourceID}/provenance?sheet=...` (what a tab made), sysadmins only; the Historical Import
+  page has a lookup. A source that is one Google Sheets tab (its gid known) links straight to the cells; a whole workbook's
+  tabs have gids its xlsx export doesn't give, so its rows link the workbook and name the tab and cells.
+- **Not covered yet**: a roster tab that only fills in a stats row's missing team (`RosterSheets`, roster tabs of another
+  source) points at the stats row, not the roster's cell; a bracket drawn from per-round tabs names its tab, not its rows.
+
 ## Using it
 
 Sysadmins: SysAdmin > Historical Import (`/sysadmin/historicalimport`). "Refresh sources" downloads;

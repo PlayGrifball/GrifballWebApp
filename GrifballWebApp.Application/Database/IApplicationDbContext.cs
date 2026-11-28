@@ -41,6 +41,7 @@ public interface IApplicationDbContext
     DbSet<UserSpartanFile> UserSpartanFiles { get; }
     DbSet<HistoricalSource> HistoricalSources { get; }
     DbSet<HistoricalImportSettings> HistoricalImportSettings { get; }
+    DbSet<HistoricalProvenance> HistoricalProvenance { get; }
     DbSet<UserMerge> UserMerges { get; }
     DbSet<DuplicateDismissal> DuplicateDismissals { get; }
     DbSet<ChatMonth> ChatMonths { get; }

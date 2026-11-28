@@ -106,7 +106,7 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
         var upload = new HistoricalArchiveInput { Seasons = new UnifiedArchive(), RecordedGames = [] };
         var jobId = await Queue(HistoricalImportJob.Upload(JsonSerializer.Serialize(upload, HistoricalArchiveInput.JsonOptions)));
         var report = new HistoricalImportReport { SeasonsCreated = 3 };
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(async call =>
             {
                 await call.Arg<Func<HistoricalImportProgress, Task>?>()!(new HistoricalImportProgress("Importing seasons", 2, 5));
@@ -124,8 +124,8 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
             Assert.That(job.Payload, Is.Null, "the archive goes once the job ends");
             Assert.That(_workerLog.At(LogLevel.Information), Does.Contain($"Historical import job {jobId} finished"));
         }
-        await _import.Received(1).Import(Arg.Is<HistoricalArchiveInput>(i => i.RecordedGames != null && i.RecordedGames.Count == 0),
-            Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>());
+        await _import.Received(1).Run(Arg.Is<HistoricalArchiveInput>(i => i.RecordedGames != null && i.RecordedGames.Count == 0),
+            Arg.Is<HistoricalImportRunOptions>(o => o.JobID == jobId && !o.DryRun && o.Guardrail == null), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -133,7 +133,7 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
     {
         var upload = new HistoricalArchiveInput { Seasons = new UnifiedArchive() };
         var jobId = await Queue(HistoricalImportJob.Upload(JsonSerializer.Serialize(upload, HistoricalArchiveInput.JsonOptions)));
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("outer", new InvalidDataException("the sheet has no header row")));
 
         Assert.That(await _worker.RunNextAsync(CancellationToken.None), Is.True);
@@ -238,7 +238,7 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
     private TaskCompletionSource ImportRunsUntilCancelled()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(async call =>
             {
                 started.TrySetResult();
@@ -314,7 +314,7 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
     {
         var jobId = await QueueUploadAsync();
         var report = new HistoricalImportReport { SeasonsCreated = 1 };
-        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>()).Returns(report);
+        _import.Run(Arg.Any<HistoricalArchiveInput>(), Arg.Any<HistoricalImportRunOptions>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>()).Returns(report);
         using var worker = Worker(TimeProvider.System, new HistoricalImportWorkerOptions { PollInterval = TimeSpan.FromMilliseconds(50) });
 
         await worker.StartAsync(CancellationToken.None);

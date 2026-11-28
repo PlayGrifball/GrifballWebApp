@@ -103,7 +103,11 @@ public class HistoricalArchiveDraftsTests
 
         var team = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons.Single().Teams.Single();
 
-        Assert.That((team.TeamName, team.Captain, team.DraftOrder, team.Picks.Single()), Is.EqualTo(("Alpha", (string?)"Ace", (int?)2, new ArchiveDraftPick("Dee", 1))));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((team.TeamName, team.Captain, team.DraftOrder, team.Picks.Single() with { Origin = null }), Is.EqualTo(("Alpha", (string?)"Ace", (int?)2, new ArchiveDraftPick("Dee", 1))));
+            Assert.That((team.Origin?.Cells, team.Picks.Single().Origin?.Cells), Is.EqualTo(((string?)"A2:C2", (string?)"A3:C3")), "the team's first row, the pick's own");
+        }
     }
 
     [TestCase("Ace", "Ace")]

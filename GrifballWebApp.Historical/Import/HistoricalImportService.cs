@@ -42,6 +42,8 @@ public class HistoricalImportRunOptions
     public HistoricalGuardrailOptions? Guardrail { get; init; }
     /// <summary>Only the seasons with one of these keys (a season's HistoricalSourceID or any of its entries'); null is all.</summary>
     public IReadOnlySet<string>? Seasons { get; init; }
+    /// <summary>The job that runs it, kept on the provenance it writes (HistoricalProvenance).</summary>
+    public int? JobID { get; init; }
 }
 
 /// <summary>When an automatic import stops a season for review (HistoricalImport:Guardrail).</summary>
@@ -195,6 +197,8 @@ public partial class HistoricalImportService : IHistoricalImportService
     private readonly GrifballWebApp.Application.Profile.IUserMergeService _merges;
     // #548: every game the import brings in or updates is checked the same way a manual game or a Halo pull is
     private readonly GrifballWebApp.Application.StatFlags.StatFlagService _statFlags;
+    /// <summary>The run's provenance: where each row it makes or reads came from. Each <see cref="Run"/> starts its own.</summary>
+    private HistoricalProvenanceLog _provenance;
 
     public HistoricalImportService(IApplicationDbContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger, GamertagMatching matching, TimeProvider timeProvider,
         GrifballWebApp.Application.Profile.IUserMergeService merges, GrifballWebApp.Application.StatFlags.StatFlagService? statFlags = null)
@@ -207,6 +211,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         _timeProvider = timeProvider;
         _merges = merges;
         _statFlags = statFlags ?? new GrifballWebApp.Application.StatFlags.StatFlagService(context, timeProvider);
+        _provenance = new HistoricalProvenanceLog(context, timeProvider);
     }
 
     /// <summary>A season to import: its archive entries (regular season and playoffs), titles and Waypoint matches.</summary>
@@ -230,6 +235,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         public Dictionary<ArchiveSeason, GameVersion> EntryGames { get; } = new(ReferenceEqualityComparer.Instance);
         public List<ArchiveChampionship> Championships { get; } = [];
         public WaypointSeasonMatches? Waypoint { get; set; }
+        /// <summary>The cell each Waypoint match was listed in, by match ID: <see cref="WaypointOrigins"/>, made once.</summary>
+        public Dictionary<Guid, ArchiveOrigin>? WaypointCells { get; set; }
         /// <summary>The season's recorded games; null when the archive has none for it (its games are then left as they are).</summary>
         public List<RecordedGameInput>? RecordedGames { get; set; }
         /// <summary>The season's forfeits; null when the archive has none for it (its forfeited matches are then left as they are).</summary>
@@ -240,7 +247,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         public SeasonFormat Format { get; set; } = SeasonFormat.LeagueSeason;
     }
 
-    private sealed record SheetPlayer(int UserId, string Gamertag, string? TeamName);
+    private sealed record SheetPlayer(int UserId, string Gamertag, string? TeamName, ArchiveOrigin? Origin = null);
 
     /// <summary>A season's teams (by name, unique in a season) and who played for each, gathered while importing.</summary>
     private sealed class SeasonTeams
@@ -248,6 +255,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         public Dictionary<string, Team> ByName { get; } = new(StringComparer.OrdinalIgnoreCase);
         /// <summary>Each team's players, from the sheets and the titles: its roster.</summary>
         public HashSet<(int TeamID, int UserID)> Players { get; } = [];
+        /// <summary>The records that put each player on each team's roster, and how.</summary>
+        public Dictionary<(int TeamID, int UserID), List<(ArchiveOrigin Origin, string Why)>> PlayerOrigins { get; } = [];
         /// <summary>The captain (user) of each team a title names one for.</summary>
         public Dictionary<int, int> Captains { get; } = [];
         /// <summary>Each team's captain's place in the draft order, from its draft board.</summary>
@@ -278,13 +287,20 @@ public partial class HistoricalImportService : IHistoricalImportService
             return ScheduleByGamertag.GetValueOrDefault(HistoricalKeys.Normalize(gamertag));
         }
 
-        /// <summary>Puts the player on the named team's roster; returns the team's ID, null when no team is named.</summary>
-        public int? Join(string? teamName, int userId)
+        /// <summary>Puts the player on the named team's roster, as <paramref name="origin"/> says (<paramref name="why"/>); returns
+        /// the team's ID, null when no team is named.</summary>
+        public int? Join(string? teamName, int userId, ArchiveOrigin? origin = null, string? why = null)
         {
             var team = Find(teamName);
             if (team is null)
                 return null;
             Players.Add((team.TeamID, userId));
+            if (origin is not null)
+            {
+                if (!PlayerOrigins.TryGetValue((team.TeamID, userId), out var origins))
+                    PlayerOrigins[(team.TeamID, userId)] = origins = [];
+                origins.Add((origin, why ?? $"On {team.TeamName}"));
+            }
             return team.TeamID;
         }
     }
@@ -303,6 +319,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         progress ??= _ => Task.CompletedTask;
         var report = new HistoricalImportReport();
+        _provenance = new HistoricalProvenanceLog(_context, _timeProvider, options.JobID, input.SnapshotIDs);
         var leagues = await _context.Leagues.ToListAsync(ct);
         var gameVersions = await _context.GameVersions.ToListAsync(ct);
         var urls = (input.Catalog?.Sources ?? []).Where(s => !string.IsNullOrWhiteSpace(s.Url))
@@ -844,11 +861,12 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (season is null)
             {
                 await transaction.RollbackAsync(ct);
+                _provenance.Discard();
                 report.Skipped.AddRange(counts.Skipped);
                 return;
             }
 
-            var resolver = new PlayerResolver(_context, season.SeasonID, season.SeasonStart);
+            var resolver = new PlayerResolver(_context, season.SeasonID, season.SeasonStart, provenance: _provenance);
             // The season is reconciled with the archive: what this run doesn't bring back (a team renamed, a player taken
             // off the sheet or under a corrected gamertag, a tier's title gone, Waypoint games no longer listed) goes
             var teams = await UpsertTeams(group, season, counts, ct);
@@ -880,6 +898,8 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Warn(counts, $"{group.SourceId}: {gamertag} is in more than one Xbox account's gamertag history for the season; left to its placeholder");
 
             await _context.SaveChangesAsync(ct);
+            // Where each row came from, in the season's transaction: rolled back with it
+            await _provenance.FlushAsync(ct);
             counts.DummyUsersCreated = resolver.DummiesCreated;
             (removal.StatsRemoved, removal.TeamsRemoved, removal.TitlesRemoved) = (counts.StatsRemoved, counts.TeamsRemoved, counts.ChampionshipsRemoved);
             removal.AwardsRemoved = counts.AwardsRemoved;
@@ -911,6 +931,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             await transaction.RollbackAsync(CancellationToken.None);
+            _provenance.Discard();
             _context.ChangeTracker.Clear();
             _logger.LogError(ex, "Historical import of {Season} failed and was rolled back", group.SourceId);
             report.Errors.Add($"{group.SourceId}: {ex.GetBaseException().Message}");
@@ -1028,6 +1049,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         season.ScheduleArchived(start, end, dated, _timeProvider.GetUtcNow().UtcDateTime);
         season.UpdateArchived(group.SeasonName, league.LeagueID, group.GameVersion?.GameVesionID, group.Division, group.SourceUrl, group.Format);
         season.SetArchiveSources(group.Sources);
+        NoteSeason(season, group);
         await _context.SaveChangesAsync(ct);
         return season;
     }
@@ -1139,6 +1161,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var existing = await _context.Teams.Where(t => t.SeasonID == season.SeasonID).ToListAsync(ct);
+        var teamOrigins = TeamOrigins(group);
         foreach (var name in names)
         {
             var team = existing.FirstOrDefault(t => string.Equals(t.TeamName, name, StringComparison.OrdinalIgnoreCase));
@@ -1157,6 +1180,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             var (rank, finish) = ArchivedPlacing(group, name);
             team.RecordArchivedPlacing(rank, finish);
             teams.ByName[name] = team;
+            foreach (var (origin, why) in teamOrigins[name])
+                _provenance.Read(team, origin, why);
         }
         await _context.SaveChangesAsync(ct);
         return teams;
@@ -1210,14 +1235,14 @@ public partial class HistoricalImportService : IHistoricalImportService
                 continue;
             if (!string.IsNullOrWhiteSpace(archiveTeam.Captain) && !Parsing.SeasonStatsParser.IsTotalsLabel(archiveTeam.Captain))
             {
-                var captainId = (await resolver.Resolve(archiveTeam.Captain, null, ct)).UserId;
-                teams.Join(team.TeamName, captainId);
+                var captainId = (await resolver.Resolve(archiveTeam.Captain, null, ct, archiveTeam.Origin)).UserId;
+                teams.Join(team.TeamName, captainId, archiveTeam.Origin, $"Captain of {team.TeamName} as {archiveTeam.Captain}");
                 teams.Captains.TryAdd(team.TeamID, captainId);
             }
             foreach (var gamertag in archiveTeam.Roster.Where(r => Parsing.SeasonStatsParser.IsPlayerTag(r)))
             {
-                var userId = (await resolver.Resolve(gamertag, null, ct)).UserId;
-                teams.Join(team.TeamName, userId);
+                var userId = (await resolver.Resolve(gamertag, null, ct, archiveTeam.Origin)).UserId;
+                teams.Join(team.TeamName, userId, archiveTeam.Origin, $"On {team.TeamName}'s roster as {gamertag}");
             }
             if (archiveTeam.DraftOrder is int order && order >= 1)
                 teams.CaptainOrders.TryAdd(team.TeamID, order);
@@ -1235,8 +1260,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         var byUser = new Dictionary<int, ArchivedPick>();
         foreach (var pick in picks)
         {
-            var userId = (await resolver.Resolve(pick.Gamertag, null, ct)).UserId;
-            teams.Join(team.TeamName, userId);
+            var origin = pick.Origin ?? archiveTeam.Origin;
+            var userId = (await resolver.Resolve(pick.Gamertag, null, ct, origin)).UserId;
+            teams.Join(team.TeamName, userId, origin, $"Drafted by {team.TeamName} in round {pick.Round} as {pick.Gamertag}");
             byUser.TryAdd(userId, new ArchivedPick(pick.Round, pick.Pick is >= 1 ? pick.Pick : null));
         }
         teams.Picks[team.TeamID] = byUser;
@@ -1399,7 +1425,13 @@ public partial class HistoricalImportService : IHistoricalImportService
         await _context.Teams.WithRoster().Where(t => teamIds.Contains(t.TeamID)).LoadAsync(ct);
         var byId = teams.ByName.Values.ToDictionary(t => t.TeamID);
         foreach (var (teamId, userId) in teams.Players)
+        {
             byId[teamId].AddPlayer(userId);
+            // Noted before the save: a row new to the roster is made from these
+            if (teams.PlayerOrigins.TryGetValue((teamId, userId), out var origins) && byId[teamId].TeamPlayers.FirstOrDefault(r => r.UserID == userId) is { } row)
+                foreach (var (origin, why) in origins)
+                    _provenance.Read(row, origin, why);
+        }
         await _context.SaveChangesAsync(ct);
 
         foreach (var team in teams.ByName.Values)
@@ -1428,6 +1460,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         public string? Series { get; init; }
         /// <summary>Forfeited, not played (<see cref="RecordedGameInput.IsForfeit"/>).</summary>
         public bool IsForfeit { get; init; }
+        /// <summary>Where the game was read: its Waypoint link's cell, its recorded game's rows.</summary>
+        public ArchiveOrigin? Origin { get; init; }
     }
 
     private static int? Min(int? a, int? b) => a is null || b is null ? a ?? b : Math.Min(a.Value, b.Value);
@@ -1459,6 +1493,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var matchPhases = group.Waypoint is null ? new Dictionary<Guid, bool>() : WaypointIds(group, null);
         var ids = matchPhases.Keys.ToList();
         var present = (await _context.Matches.Where(m => ids.Contains(m.MatchID)).Select(m => m.MatchID).ToListAsync(ct)).ToHashSet();
+        NoteListedMatches(group, present, matchPhases);
         foreach (var phase in new[] { false, true })
         {
             var listed = matchPhases.Where(m => m.Value == phase).Select(m => m.Key).ToList();
@@ -1476,16 +1511,20 @@ public partial class HistoricalImportService : IHistoricalImportService
             .Where(p => completeIds.Contains(p.MatchID))
             .Select(p => new { p.MatchID, p.XboxUserID, p.XboxUser.Gamertag })
             .ToListAsync(ct);
+        var listedIn = WaypointOrigins(group);
         foreach (var player in participants.GroupBy(p => (p.XboxUserID, Playoffs: matchPhases[p.MatchID])))
         {
             var gamertag = player.First().Gamertag;
-            var userId = (await resolver.Resolve(gamertag, player.Key.XboxUserID, ct)).UserId;
+            // A placeholder made for the account is made from the cell of the first of its matches the sheet lists
+            var listed = player.Select(p => listedIn.GetValueOrDefault(p.MatchID)).FirstOrDefault(o => o is not null);
+            var userId = (await resolver.Resolve(gamertag, player.Key.XboxUserID, ct, listed)).UserId;
             players.Accounts[player.Key.XboxUserID] = userId;
             var sheetRow = group.Entries.Where(e => e.IsPlayoffs == player.Key.Playoffs)
                 .SelectMany(e => e.Players)
                 .FirstOrDefault(p => HistoricalKeys.Normalize(p.Gamertag) == HistoricalKeys.Normalize(gamertag));
             var teamName = teams.TeamOf(sheetRow?.TeamName, player.Key.XboxUserID, null, gamertag);
-            if (teams.Join(teamName, userId) is not null && HistoricalKeys.IsExcludedTeamName(sheetRow?.TeamName))
+            if (teams.Join(teamName, userId, sheetRow?.Origin ?? listed, WaypointJoinWhy(sheetRow, teamName)) is not null
+                && HistoricalKeys.IsExcludedTeamName(sheetRow?.TeamName))
                 teams.ScheduleByUser.TryAdd(userId, teamName!);
             players.Users[player.Key.Playoffs].Add(userId);
         }
@@ -1546,6 +1585,7 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         var games = new List<ImportedGame>();
         var withoutTeam = new List<Guid>();
+        var listedIn = WaypointOrigins(group);
         foreach (var match in sides.Where(s => !linked.Contains(s.MatchID)).GroupBy(s => s.MatchID))
         {
             var both = match.OrderBy(s => s.TeamID).ToList();
@@ -1557,7 +1597,10 @@ public partial class HistoricalImportService : IHistoricalImportService
             var (a, b) = Distinct(TeamOf(both[0].Players), both.Count == 2 ? TeamOf(both[1].Players) : null);
             if (a is null || b is null)
                 withoutTeam.Add(match.Key);
-            games.Add(new ImportedGame(match.Key, null, both[0].StartTime, matchPhases[match.Key], a, both[0].Outcome, b, both.Count == 2 ? both[1].Outcome : Outcomes.DidNotFinish));
+            games.Add(new ImportedGame(match.Key, null, both[0].StartTime, matchPhases[match.Key], a, both[0].Outcome, b, both.Count == 2 ? both[1].Outcome : Outcomes.DidNotFinish)
+            {
+                Origin = listedIn.GetValueOrDefault(match.Key),
+            });
         }
         // Once for the season, not once a game
         if (withoutTeam.Count > 0 && teams.ByName.Count > 0)
@@ -1621,8 +1664,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var match = ForfeitedBy(played, home, away) is { } forfeiter
                 ? SeasonMatch.ImportedForfeit(season.SeasonID, home, away, homeWins, awayWins, bestOf, first.Start, info, forfeiter)
                 : SeasonMatch.Imported(season.SeasonID, home, away, homeWins, awayWins, bestOf: bestOf, scheduledTime: first.Start, bracketMatch: info);
-            foreach (var (game, index) in played.Select((g, i) => (g, i)))
-                match.AddImportedGame(game.MatchID, game.Recorded, index + 1);
+            AddSeriesGames(match, played);
             _context.SeasonMatches.Add(match);
             linked.Add(match);
             counts.SeasonMatchesCreated++;
@@ -1817,6 +1859,7 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         var game = await UpsertRecordedGame(input, key, gameVersion!, run, ct);
         ApplyRecordedGame(game, sides, sideTeams, players);
+        NoteRecordedGame(game, input, players);
         run.Counts.RecordedGamesImported++;
 
         if (!input.IsScrim && game.SeriesGame is null)
@@ -1825,6 +1868,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             {
                 Series = input.Series,
                 IsForfeit = input.IsForfeit,
+                Origin = input.Origin,
             });
     }
 
@@ -1974,10 +2018,11 @@ public partial class HistoricalImportService : IHistoricalImportService
             {
                 // Renamed players are found through their gamertag history, so their Waypoint row isn't joined by a
                 // second, Manual one under the old gamertag
-                var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
-                sheetPlayers[entry.IsPlayoffs].Add(new SheetPlayer(userId, HistoricalKeys.CleanGamertag(player.Gamertag), player.TeamName));
+                var userId = (await resolver.Resolve(player.Gamertag, null, ct, player.Origin)).UserId;
+                sheetPlayers[entry.IsPlayoffs].Add(new SheetPlayer(userId, HistoricalKeys.CleanGamertag(player.Gamertag), player.TeamName, player.Origin));
                 // On the team's roster even when the player's Waypoint stats replace the row
-                var teamId = teams.Join(teams.TeamOf(player.TeamName, null, userId, player.Gamertag), userId);
+                var teamName = teams.TeamOf(player.TeamName, null, userId, player.Gamertag);
+                var teamId = teams.Join(teamName, userId, player.Origin, StatRowWhy(player, teamName));
                 if (waypointUsers[entry.IsPlayoffs].Contains(userId))
                 {
                     counts.ManualReplacedByWaypoint++;
@@ -1991,7 +2036,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 }
                 var row = PlayerSeasonStat.FromSheet(season.SeasonID, userId, group.EntryGames[entry].GameVesionID, Totals(player), teamId,
                     stint, entry.IsPlayoffs, entry.IsCombined, player.TradeNote, player.RoleNote);
-                StoreRow(row, existing, kept, counts);
+                _provenance.Read(StoreRow(row, existing, kept, counts), player.Origin, $"{player.Gamertag}'s {Phase(entry.IsPlayoffs)} stat row, stint {stint}");
             }
         }
         await _context.SaveChangesAsync(ct);
@@ -2000,22 +2045,21 @@ public partial class HistoricalImportService : IHistoricalImportService
 
     /// <summary>
     /// A sheet row restates the season's row of its key (only the values that changed are written, and get a history
-    /// row: a re-run of the same archive changes nothing), or is added; either is kept.
+    /// row: a re-run of the same archive changes nothing), or is added; either is kept, and returned.
     /// </summary>
-    private void StoreRow(PlayerSeasonStat row, Dictionary<(int UserID, int StintIndex, bool IsPlayoffs), PlayerSeasonStat> existing, HashSet<PlayerSeasonStat> kept, HistoricalImportReport counts)
+    private PlayerSeasonStat StoreRow(PlayerSeasonStat row, Dictionary<(int UserID, int StintIndex, bool IsPlayoffs), PlayerSeasonStat> existing, HashSet<PlayerSeasonStat> kept, HistoricalImportReport counts)
     {
         if (existing.TryGetValue((row.UserID, row.StintIndex, row.IsPlayoffs), out var stored))
         {
             stored.Restate(row);
             kept.Add(stored);
             counts.StatsUpdated++;
+            return stored;
         }
-        else
-        {
-            _context.PlayerSeasonStats.Add(row);
-            kept.Add(row);
-            counts.StatsInserted++;
-        }
+        _context.PlayerSeasonStats.Add(row);
+        kept.Add(row);
+        counts.StatsInserted++;
+        return row;
     }
 
     /// <summary>
@@ -2084,8 +2128,11 @@ public partial class HistoricalImportService : IHistoricalImportService
         {
             if (!placeholders.Contains(row.UserId))
                 continue;
-            if (await _matching.ClaimAsync(GamertagClaimKind.RosterMatch, xuid, row.Gamertag, row.UserId, season.SeasonID, teams.Find(row.TeamName)?.TeamID, evenIfRejected: false, ct) is not null)
+            if (await _matching.ClaimAsync(GamertagClaimKind.RosterMatch, xuid, row.Gamertag, row.UserId, season.SeasonID, teams.Find(row.TeamName)?.TeamID, evenIfRejected: false, ct) is { } claim)
+            {
                 counts.SuggestionsCreated++;
+                _provenance.Created(claim, row.Origin, $"{row.Gamertag}'s stat row and Xbox account {xuid}'s Waypoint games put them on the same team");
+            }
         }
     }
 
@@ -2113,7 +2160,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var members = new List<ChampionMember>();
             foreach (var gamertag in roster)
             {
-                var userId = (await resolver.Resolve(gamertag, null, ct)).UserId;
+                var userId = (await resolver.Resolve(gamertag, null, ct, championship.Origin)).UserId;
                 if (members.Any(m => m.UserID == userId))
                 {
                     Skip(counts, $"{group.SourceId} {tier.Key} champions: {gamertag} is listed twice for one player");
@@ -2121,13 +2168,14 @@ public partial class HistoricalImportService : IHistoricalImportService
                 }
                 var isCaptain = captain is not null && HistoricalKeys.Normalize(captain) == HistoricalKeys.Normalize(gamertag);
                 members.Add(new ChampionMember(userId, HistoricalKeys.CleanGamertag(gamertag), isCaptain));
-                teams.Join(team.TeamName, userId);
+                teams.Join(team.TeamName, userId, championship.Origin, $"On {team.TeamName}'s {tier.Key} title as {gamertag}");
                 if (isCaptain)
                     teams.Captains[team.TeamID] = userId;
             }
             var slug = HistoricalKeys.GameVersionSlug(championship.Game);
             var gameVersionId = gameVersions.FirstOrDefault(g => g.Slug == slug)?.GameVesionID;
             var changes = season.RecordArchivedChampions(tier.Key, team, members, gameVersionId);
+            NoteTitles(season, tier.Key, team, championship.Origin);
             await _context.SaveChangesAsync(ct);
             counts.ChampionshipsInserted += changes.Inserted;
             counts.ChampionshipsUpdated += changes.Updated;
@@ -2161,22 +2209,25 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// </summary>
     private async Task ImportAwards(SeasonGroup group, Season season, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
-        var winners = new List<SeasonAwardWinner>();
+        var winners = new List<(SeasonAwardWinner Winner, ArchiveOrigin? Origin)>();
         foreach (var award in group.Entries.SelectMany(e => e.Awards))
         {
             if (award.IsTeam)
             {
                 if (teams.Find(award.Winner) is { } team)
-                    winners.Add(new SeasonAwardWinner(award.Name, team.TeamName, null, team, award.Value));
+                    winners.Add((new SeasonAwardWinner(award.Name, team.TeamName, null, team, award.Value), award.Origin));
                 else
                     Skip(counts, $"{group.SourceId} award {award.Name}: no team {award.Winner} in the season");
                 continue;
             }
-            var userId = (await resolver.Resolve(award.Winner, null, ct)).UserId;
-            winners.Add(new SeasonAwardWinner(award.Name, HistoricalKeys.CleanGamertag(award.Winner), userId, teams.Find(award.Team), award.Value));
+            var userId = (await resolver.Resolve(award.Winner, null, ct, award.Origin)).UserId;
+            winners.Add((new SeasonAwardWinner(award.Name, HistoricalKeys.CleanGamertag(award.Winner), userId, teams.Find(award.Team), award.Value), award.Origin));
         }
         // Saved with the season's rosters next
-        var changes = season.RecordArchivedAwards(winners);
+        var changes = season.RecordArchivedAwards([.. winners.Select(w => w.Winner)]);
+        foreach (var (winner, origin) in winners)
+            if (season.Awards.FirstOrDefault(a => a.IsFor(winner.Name, winner.WinnerName)) is { } given)
+                _provenance.Read(given, origin, $"{winner.Name}: {winner.WinnerName}");
         counts.AwardsInserted += changes.Inserted;
         counts.AwardsUpdated += changes.Updated;
         counts.AwardsRemoved += changes.Removed;

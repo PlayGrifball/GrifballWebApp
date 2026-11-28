@@ -121,6 +121,7 @@ public partial class HistoricalImportRunner
             DryRun = dryRun,
             Guardrail = job.Guarded ? _guardrail : null,
             Seasons = seasons,
+            JobID = job.HistoricalImportJobID,
         };
         var report = await _import.Run(build.Input, options, progress, ct);
         report.Warnings.InsertRange(0, build.Warnings);
