@@ -1,0 +1,48 @@
+<section class="pv" aria-labelledby="pv-heading">
+  <h2 id="pv-heading" class="pv-heading">Where did this come from?</h2>
+  <p class="pv-note">The cells of the archive's sheets a row was made from, the ones the latest import read it from, and what changed it. A user's include the placeholders merged into them.</p>
+  <form class="pv-form" (submit)="$event.preventDefault(); lookUp(entitySelect.value, keyInput.value)">
+    <label class="pv-label" for="pv-entity">Type</label>
+    <select #entitySelect id="pv-entity" class="pv-select">
+      @for (e of entities; track e) {
+        <option [value]="e">{{e}}</option>
+      }
+    </select>
+    <label class="pv-label" for="pv-key">ID</label>
+    <input #keyInput id="pv-key" class="pv-input" type="text" autocomplete="off" placeholder="4182" />
+    <button type="submit" class="hud-btn hud-btn--primary pv-btn">Look up</button>
+  </form>
+  @if (query(); as q) {
+    @if (failed()) {
+      <p class="hud-empty hud-empty--error" role="alert">The provenance couldn't be loaded.</p>
+    } @else if (!loaded()) {
+      <p class="pv-note" aria-live="polite">Looking up {{q.entity}} {{q.key}}…</p>
+    } @else if (!rows().length) {
+      <p class="hud-empty">Nothing recorded for {{q.entity}} {{q.key}}: not made or read by an import since provenance began.</p>
+    } @else {
+      <ul class="pv-list">
+        @for (row of rows(); track row.historicalProvenanceID) {
+          <li class="pv-item hud-panel hud-panel--soft">
+            <span class="pv-kind">{{kindLabel(row.kind)}}</span>
+            <span class="pv-where">
+              @if (link(row); as href) {
+                <a [href]="href" target="_blank" rel="noopener noreferrer">{{row.sourceTitle ?? row.sourceID}}</a>
+              } @else {
+                {{row.sourceTitle ?? row.sourceID}}
+              }
+              @if (row.sheet) { · {{row.sheet}} }
+              @if (row.cells) { · {{row.cells}} }
+            </span>
+            @if (row.value) {
+              <pre class="pv-value">{{row.value}}</pre>
+            }
+            @if (row.detail) {
+              <p class="pv-detail">{{row.detail}}</p>
+            }
+            <span class="pv-note">{{row.entity}} {{row.entityKey}} · {{row.recordedAt | date: 'medium'}}@if (row.historicalImportJobID != null) { · job {{row.historicalImportJobID}}}@if (row.historicalSourceSnapshotID != null) { · snapshot {{row.historicalSourceSnapshotID}}}</span>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

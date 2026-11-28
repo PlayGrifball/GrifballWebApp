@@ -70,7 +70,7 @@ public sealed record ArchiveOrigin(string SourceId, string? Sheet = null, string
     {
         if (first == last)
             return Row(sourceId, sheet, first);
-        var width = Enumerable.Range(first, last - first + 1).Max(r => r < sheet.Rows.Count ? sheet.Rows[r].Length : 0);
+        var width = Enumerable.Range(first, last - first + 1).Max(r => sheet.Rows[r].Length);
         return new(sourceId, sheet.Name, sheet.Range(first, 0, last, Math.Max(0, width - 1)),
             string.Join("\n", Enumerable.Range(first, last - first + 1).Select(sheet.RowText)));
     }

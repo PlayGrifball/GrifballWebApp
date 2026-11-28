@@ -13,8 +13,6 @@ internal sealed record SheetOrigins(string? SourceId, SheetTable Sheet)
 
     public ArchiveOrigin? Row(int row) => SourceId is null ? null : ArchiveOrigin.Row(SourceId, Sheet, row);
 
-    public ArchiveOrigin? Rows(int first, int last) => SourceId is null ? null : ArchiveOrigin.Rows(SourceId, Sheet, first, last);
-
     /// <summary>Cells of one column (a team's column of a board): the range from the first to the last, their texts one per line.</summary>
     public ArchiveOrigin? Column(int column, IEnumerable<int> rows)
     {

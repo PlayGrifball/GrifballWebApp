@@ -161,4 +161,25 @@ public class HistoricalImportControllerActionsUnitTests : SqliteGrifballContextF
         await _scheduler.Received(1).UnscheduleJob(HistoricalRefreshJob.RetryTriggerKey, Arg.Any<CancellationToken>());
         await _scheduler.Received(1).PauseTriggerWith(HistoricalRefreshJob.TriggerKey, Arg.Is<PauseDetails>(p => p.RequestedBy == "admin"), Arg.Any<CancellationToken>());
     }
+
+    [Test]
+    public async Task Provenance_AnEntitysRows_AndWhatATabMade()
+    {
+        var run = Guid.NewGuid();
+        var at = new DateTime(2026, 11, 28, 12, 0, 0, DateTimeKind.Utc);
+        Db.HistoricalProvenance.AddRange(
+            HistoricalProvenance.Record("User", "5", HistoricalProvenanceKind.Created, run, at, "wl23", "Stats", "A5:K5"),
+            HistoricalProvenance.Record("Team", "2", HistoricalProvenanceKind.Created, run, at, "wl23", "Standings", "A3:C3"));
+        await Db.SaveChangesAsync();
+        var provenance = new HistoricalProvenanceService(Db);
+
+        var user = await Controller().Provenance("User", "5", provenance, CancellationToken.None);
+        var tab = await Controller().SourceProvenance("wl23", "Standings", provenance, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(user.Value!.Select(r => (r.Entity, r.Cells)), Is.EqualTo(new[] { ("User", (string?)"A5:K5") }));
+            Assert.That(tab.Value!.Select(r => (r.Entity, r.Cells)), Is.EqualTo(new[] { ("Team", (string?)"A3:C3") }));
+        }
+    }
 }

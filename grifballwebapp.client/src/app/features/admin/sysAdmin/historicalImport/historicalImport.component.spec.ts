@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Component } from '@angular/core';
 import { VodReviewComponent } from './vodReview/vodReview.component';
+import { ProvenanceComponent } from './provenance/provenance.component';
 import { HistoricalImportComponent, interval, removalText, size } from './historicalImport.component';
 import { isActive, JOB_POLL_MS } from './historicalImport.store';
 import type { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportReport, HistoricalImportScheduleDto, HistoricalSourceDto } from '@api/models';
@@ -12,6 +13,8 @@ import type { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalI
 /** The VOD review (tested on its own): here only where it sits, without its requests. */
 @Component({ selector: 'app-vod-review', template: '' })
 class StubVodReview {}
+@Component({ selector: 'app-provenance', template: '' })
+class StubProvenance {}
 
 function source(id: string, changes: Partial<HistoricalSourceDto> = {}): HistoricalSourceDto {
   return {
@@ -54,7 +57,7 @@ describe('HistoricalImportComponent', () => {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), { provide: MatSnackBar, useValue: snackBar }],
     });
-    TestBed.overrideComponent(HistoricalImportComponent, { remove: { imports: [VodReviewComponent] }, add: { imports: [StubVodReview] } });
+    TestBed.overrideComponent(HistoricalImportComponent, { remove: { imports: [VodReviewComponent, ProvenanceComponent] }, add: { imports: [StubVodReview, StubProvenance] } });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(HistoricalImportComponent);
     fixture.detectChanges();

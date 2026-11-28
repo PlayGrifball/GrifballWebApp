@@ -3275,6 +3275,105 @@
         }
       }
     },
+    "/historical-provenance": {
+      "get": {
+        "tags": [
+          "HistoricalImport"
+        ],
+        "summary": "Where the historical import got a row from: the cells that made it, the ones the latest import read it from, and what\nchanged it (a Discord ID linked, a merge). entity is its type (User, Team, Season, SeasonMatch,\nRecordedGame, PlayerSeasonStat, ...) and key its ID; a user's include the placeholders merged into\nthem. Sysadmins only.",
+        "operationId": "GetHistoricalProvenance",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistoricalProvenanceDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/historical-sources/{sourceID}/provenance": {
+      "get": {
+        "tags": [
+          "HistoricalImport"
+        ],
+        "summary": "What one source (and tab, when given) of the archive made or was read for, a page at a time (at most\n            GrifballWebApp.Application.Historical.HistoricalProvenanceService.MaxRows). Sysadmins only.",
+        "operationId": "GetHistoricalSourceProvenance",
+        "parameters": [
+          {
+            "name": "sourceID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sheet",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistoricalProvenanceDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events": {
       "get": {
         "tags": [
@@ -12995,6 +13094,102 @@
           }
         },
         "additionalProperties": false
+      },
+      "HistoricalProvenanceDto": {
+        "required": [
+          "cells",
+          "cellsUrl",
+          "detail",
+          "entity",
+          "entityKey",
+          "historicalImportJobID",
+          "historicalProvenanceID",
+          "historicalSourceSnapshotID",
+          "kind",
+          "recordedAt",
+          "sheet",
+          "sourceID",
+          "sourceTitle",
+          "sourceUrl",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "historicalProvenanceID": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entity": {
+            "type": "string"
+          },
+          "entityKey": {
+            "type": "string"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HistoricalProvenanceKind"
+              }
+            ]
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "historicalImportJobID": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "historicalSourceSnapshotID": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "sourceID": {
+            "type": "string"
+          },
+          "sourceTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceUrl": {
+            "type": "string",
+            "description": "The link people open (the workbook, the page).",
+            "nullable": true
+          },
+          "sheet": {
+            "type": "string",
+            "nullable": true
+          },
+          "cells": {
+            "type": "string",
+            "nullable": true
+          },
+          "cellsUrl": {
+            "type": "string",
+            "description": "The cells in Google Sheets, when the source is one tab of it (its gid known) and the row names them.",
+            "nullable": true
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A row of where the historical import got something from (GrifballWebApp.Domain.Archive.HistoricalProvenance), with its source's\n            title and links: the workbook, and the cells themselves when the source is one Google Sheets tab."
+      },
+      "HistoricalProvenanceKind": {
+        "enum": [
+          "Created",
+          "Read",
+          "Changed"
+        ],
+        "type": "string"
       },
       "HistoricalSeasonRemoval": {
         "required": [

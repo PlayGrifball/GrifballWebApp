@@ -75,6 +75,8 @@ export type { HistoricalImportJobSummaryDto } from './models/historical-import-j
 export type { HistoricalImportQueued } from './models/historical-import-queued';
 export type { HistoricalImportReport } from './models/historical-import-report';
 export type { HistoricalImportScheduleDto } from './models/historical-import-schedule-dto';
+export type { HistoricalProvenanceDto } from './models/historical-provenance-dto';
+export type { HistoricalProvenanceKind } from './models/historical-provenance-kind';
 export type { HistoricalSeasonRemoval } from './models/historical-season-removal';
 export type { HistoricalSeasonReviewDto } from './models/historical-season-review-dto';
 export type { HistoricalSourceDto } from './models/historical-source-dto';

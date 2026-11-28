@@ -147,6 +147,10 @@ export type { GetHistoricalImportSchedule$Params as GetHistoricalImportSchedule$
 export { getHistoricalImportSchedule as getHistoricalImportSchedule } from './fn/historical-import/get-historical-import-schedule';
 export type { SetHistoricalImportSchedulePaused$Params as SetHistoricalImportSchedulePaused$Params } from './fn/historical-import/set-historical-import-schedule-paused';
 export { setHistoricalImportSchedulePaused as setHistoricalImportSchedulePaused } from './fn/historical-import/set-historical-import-schedule-paused';
+export type { GetHistoricalProvenance$Params as GetHistoricalProvenance$Params } from './fn/historical-import/get-historical-provenance';
+export { getHistoricalProvenance as getHistoricalProvenance } from './fn/historical-import/get-historical-provenance';
+export type { GetHistoricalSourceProvenance$Params as GetHistoricalSourceProvenance$Params } from './fn/historical-import/get-historical-source-provenance';
+export { getHistoricalSourceProvenance as getHistoricalSourceProvenance } from './fn/historical-import/get-historical-source-provenance';
 export type { CurrentAndFutureEvents$Params as CurrentAndFutureEvents$Params } from './fn/home/current-and-future-events';
 export { currentAndFutureEvents as currentAndFutureEvents } from './fn/home/current-and-future-events';
 export type { Login$Params as Login$Params } from './fn/identity/login';

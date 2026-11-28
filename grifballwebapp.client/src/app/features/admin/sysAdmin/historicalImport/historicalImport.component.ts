@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { RouterLink } from '@angular/router';
 import type { HistoricalSeasonReviewDto, HistoricalSourceDto } from '@api/models';
 import { VodReviewComponent } from './vodReview/vodReview.component';
+import { ProvenanceComponent } from './provenance/provenance.component';
 import { HistoricalImportStore } from './historicalImport.store';
 import { SkeletonComponent } from '@shared/skeleton/skeleton.component';
 
@@ -42,7 +43,7 @@ const REVIEW_LABELS: Record<string, string> = { Preview: 'Would remove', NeedsRe
  */
 @Component({
   selector: 'app-historical-import',
-  imports: [RouterLink, DatePipe, VodReviewComponent, SkeletonComponent],
+  imports: [RouterLink, DatePipe, VodReviewComponent, ProvenanceComponent, SkeletonComponent],
   templateUrl: './historicalImport.component.html',
   styleUrl: './historicalImport.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

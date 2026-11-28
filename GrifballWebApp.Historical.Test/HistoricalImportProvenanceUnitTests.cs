@@ -216,4 +216,32 @@ internal sealed class HistoricalImportProvenanceUnitTests : ApplicationDbContext
             Assert.That(changes.Select(c => c.Detail), Has.Some.StartsWith("Discord ID 123456789012345678 linked").And.Some.StartsWith("Region set"));
         }
     }
+
+    [Test]
+    public async Task Import_AListedWaypointMatch_SaysWhichCellListedIt_AndMadeItsPlayersPlaceholders()
+    {
+        var matchId = Guid.NewGuid();
+        await AddMatch(Context, matchId, (1, "Alpha One", Outcomes.Won, 20, 5), (2, "Beta One", Outcomes.Lost, 10, 15));
+        var link = $"https://www.halowaypoint.com/halo-infinite/players/alpha/matches/{matchId}";
+        var season = Entry("Winter League 2020", "infinite", "AGLA", false, Row("Alpha One", "Red Team", "A5:B5"), Row("Beta One", "Blue Team", "A6:B6"));
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [season] },
+            WaypointMatches = new() { [SeasonKey] = new WaypointSeasonMatches { Regular = [link], Origins = new() { [link] = Cells("B2", link, "Links") } } },
+        };
+
+        var report = await _service.Import(input);
+
+        var match = (await Rows("Match")).Single();
+        var users = await Rows("User");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That((match.EntityKey, match.Kind, match.Sheet, match.Cells), Is.EqualTo((matchId.ToString(), HistoricalProvenanceKind.Read, (string?)"Links", (string?)"B2")));
+            Assert.That(users.Select(u => (u.Kind, u.Sheet, u.Cells)), Has.All.EqualTo((HistoricalProvenanceKind.Created, (string?)"Links", (string?)"B2")),
+                "each player's placeholder, made for their Xbox account from the link that listed their game");
+            Assert.That(users.Select(u => u.Detail), Has.All.Contains("which no user or placeholder holds"));
+            Assert.That(await Rows(nameof(Domain.League.SeasonMatch)), Has.Some.Matches<HistoricalProvenance>(p => p.Cells == "B2"), "the series of the listed game");
+        }
+    }
 }

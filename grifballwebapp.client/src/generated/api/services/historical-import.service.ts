@@ -20,12 +20,17 @@ import { getHistoricalImportJobs } from '../fn/historical-import/get-historical-
 import { GetHistoricalImportJobs$Params } from '../fn/historical-import/get-historical-import-jobs';
 import { getHistoricalImportSchedule } from '../fn/historical-import/get-historical-import-schedule';
 import { GetHistoricalImportSchedule$Params } from '../fn/historical-import/get-historical-import-schedule';
+import { getHistoricalProvenance } from '../fn/historical-import/get-historical-provenance';
+import { GetHistoricalProvenance$Params } from '../fn/historical-import/get-historical-provenance';
+import { getHistoricalSourceProvenance } from '../fn/historical-import/get-historical-source-provenance';
+import { GetHistoricalSourceProvenance$Params } from '../fn/historical-import/get-historical-source-provenance';
 import { getHistoricalSources } from '../fn/historical-import/get-historical-sources';
 import { GetHistoricalSources$Params } from '../fn/historical-import/get-historical-sources';
 import { HistoricalImportJobDto } from '../models/historical-import-job-dto';
 import { HistoricalImportJobSummaryDto } from '../models/historical-import-job-summary-dto';
 import { HistoricalImportQueued } from '../models/historical-import-queued';
 import { HistoricalImportScheduleDto } from '../models/historical-import-schedule-dto';
+import { HistoricalProvenanceDto } from '../models/historical-provenance-dto';
 import { HistoricalSourceDto } from '../models/historical-source-dto';
 import { importHistoricalArchive } from '../fn/historical-import/import-historical-archive';
 import { ImportHistoricalArchive$Params } from '../fn/historical-import/import-historical-archive';
@@ -467,6 +472,84 @@ export class HistoricalImportService extends BaseService {
     const resp = this.setHistoricalImportSchedulePaused$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<HistoricalImportScheduleDto>): HistoricalImportScheduleDto => r.body)
+    );
+  }
+
+  /** Path part for operation `getHistoricalProvenance()` */
+  static readonly GetHistoricalProvenancePath = '/historical-provenance';
+
+  /**
+   * Where the historical import got a row from: the cells that made it, the ones the latest import read it from, and what
+   * changed it (a Discord ID linked, a merge). entity is its type (User, Team, Season, SeasonMatch,
+   * RecordedGame, PlayerSeasonStat, ...) and key its ID; a user's include the placeholders merged into
+   * them. Sysadmins only.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getHistoricalProvenance()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getHistoricalProvenance$Response(params?: GetHistoricalProvenance$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<HistoricalProvenanceDto>>> {
+    const obs = getHistoricalProvenance(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Where the historical import got a row from: the cells that made it, the ones the latest import read it from, and what
+   * changed it (a Discord ID linked, a merge). entity is its type (User, Team, Season, SeasonMatch,
+   * RecordedGame, PlayerSeasonStat, ...) and key its ID; a user's include the placeholders merged into
+   * them. Sysadmins only.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getHistoricalProvenance$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getHistoricalProvenance(params?: GetHistoricalProvenance$Params, context?: HttpContext): Observable<Array<HistoricalProvenanceDto>> {
+    const resp = this.getHistoricalProvenance$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Array<HistoricalProvenanceDto>>): Array<HistoricalProvenanceDto> => r.body)
+    );
+  }
+
+  /** Path part for operation `getHistoricalSourceProvenance()` */
+  static readonly GetHistoricalSourceProvenancePath = '/historical-sources/{sourceID}/provenance';
+
+  /**
+   * What one source (and tab, when given) of the archive made or was read for, a page at a time (at most
+   *             GrifballWebApp.Application.Historical.HistoricalProvenanceService.MaxRows). Sysadmins only.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `getHistoricalSourceProvenance()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getHistoricalSourceProvenance$Response(params: GetHistoricalSourceProvenance$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<HistoricalProvenanceDto>>> {
+    const obs = getHistoricalSourceProvenance(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * What one source (and tab, when given) of the archive made or was read for, a page at a time (at most
+   *             GrifballWebApp.Application.Historical.HistoricalProvenanceService.MaxRows). Sysadmins only.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `getHistoricalSourceProvenance$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  getHistoricalSourceProvenance(params: GetHistoricalSourceProvenance$Params, context?: HttpContext): Observable<Array<HistoricalProvenanceDto>> {
+    const resp = this.getHistoricalSourceProvenance$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<Array<HistoricalProvenanceDto>>): Array<HistoricalProvenanceDto> => r.body)
     );
   }
 

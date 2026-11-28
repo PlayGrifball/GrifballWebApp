@@ -91,6 +91,19 @@ public class SheetTableAtTests
         }
     }
 
+    [Test]
+    public void RowNumber_PastTheNumberedRows_CountsOn()
+    {
+        var table = new SheetTable { Name = "S", Rows = [["a"], ["b"]], RowNumbers = [3, 5] };
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((table.RowNumber(1), table.RowNumber(2), table.RowNumber(-1)), Is.EqualTo((5, 3, 0)), "an index it has no number for is counted from 1");
+            Assert.That(table.RowRange(4), Is.EqualTo("A5"), "a row past the last is one cell wide");
+            Assert.That(table.RowText(-1), Is.Empty);
+        }
+    }
+
     [TestCase(0, "A")]
     [TestCase(25, "Z")]
     [TestCase(26, "AA")]
