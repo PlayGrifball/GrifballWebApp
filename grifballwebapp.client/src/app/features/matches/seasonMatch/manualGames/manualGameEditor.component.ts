@@ -64,21 +64,23 @@ export class ManualGameEditorComponent {
   readonly saved = output<ManualGameForm>();
   readonly cancelled = output<void>();
 
-  /** The game the editor started with: read once (a new editor is created for a new `form`, see ManualGamesComponent). */
-  protected readonly initial = this.form();
-
-  protected readonly formGroup: ManualGameFormGroup = new FormGroup({
-    homeTeamScore: new FormControl<number | null>(this.initial.homeTeamScore),
-    awayTeamScore: new FormControl<number | null>(this.initial.awayTeamScore),
-    slot: new FormControl<GameSlot | null>(this.initial.slot),
-    gameVersionID: new FormControl(this.initial.gameVersionID, { nonNullable: true }),
-    map: new FormControl(this.initial.map, { nonNullable: true }),
-    gametype: new FormControl(this.initial.gametype, { nonNullable: true }),
-    playedAt: new FormControl(this.initial.playedAt, { nonNullable: true }),
-    players: new FormArray(this.initial.players.map(line => this.playerLineGroup(line))),
-  });
+  /** The game the editor started with: read once, in the constructor (a required input has no value yet in a field
+   * initializer) — a new editor is created for a new `form`, see ManualGamesComponent. */
+  protected readonly initial: ManualGameForm;
+  protected readonly formGroup: ManualGameFormGroup;
 
   constructor() {
+    this.initial = this.form();
+    this.formGroup = new FormGroup({
+      homeTeamScore: new FormControl<number | null>(this.initial.homeTeamScore),
+      awayTeamScore: new FormControl<number | null>(this.initial.awayTeamScore),
+      slot: new FormControl<GameSlot | null>(this.initial.slot),
+      gameVersionID: new FormControl(this.initial.gameVersionID, { nonNullable: true }),
+      map: new FormControl(this.initial.map, { nonNullable: true }),
+      gametype: new FormControl(this.initial.gametype, { nonNullable: true }),
+      playedAt: new FormControl(this.initial.playedAt, { nonNullable: true }),
+      players: new FormArray(this.initial.players.map(line => this.playerLineGroup(line))),
+    });
     // A line's stats are entered only once it is ticked as played; its control starts disabled to match
     for (const line of this.formGroup.controls.players.controls)
       line.controls.played.valueChanges.pipe(takeUntilDestroyed()).subscribe(played => this.setPlayed(line, played));
