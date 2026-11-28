@@ -19,8 +19,13 @@ public class DiscordModuleRegistrationTests
     private static readonly string[] Buttons =
     [
         "chatconfirm(String actionId, String answer) preconditions: 0",
+        "claimapprove(Int32 claim) preconditions: 0",
+        "claimreject(Int32 claim) preconditions: 0",
         "join_queue() preconditions: 0",
         "leave_queue() preconditions: 0",
+        "page(String view, String key, Int32 page) preconditions: 0",
+        "rescheduleapprove(Int32 request) preconditions: 0",
+        "reschedulereject(Int32 request) preconditions: 0",
         "set_gamertag() preconditions: 0",
         "signup(Int32 seasonId) preconditions: 0",
         "signupdetails(Int32 seasonId) preconditions: 0",
@@ -30,6 +35,9 @@ public class DiscordModuleRegistrationTests
     private static readonly string[] StringMenus =
     [
         "draftpick(Int32 seasonId, Int32 captainId, Int32 _) preconditions: 0",
+        "playerview(Int32 userId) preconditions: 0",
+        "seasonstat(Int32 seasonId) preconditions: 0",
+        "seasonview(String view) preconditions: 0",
         "votetokick(Int32 matchId) preconditions: 0",
     ];
 

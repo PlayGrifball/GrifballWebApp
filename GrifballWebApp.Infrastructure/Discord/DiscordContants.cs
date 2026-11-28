@@ -18,6 +18,36 @@ public class DiscordButtonContants
         return $"{VoteForWinner}:{matchId}:{winnerVote}";
     }
 
+    public const string Page = "page";
+    public static string PageWithParams(string view, string key, int page)
+    {
+        return $"{Page}:{view}:{key}:{page}";
+    }
+
+    public const string RescheduleApprove = "rescheduleapprove";
+    public static string RescheduleApproveWithParams(int request)
+    {
+        return $"{RescheduleApprove}:{request}";
+    }
+
+    public const string RescheduleReject = "reschedulereject";
+    public static string RescheduleRejectWithParams(int request)
+    {
+        return $"{RescheduleReject}:{request}";
+    }
+
+    public const string ClaimApprove = "claimapprove";
+    public static string ClaimApproveWithParams(int claim)
+    {
+        return $"{ClaimApprove}:{claim}";
+    }
+
+    public const string ClaimReject = "claimreject";
+    public static string ClaimRejectWithParams(int claim)
+    {
+        return $"{ClaimReject}:{claim}";
+    }
+
     public const string ChatConfirm = "chatconfirm";
     public static string ChatConfirmWithParams(string actionId, bool approved)
     {
@@ -46,6 +76,24 @@ public class DiscordStringMenuContants
     public static string VoteToKickWithParams(int matchId)
     {
         return $"{VoteToKick}:{matchId}";
+    }
+
+    public const string SeasonView = "seasonview";
+    public static string SeasonViewWithParams(string view)
+    {
+        return $"{SeasonView}:{view}";
+    }
+
+    public const string SeasonStat = "seasonstat";
+    public static string SeasonStatWithParams(int seasonId)
+    {
+        return $"{SeasonStat}:{seasonId}";
+    }
+
+    public const string PlayerView = "playerview";
+    public static string PlayerViewWithParams(int userId)
+    {
+        return $"{PlayerView}:{userId}";
     }
 
     public const string DraftPick = "draftpick";

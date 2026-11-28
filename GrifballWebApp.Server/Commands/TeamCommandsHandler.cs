@@ -57,19 +57,37 @@ public class TeamCommandsHandler
         await context.Reply(embed);
     }
 
+    /// <summary>The roster's list, paged (<see cref="ViewRoster"/>).</summary>
+    public const string RosterView = "roster";
+
     public async Task Roster(IDiscordInteractionContext context, string team)
     {
         await context.Defer(ephemeral: false);
         if (await TeamFor(context, team) is not { } t)
             return;
-        var lines = t.Team.Players
+        await context.Reply(Roster(t.TeamID, t.Team, t.Url, 0));
+    }
+
+    /// <summary>
+    /// Page <paramref name="page"/> of team <paramref name="teamID"/>'s roster: a team the caller found, and checked that anyone may see
+    /// (<see cref="CommandViewHandler"/>), as the message is the channel's.
+    /// </summary>
+    public async Task<CommandView> ViewRoster(int teamID, int page)
+    {
+        var team = (await _teams.GetAsync(teamID))!;
+        return Roster(teamID, team, _urls.Team(team.Season.SeasonID, teamID), page);
+    }
+
+    private CommandView Roster(int teamID, TeamDto team, string url, int page)
+    {
+        var lines = team.Players
             .OrderByDescending(x => x.IsCaptain)
             .ThenBy(x => x.DraftRound ?? int.MaxValue)
             .Select(x => x.Gamertag.LinkMarkdown(_urls.Profile(x.UserID))
                 + (x.IsCaptain ? " (captain)" : x.DraftRound is int round ? $" · round {round}" : "")
                 + (x.Region is { } region ? $" · {region}" : ""))
             .ToList();
-        await context.Reply(CommandReplies.Embed($"{t.Team.TeamName} roster", t.Url, CommandReplies.Lines(lines, "No players yet.")));
+        return CommandViews.List(RosterView, teamID.ToString(System.Globalization.CultureInfo.InvariantCulture), page, new CommandList($"{team.TeamName} roster", url, lines, "No players yet."));
     }
 
     public async Task History(IDiscordInteractionContext context, string team)

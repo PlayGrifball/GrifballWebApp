@@ -423,6 +423,50 @@ public class AdminCommandsTests
         Assert.That(discord.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
     }
 
+    /// <summary>The custom IDs of each row of buttons an edit set, a row's joined by a comma.</summary>
+    private static List<string> ButtonRows(CommandContextRecorder discord)
+        => [.. ((IEnumerable<NetCord.Rest.IMessageComponentProperties>)discord.EditArgument("WithComponents")!).OfType<NetCord.Rest.ActionRowProperties>()
+            .Select(row => string.Join(",", row.OfType<NetCord.Rest.ButtonProperties>().Select(b => b.CustomId)))];
+
+    [Test]
+    public async Task PendingReschedules_Should_ShortenALongReason_WithItsButtonsUnderIt()
+    {
+        var seeded = await RescheduleTestData.SeedAsync(_context, scheduled: DateTime.UtcNow.AddDays(3));
+        var request = await new RescheduleService(_context, new ContextOutbox(_context)).RequestRescheduleAsync(
+            new RescheduleRequestDto { SeasonMatchID = seeded.Match.SeasonMatchID, Reason = new string('r', 900) }, seeded.Requester.Id);
+        var pending = As(_commissioner);
+
+        await _handler.PendingReschedules(pending.Context);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pending.Embed().Description, Does.Contain(new string('r', 299) + "…").And.Not.Contain(new string('r', 300)));
+            Assert.That(ButtonRows(pending), Is.EqualTo(new[] { $"rescheduleapprove:{request.MatchRescheduleID},reschedulereject:{request.MatchRescheduleID}" }));
+        }
+    }
+
+    [Test]
+    public async Task Claims_Should_ListTheFirstFive_EachWithItsButtons_AndSayHowManyMore()
+    {
+        var sysadmin = await Sysadmin();
+        var claimant = await _context.AddUser("claimant", gamertag: "Claimant");
+        for (var i = 0; i < 6; i++)
+        {
+            var placeholder = await _context.AddUser($"Old{i}");
+            _context.GamertagClaims.Add(GrifballWebApp.Domain.Archive.GamertagClaim.ClaimedByUser(claimant.Id, null, $"Old{i}", $"OLD{i}", placeholder.Id, null, null));
+        }
+        await _context.SaveChangesAsync();
+        var list = As(sysadmin);
+
+        await _handler.Claims(list.Context);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ButtonRows(list), Has.Count.EqualTo(5));
+            Assert.That(list.Embed().Description, Does.EndWith(CommandReplies.More(1)));
+        }
+    }
+
     [Test]
     public async Task DecideReschedule_Should_RejectARequest()
     {

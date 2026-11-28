@@ -7,6 +7,7 @@ using GrifballWebApp.Application.MatchPlanner;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Application.TeamStandings;
+using GrifballWebApp.Infrastructure.Discord;
 using NetCord.Rest;
 
 namespace GrifballWebApp.Server.Commands;
@@ -27,7 +28,6 @@ public enum SeasonStat
 public class SeasonCommandsHandler
 {
     public const string NoSuchSeason = CommandLookups.NoSuchSeason;
-    private const int Top = 10;
 
     private readonly CommandLookups _lookups;
     private readonly SeasonService _seasons;
@@ -95,41 +95,104 @@ public class SeasonCommandsHandler
         await context.Reply(embed);
     }
 
-    public async Task Standings(IDiscordInteractionContext context, string? season)
+    /// <summary>The views /season's lists show, each paged and with a menu to switch season (<see cref="View"/>).</summary>
+    public const string StandingsView = "standings";
+    public const string ScheduleView = "schedule";
+    public const string GradesView = "grades";
+    public const string SignupsView = "signups";
+    private const string StatsPrefix = "stats-";
+
+    /// <summary>The view of the players ranked by <paramref name="stat"/> (<c>/season stats</c>).</summary>
+    public static string StatsView(SeasonStat stat) => StatsPrefix + stat;
+
+    public Task Standings(IDiscordInteractionContext context, string? season) => Reply(context, season, StandingsView);
+
+    public Task Schedule(IDiscordInteractionContext context, string? season) => Reply(context, season, ScheduleView);
+
+    public Task Stats(IDiscordInteractionContext context, string? season, SeasonStat stat) => Reply(context, season, StatsView(stat));
+
+    public Task Grades(IDiscordInteractionContext context, string? season) => Reply(context, season, GradesView);
+
+    public Task Signups(IDiscordInteractionContext context, string? season) => Reply(context, season, SignupsView, SeasonPurpose.Upcoming);
+
+    /// <summary>A list's first page, for the season asked for or the one <paramref name="purpose"/> means.</summary>
+    private async Task Reply(IDiscordInteractionContext context, string? season, string view, SeasonPurpose purpose = SeasonPurpose.Current)
     {
         await context.Defer(ephemeral: false);
-        if (await SeasonFor(context, season) is not { } s)
-            return;
-        var standings = await _standings.GetTeamStandings(s.ID);
-        var lines = standings
-            .Select((x, i) => $"{i + 1}. {x.TeamName.LinkMarkdown(_urls.Team(s.ID, x.TeamID))} · {x.Wins}-{x.Losses}")
-            .ToList();
-        await context.Reply(CommandReplies.Embed($"{s.Name} standings", _urls.Season(s.ID), CommandReplies.Lines(lines, "No teams yet.")));
+        if (await _lookups.SeasonFor(context, season, purpose) is int id)
+            await context.Reply((await View(view, id, 0))!);
     }
 
-    public async Task Schedule(IDiscordInteractionContext context, string? season)
+    /// <summary>The stat <paramref name="value"/> names (as the stat menu gives it); null for none of them, a number not one included.</summary>
+    public static SeasonStat? ParseStat(string? value) => Enum.TryParse<SeasonStat>(value, out var stat) && Enum.IsDefined(stat) ? stat : null;
+
+    /// <summary>
+    /// Page <paramref name="page"/> of season <paramref name="seasonID"/>'s list <paramref name="view"/>, with the menu to switch season (and stat,
+    /// for the stats); null for a view there isn't. The season is the caller's to have checked: the reply is the channel's.
+    /// </summary>
+    public async Task<CommandView?> View(string view, int seasonID, int page)
     {
-        await context.Defer(ephemeral: false);
-        if (await SeasonFor(context, season) is not { } s)
-            return;
-        var scheduled = await _matchPlanner.GetScheduledMatches(s.ID);
-        var unscheduled = await _matchPlanner.GetUnscheduledMatches(s.ID);
+        var name = (await _seasons.GetSeasonName(seasonID))!;
+        var stat = view.StartsWith(StatsPrefix, StringComparison.Ordinal) ? ParseStat(view[StatsPrefix.Length..]) : null;
+        var list = stat is { } ranked ? await StatsList(seasonID, name, ranked) : view switch
+        {
+            StandingsView => await StandingsList(seasonID, name),
+            ScheduleView => await ScheduleList(seasonID, name),
+            GradesView => await GradesList(seasonID, name),
+            SignupsView => await SignupsList(seasonID, name),
+            _ => null,
+        };
+        if (list is null)
+            return null;
+        IMessageComponentProperties[] menus = stat is { } shown ? [await SeasonMenu(view, seasonID), StatMenu(seasonID, shown)] : [await SeasonMenu(view, seasonID)];
+        return CommandViews.List(view, seasonID.ToString(System.Globalization.CultureInfo.InvariantCulture), page, list, menus);
+    }
+
+    /// <summary>The menu of the latest seasons (the ones anyone sees), this one picked: picking one shows the same list for it.</summary>
+    private async Task<StringMenuProperties> SeasonMenu(string view, int seasonID)
+    {
+        var current = CommandLookups.ChoiceValue(seasonID);
+        var seasons = await _lookups.SeasonChoices(null);
+        return new StringMenuProperties(DiscordStringMenuContants.SeasonViewWithParams(view),
+            [.. seasons.Select(c => new StringMenuSelectOptionProperties(c.Name, c.StringValue!) { Default = c.StringValue == current })])
+        {
+            Placeholder = "Another season",
+        };
+    }
+
+    /// <summary>The menu of the stats the players can be ranked by, <paramref name="stat"/> picked.</summary>
+    private static StringMenuProperties StatMenu(int seasonID, SeasonStat stat)
+        => new(DiscordStringMenuContants.SeasonStatWithParams(seasonID),
+            [.. Enum.GetValues<SeasonStat>().Select(s => new StringMenuSelectOptionProperties(s.ToString(), s.ToString()) { Default = s == stat })])
+        {
+            Placeholder = "Another stat",
+        };
+
+    private async Task<CommandList> StandingsList(int seasonID, string name)
+    {
+        var standings = await _standings.GetTeamStandings(seasonID);
+        var lines = standings
+            .Select((x, i) => $"{i + 1}. {x.TeamName.LinkMarkdown(_urls.Team(seasonID, x.TeamID))} · {x.Wins}-{x.Losses}")
+            .ToList();
+        return new($"{name} standings", _urls.Season(seasonID), lines, "No teams yet.");
+    }
+
+    private async Task<CommandList> ScheduleList(int seasonID, string name)
+    {
+        var scheduled = await _matchPlanner.GetScheduledMatches(seasonID);
+        var unscheduled = await _matchPlanner.GetUnscheduledMatches(seasonID);
         var lines = scheduled
             .Where(x => !x.Complete)
             .OrderBy(x => x.Time)
             .Select(x => $"{x.Time.DiscordTimeEmbed()} · {$"{x.HomeTeam} vs {x.AwayTeam}".LinkMarkdown(_urls.SeasonMatch(x.SeasonMatchID))}")
             .ToList();
-        var description = CommandReplies.Lines(lines, "No upcoming matches are scheduled.",
-            tail: unscheduled.Count > 0 ? $"\n\n{unscheduled.Count} more {(unscheduled.Count == 1 ? "match is" : "matches are")} not scheduled yet." : "");
-        await context.Reply(CommandReplies.Embed($"{s.Name} schedule", _urls.Season(s.ID), description));
+        return new($"{name} schedule", _urls.Season(seasonID), lines, "No upcoming matches are scheduled.",
+            unscheduled.Count > 0 ? $"\n\n{unscheduled.Count} more {(unscheduled.Count == 1 ? "match is" : "matches are")} not scheduled yet." : "");
     }
 
-    public async Task Stats(IDiscordInteractionContext context, string? season, SeasonStat stat)
+    private async Task<CommandList> StatsList(int seasonID, string name, SeasonStat stat)
     {
-        await context.Defer(ephemeral: false);
-        if (await SeasonFor(context, season) is not { } s)
-            return;
-        var stats = await _seasons.GetSeasonPlayerStats(s.ID);
+        var stats = await _seasons.GetSeasonPlayerStats(seasonID);
         Func<SeasonPlayerStatDto, decimal> by = stat switch
         {
             SeasonStat.Kills => x => x.Kills,
@@ -140,37 +203,29 @@ public class SeasonCommandsHandler
         var lines = stats
             .Where(x => !x.IsCombined)
             .OrderByDescending(by)
-            .Take(Top)
             .Select((x, i) => $"{i + 1}. {x.Gamertag.LinkMarkdown(_urls.Profile(x.UserID))} · {by(x):0.##}")
             .ToList();
-        await context.Reply(CommandReplies.Embed($"{s.Name}: top {stat}", _urls.Season(s.ID), CommandReplies.Lines(lines, "No stats yet.")));
+        return new($"{name}: top {stat}", _urls.Season(seasonID), lines, "No stats yet.");
     }
 
-    public async Task Grades(IDiscordInteractionContext context, string? season)
+    private async Task<CommandList> GradesList(int seasonID, string name)
     {
-        await context.Defer(ephemeral: false);
-        if (await SeasonFor(context, season) is not { } s)
-            return;
-        var grades = await _grades.GetGrades(s.ID, CancellationToken.None);
+        var grades = await _grades.GetGrades(seasonID, CancellationToken.None);
         var lines = grades.Totals
             .OrderByDescending(x => x.TotalGoals)
-            .Take(Top)
             .Select((x, i) => $"{i + 1}. {x.Gamertag} · {x.TotalGoals} goals · {x.TotalKills} kills")
             .ToList();
-        await context.Reply(CommandReplies.Embed($"{s.Name} player grades", _urls.Grades(s.ID), CommandReplies.Lines(lines, "No grades yet.")));
+        return new($"{name} player grades", _urls.Grades(seasonID), lines, "No grades yet.");
     }
 
-    public async Task Signups(IDiscordInteractionContext context, string? season)
+    private async Task<CommandList> SignupsList(int seasonID, string name)
     {
-        await context.Defer(ephemeral: false);
-        if (await SeasonFor(context, season, SeasonPurpose.Upcoming) is not { } s)
-            return;
-        var signups = await _signups.GetSignups(s.ID);
+        var signups = await _signups.GetSignups(seasonID);
         var lines = signups
             .OrderBy(x => x.Timestamp)
             .Select(x => $"{x.PersonName}{(x.WillCaptain ? " (captain)" : "")}")
             .ToList();
-        await context.Reply(CommandReplies.Embed($"{s.Name} signups: {signups.Count}", _urls.ViewSignups(s.ID), CommandReplies.Lines(lines, "Nobody has signed up yet.")));
+        return new($"{name} signups: {signups.Count}", _urls.ViewSignups(seasonID), lines, "Nobody has signed up yet.");
     }
 
     public async Task Bracket(IDiscordInteractionContext context, string? season)

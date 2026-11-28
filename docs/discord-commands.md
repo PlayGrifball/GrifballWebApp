@@ -92,6 +92,12 @@ A yes/no option left out opens a modal that asks for it, the command's other ans
 
 Free text left out opens a modal for it the same way, the match or claim picked in the command and kept: `/reschedule request` without `reason` (above), `/admin match report` without `match_id` (the Halo match ID, and the series game it replaces), `/admin match time` without `time` (starting at the match's time now), and `/admin claims reject` without `reason` (left empty, it is rejected with none).
 
+## Paging, menus and decision buttons
+
+- **Paging.** `/season standings|schedule|stats|grades|signups` and `/team roster` show 10 lines a page. With more, ◀ and ▶ under the reply page through the rest in place (the message is edited for everyone in the channel), and the footer says which page. `/season stats` and `/season grades` list every player that way, not only the top 10. `/search` needs none: its service gives at most 8 hits of each kind.
+- **Menus.** A `/season` list has a menu of the latest seasons (as anyone sees them): picking one shows the same list for it. `/season stats` has a second menu for the stat. `/player profile|stats|commendations|history` has a menu to switch between those views of the same player. A season or team that isn't there any more (a click on an old message) gets a reply saying so, seen only by who clicked.
+- **Approve and Reject.** `/reschedule pending` and `/admin claims list` put Approve and Reject under each of their first five items (a message holds five rows). Approve decides at once, as the command with `approve:true` does; Reject opens the decision modal with Reject picked (a reschedule, for the players' notes) or the rejection modal (a claim, for its reason). The role is checked on the click, as the commands check it.
+
 ## Left on the site
 
 These stay on the site, and the matching commands link to them:
