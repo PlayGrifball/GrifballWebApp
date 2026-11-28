@@ -207,8 +207,9 @@ public sealed class SpartanRenderSource(
     private async Task<Outcome> MakeAsync(UserSpartanRender render, DateTime asked, Application.Spartan.SpartanCatalog catalog, CancellationToken ct)
     {
         var plan = await WhatToRenderAsync(render.UserId, catalog, ct);
+        // Every plan without a choice says why
         if (plan.Choice is not { } choice)
-            return await NothingToRenderAsync(render, asked, plan.Problem ?? "There is no Spartan to render", plan.Passing, ct);
+            return await NothingToRenderAsync(render, asked, plan.Problem!, plan.Passing, ct);
 
         var stance = plan.Stance;
         var key = KeyOf(choice, stance, plan.Weapon, plan.WeaponCoating, plan.ExtraPoses, plan.WeaponCoatings);
