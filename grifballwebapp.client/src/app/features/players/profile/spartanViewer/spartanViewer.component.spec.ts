@@ -78,6 +78,24 @@ describe('SpartanViewerComponent', () => {
     expect(named).toEqual([['neutral', 'stance'], []]);
   });
 
+  it('ignores a slow model that fails after a newer one was shown', async () => {
+    const pending: { resolve: (names: string[]) => void; reject: (e: Error) => void }[] = [];
+    scene.show = url => { shown.push(url); return new Promise((resolve, reject) => pending.push({ resolve, reject })); };
+    const fixture = create(async () => scene);
+    const named: (readonly string[])[] = [];
+    fixture.componentInstance.clipNames.subscribe(names => named.push(names));
+    await settle(fixture);
+    fixture.componentRef.setInput('url', '/b.glb');
+    await settle(fixture);
+
+    pending[1].resolve(['neutral', 'stance']);
+    pending[0].reject(new Error('bad glb'));
+    await settle(fixture);
+
+    expect(named).toEqual([['neutral', 'stance']]);
+    expect(fixture.componentInstance.state()).toBe('ready');
+  });
+
   it('tells only the clips of the newest model when a slow one is overtaken', async () => {
     const pending: ((names: string[]) => void)[] = [];
     scene.show = url => { shown.push(url); return new Promise(resolve => pending.push(resolve)); };
