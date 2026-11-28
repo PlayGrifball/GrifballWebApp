@@ -16,6 +16,8 @@ public class UserSpartanRender
     public string? LoadoutKey { get; set; }
     /// <summary>Why the last render failed (State Failed).</summary>
     public string? Error { get; set; }
+    /// <summary>The weapon the stance in the files holds (a name from the render service's catalog); null when the hands are empty.</summary>
+    public string? Weapon { get; set; }
 
     public virtual User User { get; set; } = null!;
     public virtual ICollection<UserSpartanFile> Files { get; set; } = new List<UserSpartanFile>();

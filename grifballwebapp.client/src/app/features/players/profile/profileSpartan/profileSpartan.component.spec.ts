@@ -19,6 +19,11 @@ const catalog: SpartanCatalog = {
     ] },
     { name: 'Mark V', regions: [] },
   ],
+  weapons: [
+    { name: 'VK78 Commando Rifle', coreType: 'WeaponCommando', tags: [-40348340], coatings: ['5', '6'] },
+    { name: 'Gravity Hammer', coreType: 'WeaponGravityHammer', tags: [32486], coatings: ['7', '8'] },
+    { name: 'Energy Sword', coreType: null, tags: [44604], coatings: ['9'] },
+  ],
 };
 
 function profile(changes: Partial<SpartanProfileDto> = {}): SpartanProfileDto {
@@ -161,10 +166,44 @@ describe('ProfileSpartanComponent', () => {
     button('Save')!.click();
     fixture.detectChanges();
     const save = http.expectOne({ method: 'POST', url: stateUrl });
-    expect(save.request.body).toEqual({ core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash', visor: 'Mirror', disableDamage: false });
+    expect(save.request.body).toEqual({ core: 'Mark VII', armor: { helmet: 'Eod' }, parts: null, coating: 'Ash', visor: 'Mirror', disableDamage: false, weaponCoatings: null });
     save.flush('', { status: 200, statusText: 'OK' });
     http.expectOne({ method: 'GET', url: stateUrl }).flush(profile());
     expect(el().querySelector('form')).toBeNull();
+  });
+
+  it('offers a coating for the weapon its stance holds and for the hammer and sword, and keeps those chosen for other weapons', async () => {
+    await openForm(profile({ weapon: 'VK78 Commando Rifle', choice: { core: 'Mark VII', armor: null, parts: null, coating: null, visor: null, disableDamage: true, weaponCoatings: { 'Other Gun': '3' } } }));
+    const options = Array.from(el().querySelectorAll<HTMLOptionElement>('#spartan-coating-VK78-Commando-Rifle option')).map(o => o.value);
+    expect(options).toEqual(['', '5', '6']);
+    expect(text()).toContain('VK78 Commando Rifle coating');
+    expect(text()).toContain('Gravity Hammer coating');
+    expect(text()).toContain('Energy Sword coating');
+    pick('#spartan-coating-VK78-Commando-Rifle', '6');
+    pick('#spartan-coating-Gravity-Hammer', '8');
+    button('Save')!.click();
+    const save = http.expectOne({ method: 'POST', url: stateUrl });
+    expect(save.request.body.weaponCoatings).toEqual({ 'Other Gun': '3', 'VK78 Commando Rifle': '6', 'Gravity Hammer': '8' });
+    save.flush('', { status: 200, statusText: 'OK' });
+    http.expectOne({ method: 'GET', url: stateUrl }).flush(profile());
+  });
+
+  it('drops a weapon coating when Equipped in Halo is picked', async () => {
+    await openForm(profile({ weapon: 'VK78 Commando Rifle', choice: { core: 'Mark VII', armor: null, parts: null, coating: null, visor: null, disableDamage: true, weaponCoatings: { 'VK78 Commando Rifle': '5' } } }));
+    expect(el().querySelector<HTMLSelectElement>('#spartan-coating-VK78-Commando-Rifle')!.value).toBe('5');
+    pick('#spartan-coating-VK78-Commando-Rifle', '');
+    fixture.componentInstance.save();
+    const save = http.expectOne({ method: 'POST', url: stateUrl });
+    expect(save.request.body.weaponCoatings).toBeNull();
+    save.flush('', { status: 200, statusText: 'OK' });
+    http.expectOne({ method: 'GET', url: stateUrl }).flush(profile());
+  });
+
+  it('offers the hammer and sword coatings alone when the stance holds no weapon', async () => {
+    await openForm(profile());
+    expect(el().querySelector('#spartan-coating-VK78-Commando-Rifle')).toBeNull();
+    expect(el().querySelector('#spartan-coating-Gravity-Hammer')).not.toBeNull();
+    expect(el().querySelector('#spartan-coating-Energy-Sword')).not.toBeNull();
   });
 
   it('drops the picked pieces when the core changes, and an unpicked piece is left out', async () => {

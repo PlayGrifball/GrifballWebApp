@@ -29,6 +29,7 @@ public class UserSpartanRenderConfiguration : IEntityTypeConfiguration<UserSpart
         entity.HasKey(e => e.UserId);
         entity.Property(e => e.LoadoutKey).HasMaxLength(100);
         entity.Property(e => e.Error).HasMaxLength(500);
+        entity.Property(e => e.Weapon).HasMaxLength(64);
 
         entity.HasOne(e => e.User)
             .WithMany()

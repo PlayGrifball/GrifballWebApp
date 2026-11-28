@@ -38,6 +38,19 @@ public static class SpartanChoiceValidator
             problems.Add($"There is no coating '{choice.Coating}'");
         if (choice.Visor is not null && !catalog.Visors.Contains(choice.Visor, StringComparer.Ordinal))
             problems.Add($"There is no visor '{choice.Visor}'");
+        problems.AddRange(WeaponProblems(choice, catalog));
         return problems;
+    }
+
+    private static IEnumerable<string> WeaponProblems(SpartanChoice choice, SpartanCatalog catalog)
+    {
+        foreach (var (name, coating) in (choice.WeaponCoatings ?? new Dictionary<string, string>()).OrderBy(w => w.Key, StringComparer.Ordinal))
+        {
+            var weapon = (catalog.Weapons ?? []).FirstOrDefault(w => string.Equals(w.Name, name, StringComparison.Ordinal));
+            if (weapon is null)
+                yield return $"There is no weapon '{name}'";
+            else if (!weapon.Coatings.Contains(coating, StringComparer.Ordinal))
+                yield return $"The weapon '{name}' has no coating '{coating}'";
+        }
     }
 }

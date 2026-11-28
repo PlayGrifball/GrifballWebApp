@@ -2,6 +2,8 @@ using SpartanCatalog = GrifballWebApp.Application.Spartan.SpartanCatalog;
 using SpartanCatalogCore = GrifballWebApp.Application.Spartan.SpartanCatalogCore;
 using SpartanCatalogRegion = GrifballWebApp.Application.Spartan.SpartanCatalogRegion;
 using SpartanCatalogPiece = GrifballWebApp.Application.Spartan.SpartanCatalogPiece;
+using SpartanCatalogWeapon = GrifballWebApp.Application.Spartan.SpartanCatalogWeapon;
+using SpartanCatalogPose = GrifballWebApp.Application.Spartan.SpartanCatalogPose;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -140,20 +142,22 @@ public class SpartanRenderTests : SqliteContextFixture
         return (user.Id, user.XboxUserID!.Value);
     }
 
-    private async Task EquipAsync(long xuid, DateTime? changedAt = null, string corePath = "cores/mk7.json")
+    private async Task EquipAsync(long xuid, DateTime? changedAt = null, string corePath = "cores/mk7.json", string? weaponCoatings = null, string posePath = "poses/p.json")
     {
         Context.XboxUserArmor.Add(new XboxUserArmor
         {
-            XboxUserID = xuid, Status = XboxUserArmorStatus.Found, CoreId = "mk7", CorePath = corePath, ActionPosePath = "poses/p.json",
+            XboxUserID = xuid, Status = XboxUserArmorStatus.Found, CoreId = "mk7", CorePath = corePath, ActionPosePath = posePath, WeaponCoatingsJson = weaponCoatings,
             CheckedAt = Start.UtcDateTime, ChangedAt = changedAt ?? Start.UtcDateTime.AddDays(-1),
         });
         await Context.SaveChangesAsync();
     }
 
-    private void Serve(string path, string? title = null, int? stance = null)
+    private void Serve(string path, string? title = null, int? stance = null, int? style = null, int? weapon = null)
         => _halo.GameCmsGetItem(path, string.Empty).Returns(new HaloApiResultContainer<InGameItem, HaloApiErrorContainer>(
             new InGameItem
             {
+                StyleId = style is { } y ? new IdentifierName { MIdentifier = y } : null!,
+                WeaponTagId = weapon,
                 CommonData = new CommonItemData { Title = new DisplayString { Value = title! } },
                 StanceId = stance is { } s ? new IdentifierName { MIdentifier = s } : null!,
             }, null!));
@@ -272,6 +276,105 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That(_service.Loadouts.Single(), Does.Contain("\"stance\":77").And.Contain("\"core\":\"Mark VII\""));
             Assert.That((await Context.UserSpartanFiles.AsNoTracking().SingleAsync(f => f.UserId == userId && f.Name == "glb")).ContentType, Is.EqualTo("model/gltf-binary"));
             Assert.That((await RenderOf(userId)).State, Is.EqualTo(UserSpartanRenderState.Done));
+        }
+    }
+
+    private static readonly SpartanCatalog WithCommando = Catalog with
+    {
+        Weapons = [new SpartanCatalogWeapon("VK78 Commando Rifle", "WeaponCommando", [-40348340], ["5", "6"])],
+    };
+
+    private static readonly SpartanCatalog WithGrifballWeapons = WithCommando with
+    {
+        Weapons =
+        [
+            .. WithCommando.Weapons!,
+            new SpartanCatalogWeapon("Gravity Hammer", "WeaponGravityHammer", [32486], ["7", "8"]),
+            new SpartanCatalogWeapon("Energy Sword", null, [44604], ["9"]),
+        ],
+        Poses =
+        [
+            new SpartanCatalogPose("Ruthless War Club", -1887947697, "Gravity Hammer"),
+            new SpartanCatalogPose("Captain's Pride", -1420523120, "Energy Sword"),
+            new SpartanCatalogPose("Noble Command", 1756613951, "VK78 Commando Rifle"),
+            new SpartanCatalogPose("Wave", 12, null),
+        ],
+    };
+
+    [Test]
+    public async Task EveryModel_AlsoCarriesTheHammerAndSwordPoses_EachWeaponInThePlayersCoating_ElseTheEquippedOne()
+    {
+        _catalogs = new FakeCatalogs(WithGrifballWeapons);
+        var (_, xuid) = await UserAsync(Choice with { WeaponCoatings = new Dictionary<string, string> { ["Energy Sword"] = "9" } });
+        await EquipAsync(xuid, weaponCoatings: """{"WeaponGravityHammer":"coatings/hammer.json"}""");
+        Serve("poses/p.json", stance: 77, weapon: -40348340);
+        Serve("coatings/hammer.json", style: 8);
+
+        await Source().RunAsync();
+
+        var set = JsonDocument.Parse(_service.Loadouts.Single()).RootElement;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(set.GetProperty("extraPoses").EnumerateArray().Select(p => p.GetInt32()), Is.EquivalentTo(new[] { -1887947697, -1420523120 }), "the Grifball weapons' poses, not the others");
+            Assert.That(set.GetProperty("weaponCoatings").GetProperty("Gravity Hammer").GetString(), Is.EqualTo("8"), "the hammer equipped in Halo");
+            Assert.That(set.GetProperty("weaponCoatings").GetProperty("Energy Sword").GetString(), Is.EqualTo("9"), "the sword as the player chose it");
+        }
+    }
+
+    [Test]
+    public async Task AnEquippedSet_HoldsTheWeaponOfItsPose_InTheCoatingEquippedOnThatWeapon()
+    {
+        _catalogs = new FakeCatalogs(WithCommando);
+        var (userId, xuid) = await UserAsync();
+        await EquipAsync(xuid, weaponCoatings: """{"WeaponCommando":"coatings/w.json"}""");
+        Serve("cores/mk7.json", "Mark VII");
+        Serve("poses/p.json", stance: 77, weapon: -40348340);
+        Serve("coatings/w.json", style: 6);
+
+        await Source().RunAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_service.Loadouts.Single(), Does.Contain("\"weapon\":\"VK78 Commando Rifle\"").And.Contain("\"weaponCoating\":\"6\""));
+            Assert.That((await RenderOf(userId)).Weapon, Is.EqualTo("VK78 Commando Rifle"), "the profile offers that weapon's coatings");
+        }
+    }
+
+    [Test]
+    public async Task AChoice_CoatsTheWeaponAsThePlayerChose_OverTheEquippedCoating()
+    {
+        _catalogs = new FakeCatalogs(WithCommando);
+        var (_, xuid) = await UserAsync(Choice with { WeaponCoatings = new Dictionary<string, string> { ["VK78 Commando Rifle"] = "5" } });
+        await EquipAsync(xuid, weaponCoatings: """{"WeaponCommando":"coatings/w.json"}""");
+        Serve("poses/p.json", stance: 77, weapon: -40348340);
+        Serve("coatings/w.json", style: 6);
+
+        await Source().RunAsync();
+
+        Assert.That(_service.Loadouts.Single(), Does.Contain("\"weapon\":\"VK78 Commando Rifle\"").And.Contain("\"weaponCoating\":\"5\""));
+    }
+
+    [Test]
+    public async Task AWeaponTheCatalogDoesNotHave_LeavesTheHandsEmpty_AndAnEquippedCoatingItDoesNotHave_TheDefault()
+    {
+        _catalogs = new FakeCatalogs(WithCommando);
+        var (_, unknown) = await UserAsync();
+        await EquipAsync(unknown);
+        var (_, odd) = await UserAsync();
+        await EquipAsync(odd, weaponCoatings: """{"WeaponCommando":"coatings/odd.json"}""", posePath: "poses/commando.json");
+        Serve("cores/mk7.json", "Mark VII");
+        Serve("poses/p.json", stance: 77, weapon: 999);
+        Serve("poses/commando.json", stance: 78, weapon: -40348340);
+        Serve("coatings/odd.json", style: 42);
+
+        await Source().RunAsync();
+
+        var empty = _service.Loadouts.Single(l => l.Contains("\"stance\":77"));
+        var held = _service.Loadouts.Single(l => l.Contains("\"stance\":78"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(empty, Does.Not.Contain("\"weapon\":\"").And.Not.Contain("\"weaponCoating\":\""));
+            Assert.That(held, Does.Contain("\"weapon\":\"VK78 Commando Rifle\"").And.Not.Contain("\"weaponCoating\":\""));
         }
     }
 
@@ -827,6 +930,12 @@ public class SpartanRenderTests : SqliteContextFixture
             Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "222"), 5), Is.Not.EqualTo(key));
             Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "111", "Reflection"), 5), Is.Not.EqualTo(key));
             Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("D", armor, [new(2, 1), new(1, 1)], "111"), 5), Is.Not.EqualTo(key));
+            Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "111"), 5, "VK78 Commando Rifle"), Is.Not.EqualTo(key));
+            Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "111"), 5, "VK78 Commando Rifle", "6"),
+                Is.Not.EqualTo(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "111"), 5, "VK78 Commando Rifle")));
+            Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "111"), 5, extraPoses: [1]), Is.Not.EqualTo(key));
+            Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "111"), 5, extraPoses: [1], weaponCoatings: new Dictionary<string, string> { ["Energy Sword"] = "9" }),
+                Is.Not.EqualTo(SpartanRenderSource.KeyOf(new SpartanChoice("C", armor, [new(2, 1), new(1, 1)], "111"), 5, extraPoses: [1])));
             Assert.That(SpartanRenderSource.KeyOf(new SpartanChoice("C", null, null), null), Has.Length.EqualTo(64));
         }
     }

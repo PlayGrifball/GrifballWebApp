@@ -204,7 +204,7 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
 
     /// <summary>
     /// Copies the equipped set of <paramref name="data"/> into <paramref name="row"/> and marks it found. The equipped core's
-    /// equipped theme gives the pieces; the appearance gives the stance. Returns whether anything changed from what the row had.
+    /// equipped theme gives the pieces; the appearance gives the stance, each weapon type's equipped theme its coating. Returns whether anything changed from what the row had.
     /// </summary>
     public static bool Apply(XboxUserArmor row, CustomizationData data, DateTime now)
     {
@@ -215,7 +215,7 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
 
         var before = (row.CoreId, row.CorePath, row.ThemePath, row.CoatingPath, row.HelmetPath, row.VisorPath, row.GlovePath, row.HelmetAttachmentPath,
             row.ChestAttachmentPath, row.KneePadPath, row.LeftShoulderPadPath, row.RightShoulderPadPath, row.HipAttachmentPath, row.WristAttachmentPath,
-            row.ArmorFxPath, row.MythicFxPath, row.ActionPosePath, row.StancePath, row.BodyType, row.LeftArm, row.RightArm, row.LeftLeg, row.RightLeg);
+            row.ArmorFxPath, row.MythicFxPath, row.ActionPosePath, row.StancePath, row.BodyType, row.LeftArm, row.RightArm, row.LeftLeg, row.RightLeg, row.WeaponCoatingsJson);
 
         row.CoreId = Clean(core?.CoreId);
         row.CorePath = Clean(core?.CorePath);
@@ -240,10 +240,11 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
         row.RightArm = Clean(body?.RightArm);
         row.LeftLeg = Clean(body?.LeftLeg);
         row.RightLeg = Clean(body?.RightLeg);
+        row.WeaponCoatingsJson = WeaponCoatingsOf(data);
 
         var after = (row.CoreId, row.CorePath, row.ThemePath, row.CoatingPath, row.HelmetPath, row.VisorPath, row.GlovePath, row.HelmetAttachmentPath,
             row.ChestAttachmentPath, row.KneePadPath, row.LeftShoulderPadPath, row.RightShoulderPadPath, row.HipAttachmentPath, row.WristAttachmentPath,
-            row.ArmorFxPath, row.MythicFxPath, row.ActionPosePath, row.StancePath, row.BodyType, row.LeftArm, row.RightArm, row.LeftLeg, row.RightLeg);
+            row.ArmorFxPath, row.MythicFxPath, row.ActionPosePath, row.StancePath, row.BodyType, row.LeftArm, row.RightArm, row.LeftLeg, row.RightLeg, row.WeaponCoatingsJson);
 
         var changed = row.Status is not (XboxUserArmorStatus.Found or XboxUserArmorStatus.Failed) || before != after;
         row.Status = XboxUserArmorStatus.Found;
@@ -251,6 +252,19 @@ public sealed class XboxArmorSource(GrifballContext context, IHaloInfiniteClient
         if (changed)
             row.ChangedAt = now;
         return changed;
+    }
+
+    // Per weapon type, the equipped core's equipped theme (a type's only core is often not marked equipped), as sorted JSON
+    private static string? WeaponCoatingsOf(CustomizationData data)
+    {
+        var coatings = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        foreach (var cores in (data.WeaponCores?.WeaponCores ?? []).Where(c => !string.IsNullOrWhiteSpace(c.CoreType)).GroupBy(c => c.CoreType))
+        {
+            var core = cores.FirstOrDefault(c => c.IsEquipped) ?? cores.First();
+            if (Clean(core.Themes?.FirstOrDefault(t => t.IsEquipped)?.CoatingPath) is { } path)
+                coatings[cores.Key] = path;
+        }
+        return coatings.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(coatings) : null;
     }
 
     private static string? Clean(string? path)

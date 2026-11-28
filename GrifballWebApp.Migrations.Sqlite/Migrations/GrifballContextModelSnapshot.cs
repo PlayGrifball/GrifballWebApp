@@ -7844,6 +7844,11 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int>("State")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Weapon")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
                     b.HasKey("UserId");
 
                     b.HasIndex("State", "RequestedAt");
@@ -8266,6 +8271,11 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                     b.Property<string>("VisorPath")
                         .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("WeaponCoatingsJson")
+                        .HasMaxLength(4000)
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 

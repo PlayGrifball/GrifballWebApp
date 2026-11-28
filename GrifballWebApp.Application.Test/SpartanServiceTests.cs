@@ -92,6 +92,7 @@ internal sealed class SpartanServiceTests : ApplicationDbContextTests
         render.State = UserSpartanRenderState.Failed;
         render.Error = "boom";
         render.RenderedAt = Start.UtcDateTime;
+        render.Weapon = "VK78 Commando Rifle";
         Context.UserSpartanFiles.AddRange(
             new UserSpartanFile { UserId = _userId, Name = "neutral-head", ContentType = "image/png", Content = [1] },
             new UserSpartanFile { UserId = _userId, Name = "glb", ContentType = "model/gltf-binary", Content = [2] },
@@ -109,6 +110,7 @@ internal sealed class SpartanServiceTests : ApplicationDbContextTests
             Assert.That(dto.RenderError, Is.EqualTo("boom"));
             Assert.That(dto.RenderedAt, Is.EqualTo(Start.UtcDateTime));
             Assert.That(dto.Files, Is.EqualTo(new List<string> { "glb", "neutral-head" }));
+            Assert.That(dto.Weapon, Is.EqualTo("VK78 Commando Rifle"), "the weapon the stance holds, so its coatings can be offered");
         }
     }
 

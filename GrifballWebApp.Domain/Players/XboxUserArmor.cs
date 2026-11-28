@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace GrifballWebApp.Domain.Players;
 
 /// <summary>
@@ -39,6 +41,13 @@ public class XboxUserArmor
     public string? RightArm { get; set; }
     public string? LeftLeg { get; set; }
     public string? RightLeg { get; set; }
+
+    /// <summary>Each weapon type's equipped coating as JSON: Halo's weapon core type (e.g. WeaponCommando) to the coating item's path. Null when none.</summary>
+    public string? WeaponCoatingsJson { get; set; }
+
+    /// <summary><see cref="WeaponCoatingsJson"/> read: weapon core type to coating path.</summary>
+    public IReadOnlyDictionary<string, string> WeaponCoatingPaths
+        => WeaponCoatingsJson is { } json ? JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [] : new Dictionary<string, string>();
 
     public virtual XboxUser XboxUser { get; set; } = null!;
 }

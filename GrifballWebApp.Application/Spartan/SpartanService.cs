@@ -5,14 +5,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Application.Spartan;
 
-/// <summary>What a user's Spartan stands at: their own choice if they made one, and the render of it.</summary>
+/// <summary>What a user's Spartan stands at: their own choice if they made one, and the render of it, with the weapon its stance holds.</summary>
 public sealed record SpartanProfileDto(
     SpartanChoice? Choice,
     bool HasEquippedSet,
     string? RenderState,
     DateTime? RenderedAt,
     string? RenderError,
-    IReadOnlyList<string> Files);
+    IReadOnlyList<string> Files,
+    string? Weapon = null);
 
 public enum SetSpartanOutcome { Saved, Invalid, CatalogUnavailable, NoSuchUser }
 
@@ -44,7 +45,7 @@ public class SpartanService(IApplicationDbContext context, ISpartanCatalogSource
         var hasEquipped = user.XboxUserID is long xuid
             && await context.XboxUserArmor.AnyAsync(a => a.XboxUserID == xuid && a.Status != XboxUserArmorStatus.NotFound && a.CoreId != null, ct);
         var render = await context.UserSpartanRenders.Where(r => r.UserId == userId)
-            .Select(r => new { r.State, r.RenderedAt, r.Error, Files = r.Files.Select(f => f.Name).ToList() })
+            .Select(r => new { r.State, r.RenderedAt, r.Error, r.Weapon, Files = r.Files.Select(f => f.Name).ToList() })
             .FirstOrDefaultAsync(ct);
         return new SpartanProfileDto(
             json is null ? null : JsonSerializer.Deserialize<SpartanChoice>(json, Json),
@@ -52,7 +53,8 @@ public class SpartanService(IApplicationDbContext context, ISpartanCatalogSource
             render?.State.ToString(),
             render?.RenderedAt,
             render?.Error,
-            FileNames.Where(n => render?.Files.Contains(n) == true).ToList());
+            FileNames.Where(n => render?.Files.Contains(n) == true).ToList(),
+            render?.Weapon);
     }
 
     /// <summary>Saves the user's own Spartan if the render service can render it, and asks for its render.</summary>

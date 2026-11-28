@@ -16,7 +16,9 @@ public class SpartanCatalogSourceTests
 {
     private const string Json = """
         {"cores":[{"name":"Mark VII","regions":[{"kind":"REGION","key":"helmet","region":100,"pieces":[{"permutation":1,"name":"Mark VII"},{"permutation":2,"name":null}]}]}],
-         "coatings":["111"],"visors":["Plain"],"pendingCores":["Chimera"]}
+         "coatings":["111"],"visors":["Plain"],"pendingCores":["Chimera"],
+         "weapons":[{"name":"VK78 Commando Rifle","coreType":"WeaponCommando","tags":[-40348340],"coatings":["5"]}],
+         "poses":[{"name":"Ruthless War Club","stance":-1887947697,"weapon":"Gravity Hammer"}]}
         """;
 
     private sealed class Handler(Func<HttpResponseMessage> reply) : HttpMessageHandler
@@ -39,6 +41,10 @@ public class SpartanCatalogSourceTests
         new InfiniteSpartanRenderClient(new HttpClient(handler) { BaseAddress = new Uri("http://render.test/") }),
         cache ?? new MemoryCache(new MemoryCacheOptions()), NullLogger<SpartanCatalogSource>.Instance);
 
+    // Records compare their lists by reference: compare a weapon by its values
+    private static readonly IEqualityComparer<GrifballWebApp.Application.Spartan.SpartanCatalogWeapon> WeaponComparer = EqualityComparer<GrifballWebApp.Application.Spartan.SpartanCatalogWeapon>.Create(
+        (a, b) => a!.Name == b!.Name && a.CoreType == b.CoreType && a.Tags.SequenceEqual(b.Tags) && a.Coatings.SequenceEqual(b.Coatings), w => w.Name.GetHashCode());
+
     [Test]
     public async Task TheCatalog_IsMappedToTheAppsTypes()
     {
@@ -54,6 +60,8 @@ public class SpartanCatalogSourceTests
             Assert.That(catalog.Coatings, Is.EqualTo(new List<string> { "111" }));
             Assert.That(catalog.PendingCores, Is.EqualTo(new List<string> { "Chimera" }));
             Assert.That(catalog.Visors, Is.EqualTo(new List<string> { "Plain" }));
+            Assert.That(catalog.Weapons, Is.EqualTo(new List<GrifballWebApp.Application.Spartan.SpartanCatalogWeapon> { new("VK78 Commando Rifle", "WeaponCommando", [-40348340], ["5"]) }).Using(WeaponComparer));
+            Assert.That(catalog.Poses, Is.EqualTo(new List<GrifballWebApp.Application.Spartan.SpartanCatalogPose> { new("Ruthless War Club", -1887947697, "Gravity Hammer") }));
         }
     }
 

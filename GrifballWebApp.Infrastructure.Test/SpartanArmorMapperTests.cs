@@ -44,9 +44,10 @@ public class SpartanArmorMapperTests
         },
     };
 
-    private static HaloApiResultContainer<InGameItem, HaloApiErrorContainer> Found(string? title = null, int? style = null, int? stance = null) => new(
+    private static HaloApiResultContainer<InGameItem, HaloApiErrorContainer> Found(string? title = null, int? style = null, int? stance = null, int? weapon = null) => new(
         new InGameItem
         {
+            WeaponTagId = weapon,
             CommonData = new CommonItemData { Title = new DisplayString { Value = title! } },
             StyleId = style is { } s ? new IdentifierName { MIdentifier = s } : null!,
             StanceId = stance is { } t ? new IdentifierName { MIdentifier = t } : null!,
@@ -295,14 +296,33 @@ public class SpartanArmorMapperTests
     }
 
     [Test]
-    public async Task TheStanceOfAnArmor_IsThatOfItsPose_OrNone()
+    public async Task ThePoseOfAnArmor_GivesItsStanceAndTheWeaponItHolds_AndNoWeaponForATagOfZero()
     {
-        Serve("p.json", Found(stance: 12));
+        Serve("p.json", Found(stance: 12, weapon: -40348340));
+        Serve("empty.json", Found(stance: 13, weapon: 0));
 
-        var stance = await Mapper().StanceOf(Armor(a => a.ActionPosePath = "p.json"), CancellationToken.None);
-        var none = await Mapper().StanceOf(Armor(), CancellationToken.None);
+        var held = await Mapper().PoseOf(Armor(a => a.ActionPosePath = "p.json"), CancellationToken.None);
+        var emptyHanded = await Mapper().PoseOf(Armor(a => a.ActionPosePath = "empty.json"), CancellationToken.None);
+        var none = await Mapper().PoseOf(Armor(), CancellationToken.None);
 
-        Assert.That((stance, none), Is.EqualTo(((int?)12, (int?)null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(held, Is.EqualTo(new SpartanPose(12, -40348340)));
+            Assert.That(emptyHanded, Is.EqualTo(new SpartanPose(13, null)));
+            Assert.That(none, Is.EqualTo(new SpartanPose(null, null)));
+        }
+    }
+
+    [Test]
+    public async Task TheEquippedCoatingOfAWeaponType_IsTheStyleIdOfItsCoatingItem_OrNone()
+    {
+        Serve("coatings/adrenal.json", Found(style: -976095822));
+        var armor = Armor(a => a.WeaponCoatingsJson = """{"WeaponCommando":"coatings/adrenal.json"}""");
+
+        var commando = await Mapper().WeaponCoatingOf(armor, "WeaponCommando", CancellationToken.None);
+        var sniper = await Mapper().WeaponCoatingOf(armor, "WeaponSniper", CancellationToken.None);
+
+        Assert.That((commando, sniper), Is.EqualTo(("-976095822", (string?)null)));
     }
 
     private static readonly SpartanCatalogCore TwoHelmets = new("C",
